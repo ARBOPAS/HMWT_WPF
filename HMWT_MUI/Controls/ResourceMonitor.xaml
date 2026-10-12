@@ -1,0 +1,77 @@
+<UserControl x:Class="HMWT_MUI.Controls.ResourceMonitor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             UseLayoutRounding="True" SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display">
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="RmInk" Color="#ECE4D0"/>
+        <SolidColorBrush x:Key="RmMute" Color="#8B859C"/>
+        <SolidColorBrush x:Key="RmGold" Color="#E0AE4E"/>
+        <SolidColorBrush x:Key="RmFrost" Color="#4FB6AC"/>
+        <SolidColorBrush x:Key="RmLine" Color="#322E44"/>
+
+        <Style x:Key="RmBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="Foreground" Value="{StaticResource RmGold}"/>
+            <Setter Property="Background" Value="{StaticResource RmLine}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border CornerRadius="3" Background="{TemplateBinding Background}" ClipToBounds="True">
+                            <Grid>
+                                <Rectangle x:Name="PART_Track"/>
+                                <Rectangle x:Name="PART_Indicator" Fill="{TemplateBinding Foreground}"
+                                           HorizontalAlignment="Left" RadiusX="3" RadiusY="3"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel>
+        <!-- Память приложения: именно она важна для гифок -->
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Память приложения (как в диспетчере задач)" FontSize="11" Foreground="{StaticResource RmMute}"/>
+                <TextBlock x:Name="txtProcessMemory" Text="—" FontSize="16" FontWeight="Bold"
+                           Foreground="{StaticResource RmGold}"
+                           ToolTip="Приватный рабочий набор процесса: то же число, что в столбце «Память» диспетчера задач"/>
+            </StackPanel>
+            <TextBlock Grid.Column="1" x:Name="txtGifCache" Text="" FontSize="10"
+                       Foreground="{StaticResource RmMute}" VerticalAlignment="Bottom"
+                       TextAlignment="Right"/>
+        </Grid>
+
+        <!-- Память компьютера -->
+        <TextBlock Text="Память компьютера" FontSize="11" Foreground="{StaticResource RmMute}" Margin="0,0,0,4"/>
+        <ProgressBar x:Name="barMemory" Style="{StaticResource RmBar}" Margin="0,0,0,4"/>
+        <TextBlock x:Name="txtSystemMemory" Text="—" FontSize="11"
+                   Foreground="{StaticResource RmInk}" Margin="0,0,0,12"/>
+
+        <!-- Процессор -->
+        <TextBlock Text="Процессор (загрузка приложением)" FontSize="11"
+                   Foreground="{StaticResource RmMute}" Margin="0,0,0,4"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ProgressBar Grid.Column="0" x:Name="barCpu" Style="{StaticResource RmBar}"
+                         Foreground="{StaticResource RmFrost}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" x:Name="txtCpu" Text="—" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource RmFrost}" Margin="10,0,0,0"/>
+        </Grid>
+
+        <TextBlock Text="Если память растёт при просмотре списков — понизьте качество анимации гифок выше."
+                   FontSize="10" Foreground="{StaticResource RmMute}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,87 @@
+<UserControl x:Class="HMWT_MUI.Controls.MarkdownEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="800">
+    <UserControl.Resources>
+        <Color x:Key="C.Slate">#15151F</Color>
+        <Color x:Key="C.Ink">#ECE4D0</Color>
+        <Color x:Key="C.Mute">#8B859C</Color>
+        <Color x:Key="C.Line">#322E44</Color>
+        <Color x:Key="C.Frost">#4FB6AC</Color>
+        <Color x:Key="C.Gold">#E0AE4E</Color>
+
+        <SolidColorBrush x:Key="B.Slate" Color="{StaticResource C.Slate}"/>
+        <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
+        <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
+        <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
+        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
+        <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
+
+        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
+    </UserControl.Resources>
+
+    <Grid>
+        <RichTextBox x:Name="Rtb" 
+                     Background="Transparent"
+                     Foreground="{StaticResource B.Ink}"
+                     BorderThickness="0"
+                     Padding="18,14,18,14"
+                     FontFamily="{StaticResource F.Body}"
+                     FontSize="14"
+                     CaretBrush="{StaticResource B.Gold}"
+                     SelectionBrush="#664FB6AC"
+                     AcceptsTab="True"
+                     IsUndoEnabled="True"
+                     UndoLimit="200"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"
+                     SpellCheck.IsEnabled="False"
+                     AllowDrop="True"
+                     PreviewMouseLeftButtonDown="Rtb_PreviewMouseLeftButtonDown"
+                     TextChanged="Rtb_TextChanged"
+                     PreviewKeyDown="Rtb_PreviewKeyDown"
+                     PreviewDragOver="Rtb_PreviewDragOver"
+                     PreviewDrop="Rtb_PreviewDrop"
+                     PreviewMouseWheel="Rtb_PreviewMouseWheel">
+            <RichTextBox.Document>
+                <FlowDocument FontFamily="{StaticResource F.Body}" FontSize="14"
+                              Foreground="{StaticResource B.Ink}"
+                              PagePadding="0" ColumnWidth="100000">
+                    <FlowDocument.Resources>
+                        <Style TargetType="Paragraph">
+                            <Setter Property="Margin" Value="0,4,0,4"/>
+                        </Style>
+                        <Style TargetType="ListItem">
+                            <Setter Property="Margin" Value="0,2,0,2"/>
+                        </Style>
+                    </FlowDocument.Resources>
+                </FlowDocument>
+            </RichTextBox.Document>
+        </RichTextBox>
+
+        <!-- Панель действий над картинкой -->
+        <Border x:Name="ImagePanel" Visibility="Collapsed"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                Background="{StaticResource B.Slate}"
+                BorderBrush="{StaticResource B.Frost}" BorderThickness="1"
+                CornerRadius="8" Padding="6,5" Margin="12,10,0,0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Размер:" Foreground="{StaticResource B.Mute}" FontSize="11"
+                           VerticalAlignment="Center" Margin="4,0,8,0"/>
+                <Button Content="S" Tag="220" Click="ImageSize_Click" Style="{StaticResource {x:Type Button}}"
+                        Width="30" Height="26" Margin="2,0"/>
+                <Button Content="M" Tag="400" Click="ImageSize_Click" Width="30" Height="26" Margin="2,0"/>
+                <Button Content="L" Tag="700" Click="ImageSize_Click" Width="30" Height="26" Margin="2,0"/>
+                <Button Content="Ориг." Tag="0" Click="ImageSize_Click" Height="26" Margin="2,0" Padding="6,0"/>
+                <Separator Margin="6,2" Background="{StaticResource B.Line}"/>
+                <Button Content="Обновить GIF" Click="ImageReload_Click" Height="26" Padding="8,0" Margin="2,0"
+                        ToolTip="Перезапустить анимацию"/>
+                <Button Content="Удалить" Click="ImageDelete_Click" Height="26" Padding="8,0" Margin="2,0"
+                        Background="#C0564F" Foreground="#0C0C12"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,630 @@
+<Window x:Class="HMWT_MUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HMWT_MUI"
+        mc:Ignorable="d"
+        Icon="pack://application:,,,/Resources/HmwtLogo.ico"
+        Title="HMWT · Гримуар персонажей"
+        Height="760" Width="1100" MinWidth="720" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        TextOptions.TextFormattingMode="Display"
+        SnapsToDevicePixels="True">
+
+    <Window.Resources>
+
+        <!-- ── ЦВЕТА / КИСТИ (та же палитра, что во вкладке заклинаний) ──── -->
+        <Color x:Key="C.Void">#0C0C12</Color>
+        <Color x:Key="C.Slate">#15151F</Color>
+        <Color x:Key="C.Panel">#1B1A26</Color>
+        <Color x:Key="C.PanelHi">#232132</Color>
+        <Color x:Key="C.Line">#322E44</Color>
+        <Color x:Key="C.Ink">#ECE4D0</Color>
+        <Color x:Key="C.Mute">#8B859C</Color>
+        <Color x:Key="C.Gold">#E0AE4E</Color>
+        <Color x:Key="C.Arcane">#9A7BD6</Color>
+        <Color x:Key="C.Frost">#4FB6AC</Color>
+        <Color x:Key="C.Danger">#C0564F</Color>
+
+        <SolidColorBrush x:Key="B.Panel"    Color="{StaticResource C.Panel}"/>
+        <SolidColorBrush x:Key="B.PanelHi"  Color="{StaticResource C.PanelHi}"/>
+        <SolidColorBrush x:Key="B.Line"     Color="{StaticResource C.Line}"/>
+        <SolidColorBrush x:Key="B.Ink"      Color="{StaticResource C.Ink}"/>
+        <SolidColorBrush x:Key="B.Mute"     Color="{StaticResource C.Mute}"/>
+        <SolidColorBrush x:Key="B.Gold"     Color="{StaticResource C.Gold}"/>
+        <SolidColorBrush x:Key="B.Arcane"   Color="{StaticResource C.Arcane}"/>
+        <SolidColorBrush x:Key="B.Slate"    Color="{StaticResource C.Slate}"/>
+        <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
+
+        <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0C0C12" Offset="0"/>
+            <GradientStop Color="#13111D" Offset="0.55"/>
+            <GradientStop Color="#0A0A10" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E0AE4E" Offset="0"/>
+            <GradientStop Color="#9A7BD6" Offset="1"/>
+        </LinearGradientBrush>
+
+        <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
+        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
+
+        <!-- ── ПОЛЕ ПОИСКА (плейсхолдер не налезает на текст) ───────────── -->
+        <Style x:Key="SearchBox" TargetType="TextBox">
+            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+            <Setter Property="Padding" Value="30,7,10,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
+                            <Grid>
+                                <helpers:IconView Kind="search" IconSize="15" IconBrush="{StaticResource B.Mute}" Margin="11,0,0,0" VerticalAlignment="Center"/>
+                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="ph" Text="поиск по имени или классу…" Foreground="{StaticResource B.Mute}"
+                                           Margin="30,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Text" Value=""/>
+                                    <Condition Property="IsFocused" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <Trigger Property="Text" Value="{x:Null}">
+                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── КРУГЛАЯ КНОПКА-ИКОНКА (шестерня) ─────────────────────────── -->
+        <Style x:Key="RoundIconBtn" TargetType="Button">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{StaticResource B.Panel}"
+                                BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="18">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── КАРТОЧКА ПЕРСОНАЖА: hover-подъём + тень + янтарная рамка ─── -->
+        <!-- ── КАРТОЧКА ПЕРСОНАЖА: hover-подъём + тень + янтарная рамка ─── -->
+        <Style x:Key="CharacterCardStyle" TargetType="Border">
+            <Setter Property="Width" Value="251"/>
+            <Setter Property="Height" Value="313"/>
+            <Setter Property="Margin" Value="12"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="{StaticResource B.Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <!-- Статичная толщина, не анимируем -->
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" BlurRadius="8" ShadowDepth="3" Opacity="0.5"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <EventTrigger RoutedEvent="MouseEnter">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <!-- Плавное увеличение -->
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1.04" Duration="0:0:0.16"/>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1.04" Duration="0:0:0.16"/>
+                            <!-- Усиление свечения/тени -->
+                            <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.BlurRadius)" To="20" Duration="0:0:0.2"/>
+                            <!-- Изменение цвета рамки на золотой -->
+                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Gold}" Duration="0:0:0.16"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+                <EventTrigger RoutedEvent="MouseLeave">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <!-- Возврат в исходное состояние -->
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.22"/>
+                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.22"/>
+                            <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.BlurRadius)" To="8" Duration="0:0:0.22"/>
+                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Line}" Duration="0:0:0.22"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ═══ ОТРЯД: токены и стили панели ═══
+             B.Frost и B.Ok объявлены здесь, потому что в этом окне их не было,
+             а панель отряда использует те же цвета, что и вкладка в окне персонажа. -->
+        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
+        <SolidColorBrush x:Key="B.Ok" Color="#5FA86B"/>
+
+        <Style x:Key="RoomFieldStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="6" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RoomPrimaryBtn" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Void}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                Background="{StaticResource B.Gold}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RoomGhostBtnStyle" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                Background="{StaticResource B.Slate}"
+                                BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid Background="{StaticResource B.Backdrop}">
+
+        <!-- ambient-фон: световые пятна + мерцающие руны -->
+        <Grid IsHitTestVisible="False" ClipToBounds="True">
+            <Ellipse Width="620" Height="620" Margin="-200,-240,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" Opacity="0.10">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="{StaticResource C.Arcane}" Offset="0"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <Ellipse Width="560" Height="560" Margin="0,0,-180,-220" HorizontalAlignment="Right" VerticalAlignment="Bottom" Opacity="0.08">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <TextBlock Text="✶   ᛭   ᛟ   ✶   ᛭   ✷   ᛟ" FontSize="22" Foreground="{StaticResource B.Arcane}"
+                       Opacity="0.05" Margin="40,0,0,30" VerticalAlignment="Bottom"
+                       FontFamily="{StaticResource F.Display}">
+                <TextBlock.Triggers>
+                    <EventTrigger RoutedEvent="Loaded">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.03" To="0.09"
+                                         Duration="0:0:3.4" RepeatBehavior="Forever" AutoReverse="True"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </TextBlock.Triggers>
+            </TextBlock>
+        </Grid>
+
+        <!-- ═══════════ ОСНОВНОЙ МАКЕТ: шапка + поле ═══════════ -->
+
+        <!-- ═══ МАСШТАБ ИНТЕРФЕЙСА ═══
+             Обёртка вокруг всех рабочих элементов: LayoutTransform меняет
+             размер, который занимает содержимое, поэтому переполнение считается
+             уже с учётом масштаба. Нужно для ноутбуков: на маленьком экране
+             вёрстка, рассчитанная на 1280×800, не помещается.
+
+             Прокрутка снаружи: если при крупном масштабе содержимое всё же не
+             влезет, его можно будет пролистать, а не остаться без части окна. -->
+        <ScrollViewer x:Name="UiScaleScroll"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="Transparent">
+            <Grid x:Name="UiScaleHost">
+                <Grid.LayoutTransform>
+                    <ScaleTransform x:Name="UiScale" ScaleX="1" ScaleY="1"/>
+                </Grid.LayoutTransform>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <!-- Подвал: версия сборки, чтобы при проверке сразу видеть, что
+                     у всех одинаковая сборка -->
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ШАПКА -->
+            <Border Grid.Row="0" BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,0,1" Padding="22,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- брендинг -->
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="HMWT" FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource B.Gold}" />
+                        <TextBlock Text="ГРИМУАР ПЕРСОНАЖЕЙ" FontFamily="{StaticResource F.Display}" FontSize="10"
+                                   Foreground="{StaticResource B.Mute}" Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <!-- поиск + счётчик -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Width="300"/>
+                        <TextBlock x:Name="TxtCharCount" Text="" FontFamily="{StaticResource F.Body}" FontSize="12"
+                                   Foreground="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- отряд + шестерня (x:Name + Click СОХРАНЕНЫ) -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="RoomButton" Style="{StaticResource RoundIconBtn}"
+                                ToolTip="Отряд: создать комнату или подключиться" Click="RoomButton_Click">
+                            <Grid Width="20" Height="20">
+                                <helpers:IconView Kind="room" IconSize="19" IconBrush="{StaticResource B.Mute}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border x:Name="brMainRoomDot" Width="9" Height="9" CornerRadius="5"
+                                        Background="{StaticResource B.Mute}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                        BorderBrush="{StaticResource B.Void}" BorderThickness="1.5"/>
+                            </Grid>
+                        </Button>
+                        <Button x:Name="SettingsButton" Style="{StaticResource RoundIconBtn}"
+                                ToolTip="Настройки" Click="SettingsButton_Click" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <helpers:IconView Kind="gear" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ПОЛЕ ПЕРСОНАЖЕЙ + EMPTY-STATE -->
+            <Grid Grid.Row="1">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="10,18,10,90">
+                    <WrapPanel x:Name="CharacterPanel" Orientation="Horizontal" HorizontalAlignment="Center"/>
+                </ScrollViewer>
+
+                <!-- пусто -->
+                <StackPanel x:Name="EmptyState" Visibility="Collapsed"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock Text="✶" FontFamily="{StaticResource F.Display}" FontSize="46"
+                               Foreground="{StaticResource B.Arcane}" HorizontalAlignment="Center" Opacity="0.7"/>
+                    <TextBlock x:Name="EmptyStateText" Text="Пока нет персонажей" FontFamily="{StaticResource F.Display}"
+                               FontSize="18" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center" Margin="0,10,0,4"/>
+                    <TextBlock Text="нажми  +  внизу справа, чтобы создать первого героя"
+                               FontFamily="{StaticResource F.Body}" FontSize="12" FontStyle="Italic"
+                               Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ПОДВАЛ: версия сборки.
+                 Лежит ВНУТРИ этой сетки строкой 2 — только тогда он занимает
+                 одну нижнюю полосу. Если положить его рядом с сеткой (внутрь
+                 UiScaleHost, где строк нет), он растянется на всю область и
+                 закроет шапку и список персонажей. -->
+            <Border Grid.Row="2" BorderBrush="{StaticResource B.Line}" BorderThickness="0,1,0,0"
+                    Padding="22,8" Background="{StaticResource B.Panel}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="txtAppVersion" Text="версия —"
+                                   FontFamily="{StaticResource F.Body}" FontSize="11"
+                                   Foreground="{StaticResource B.Mute}"/>
+                        <TextBlock x:Name="txtAppVersionHint" Text="" FontSize="10.5"
+                                   Foreground="{StaticResource B.Mute}" VerticalAlignment="Center"
+                                   Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <TextBlock x:Name="txtBuildStamp" Grid.Column="1" Text=""
+                               FontSize="10.5" Foreground="{StaticResource B.Mute}"
+                               VerticalAlignment="Center" HorizontalAlignment="Right"
+                               TextTrimming="CharacterEllipsis"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ПЛАВАЮЩАЯ КНОПКА «+» (x:Name + Click СОХРАНЕНЫ; прижата к низу) -->
+        <Button x:Name="AddCharacterButton" ToolTip="Создать персонажа"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24"
+                Panel.ZIndex="50" Click="AddCharacterBtn_Click" Background="Transparent" BorderThickness="0">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="g" Width="52" Height="52" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <ScaleTransform/>
+                        </Grid.RenderTransform>
+                        <Ellipse Width="52" Height="52" Fill="{StaticResource B.Panel}"
+                                 Stroke="{StaticResource B.GoldEdge}" StrokeThickness="1.5"/>
+                        <!-- Плюс строго по центру круга: без HorizontalAlignment
+                             значок растягивается на всю клетку 52×52 и рисуется
+                             от её левого края — плюс уезжал влево (у соседних
+                             значков выравнивание задано) -->
+                        <helpers:IconView Kind="plus" IconSize="22" IconBrush="{StaticResource B.Gold}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <EventTrigger RoutedEvent="MouseEnter">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="g" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1.12" Duration="0:0:0.15"/>
+                                    <DoubleAnimation Storyboard.TargetName="g" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1.12" Duration="0:0:0.15"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                        <EventTrigger RoutedEvent="MouseLeave">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="g" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1" Duration="0:0:0.2"/>
+                                    <DoubleAnimation Storyboard.TargetName="g" Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1" Duration="0:0:0.2"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <!-- ═══════════ ПАНЕЛЬ ОТРЯДА: СОЗДАТЬ ИЛИ ПОДКЛЮЧИТЬСЯ ═══════════ -->
+        <Grid x:Name="RoomPanel" Visibility="Collapsed" Background="#D906060A"
+              Panel.ZIndex="3000" MouseLeftButtonDown="RoomPanel_BackdropClick">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}"
+                    BorderThickness="1" CornerRadius="14" Width="620" MaxHeight="600"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Заголовок -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="ОТРЯД" FontFamily="{StaticResource F.Display}" FontSize="20"
+                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                            <TextBlock x:Name="txtRoomPanelSubtitle"
+                                       Text="Создайте комнату или подключитесь к уже созданной"
+                                       FontSize="12" Foreground="{StaticResource B.Mute}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Top"
+                                Style="{StaticResource RoundIconBtn}" Click="BtnCloseRoomPanel_Click"><helpers:IconView Kind="close" IconSize="13" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <!-- Содержимое -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+
+                            <!-- СОЗДАТЬ -->
+                            <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                    BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="СОЗДАТЬ КОМНАТУ" FontFamily="{StaticResource F.Display}"
+                                               FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Frost}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBlock Text="Вы станете ведущим. Ключ и адрес передайте игрокам."
+                                               FontSize="11" Foreground="{StaticResource B.Mute}" Margin="0,0,0,10"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="txtNewRoomName" Grid.Column="0" Style="{StaticResource RoomFieldStyle}"
+                                                 Text="Наша кампания" ToolTip="Название комнаты — как её будет видеть ведущий"/>
+                                        <TextBox x:Name="txtNewRoomPort" Grid.Column="1" Style="{StaticResource RoomFieldStyle}"
+                                                 Text="47777" Margin="8,0,0,0" ToolTip="Порт. Должен совпадать с пробросом на роутере"/>
+                                        <Button x:Name="btnCreateRoom" Grid.Column="2" Content="Создать"
+                                                Style="{StaticResource RoomPrimaryBtn}" Margin="8,0,0,0"
+                                                Click="BtnCreateRoom_Click"/>
+                                    </Grid>
+
+                                    <!-- Свой адрес вводить не нужно: приложение определяет его само -->
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Внутри сети:" FontSize="10"
+                                                   Foreground="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" x:Name="txtLocalAddress" Text="—"
+                                                   FontSize="12" Foreground="{StaticResource B.Ink}" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="2" x:Name="btnRefreshIp" Content="Узнать для интернета"
+                                                Style="{StaticResource RoomGhostBtnStyle}" Padding="10,5" FontSize="11"
+                                                Click="BtnRefreshIp_Click"
+                                                ToolTip="Для друзей из интернета нужен внешний адрес"/>
+                                    </Grid>
+                                    <TextBlock x:Name="txtPublicAddress" Text="" FontSize="12"
+                                               Foreground="{StaticResource B.Frost}" Margin="0,6,0,0"
+                                               TextWrapping="Wrap" Visibility="Collapsed"/>
+                                    <Button x:Name="btnCheckPort" Content="Проверить доступность порта"
+                                            Style="{StaticResource RoomGhostBtnStyle}" Padding="10,5" FontSize="11"
+                                            HorizontalAlignment="Left" Margin="0,8,0,0"
+                                            Click="BtnCheckPort_Click"
+                                            ToolTip="Проверит, работает ли проброс порта на роутере"
+                                            Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ПОДКЛЮЧИТЬСЯ -->
+                            <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                    BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="ПОДКЛЮЧИТЬСЯ" FontFamily="{StaticResource F.Display}"
+                                               FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Frost}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="txtJoinHint"
+                                               Text="Введите адрес и ключ, которые сообщил ведущий."
+                                               FontSize="11" Foreground="{StaticResource B.Mute}" Margin="0,0,0,10"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="90"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="txtJoinHost" Grid.Column="0" Style="{StaticResource RoomFieldStyle}"
+                                                 ToolTip="Адрес ведущего. В одной сети — вида 192.168.1.5, через интернет — внешний IP.&#10;Можно вставить строку целиком: 192.168.1.5:47777"/>
+                                        <TextBox x:Name="txtJoinPort" Grid.Column="1" Style="{StaticResource RoomFieldStyle}"
+                                                 Text="47777" Margin="8,0,0,0"
+                                                 ToolTip="Порт комнаты. По умолчанию 47777 — менять нужно только если ведущий задал другой"/>
+                                    </Grid>
+                                    <!-- Пояснения под полями: новичок не догадывается, что адрес и порт
+                                         вводятся в разные поля, а строку ведущего можно вставить целиком -->
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="90"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" FontSize="10" Foreground="{StaticResource B.Mute}"
+                                                   TextWrapping="Wrap"
+                                                   Text="Адрес ведущего. Можно вставить строку целиком: 192.168.1.5:47777"/>
+                                        <TextBlock Grid.Column="1" FontSize="10" Foreground="{StaticResource B.Mute}"
+                                                   Margin="8,0,0,0" TextWrapping="Wrap" Text="Порт комнаты"/>
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="txtJoinKey" Grid.Column="0" Style="{StaticResource RoomFieldStyle}"
+                                                 FontFamily="{StaticResource F.Display}"
+                                                 ToolTip="Ключ комнаты от ведущего, вида K7M2-XP9Q-RT4W. Регистр не важен"/>
+                                        <Button x:Name="btnJoinRoom" Grid.Column="1" Content="Подключиться"
+                                                Style="{StaticResource RoomPrimaryBtn}" Margin="8,0,0,0"
+                                                Click="BtnJoinRoom_Click"/>
+                                    </Grid>
+                                    <TextBlock FontSize="10" Foreground="{StaticResource B.Mute}" Margin="0,4,0,0"
+                                               TextWrapping="Wrap"
+                                               Text="Ключ комнаты от ведущего, вида K7M2-XP9Q-RT4W. Регистр не важен: K7M2 и k7m2 — одно и то же."/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- СОСТОЯНИЕ -->
+                            <Border x:Name="brRoomConnected" Background="{StaticResource B.Slate}"
+                                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1"
+                                    CornerRadius="10" Padding="16" Margin="0,0,0,12" Visibility="Collapsed">
+                                <StackPanel>
+                                    <TextBlock x:Name="txtRoomConnectedTitle" Text="ВЫ В ОТРЯДЕ"
+                                               FontFamily="{StaticResource F.Display}" FontSize="13"
+                                               FontWeight="Bold" Foreground="{StaticResource B.Ok}" Margin="0,0,0,10"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,28,0">
+                                            <TextBlock Text="КЛЮЧ" FontSize="10" Foreground="{StaticResource B.Mute}"/>
+                                            <TextBlock x:Name="txtRoomPanelKey" Text="—" FontFamily="{StaticResource F.Display}"
+                                                       FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Frost}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="АДРЕС ДЛЯ ИГРОКОВ" FontSize="10" Foreground="{StaticResource B.Mute}"/>
+                                            <TextBlock x:Name="txtRoomPanelAddress" Text="—" FontSize="14"
+                                                       Foreground="{StaticResource B.Ink}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock x:Name="txtRoomPanelPlayers" Text="" FontSize="11"
+                                               Foreground="{StaticResource B.Mute}" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- СОХРАНЁННЫЕ КОМНАТЫ -->
+                            <TextBlock Text="СОХРАНЁННЫЕ КОМНАТЫ" FontFamily="{StaticResource F.Display}" FontSize="12"
+                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,4,0,8"/>
+                            <TextBlock x:Name="txtNoRooms" Text="Пока нет сохранённых комнат."
+                                       FontSize="11" FontStyle="Italic" Foreground="{StaticResource B.Mute}"/>
+                            <StackPanel x:Name="spSavedRooms"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Действия -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button x:Name="btnRoomOpenTab" Content="Открыть окно персонажа"
+                                Style="{StaticResource RoomGhostBtnStyle}" Margin="0,0,8,0" Visibility="Collapsed"
+                                Click="BtnRoomOpenTab_Click"/>
+                        <Button x:Name="btnRoomPanelLeave" Content="Выйти из отряда"
+                                Style="{StaticResource RoomGhostBtnStyle}" Foreground="{StaticResource B.Danger}"
+                                Visibility="Collapsed" Click="BtnRoomPanelLeave_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+            </Grid>
+
+        </ScrollViewer>
+
+    </Grid>
+</Window>

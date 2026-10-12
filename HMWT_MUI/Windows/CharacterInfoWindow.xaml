@@ -1,0 +1,1229 @@
+<Window x:Class="HMWT_MUI.CharacterInfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:controls="clr-namespace:HMWT_MUI.Controls"
+        Icon="pack://application:,,,/Resources/HmwtLogo.ico"
+        Title="Лист персонажа" Height="860" Width="1440"
+        MinWidth="1200" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        TextOptions.TextFormattingMode="Display"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
+
+    <Window.Resources>
+        <!-- === ПАЛИТРА (дизайн-система) === -->
+        <Color x:Key="C.Void">#0C0C12</Color>
+        <Color x:Key="C.Slate">#15151F</Color>
+        <Color x:Key="C.Panel">#1B1A26</Color>
+        <Color x:Key="C.PanelHi">#232132</Color>
+        <Color x:Key="C.Line">#322E44</Color>
+        <Color x:Key="C.Ink">#ECE4D0</Color>
+        <Color x:Key="C.Mute">#8B859C</Color>
+        <Color x:Key="C.Gold">#E0AE4E</Color>
+        <Color x:Key="C.GoldSoft">#7A5E26</Color>
+        <Color x:Key="C.Arcane">#9A7BD6</Color>
+        <Color x:Key="C.Frost">#4FB6AC</Color>
+        <Color x:Key="C.Danger">#C0564F</Color>
+        <Color x:Key="C.Ok">#5BB974</Color>
+        <Color x:Key="C.Enchant">#C0568F</Color>
+
+        <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
+        <SolidColorBrush x:Key="B.Slate" Color="{StaticResource C.Slate}"/>
+        <SolidColorBrush x:Key="B.Panel" Color="{StaticResource C.Panel}"/>
+        <SolidColorBrush x:Key="B.PanelHi" Color="{StaticResource C.PanelHi}"/>
+        <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
+        <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
+        <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
+        <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
+        <SolidColorBrush x:Key="B.GoldSoft" Color="{StaticResource C.GoldSoft}"/>
+        <SolidColorBrush x:Key="B.Arcane" Color="{StaticResource C.Arcane}"/>
+        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
+        <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
+        <SolidColorBrush x:Key="B.Ok" Color="{StaticResource C.Ok}"/>
+        <SolidColorBrush x:Key="B.Enchant" Color="{StaticResource C.Enchant}"/>
+
+        <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0C0C12" Offset="0"/>
+            <GradientStop Color="#13111D" Offset="0.55"/>
+            <GradientStop Color="#0A0A10" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E0AE4E" Offset="0"/>
+            <GradientStop Color="#9A7BD6" Offset="1"/>
+        </LinearGradientBrush>
+
+        <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
+        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
+
+        <!-- === АДАПТИВНЫЕ РАЗМЕРЫ === -->
+        <sys:Double x:Key="SZ.Avatar">96</sys:Double>
+        <sys:Double x:Key="FS.Name">18</sys:Double>
+        <sys:Double x:Key="FS.Sub">13</sys:Double>
+        <sys:Double x:Key="FS.StatLabel">9</sys:Double>
+        <sys:Double x:Key="FS.StatValue">16</sys:Double>
+        <sys:Double x:Key="FS.AbilityTitle">13</sys:Double>
+        <sys:Double x:Key="FS.AbilityScore">36</sys:Double>
+        <sys:Double x:Key="FS.AbilityMod">16</sys:Double>
+        <sys:Double x:Key="FS.RowText">12</sys:Double>
+        <sys:Double x:Key="FS.RowValue">13</sys:Double>
+        <sys:Double x:Key="FS.SaveText">13</sys:Double>
+        <sys:Double x:Key="FS.ButtonText">12</sys:Double>
+        <sys:Double x:Key="FS.TabText">13</sys:Double>
+        <sys:Double x:Key="SZ.RoundBtn">28</sys:Double>
+        <sys:Double x:Key="SZ.DiceBtn">28</sys:Double>
+        <sys:Double x:Key="SZ.ActionBtnHeight">32</sys:Double>
+        <Thickness x:Key="TH.StatPadding">10,6,10,6</Thickness>
+        <Thickness x:Key="TH.HeaderPadding">18,12,18,12</Thickness>
+        <Thickness x:Key="TH.AbilityCardPadding">10</Thickness>
+        <Thickness x:Key="TH.SkillRowPadding">8,6,8,6</Thickness>
+
+        <!-- === СТИЛИ === -->
+        <Style x:Key="CalcKeyBtn" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RailBtn" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="20">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RailBtnActive" TargetType="Button" BasedOn="{StaticResource RailBtn}">
+            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+            <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
+        </Style>
+
+        <Style x:Key="HeaderField" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="2,2"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource B.Mute}"/>
+                    <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+                </Trigger>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                    <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StatBox" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="{DynamicResource TH.StatPadding}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                    <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="#1A1206"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{StaticResource B.Gold}" CornerRadius="6" Padding="16,8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GhostCloseBtn" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="16">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Danger}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DiceSelectBtn" TargetType="Button">
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="NumBtn" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{StaticResource B.PanelHi}" 
+                                BorderBrush="{StaticResource B.Line}" 
+                                BorderThickness="1" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{StaticResource B.Backdrop}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="58"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="50"/>
+        </Grid.RowDefinitions>
+
+        <!-- ЛЕВАЯ РЕЙКА -->
+        <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="3"
+                Background="{StaticResource B.Void}"
+                BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,1,0">
+            <StackPanel Margin="0,16,0,0" HorizontalAlignment="Center">
+                <Button x:Name="btnBack" Style="{StaticResource RailBtn}" ToolTip="Назад к списку" Click="BtnBack_Click">
+                    <helpers:IconView Kind="close" IconSize="19" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Separator Background="{StaticResource B.Line}" Margin="0,8,0,16"/>
+                <Button x:Name="btnInfoTab" Style="{StaticResource RailBtnActive}" ToolTip="Информация" Click="btnInfoTab_Click">
+                    <helpers:IconView x:Name="icoInfoTab" Kind="wizard" IconSize="20" IconBrush="{StaticResource B.Gold}" Filled="True"/>
+                </Button>
+                <Button x:Name="btnInventoryTab" Style="{StaticResource RailBtn}" ToolTip="Инвентарь" Click="btnInventoryTab_Click">
+                    <helpers:IconView x:Name="icoInventoryTab" Kind="backpack" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Button x:Name="btnAttacksTab" Style="{StaticResource RailBtn}" ToolTip="Атаки" Click="btnAttacksTab_Click">
+                    <helpers:IconView x:Name="icoAttacksTab" Kind="sword" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Button x:Name="btnNotesTab" Style="{StaticResource RailBtn}" ToolTip="Заметки" Click="btnNotesTab_Click">
+                    <helpers:IconView x:Name="icoNotesTab" Kind="note" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Button x:Name="btnSpellsTab" Style="{StaticResource RailBtn}" ToolTip="Заклинания" Click="btnSpellsTab_Click">
+                    <helpers:IconView x:Name="icoSpellsTab" Kind="wand" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Button x:Name="btnRoomTab" Style="{StaticResource RailBtn}" ToolTip="Отряд" Click="btnRoomTab_Click">
+                    <helpers:IconView x:Name="icoRoomTab" Kind="room" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Button x:Name="btnDmToolsTab" Style="{StaticResource RailBtn}"
+                        ToolTip="Инструменты ДМа: трекер инициативы и бестиарий" Click="btnDmToolsTab_Click">
+                    <!-- Корона: вкладка ведущего. Лапа бестиария стояла и здесь, и на
+                         самом бестиарии — два одинаковых значка в одном окне путали -->
+                    <helpers:IconView x:Name="icoDmToolsTab" Kind="crown" IconSize="21" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Button x:Name="btnRollHistory" Style="{StaticResource RailBtn}" ToolTip="История бросков" Click="BtnRollHistory_Click">
+                    <helpers:IconView Kind="clock" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+                <Separator Background="{StaticResource B.Line}" Margin="0,16,0,8"/>
+                <Button x:Name="btnSettingsTab" Style="{StaticResource RailBtn}" ToolTip="Настройки" Click="btnSettingsTab_Click">
+                    <helpers:IconView x:Name="icoSettingsTab" Kind="gear" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- ШАПКА -->
+        <Border Grid.Column="1" Grid.Row="0" BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,0,1"
+                Padding="{DynamicResource TH.HeaderPadding}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- РЯД 1: Аватар + имя/класс/раса -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border x:Name="AvatarBorder" Width="{DynamicResource SZ.Avatar}" Height="{DynamicResource SZ.Avatar}"
+                            CornerRadius="10" ClipToBounds="True" MouseLeftButtonUp="BtnAvatar_Click"
+                            ToolTip="1 клик — портрет персонажа&#10;Двойной клик — заменить фото">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+                                <Setter Property="BorderThickness" Value="1.5"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                        <Setter Property="RenderTransform">
+                                            <Setter.Value>
+                                                <ScaleTransform ScaleX="1.04" ScaleY="1.04"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid MouseLeftButtonDown="BtnAvatar_Click" Cursor="Hand" Background="Transparent" ToolTip="Клик — открыть портрет, двойной клик — сменить фото">
+                            <!-- HoverGif вместо Image: гифка не разбирается при заходе
+                                 в персонажа (это занимало секунды), а оживает только
+                                 когда на неё навели курсор -->
+                            <controls:HoverGif x:Name="imgCharacterPhoto" Stretch="Uniform"/>
+                            <TextBlock x:Name="txtAvatarPlaceholder" Text="?" FontFamily="{StaticResource F.Display}" FontSize="40"
+                                       FontWeight="Bold" Foreground="{StaticResource B.Mute}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="ИМЯ ПЕРСОНАЖА" Foreground="{StaticResource B.Mute}" 
+                                   FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
+                        <TextBox x:Name="txtName" Style="{StaticResource HeaderField}" Tag="name" LostFocus="Identity_LostFocus"
+                                 FontSize="{DynamicResource FS.Name}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"
+                                 Foreground="{StaticResource B.Ink}" Width="360" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock Text="КЛАСС" Foreground="{StaticResource B.Mute}" 
+                                           FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
+                                <TextBox x:Name="txtClass" Style="{StaticResource HeaderField}" Tag="class" LostFocus="Identity_LostFocus"
+                                         FontSize="{DynamicResource FS.Sub}" Foreground="{StaticResource B.Arcane}" Width="160"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="РАСА" Foreground="{StaticResource B.Mute}" 
+                                           FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
+                                <TextBox x:Name="txtRace" Style="{StaticResource HeaderField}" Tag="race" LostFocus="Identity_LostFocus"
+                                         FontSize="{DynamicResource FS.Sub}" Foreground="{StaticResource B.Ink}" Width="160"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- РЯД 2: Статы. Плитки узкие: раньше они растягивались на всю ширину
+                     и занимали место впустую. Уровень и опыт объединены в одну плитку —
+                     они про одно и то же. -->
+                <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,10"
+                             HorizontalAlignment="Left" MaxWidth="860">
+                    <Border Style="{StaticResource StatBox}" Margin="0,0,5,0" MouseLeftButtonUp="HeaderHP_Click"
+                            ToolTip="Клик — калькулятор здоровья">
+                        <StackPanel>
+                            <TextBlock Text="ХИТЫ" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtHP" Text="0/0" Foreground="{StaticResource B.Danger}" 
+                                       FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatBox}" Margin="5,0,5,0" Cursor="Hand" MouseLeftButtonUp="HeaderACSpeed_Click"
+                            ToolTip="КД и скорость: клик — изменить">
+                        <StackPanel>
+                            <TextBlock Text="КД" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtAC" Text="10" Foreground="{StaticResource B.Frost}" 
+                                       FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatBox}" Margin="5,0,5,0" Cursor="Hand" MouseLeftButtonUp="HeaderACSpeed_Click"
+                            ToolTip="КД и скорость: клик — изменить">
+                        <StackPanel>
+                            <TextBlock Text="СКОРОСТЬ" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtSpeed" Text="30" Foreground="{StaticResource B.Ink}" 
+                                       FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                        </StackPanel>
+                    </Border>
+                    <!-- Уровень и опыт вместе: раньше это были две отдельные плитки про одно и то же -->
+                    <Border Style="{StaticResource StatBox}" Margin="5,0,0,0" Cursor="Hand"
+                            MouseLeftButtonUp="HeaderLevel_Click"
+                            ToolTip="Уровень и опыт: клик — управление уровнем">
+                        <StackPanel>
+                            <TextBlock Text="УРОВЕНЬ И ОПЫТ" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock x:Name="txtLevel" Text="1" Foreground="{StaticResource B.Gold}" 
+                                           FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"
+                                           VerticalAlignment="Center"/>
+                                <helpers:IconView Kind="star" IconSize="14" IconBrush="{StaticResource B.Arcane}" VerticalAlignment="Center"/>
+                                <TextBox x:Name="txtExp" Text="0" Foreground="{StaticResource B.Ink}" 
+                                         FontSize="{DynamicResource FS.Sub}" FontWeight="Bold"
+                                         Background="Transparent" BorderThickness="0" Width="86" IsReadOnly="True"
+                                         VerticalAlignment="Center" ToolTip="Накопленный опыт"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatBox}" Margin="5,0,0,0"
+                            ToolTip="Бонус мастерства — прибавляется к проверкам и броскам атаки">
+                        <StackPanel>
+                            <TextBlock Text="МАСТЕРСТВО" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtHeaderProfBonus" Text="+2" Foreground="{StaticResource B.Arcane}" 
+                                       FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <!-- РЯД 3: Деньги. Опыт переехал в плитку «Уровень и опыт» —
+                     отдельная плитка про то же самое только занимала место. -->
+                <Grid Grid.Row="2" HorizontalAlignment="Left" MaxWidth="760">
+                    <Border Style="{StaticResource StatBox}" Cursor="Hand" MouseLeftButtonUp="HeaderGold_Click"
+                            MinWidth="380">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                <Ellipse Stroke="{StaticResource B.Gold}" StrokeThickness="1.6"/>
+                                <Ellipse Width="6" Height="6" Fill="{StaticResource B.Gold}"/>
+                            </Grid>
+                            <WrapPanel x:Name="panelGoldHeader" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                            <Button x:Name="btnGoldDisplayToggle" Grid.Column="2" Width="24" Height="24"
+                                    Background="Transparent" Foreground="{StaticResource B.Mute}" BorderThickness="0"
+                                    Cursor="Hand" ToolTip="Показать все монеты / только золото" Click="BtnGoldDisplayToggle_Click">
+                                <helpers:IconView Kind="swap" IconSize="14" IconBrush="{StaticResource B.Mute}"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <ContentControl x:Name="MainContentArea" Grid.Column="1" Grid.Row="1" Margin="16"/>
+
+        <!-- ПОДВАЛ -->
+        <Border Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2" Background="{StaticResource B.Panel}" 
+                BorderBrush="{StaticResource B.Line}" BorderThickness="0,1,0,0">
+            <Grid Margin="24,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <helpers:IconView Kind="book" IconSize="18" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel>
+                        <TextBlock Text="HMWT / Гримуар" FontFamily="{StaticResource F.Display}" FontSize="13" 
+                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                        <TextBlock Text="Редактор персонажа" FontSize="11" Foreground="{StaticResource B.Mute}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Отряд: точка показывает состояние, кнопка ведёт во вкладку.
+                     Слева от неё — инициатива: мастеру нужно окошко боя под рукой. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnInitiative" Style="{StaticResource ActionBtn}" Click="BtnInitiative_Click"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <helpers:IconView Kind="round" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <Border x:Name="brInitiativeDot" Width="9" Height="9" CornerRadius="5"
+                                    Background="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="txtInitiativeStatus" Text="Инициатива" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="btnRoomStatus" Style="{StaticResource ActionBtn}" Click="BtnRoomStatus_Click"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <helpers:IconView Kind="room" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <Border x:Name="brRoomDot" Width="9" Height="9" CornerRadius="5"
+                                    Background="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="txtRoomStatus" Text="Отряд" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="btnDice" 
+                            Style="{StaticResource ActionBtn}" Click="BtnDice_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Бросок кубиков" VerticalAlignment="Center"/></StackPanel></Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: КАЛЬКУЛЯТОР ЗОЛОТА -->
+        <Border x:Name="GoldCalcOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+            <Border.RenderTransform>
+                <TranslateTransform X="400"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="360" HorizontalAlignment="Right" 
+                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="Казначейство" FontFamily="{StaticResource F.Display}" FontSize="18" 
+                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseGoldCalc" Style="{StaticResource GhostCloseBtn}" 
+                                HorizontalAlignment="Right" Click="btnCloseGoldCalc_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="10" 
+                            Margin="0,0,0,10" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                        <TextBlock x:Name="txtCalcTotal" Text="Всего: 0.00 зм" FontSize="16" FontWeight="Bold" 
+                                   Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                    </Border>
+
+                    <WrapPanel x:Name="panelCoins" Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+                    <TextBox x:Name="txtCalcDisplay" Grid.Row="3" Text="0" FontSize="28" FontWeight="Bold" 
+                             Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Void}" 
+                             BorderBrush="{StaticResource B.Line}" BorderThickness="1" TextAlignment="Right" 
+                             Padding="10,8" Margin="0,0,0,10" IsReadOnly="True" FontFamily="{StaticResource F.Display}"/>
+
+                    <UniformGrid Grid.Row="4" Columns="5" Margin="0,0,0,10">
+                        <Button x:Name="btnCurPlatinum" Content="P" Tag="Platinum" Click="CurrencyBtn_Click" 
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurElectrum" Content="E" Tag="Electrum" Click="CurrencyBtn_Click" 
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurGold" Content="G" Tag="Gold" Click="CurrencyBtn_Click" 
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurSilver" Content="S" Tag="Silver" Click="CurrencyBtn_Click" 
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurCopper" Content="C" Tag="Copper" Click="CurrencyBtn_Click" 
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
+                    </UniformGrid>
+
+                    <UniformGrid Grid.Row="5" Rows="4" Columns="4" VerticalAlignment="Top" Margin="0,0,0,10">
+                        <Button Content="7" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="8" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="9" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Click="CalcBackspace_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56"><helpers:IconView Kind="backspace" IconSize="18" IconBrush="{StaticResource B.Danger}" VerticalAlignment="Center"/></Button>
+                        <Button Content="4" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="5" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="6" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="+10" Click="CalcQuickAdd_Click" Tag="10" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="13" Foreground="{StaticResource B.Frost}"/>
+                        <Button Content="1" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="2" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="3" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Content="+100" Click="CalcQuickAdd_Click" Tag="100" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="13" Foreground="{StaticResource B.Frost}"/>
+                        <Button Content="0" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
+                        <Button Click="CalcGive_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Danger}" VerticalAlignment="Center"/></Button>
+                        <Button Click="CalcTake_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                        <Button Content="+1k" Click="CalcQuickAdd_Click" Tag="1000" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="13" Foreground="{StaticResource B.Frost}"/>
+                    </UniformGrid>
+
+                    <Border Grid.Row="6" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="8,6" 
+                            BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="КУРС" FontFamily="{StaticResource F.Display}" FontSize="9" 
+                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,0,0,4" HorizontalAlignment="Center"/>
+                            <TextBlock Text="1 ПМ = 10 зм · 1 ЭМ = 0.5 зм · 1 ЗМ = 10 см · 1 СМ = 10 мм" 
+                                       Foreground="{StaticResource B.Mute}" FontSize="10" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: КАЛЬКУЛЯТОР ЗДОРОВЬЯ -->
+        <Border x:Name="HPCalcOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+            <Border.RenderTransform>
+                <TranslateTransform X="400"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="380" HorizontalAlignment="Right" 
+                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="Состояние здоровья" FontFamily="{StaticResource F.Display}" FontSize="18" 
+                                   FontWeight="Bold" Foreground="{StaticResource B.Danger}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseHPCalc" Style="{StaticResource GhostCloseBtn}" HorizontalAlignment="Right"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Текущие хиты" Foreground="{StaticResource B.Mute}" FontSize="11" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="txtHPCurrent" Text="0 / 0" FontSize="32" FontWeight="Bold" 
+                                       Foreground="{StaticResource B.Danger}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                            <TextBlock x:Name="txtHPMax" Text="Максимум: 0" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="12" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="StabilizationIndicator" Grid.Row="2" Background="{StaticResource B.Void}" 
+                            CornerRadius="6" Padding="12" Margin="0,0,0,16" Visibility="Collapsed" 
+                            BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Text="УСПЕХИ" Foreground="{StaticResource B.Ok}" FontSize="10" 
+                                           FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                <StackPanel x:Name="StabSuccessesIndicator" Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource B.Slate}" 
+                                            Margin="0,0,4,0" x:Name="StabSuccess1" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                    <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource B.Slate}" 
+                                            Margin="0,0,4,0" x:Name="StabSuccess2" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                    <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource B.Slate}" 
+                                            x:Name="StabSuccess3" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="1" Text="VS" Foreground="{StaticResource B.Mute}" FontSize="12" 
+                                       FontWeight="Bold" VerticalAlignment="Center" Margin="12,0"/>
+
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Text="ПРОВАЛЫ" Foreground="{StaticResource B.Danger}" FontSize="10" 
+                                           FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                <StackPanel x:Name="StabFailuresIndicator" Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource B.Slate}" 
+                                            Margin="0,0,4,0" x:Name="StabFailure1" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                    <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource B.Slate}" 
+                                            Margin="0,0,4,0" x:Name="StabFailure2" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                    <Border Width="18" Height="18" CornerRadius="9" Background="{StaticResource B.Slate}" 
+                                            x:Name="StabFailure3" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Поле можно заполнять и с клавиатуры, и кнопками калькулятора:
+                         раньше оно было IsReadOnly, и ввод с клавиатуры не работал.
+                         Разрешены только цифры, число ограничено — иначе большое
+                         значение раньше роняло программу при расчёте здоровья. -->
+                    <TextBox x:Name="txtHPInput" Grid.Row="3" Text="0" FontSize="32" FontWeight="Bold" 
+                             Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Void}" 
+                             BorderBrush="{StaticResource B.Line}" BorderThickness="1" TextAlignment="Center" 
+                             Padding="12" Margin="0,0,0,16" FontFamily="{StaticResource F.Display}"
+                             CaretBrush="{StaticResource B.Gold}"
+                             PreviewTextInput="HpNumber_PreviewTextInput"
+                             PreviewKeyDown="HpNumber_PreviewKeyDown"
+                             TextChanged="TxtHPInput_TextChanged"
+                             ToolTip="Можно вводить с клавиатуры или нажимать кнопки калькулятора"/>
+
+                    <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <UniformGrid Rows="4" Columns="3" Margin="0,0,0,16">
+                                <Button Content="7" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="8" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="9" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="4" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="5" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="6" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="1" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="2" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="3" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="0" Click="HPNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="20"/>
+                                <Button Content="C" Click="HPClear_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48" FontSize="16" Foreground="{StaticResource B.Mute}"/>
+                                <Button Click="HPBackspace_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="48"><helpers:IconView Kind="backspace" IconSize="16" IconBrush="{StaticResource B.Danger}" VerticalAlignment="Center"/></Button>
+                            </UniformGrid>
+
+                            <TextBox x:Name="txtTempHP" Text="0" FontSize="16" FontWeight="Bold" 
+                                     Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}" 
+                                     BorderBrush="{StaticResource B.Line}" BorderThickness="1" TextAlignment="Center" 
+                                     Padding="8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Временные хиты" Foreground="{StaticResource B.Mute}" FontSize="11" 
+                                       HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                            <Button x:Name="btnHPHeal" Content="ЛЕЧЕНИЕ" Height="42" Margin="0,0,0,6" 
+                                    Style="{StaticResource ActionBtn}" Background="{StaticResource B.Ok}" Foreground="#06201D"/>
+                            <Button x:Name="btnHPDamage" Content="УРОН" Height="42" Margin="0,0,0,16" 
+                                    Style="{StaticResource ActionBtn}" Background="{StaticResource B.Danger}" Foreground="#1A1206"/>
+                            <Button x:Name="btnHPTemp" Content="ПРИМЕНИТЬ ВРЕМЕННЫЕ ХИТЫ" Height="42" 
+                                    Background="{StaticResource B.Frost}" Foreground="#06201D" BorderThickness="0" 
+                                    Cursor="Hand" FontSize="13" FontWeight="Bold" Margin="0,0,0,16" Click="BtnHPTemp_Click"/>
+
+                            <TextBlock Text="Зелья лечения:" Foreground="{StaticResource B.Mute}" FontSize="12" 
+                                       FontWeight="Bold" Margin="0,0,0,8"/>
+                            <UniformGrid Columns="2" Margin="0,0,0,16">
+                                <Button x:Name="btnPotionLesser" Height="36" 
+                                        Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" 
+                                        BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                        Margin="0,0,4,0" Click="BtnPotion_Click" Tag="2d4+2"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="potion" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Обычное (2d4+2)" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button x:Name="btnPotionRegular" Height="36" 
+                                        Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" 
+                                        BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                        Margin="4,0,0,0" Click="BtnPotion_Click" Tag="4d4+4"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="potion" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Серьезное (4d4+4)" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button x:Name="btnPotionGreater" Height="36" 
+                                        Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" 
+                                        BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                        Margin="0,6,4,0" Click="BtnPotion_Click" Tag="8d4+8"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="potion" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Продвинутое (8d4+8)" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button x:Name="btnPotionSuperior" Height="36" 
+                                        Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" 
+                                        BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                        Margin="4,6,0,0" Click="BtnPotion_Click" Tag="10d4+20"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="potion" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Превосходное (10d4+20)" VerticalAlignment="Center"/></StackPanel></Button>
+                            </UniformGrid>
+
+                            <Button x:Name="btnStabilizationRollCompact" 
+                                    Height="46" Background="{StaticResource B.Arcane}" Foreground="{StaticResource B.Ink}" 
+                                    BorderThickness="0" Cursor="Hand" FontSize="14" FontWeight="Bold" Margin="0,0,0,16" 
+                                    Visibility="Collapsed" Click="BtnStabilizationRoll_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="СПАСБРОСОК СТАБИЛИЗАЦИИ (d20)" VerticalAlignment="Center"/></StackPanel></Button>
+
+                            <Border Background="{StaticResource B.Void}" CornerRadius="6" Padding="12" Margin="0,0,0,16" 
+                                    BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="Настройки хитов" Foreground="{StaticResource B.Mute}" FontSize="12" 
+                                               FontWeight="Bold" Margin="0,0,0,10"/>
+                                    <TextBlock Text="Максимум хитов" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="txtMaxHPInput" Text="0" FontSize="16" FontWeight="Bold" 
+                                         Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}" 
+                                         BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" Margin="0,0,6,0"
+                                         PreviewTextInput="HpNumber_PreviewTextInput"
+                                         PreviewKeyDown="HpNumber_PreviewKeyDown"/>
+                                        <Button Grid.Column="1" Width="42" Background="{StaticResource B.Ok}" 
+                                                BorderThickness="0" Cursor="Hand" Click="BtnSetMaxHP_Click"><helpers:IconView Kind="check" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
+                                    </Grid>
+                                    <Button x:Name="btnHPRoll" Height="42" 
+                                            Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}" 
+                                            BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                            FontWeight="Bold"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПРОСТОЙ БРОСОК КУБИКА" VerticalAlignment="Center"/></StackPanel></Button>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: МЕНЕДЖЕР УРОВНЕЙ -->
+        <Border x:Name="LevelManagerOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+            <Border.RenderTransform>
+                <TranslateTransform X="400"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="400" HorizontalAlignment="Right" 
+                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="Управление уровнем" FontFamily="{StaticResource F.Display}" FontSize="18" 
+                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseLevelManager" Style="{StaticResource GhostCloseBtn}" HorizontalAlignment="Right"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="txtLevelMin" Text="1" Foreground="{StaticResource B.Mute}" FontSize="14" 
+                                           VerticalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                                <TextBlock Grid.Column="2" x:Name="txtLevelMax" Text="2" Foreground="{StaticResource B.Mute}" 
+                                           FontSize="14" VerticalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                            </Grid>
+                            <Border Height="8" Background="{StaticResource B.Void}" CornerRadius="4" Margin="0,0,0,10" 
+                                    BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                                <Border x:Name="ProgressBarFill" Background="{StaticResource B.Gold}" CornerRadius="4" 
+                                        HorizontalAlignment="Left" Width="0"/>
+                            </Border>
+                            <TextBlock x:Name="txtExpCurrent" Text="Опыт: 0 / 300" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                            <TextBlock x:Name="txtManagerProfBonus" Text="Бонус мастерства: +2" Foreground="{StaticResource B.Frost}" 
+                                       FontSize="12" HorizontalAlignment="Center" FontWeight="Bold"/>
+                            <Button x:Name="btnLevelUpAvailable" Height="42" 
+                                    Background="{StaticResource B.Ok}" Foreground="#06201D" BorderThickness="0" Cursor="Hand" 
+                                    FontWeight="Bold" Margin="0,16,0,0" Visibility="Collapsed" Click="BtnLevelUpAvailable_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="bolt" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПОВЫСИТЬ УРОВЕНЬ" VerticalAlignment="Center"/></StackPanel></Button>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="2" Margin="0,0,0,16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- Поле принимает и клавиатуру, и кнопки: раньше оно
+                                 было IsReadOnly, и набрать число с клавиатуры
+                                 было нельзя (то же исправлено в калькуляторе здоровья) -->
+                            <TextBox x:Name="txtLevelInput" Text="0" FontSize="32" FontWeight="Bold" 
+                                     Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Void}" 
+                                     BorderBrush="{StaticResource B.Line}" BorderThickness="1" TextAlignment="Center" 
+                                     Padding="12" FontFamily="{StaticResource F.Display}"
+                                     CaretBrush="{StaticResource B.Gold}"
+                                     PreviewTextInput="HpNumber_PreviewTextInput"
+                                     PreviewKeyDown="HpNumber_PreviewKeyDown"
+                                     TextChanged="TxtLevelInput_TextChanged"
+                                     ToolTip="Можно вводить с клавиатуры или нажимать кнопки"/>
+                            <Button Grid.Column="1" x:Name="btnClearInput" Width="52" Height="52" 
+                                    Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" 
+                                    BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                    Click="BtnClearInput_Click"><helpers:IconView Kind="backspace" IconSize="18" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                        </Grid>
+                        <Grid Grid.Row="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="48"/>
+                                <RowDefinition Height="48"/>
+                                <RowDefinition Height="48"/>
+                                <RowDefinition Height="48"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Row="0" Grid.Column="0" Content="7" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="7"/>
+                            <Button Grid.Row="0" Grid.Column="1" Content="8" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="8"/>
+                            <Button Grid.Row="0" Grid.Column="2" Content="9" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="9"/>
+                            <Button Grid.Row="0" Grid.Column="3" Margin="3" Background="{StaticResource B.Ok}" 
+                                    Foreground="#06201D" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" 
+                                    Click="BtnAddExpFromInput_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,4,0"/><TextBlock Text="XP" VerticalAlignment="Center"/></StackPanel></Button>
+                            <Button Grid.Row="1" Grid.Column="0" Content="4" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="4"/>
+                            <Button Grid.Row="1" Grid.Column="1" Content="5" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="5"/>
+                            <Button Grid.Row="1" Grid.Column="2" Content="6" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="6"/>
+                            <Button Grid.Row="1" Grid.Column="3" Margin="3" Background="{StaticResource B.Danger}" 
+                                    Foreground="#1A1206" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" 
+                                    Click="BtnSubtractExpFromInput_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="minus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,4,0"/><TextBlock Text="XP" VerticalAlignment="Center"/></StackPanel></Button>
+                            <Button Grid.Row="2" Grid.Column="0" Content="1" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="1"/>
+                            <Button Grid.Row="2" Grid.Column="1" Content="2" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="2"/>
+                            <Button Grid.Row="2" Grid.Column="2" Content="3" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="3"/>
+                            <Button Grid.Row="2" Grid.Column="3" FontFamily="Segoe UI Symbol" Margin="3"
+                                    Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="Auto" Click="BtnLevelSettings_Click"><helpers:IconView Kind="gear" IconSize="17" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                            <Button Grid.Row="3" Grid.Column="0" Content="C" Margin="3" Style="{StaticResource CalcKeyBtn}" 
+                                    Width="Auto" Height="Auto" FontSize="16" Foreground="{StaticResource B.Mute}" Click="BtnClearInput_Click"/>
+                            <Button Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Content="0" Margin="3" 
+                                    Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="Auto" FontSize="18" 
+                                    Click="BtnDigit_Click" Tag="0"/>
+                        </Grid>
+                    </Grid>
+
+                    <Border x:Name="ManualEditPanel" Grid.Row="3" Background="{StaticResource B.Void}" CornerRadius="6" 
+                            Padding="16" Visibility="Collapsed" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Ручная настройка" Foreground="{StaticResource B.Mute}" FontSize="14" 
+                                       FontWeight="Bold" Margin="0,0,0,16" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="Уровень" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtManualLevel" Text="1" FontSize="16" FontWeight="Bold" 
+                                             Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}" 
+                                             BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" 
+                                             Margin="0,0,6,0" TextAlignment="Center" LostFocus="TxtManualLevel_LostFocus"/>
+                                    <Button Grid.Column="1" x:Name="btnDecreaseLevel" Width="42" Height="42" 
+                                            Background="{StaticResource B.Danger}" Foreground="#1A1206" BorderThickness="0" 
+                                            Cursor="Hand" Margin="0,0,6,0" Click="BtnDecreaseLevel_Click"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
+                                    <Button Grid.Column="2" x:Name="btnIncreaseLevel" Width="42" Height="42" 
+                                            Background="{StaticResource B.Ok}" Foreground="#06201D" BorderThickness="0" 
+                                            Cursor="Hand" Click="BtnIncreaseLevel_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="Опыт" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtManualExp" Text="0" FontSize="16" FontWeight="Bold" 
+                                             Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}" 
+                                             BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" 
+                                             Margin="0,0,6,0" TextAlignment="Center" LostFocus="TxtManualExp_LostFocus"/>
+                                    <Button Grid.Column="1" x:Name="btnDecreaseExpManual" Width="42" Height="42" 
+                                            Background="{StaticResource B.Danger}" Foreground="#1A1206" BorderThickness="0" 
+                                            Cursor="Hand" Margin="0,0,6,0" Click="BtnDecreaseExpManual_Click"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
+                                    <Button Grid.Column="2" x:Name="btnIncreaseExpManual" Width="42" Height="42" 
+                                            Background="{StaticResource B.Ok}" Foreground="#06201D" BorderThickness="0" 
+                                            Cursor="Hand" Click="BtnIncreaseExpManual_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="Бонус владения" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtManualProficiency" Text="+2" FontSize="16" FontWeight="Bold" 
+                                             Foreground="{StaticResource B.Frost}" Background="{StaticResource B.Slate}" 
+                                             BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" 
+                                             Margin="0,0,6,0" TextAlignment="Center" LostFocus="TxtManualProf_LostFocus"/>
+                                    <Button Grid.Column="1" x:Name="btnDecreaseProf" Width="42" Height="42" 
+                                            Background="{StaticResource B.Danger}" Foreground="#1A1206" BorderThickness="0" 
+                                            Cursor="Hand" Margin="0,0,6,0" Click="BtnDecreaseProf_Click"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
+                                    <Button Grid.Column="2" x:Name="btnIncreaseProf" Width="42" Height="42" 
+                                            Background="{StaticResource B.Ok}" Foreground="#06201D" BorderThickness="0" 
+                                            Cursor="Hand" Click="BtnIncreaseProf_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                                </Grid>
+                            </StackPanel>
+                            <Button x:Name="btnCloseManualEdit" Content="ЗАКРЫТЬ" Height="42" 
+                                    Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}" 
+                                    BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
+                                    FontSize="13" FontWeight="Bold" Click="BtnCloseManualEdit_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: МЕНЮ ВЫБОРА КУБИКОВ -->
+        <Border x:Name="DiceMenuOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="250" MouseLeftButtonDown="OverlayBackground_Click">
+            <Border Background="{StaticResource B.Panel}" Width="400" Height="500" HorizontalAlignment="Center" 
+                    VerticalAlignment="Center" CornerRadius="12" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock x:Name="txtDiceMenuTitle" Text="ВЫБОР КУБИКОВ" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                        <Button x:Name="btnCloseDiceMenu" Style="{StaticResource GhostCloseBtn}" 
+                                HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnCloseDiceMenu_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
+                        <Button x:Name="btnD4" Content="d4" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D4"/>
+                        <Button x:Name="btnD6" Content="d6" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D6"/>
+                        <Button x:Name="btnD8" Content="d8" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D8"/>
+                        <Button x:Name="btnD10" Content="d10" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D10"/>
+                        <Button x:Name="btnD12" Content="d12" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D12"/>
+                        <Button x:Name="btnD20" Content="d20" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D20"/>
+                        <Button x:Name="btnD100" Content="d100" Style="{StaticResource DiceSelectBtn}" Click="DiceButton_Click" Tag="D100"/>
+                    </UniformGrid>
+
+                    <Grid Grid.Row="2" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="Количество:" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtDiceCount" Text="1" FontSize="16" FontWeight="Bold" 
+                                         Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}" 
+                                         BorderThickness="0" Padding="10" TextAlignment="Center"/>
+                                <Button Grid.Column="1" x:Name="btnDecreaseCount" Style="{StaticResource NumBtn}" Click="BtnDecreaseCount_Click"><helpers:IconView Kind="minus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                                <Button Grid.Column="2" x:Name="btnIncreaseCount" Style="{StaticResource NumBtn}" Click="BtnIncreaseCount_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                            <TextBlock Text="Модификатор:" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="txtDiceModifier" Text="0" FontSize="16" FontWeight="Bold" 
+                                         Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}" 
+                                         BorderThickness="0" Padding="10" TextAlignment="Center"/>
+                                <Button Grid.Column="1" x:Name="btnDecreaseMod" Style="{StaticResource NumBtn}" Click="BtnDecreaseMod_Click"><helpers:IconView Kind="minus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                                <Button Grid.Column="2" x:Name="btnIncreaseMod" Style="{StaticResource NumBtn}" Click="BtnIncreaseMod_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="3" Margin="0,0,0,16">
+                        <TextBlock Text="Формула (можно вручную):" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
+                        <TextBox x:Name="txtDiceFormula" Height="34" FontSize="14" FontWeight="Bold"
+                                 Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}"
+                                 BorderThickness="0" Padding="10" TextAlignment="Center"
+                                 ToolTip="Например: 9d20, 2к6+3, 1d20-2, 1d20+СИЛ, 3d8+ЛОВ"
+                                 TextChanged="TxtDiceFormula_TextChanged"/>
+                        <TextBlock Text="9d20 · 2к6+3 · 1d20-2 · 1d20+СИЛ (СИЛ, ЛОВ, ТЕЛ, ИНТ, МДР, ХАР)"
+                                   Foreground="{StaticResource B.Mute}" FontSize="10" Margin="0,4,0,0"
+                                   TextWrapping="Wrap" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="4" Margin="0,0,0,24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="btnRollDice" Grid.Column="0" Height="52"
+                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                Background="{StaticResource B.Gold}" Foreground="#1A1206" BorderThickness="0"
+                                FontWeight="Bold" Cursor="Hand" Click="BtnRollDice_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="БРОСИТЬ" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="btnRollFormula" Grid.Column="1" Content="По формуле" Height="52" MinWidth="130"
+                                Margin="10,0,0,0" Padding="12,0"
+                                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                                Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Gold}"
+                                BorderBrush="{StaticResource B.Gold}" BorderThickness="1"
+                                FontSize="14" FontWeight="SemiBold" Cursor="Hand" Click="BtnRollFormula_Click"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ПАНЕЛЬ РЕЗУЛЬТАТОВ БРОСКОВ -->
+        <Border x:Name="DiceResultsPanel" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+                Width="400" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20,0,0,60" 
+                Panel.ZIndex="150" Background="Transparent">
+            <StackPanel x:Name="spDiceResults"/>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: ИСТОРИЯ БРОСКОВ (СЕССИЯ) -->
+        <Border x:Name="RollHistoryOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="RollHistoryOverlay_Close">
+            <Border.RenderTransform>
+                <TranslateTransform X="-400"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="420" HorizontalAlignment="Left" Margin="58,0,0,0"
+            BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="0,0,1,0">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Margin="0,0,0,16">
+                        <TextBlock Text="ИСТОРИЯ БРОСКОВ (СЕССИЯ)" FontFamily="{StaticResource F.Display}" FontSize="18"
+                           FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseRollHistory" Style="{StaticResource GhostCloseBtn}"
+                        HorizontalAlignment="Right" Click="BtnCloseRollHistory_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="spRollHistory"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: КД И СКОРОСТЬ -->
+        <Border x:Name="ACSpeedOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+            <Border.RenderTransform>
+                <TranslateTransform X="400"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="340" HorizontalAlignment="Right" 
+                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="0,0,0,16">
+                        <TextBlock Text="Боевые параметры" FontFamily="{StaticResource F.Display}" FontSize="18" 
+                                   FontWeight="Bold" Foreground="{StaticResource B.Frost}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseACSpeed" Style="{StaticResource GhostCloseBtn}" 
+                                HorizontalAlignment="Right" Click="BtnCloseACSpeed_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Класс доспеха (КД)" Foreground="{StaticResource B.Mute}" FontSize="12" Margin="0,0,0,6"/>
+                        <TextBox x:Name="txtACInput" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Frost}"
+                                 Background="{StaticResource B.Void}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                                 Padding="10" TextAlignment="Center" LostFocus="TxtACInput_LostFocus"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2">
+                        <TextBlock Text="Скорость (фт)" Foreground="{StaticResource B.Mute}" FontSize="12" Margin="0,0,0,6"/>
+                        <TextBox x:Name="txtSpeedInput" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Ink}"
+                                 Background="{StaticResource B.Void}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                                 Padding="10" TextAlignment="Center" LostFocus="TxtSpeedInput_LostFocus"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: ИНИЦИАТИВА (быстрый доступ из подвала окна) -->
+        <Border x:Name="InitiativeOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+                Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="205"
+                MouseLeftButtonDown="InitiativeOverlay_Close">
+            <Border.RenderTransform>
+                <TranslateTransform X="420"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="480" HorizontalAlignment="Right"
+                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock Text="Инициатива" FontFamily="{StaticResource F.Display}" FontSize="18"
+                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseInitiative" Style="{StaticResource GhostCloseBtn}"
+                                HorizontalAlignment="Right" Click="btnCloseInitiative_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+                    <ContentControl x:Name="InitiativeOverlayHost" Grid.Row="1"/>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: ПОРТРЕТ -->
+        <Border x:Name="PortraitOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="210" MouseLeftButtonDown="PortraitOverlay_Close">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="2"
+                    CornerRadius="12" Padding="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="Black" Opacity="0.7"/>
+                </Border.Effect>
+                <Image x:Name="imgPortrait" Width="420" Height="520" Stretch="Uniform"/>
+            </Border>
+        </Border>
+
+        <!-- ТОСТ-УВЕДОМЛЕНИЯ -->
+        <Border x:Name="ToastPanel" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="3"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,60"
+                Panel.ZIndex="300" Visibility="Collapsed" IsHitTestVisible="False"
+                Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1"
+                CornerRadius="8" Padding="18,10">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+            </Border.Effect>
+            <TextBlock x:Name="txtToast" FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Ink}"/>
+        </Border>
+    </Grid>
+</Window>

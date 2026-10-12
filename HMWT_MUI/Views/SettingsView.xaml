@@ -1,0 +1,396 @@
+<UserControl x:Class="HMWT_MUI.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
+             xmlns:controls="clr-namespace:HMWT_MUI.Controls"
+             UseLayoutRounding="True" SnapsToDevicePixels="True"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Все кисти и стили объявлены ЗДЕСЬ, внутри самой вкладки.
+
+         Почему так, а не из ресурсов окна: при разборе разметки WPF требует,
+         чтобы StaticResource уже существовал. Кисти окна персонажа и стили
+         главного окна в этот момент могут быть ещё не загружены — из-за этого
+         вкладка падала с ошибкой «Предоставление значения для
+         StaticResourceExtension вызвало исключение».
+
+         Цвета совпадают с палитрой приложения (Resources/DesignTokens.xaml),
+         чтобы вкладка выглядела так же, как остальные.
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <UserControl.Resources>
+        <FontFamily x:Key="SetFontDisplay">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
+        <FontFamily x:Key="SetFontBody">Segoe UI, Calibri</FontFamily>
+
+        <SolidColorBrush x:Key="SetVoid" Color="#0C0C12"/>
+        <SolidColorBrush x:Key="SetSlate" Color="#15151F"/>
+        <SolidColorBrush x:Key="SetPanel" Color="#1B1A26"/>
+        <SolidColorBrush x:Key="SetLine" Color="#322E44"/>
+        <SolidColorBrush x:Key="SetInk" Color="#ECE4D0"/>
+        <SolidColorBrush x:Key="SetMute" Color="#8B859C"/>
+        <SolidColorBrush x:Key="SetGold" Color="#E0AE4E"/>
+        <SolidColorBrush x:Key="SetFrost" Color="#4FB6AC"/>
+
+        <Style x:Key="SetBtn" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                                Background="{StaticResource SetSlate}"
+                                BorderBrush="{StaticResource SetLine}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource SetGold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SetCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SetPanel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource SetLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+
+        <Style x:Key="SetHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource SetFontDisplay}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+        </Style>
+
+        <Style x:Key="SetNote" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource SetMute}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <Style x:Key="SetLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+        </Style>
+
+        <!--
+          Стилизованные переключатели вместо системных.
+
+          Системные выглядят чужеродно на тёмном фоне, а у RadioButton ещё и
+          маленькая зона попадания: приходилось попадать точно по кружку.
+          Здесь кружок свой, а нажимается вся строка вместе с подписью —
+          из-за этого переключение срабатывает с первого раза.
+        -->
+        <Style x:Key="SetRadio" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="root" Background="Transparent" Padding="8,7" CornerRadius="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Кружок: кольцо и точка внутри -->
+                                <Grid Grid.Column="0" Width="18" Height="18" VerticalAlignment="Top"
+                                      Margin="0,1,10,0">
+                                    <Ellipse x:Name="ring" Stroke="{StaticResource SetLine}"
+                                             StrokeThickness="1.5" Fill="Transparent"/>
+                                    <Ellipse x:Name="dot" Width="8" Height="8" Fill="{StaticResource SetGold}"
+                                             Visibility="Collapsed"/>
+                                </Grid>
+
+                                <ContentPresenter Grid.Column="1" VerticalAlignment="Top"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ring" Property="Stroke" Value="{StaticResource SetGold}"/>
+                                <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="root" Property="Background" Value="{StaticResource SetSlate}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ring" Property="Stroke" Value="{StaticResource SetGold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SetCheck" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="root" Background="Transparent" Padding="6,5" CornerRadius="6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="box" Grid.Column="0" Width="18" Height="18" CornerRadius="4"
+                                        Background="{StaticResource SetSlate}"
+                                        BorderBrush="{StaticResource SetLine}" BorderThickness="1.5"
+                                        Margin="0,0,10,0" VerticalAlignment="Center">
+                                    <helpers:IconView Kind="check" IconSize="16" x:Name="tick"
+                                               IconBrush="{StaticResource SetVoid}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Visibility="Collapsed"/>
+                                </Border>
+                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="box" Property="Background" Value="{StaticResource SetGold}"/>
+                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource SetGold}"/>
+                                <Setter TargetName="root" Property="Background" Value="{StaticResource SetSlate}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource SetGold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Тёмный выпадающий список вместо системного белого -->
+        <Style x:Key="SetCombo" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+            <Setter Property="Background" Value="{StaticResource SetSlate}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource SetLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="bd" CornerRadius="6" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"/>
+                            <Grid Margin="12,0,10,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" VerticalAlignment="Center"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"/>
+                                <TextBlock Grid.Column="1" Text="▾" FontSize="12"
+                                           Foreground="{StaticResource SetMute}" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ToggleButton Background="Transparent" BorderThickness="0"
+                                          Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
+                                                      RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup" AllowsTransparency="True" Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}" Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border Background="{StaticResource SetPanel}" BorderBrush="{StaticResource SetLine}"
+                                        BorderThickness="1" CornerRadius="6" MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="260" Margin="0,2,0,0">
+                                    <ScrollViewer>
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource SetGold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Строка выпадающего списка -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource SetInk}"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SetSlate}"/>
+                                <Setter Property="Foreground" Value="{StaticResource SetGold}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource SetGold}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="RadioButton" BasedOn="{StaticResource SetRadio}"/>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource SetCheck}"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ЗАГОЛОВОК -->
+        <Border Grid.Row="0" BorderBrush="{StaticResource SetLine}" BorderThickness="0,0,0,1" Padding="24,18">
+            <StackPanel>
+                <TextBlock Text="НАСТРОЙКИ" FontFamily="{StaticResource SetFontDisplay}" FontSize="22"
+                           FontWeight="Bold" Foreground="{StaticResource SetGold}"/>
+                <TextBlock Text="Внешний вид и работа приложения. Изменения сохраняются сразу."
+                           Style="{StaticResource SetNote}" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,20">
+            <StackPanel>
+
+                <!-- МАСШТАБ -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Масштаб интерфейса" Style="{StaticResource SetHeader}"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14"
+                                   Text="На ноутбуке вёрстка, рассчитанная на большой экран, не помещается. Уменьшите масштаб — применится ко всем окнам, включая уже открытые."/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" x:Name="txtScaleValue" Text="100%"
+                                       FontFamily="{StaticResource SetFontDisplay}" FontSize="20" FontWeight="Bold"
+                                       Foreground="{StaticResource SetGold}" VerticalAlignment="Center" MinWidth="80"/>
+
+                            <Slider Grid.Column="1" x:Name="sldScale" Minimum="70" Maximum="150"
+                                    TickFrequency="5" IsSnapToTickEnabled="True" Value="100"
+                                    VerticalAlignment="Center" Margin="12,0"
+                                    ValueChanged="SldScale_ValueChanged"/>
+
+                            <Button Grid.Column="2" x:Name="btnScaleAuto" Content="По экрану"
+                                    Style="{StaticResource SetBtn}" Click="BtnScaleAuto_Click"/>
+                        </Grid>
+
+                        <TextBlock x:Name="txtScaleHint" Style="{StaticResource SetNote}" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ГИФКИ -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Анимация гифок" Style="{StaticResource SetHeader}"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14"
+                                   Text="Гифки проигрываются только при наведении курсора, а кадры разбираются в размере показа. Если анимация всё ещё медленная — выберите низкое качество."/>
+
+                        <RadioButton x:Name="rbGifLow" GroupName="GifQuality" Margin="0,4"
+                                     Checked="GifQuality_Checked">
+                            <StackPanel>
+                                <TextBlock Text="Низкое — быстро" Style="{StaticResource SetLabel}"/>
+                                <TextBlock Text="До 24 кадров, мелкий размер. Грубо, но мгновенно: годится для быстрого просмотра списков."
+                                           Style="{StaticResource SetNote}"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="rbGifMedium" GroupName="GifQuality" Margin="0,4"
+                                     Checked="GifQuality_Checked">
+                            <StackPanel>
+                                <TextBlock Text="Среднее — обычная работа" Style="{StaticResource SetLabel}"/>
+                                <TextBlock Text="До 80 кадров, размер побольше. Заметно чётче низкого, режим по умолчанию."
+                                           Style="{StaticResource SetNote}"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <RadioButton x:Name="rbGifHigh" GroupName="GifQuality" Margin="0,4"
+                                     Checked="GifQuality_Checked">
+                            <StackPanel>
+                                <TextBlock Text="Высокое — плавно" Style="{StaticResource SetLabel}"/>
+                                <TextBlock Text="До 160 кадров в исходном размере. Плавнее всего, но тяжёлые гифки заметно тормозят."
+                                           Style="{StaticResource SetNote}"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <TextBlock x:Name="txtGifHint" Style="{StaticResource SetNote}" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ОТРЯД -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Отряд" Style="{StaticResource SetHeader}"/>
+
+                        <CheckBox x:Name="chkShowWindowsName" Margin="0,12,0,0"
+                                  FontSize="13"
+                                  Content="Показывать имя учётной записи Windows вместо персонажа"
+                                  Checked="ChkShowWindowsName_Changed"
+                                  Unchecked="ChkShowWindowsName_Changed"/>
+                        <TextBlock Text="По умолчанию в отряде видно имя персонажа из листа. Имя учётной записи показывается, если персонаж не открыт."
+                                   Style="{StaticResource SetNote}" Margin="24,2,0,0" TextWrapping="Wrap"/>
+
+                        <TextBlock Text="Обновление данных отряда" Style="{StaticResource SetHeader}" Margin="0,20,0,0"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,10"
+                                   Text="Насколько часто проверяются изменения у других игроков: аватары, имя и здоровье. Влияет на то, как быстро вы увидите чужое изменение."/>
+
+                        <ComboBox x:Name="cmbRefreshInterval" Width="200" HorizontalAlignment="Left"
+                                  Style="{StaticResource SetCombo}"
+                                  SelectionChanged="CmbRefreshInterval_Changed"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- РЕСУРСЫ -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Нагрузка" Style="{StaticResource SetHeader}"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14"
+                                   Text="Сколько ресурсов занимает приложение прямо сейчас. Гифки — главный источник нагрузки: если память быстро растёт при просмотре списков, понизьте качество анимации."/>
+
+                        <controls:ResourceMonitor/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- НИЗ -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource SetLine}" BorderThickness="0,1,0,0" Padding="24,14">
+            <TextBlock x:Name="txtSaved" Text="" FontSize="11" Foreground="{StaticResource SetFrost}"
+                       VerticalAlignment="Center"/>
+        </Border>
+    </Grid>
+</UserControl>

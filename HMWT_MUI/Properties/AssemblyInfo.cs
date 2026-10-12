@@ -1,0 +1,64 @@
+using System.Reflection;
+using System.Resources;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Windows;
+
+// Общие сведения об этой сборке предоставляются следующим набором
+// набор атрибутов. Измените значения этих атрибутов, чтобы изменить сведения,
+// связанные со сборкой.
+//
+// Эти строки видны в свойствах exe и в списке установленных программ,
+// поэтому пишем понятное название, а не имя проекта.
+[assembly: AssemblyTitle("HMWT Гримуар")]
+[assembly: AssemblyDescription("Редактор персонажа и инструменты ведущего: инвентарь, заклинания, атаки, заметки и комнаты для совместной игры")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("HMWT")]
+[assembly: AssemblyProduct("HMWT Гримуар")]
+[assembly: AssemblyCopyright("Copyright © 2026")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+
+// Установка значения False для параметра ComVisible делает типы в этой сборке невидимыми
+// для компонентов COM. Если необходимо обратиться к типу в этой сборке через
+// из модели COM, установите атрибут ComVisible для этого типа в значение true.
+[assembly: ComVisible(false)]
+
+// Поиск подложки для диалогов проверяется тестом: ошибка в нём означает,
+// что окно подтверждения окажется внутри колонки вкладок, а не поверх окна.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("HMWT_MUI.RoomUiTests")]
+//Чтобы начать создание локализуемых приложений, задайте
+//<UICulture>CultureYouAreCodingWith</UICulture> в файле .csproj
+//в <PropertyGroup>. Например, при использовании английского (США)
+//в своих исходных файлах установите <UICulture> в en-US.  Затем отмените преобразование в комментарий
+//атрибута NeutralResourceLanguage ниже.  Обновите "en-US" в
+//строка внизу для обеспечения соответствия настройки UICulture в файле проекта.
+
+//[assembly: NeutralResourcesLanguage("en-US", UltimateResourceFallbackLocation.Satellite)]
+
+
+[assembly: ThemeInfo(
+    ResourceDictionaryLocation.None, //где расположены словари ресурсов по конкретным тематикам
+                                     //(используется, если ресурс не найден на странице,
+                                     // или в словарях ресурсов приложения)
+    ResourceDictionaryLocation.SourceAssembly //где расположен словарь универсальных ресурсов
+                                              //(используется, если ресурс не найден на странице,
+                                              // в приложении или в каких-либо словарях ресурсов для конкретной темы)
+)]
+
+
+// Сведения о версии для сборки включают четыре следующих значения:
+//
+//      Основной номер версии
+//      Дополнительный номер версии
+//      Номер сборки
+//      Номер редакции
+//
+// ВАЖНО: версию приложения проверяет комната при подключении — хост и игроки
+// должны быть на одной версии. Вторая копия этой версии лежит в Net\NetVersions.cs
+// (AppVersion), её нужно менять вместе с этой строкой.
+//
+// 1.0.0.0 — первый официальный выпуск. До него шли промежуточные сборки 1.2.x,
+// их нумерация закрыта: в выпуске и в установщике теперь 1.0.0.0.
+[assembly: AssemblyVersion("1.0.0.1")]
+[assembly: AssemblyFileVersion("1.0.0.1")]

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Проверка сетевого слоя комнаты на реальном TCP-обмене.
+
+  Отдельный исполняемый проект, а не набор скриптов, по двум причинам:
+   1. колбэки приходят из сетевых потоков, а скриптовые обработчики там выполняться не могут;
+   2. хост и клиенты живут в одном процессе, но общаются честно по сокету — легко ловить ошибки протокола.
+
+  Исходники Net подключаются как ссылки на файлы (Link), чтобы не дублировать код.
+  Проект не входит в поставку приложения.
+-->
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{7C4E9A11-3B62-4E5D-9F1A-2D8B6C0E4F77}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HMWT_MUI.NetTests</RootNamespace>
+    <AssemblyName>HMWT_MUI.NetTests</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>
+    <OutputPath>bin\</OutputPath>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Text.Json">
+      <HintPath>..\packages\System.Text.Json.10.0.10\lib\net462\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web">
+      <HintPath>..\packages\System.Text.Encodings.Web.10.0.10\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory">
+      <HintPath>..\packages\System.Memory.4.6.3\lib\net462\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Buffers">
+      <HintPath>..\packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics.Vectors">
+      <HintPath>..\packages\System.Numerics.Vectors.4.6.1\lib\net462\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.10.0.10\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO.Pipelines">
+      <HintPath>..\packages\System.IO.Pipelines.10.0.10\lib\net462\System.IO.Pipelines.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <!-- Исходники сетевого слоя: те же файлы, что и в приложении -->
+    <Compile Include="..\HMWT_MUI\Net\NetVersions.cs"><Link>Net\NetVersions.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\NetMessages.cs"><Link>Net\NetMessages.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\NetFraming.cs"><Link>Net\NetFraming.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomKey.cs"><Link>Net\RoomKey.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomStore.cs"><Link>Net\RoomStore.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomServer.cs"><Link>Net\RoomServer.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomClient.cs"><Link>Net\RoomClient.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\NetworkHelper.cs"><Link>Net\NetworkHelper.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomSession.cs"><Link>Net\RoomSession.cs</Link></Compile>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

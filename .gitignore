@@ -1,0 +1,58 @@
+# Visual Studio
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+*.sdf
+*.opensdf
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Cache
+.vs/
+
+# NuGet
+packages/
+*.nupkg
+
+# SQLite база данных (не пушим БД с персональными данными!)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+HMWT_app.db
+
+# AppData файлы
+App.config.user
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Visual Studio Code
+.vscode/
+
+# Resharper
+_ReSharper*/
+*.DotSettings.user
+# Артефакты сборки установщика (не храним в репозитории)
+Output/
+installer/Output/
+installer/staging/
+*.pfx
+
+# Файлы справочников не распространяем: их тексты принадлежат издателям.
+# Файлы Data/srd/*.json каждый подключает сам через импорт в приложении.
+HMWT_MUI/Data/
+
+# Результаты проверок сетевого слоя и интерфейса комнаты (не храним)
+NetTests/bin/
+NetTests/obj/
+RoomUiTests/bin/
+RoomUiTests/obj/
+room-ui-report.txt

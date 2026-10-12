@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Проверка интерфейса комнаты: вкладка «Отряд» и панель в главном окне.
+
+  Почему отдельный проект на C#, а не скрипт: колбэки комнаты приходят из сетевых
+  потоков, где скриптовые обработчики выполняться не могут, а кириллица в .ps1
+  без BOM ломает разбор файла. Здесь этих проблем нет.
+
+  Интерфейс рисуется реально, окна создаются и делается скриншот в выходную папку.
+  Проект не входит в поставку приложения.
+-->
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{9E2B7C44-51A8-4D3E-B0F7-6A1C8D5E2B33}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>HMWT_MUI.RoomUiTests</RootNamespace>
+    <AssemblyName>HMWT_MUI.RoomUiTests</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <LangVersion>latest</LangVersion>
+    <OutputPath>bin\</OutputPath>
+    <PlatformTarget>x64</PlatformTarget>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <!-- Нужно, чтобы работал XAML-компилятор -->
+    <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <WarningLevel>4</WarningLevel>
+    <!-- Откуда берём зависимости приложения -->
+    <AppBin Condition=" '$(AppBin)' == '' ">$(MSBuildThisFileDirectory)..\HMWT_MUI\bin\x64\Debug</AppBin>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.SqlClient" />
+    <Reference Include="System.Transactions" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <!-- WPF -->
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <!-- Зависимости приложения: берём из готовой сборки, чтобы не дублировать -->
+    <Reference Include="Microsoft.Data.Sqlite">
+      <HintPath>$(AppBin)\Microsoft.Data.Sqlite.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.core">
+      <HintPath>$(AppBin)\SQLitePCLRaw.core.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.batteries_v2">
+      <HintPath>$(AppBin)\SQLitePCLRaw.batteries_v2.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.provider.dynamic_cdecl">
+      <HintPath>$(AppBin)\SQLitePCLRaw.provider.dynamic_cdecl.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json">
+      <HintPath>$(AppBin)\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web">
+      <HintPath>$(AppBin)\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory">
+      <HintPath>$(AppBin)\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Buffers">
+      <HintPath>$(AppBin)\System.Buffers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics.Vectors">
+      <HintPath>$(AppBin)\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe">
+      <HintPath>$(AppBin)\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions">
+      <HintPath>$(AppBin)\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces">
+      <HintPath>$(AppBin)\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+
+    <!-- Сетевой слой и сервисы приложения: те же исходники, без дублирования -->
+    <Compile Include="..\HMWT_MUI\Net\NetVersions.cs"><Link>App\NetVersions.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\NetMessages.cs"><Link>App\NetMessages.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\NetFraming.cs"><Link>App\NetFraming.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\PhotoTransferService.cs"><Link>App\PhotoTransferService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomKey.cs"><Link>App\RoomKey.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomStore.cs"><Link>App\RoomStore.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomServer.cs"><Link>App\RoomServer.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomClient.cs"><Link>App\RoomClient.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\BackgroundService.cs"><Link>App\BackgroundService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\NetworkHelper.cs"><Link>App\NetworkHelper.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\RoomSession.cs"><Link>App\RoomSession.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\PhotoHelper.cs"><Link>App\PhotoHelper.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Windows\MessageDialog.cs"><Link>App\MessageDialog.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\GifAnimator.cs"><Link>App\GifAnimator.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\GifDecoder.cs"><Link>App\GifDecoder.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\InventoryService.cs"><Link>App\InventoryService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\GifQualityService.cs"><Link>App\GifQualityService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\UiScaleManager.cs"><Link>App\UiScaleManager.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\DmProfileService.cs"><Link>App\DmProfileService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\EquipmentService.cs"><Link>App\EquipmentService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\AbilityService.cs"><Link>App\AbilityService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\MoneyService.cs"><Link>App\MoneyService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\MarkdownParser.cs"><Link>App\MarkdownParser.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\ShopService.cs"><Link>App\ShopService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SrdItemImporter.cs"><Link>App\SrdItemImporter.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SpellJsonImporter.cs"><Link>App\SpellJsonImporter.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\DatabaseHelper.cs"><Link>App\DatabaseHelper.cs</Link></Compile>
+    <!-- HMWT_MUI.Helpers объявляется именно здесь: без него не разрешается using в RoomView -->
+    <Compile Include="..\HMWT_MUI\Helpers\TreeIndentConverter.cs"><Link>App\TreeIndentConverter.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\IconLibrary.cs"><Link>App\Helpers\IconLibrary.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\IconView.cs"><Link>App\Helpers\IconView.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Models\DamagePartData.cs">
+      <Link>App\Models\DamagePartData.cs</Link>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Models\SpellData.cs"><Link>App\Models\SpellData.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Models\NoteTreeItem.cs"><Link>App\Models\NoteTreeItem.cs</Link></Compile>
+
+    <!-- Проверяемый интерфейс -->
+    <Compile Include="..\HMWT_MUI\Controls\DmProfileEditor.xaml.cs">
+      <Link>App\Controls\DmProfileEditor.xaml.cs</Link>
+      <DependentUpon>DmProfileEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Controls\HoverGif.xaml.cs">
+      <Link>App\Controls\HoverGif.xaml.cs</Link>
+      <DependentUpon>HoverGif.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Controls\ResourceMonitor.xaml.cs">
+      <Link>App\Controls\ResourceMonitor.xaml.cs</Link>
+      <DependentUpon>ResourceMonitor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Views\RoomView.xaml.cs">
+      <Link>App\Views\RoomView.xaml.cs</Link>
+      <DependentUpon>RoomView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Views\SettingsView.xaml.cs">
+      <Link>App\Views\SettingsView.xaml.cs</Link>
+      <DependentUpon>SettingsView.xaml</DependentUpon>
+    </Compile>
+    <Page Include="..\HMWT_MUI\Views\RoomView.xaml">
+      <Link>App\Views\RoomView.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Views\SettingsView.xaml">
+      <Link>App\Views\SettingsView.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Controls\HoverGif.xaml">
+      <Link>App\Controls\HoverGif.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Controls\ResourceMonitor.xaml">
+      <Link>App\Controls\ResourceMonitor.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Controls\DmProfileEditor.xaml">
+      <Link>App\Controls\DmProfileEditor.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Resources\DesignTokens.xaml">
+      <Link>App\Resources\DesignTokens.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.WinFX.targets" Condition="Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets')" />
+
+  <Target Name="CopyAppDependencies" AfterTargets="Build">
+    <ItemGroup>
+      <AppDeps Include="$(AppBin)\*.dll" />
+      <AppDeps Include="$(AppBin)\*.exe.config" />
+      <!--
+        Сама сборка приложения нужна обязательно: из неё грузятся ресурсы
+        (Application.LoadComponent по pack-URI) и разметка вкладки. Без неё
+        тест падает на «Не удалось загрузить сборку HMWT_MUI».
+      -->
+      <AppDeps Include="$(AppBin)\HMWT_MUI.exe" />
+      <AppDeps Include="$(AppBin)\Data\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(AppDeps)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" ContinueOnError="true" />
+
+    <!-- Разметку и код копируем для проверки связки кнопок с обработчиками -->
+    <ItemGroup>
+      <UiFiles Include="$(MSBuildThisFileDirectory)..\HMWT_MUI\MainWindow.xaml" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UiFiles)" DestinationFolder="$(OutputPath)Ui" SkipUnchangedFiles="true" ContinueOnError="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\HMWT_MUI\Views\RoomView.xaml"
+          DestinationFolder="$(OutputPath)Ui\Views" SkipUnchangedFiles="true" ContinueOnError="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\HMWT_MUI\MainWindow.Room.cs"
+          DestinationFolder="$(OutputPath)Ui" SkipUnchangedFiles="true" ContinueOnError="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\HMWT_MUI\Views\RoomView.xaml.cs"
+          DestinationFolder="$(OutputPath)Ui\Views" SkipUnchangedFiles="true" ContinueOnError="true" />
+    <!-- Версии: сверяем AssemblyInfo с константой сетевого слоя -->
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\HMWT_MUI\Properties\AssemblyInfo.cs"
+          DestinationFolder="$(OutputPath)Ui" SkipUnchangedFiles="true" ContinueOnError="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\HMWT_MUI\Net\NetVersions.cs"
+          DestinationFolder="$(OutputPath)Ui" SkipUnchangedFiles="true" ContinueOnError="true" />
+
+    <!-- Разметка окна настроек: проверяем масштаб и режим гифок -->
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\HMWT_MUI\Windows\SettingsWindow.xaml"
+          DestinationFolder="$(OutputPath)Ui\Windows" SkipUnchangedFiles="true" ContinueOnError="true" />
+  </Target>
+</Project>
+
