@@ -789,7 +789,7 @@ namespace HMWT_MUI.Views
         /// Удаляет выбранный предмет из каталога магазина.
         ///
         /// Раньше предмет можно было создать, но не убрать: каталог только рос.
-        /// Удаляем и свои предметы, и записи справочника — пользователь просил и то, и другое.
+        /// Удаляем и свои предметы, и записи справочника.
         /// </summary>
         private void BtnShopDeleteItem_Click(object sender, RoutedEventArgs e)
         {
@@ -1046,7 +1046,7 @@ namespace HMWT_MUI.Views
             int qty = Convert.ToInt32(Cell(row, "quantity", 1));
             decimal weight = Convert.ToDecimal(Cell(row, "weight", 0m));
             bool equipped = _inventory.CheckIfItemEquipped(id).isEquipped;
-            // В списке показываем отдельное фото, если оно выбрано: пользователь просил
+            // В списке показываем отдельное фото, если оно выбрано: надо
             // разделить фото списка и фото инспектора
             string photo = FirstNotEmpty(
                 Cell(row, "list_photo_path")?.ToString(),
@@ -1146,7 +1146,7 @@ namespace HMWT_MUI.Views
             string desc = Cell(row, "description")?.ToString() ?? "";
             int qty = Convert.ToInt32(Cell(row, "quantity", 1));
             decimal weight = Convert.ToDecimal(Cell(row, "weight", 0m));
-            // В списке показываем отдельное фото, если оно выбрано: пользователь просил
+            // В списке показываем отдельное фото, если оно выбрано: надо
             // разделить фото списка и фото инспектора
             string photo = FirstNotEmpty(
                 Cell(row, "list_photo_path")?.ToString(),
@@ -1992,7 +1992,7 @@ namespace HMWT_MUI.Views
         /// <summary>
         /// Выбирает отдельное фото для строки списка.
         ///
-        /// Пользователь просил разделить: иногда первый кадр гифки некрасивый, и в
+        /// Требуется: иногда первый кадр гифки некрасивый, и в
         /// списке хочется показать другую картинку, а в инспекторе — основную.
         /// </summary>
         private void Ed_BtnListPhoto_Click(object sender, RoutedEventArgs e)
