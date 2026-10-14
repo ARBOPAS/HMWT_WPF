@@ -12,46 +12,9 @@
              SnapsToDevicePixels="True">
 
     <UserControl.Resources>
-        <Color x:Key="C.Void">#0C0C12</Color>
-        <Color x:Key="C.Slate">#15151F</Color>
-        <Color x:Key="C.Panel">#1B1A26</Color>
-        <Color x:Key="C.PanelHi">#232132</Color>
-        <Color x:Key="C.Line">#322E44</Color>
-        <Color x:Key="C.Ink">#ECE4D0</Color>
-        <Color x:Key="C.Mute">#8B859C</Color>
-        <Color x:Key="C.Gold">#E0AE4E</Color>
-        <Color x:Key="C.GoldSoft">#7A5E26</Color>
-        <Color x:Key="C.Arcane">#9A7BD6</Color>
-        <Color x:Key="C.Frost">#4FB6AC</Color>
-        <Color x:Key="C.Danger">#C0564F</Color>
-        <Color x:Key="C.Ok">#5BB974</Color>
 
-        <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
-        <SolidColorBrush x:Key="B.Slate" Color="{StaticResource C.Slate}"/>
-        <SolidColorBrush x:Key="B.Panel" Color="{StaticResource C.Panel}"/>
-        <SolidColorBrush x:Key="B.PanelHi" Color="{StaticResource C.PanelHi}"/>
-        <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
-        <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
-        <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
-        <SolidColorBrush x:Key="B.GoldSoft" Color="{StaticResource C.GoldSoft}"/>
-        <SolidColorBrush x:Key="B.Arcane" Color="{StaticResource C.Arcane}"/>
-        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
-        <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
-        <SolidColorBrush x:Key="B.Ok" Color="{StaticResource C.Ok}"/>
 
-        <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#0C0C12" Offset="0"/>
-            <GradientStop Color="#13111D" Offset="0.55"/>
-            <GradientStop Color="#0A0A10" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#E0AE4E" Offset="0"/>
-            <GradientStop Color="#9A7BD6" Offset="1"/>
-        </LinearGradientBrush>
 
-        <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
-        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
 
         <Style x:Key="CustomCheckBox" TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
@@ -111,7 +74,7 @@
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
                                 <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="#1A1206"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -139,7 +102,7 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="#1A1206"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -160,7 +123,12 @@
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
                                         <Border x:Name="bd" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
-                                            <helpers:IconView Kind="caret" IconSize="9" Filled="True" IconBrush="{StaticResource B.Mute}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <!-- Стрелку прижимаем к правому краю: полоса шириной 28
+                                                 под неё уже зарезервирована в ContentPresenter.
+                                                 По центру она налезала на выбранное значение
+                                                 и была почти не видна (9 px, цвет B.Mute) -->
+                                            <helpers:IconView Kind="caret" IconSize="16" Filled="True" IconBrush="{StaticResource B.Ink}"
+                                                              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,9,0"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
@@ -234,10 +202,20 @@
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
                                         <Border x:Name="bd" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="6">
-                                            <helpers:IconView Kind="caret" IconSize="9" Filled="True" IconBrush="{StaticResource B.Mute}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <!-- См. комментарий в SourceBox: стрелка вправо, в
+                                                 полосу 26, зарезервированную ContentPresenter -->
+                                            <helpers:IconView Kind="caret" IconSize="16" Filled="True" IconBrush="{StaticResource B.Ink}"
+                                                              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                            </Trigger>
+                                            <!-- Список открыт — рамка тоже золотая. В остальных
+                                                 шаблонах проекта (DmComboBox, DarkComboBox, SourceBox)
+                                                 это есть, а здесь не было: раскрытый список ничем
+                                                 не отличался от закрытого -->
+                                            <Trigger Property="IsChecked" Value="True">
                                                 <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
@@ -345,6 +323,23 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!--
+          Кнопки счётчика ячеек.
+
+          Цвет значка задаётся здесь, в стиле, а не на самой кнопке. Причина:
+          локальное значение свойства в WPF приоритетнее триггера шаблона,
+          поэтому «Foreground» на кнопке намертво отключил бы подсветку при
+          наведении. Через сеттер стиля подсветка работает, а значок берёт
+          цвет у кнопки (IconBrush привязан к Foreground).
+        -->
+        <Style x:Key="SlotStepBtn" TargetType="Button" BasedOn="{StaticResource MiniRound}">
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        </Style>
+
+        <Style x:Key="SlotRestBtn" TargetType="Button" BasedOn="{StaticResource MiniRound}">
+            <Setter Property="Foreground" Value="{StaticResource B.Ok}"/>
         </Style>
 
         <Style x:Key="SearchBox" TargetType="TextBox">
@@ -586,7 +581,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- рейка: 4 кнопки -->
-            <Border Grid.Column="0" Background="#0C0C12" BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,1,0">
+            <Border Grid.Column="0" Background="{StaticResource B.Void}" BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,1,0">
                 <StackPanel VerticalAlignment="Top" Margin="0,16,0,0">
                     <Button x:Name="BtnAddFromRef" ToolTip="Добавить из справочника" Cursor="Hand"
                             Margin="0,0,0,12" Background="Transparent" BorderThickness="0">
@@ -695,8 +690,22 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
+                        <!--
+                          Две строки: сверху вкладки уровней и кнопки, снизу — счётчик ячеек.
 
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                          Счётчику нужна своя строка. В одной строке на него оставалось
+                          меньше ста точек: вкладки уровней занимают 344, кнопки справа —
+                          402, а сама эта колонка вдвое уже окна, потому что 300 точек
+                          забирает панель описания заклинания. В узком окне на счётчик
+                          не оставалось места вовсе, и кнопка восполнения уезжала за край.
+                          На своей строке счётчик располагает всей шириной шапки.
+                        -->
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <RadioButton x:Name="TabAll" Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="ВСЕ" Tag="-1" IsChecked="True" Checked="LevelTab_Checked" ToolTip="Показать все уровни"/>
                             <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs"  Tag="0" Checked="LevelTab_Checked" ToolTip="Заговоры"><helpers:IconView Kind="star" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/></RadioButton>
                             <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="I"   Tag="1" Checked="LevelTab_Checked"/>
@@ -710,23 +719,77 @@
                             <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="IX"  Tag="9" Checked="LevelTab_Checked"/>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Button x:Name="BtnSlotMinus" Style="{StaticResource MiniRound}" ToolTip="Потратить ячейку">
-                                <helpers:IconView Kind="minus" IconSize="14" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,-2,0,0"/>
-                            </Button>
-                            <TextBlock x:Name="TxtSlotsUsed" Text="0" FontFamily="{StaticResource F.Display}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource B.Frost}" VerticalAlignment="Center" ToolTip="Осталось ячеек"/>
-                            <TextBlock Text=" / " FontFamily="{StaticResource F.Display}" FontSize="28" Foreground="{StaticResource B.Mute}" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="TxtSlotsTotal" Text="0" FontFamily="{StaticResource F.Display}" FontSize="28" Foreground="{StaticResource B.Mute}" VerticalAlignment="Center"/>
-                            <Button x:Name="BtnSlotPlus" Style="{StaticResource MiniRound}" ToolTip="Восполнить ячейку">
-                                <TextBlock Text="+" FontSize="13" FontWeight="Bold"/>
-                            </Button>
-                            <TextBlock x:Name="TxtSlotsLabel" Text="  ячейки I уровня" FontFamily="{StaticResource F.Body}" FontSize="11" Foreground="{StaticResource B.Mute}" VerticalAlignment="Bottom" Margin="2,0,0,5"/>
-                            <Button x:Name="BtnRestSlots" Style="{StaticResource MiniRound}" ToolTip="Отдых: восполнить все ячейки" Margin="10,0,0,0" Foreground="{StaticResource B.Ok}">
-                                <TextBlock Text="⟲" FontSize="13"/>
-                            </Button>
-                        </StackPanel>
+                        <!--
+                          Счётчик ячеек — отдельной строкой под вкладками уровней
+                          и кнопками (объяснение в определении строк выше).
 
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                          Внутри блока:
+                          • у чисел узкая ячейка и выравнивание ПО ЦЕНТРУ. Прежние
+                            MinWidth 34 с выравниванием вправо давали дыру 29 точек
+                            после «−» и 20 после «/» — те самые «гигантские отступы»;
+                          • подпись занимает остаток ширины и при нехватке места
+                            обрезается многоточием (полный текст — в подсказке),
+                            а не выталкивает кнопку отдыха за границу.
+                        -->
+                        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MaxWidth="420" Margin="0,10,0,0"
+                                Background="{StaticResource B.Void}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Padding="5,3"
+                                ToolTip="Ячейки заклинаний: остаток / всего">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="BtnSlotMinus" Grid.Column="0" Style="{StaticResource SlotStepBtn}"
+                                        Margin="1,0" ToolTip="Потратить ячейку">
+                                    <helpers:IconView Kind="minus" IconSize="14" VerticalAlignment="Center"
+                                                      IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+
+                                <TextBlock x:Name="TxtSlotsUsed" Grid.Column="1" Text="0"
+                                           FontFamily="{StaticResource F.Display}" FontSize="24" FontWeight="Bold"
+                                           Foreground="{StaticResource B.Frost}" VerticalAlignment="Center"
+                                           Margin="5,0,0,0" MinWidth="30" TextAlignment="Center"
+                                           ToolTip="Осталось ячеек"/>
+
+                                <TextBlock Grid.Column="2" Text="/" FontFamily="{StaticResource F.Display}"
+                                           FontSize="14" Foreground="{StaticResource B.Mute}"
+                                           VerticalAlignment="Center" Margin="2,0" ToolTip="Всего ячеек"/>
+
+                                <TextBlock x:Name="TxtSlotsTotal" Grid.Column="3" Text="0"
+                                           FontFamily="{StaticResource F.Display}" FontSize="16"
+                                           Foreground="{StaticResource B.Ink}" VerticalAlignment="Center"
+                                           MinWidth="22" TextAlignment="Center" ToolTip="Всего ячеек"/>
+
+                                <Button x:Name="BtnSlotPlus" Grid.Column="4" Style="{StaticResource SlotStepBtn}"
+                                        Margin="4,0,1,0" ToolTip="Восполнить ячейку">
+                                    <helpers:IconView Kind="plus" IconSize="14" VerticalAlignment="Center"
+                                                      IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+
+                                <TextBlock x:Name="TxtSlotsLabel" Grid.Column="5" Text="ячейки I уровня"
+                                           FontFamily="{StaticResource F.Body}" FontSize="11"
+                                           Foreground="{StaticResource B.Mute}" VerticalAlignment="Center"
+                                           Margin="7,0,0,0" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+
+                                <Button x:Name="BtnRestSlots" Grid.Column="6" Style="{StaticResource SlotRestBtn}"
+                                        Margin="6,0,0,0" ToolTip="Отдых: восполнить все ячейки">
+                                    <helpers:IconView Kind="round" IconSize="14" VerticalAlignment="Center"
+                                                      IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="2" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <Button x:Name="BtnTagFilter" Style="{StaticResource RoundBtn}" ToolTip="Фильтр по тегам" Margin="0,0,6,0">
                                 <helpers:IconView Kind="filter" IconSize="16" Filled="True"
                                                   IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
@@ -791,7 +854,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
                     <StackPanel>
                         <TextBlock Text="ОПИСАНИЕ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Mute}" Margin="0,0,0,10"/>
-                        <Border Height="150" CornerRadius="8" ClipToBounds="True" Background="#2A2438" Margin="0,0,0,10">
+                        <Border Height="150" CornerRadius="8" ClipToBounds="True" Background="{StaticResource B.PhotoBack}" Margin="0,0,0,10">
                             <Grid>
                                 <Image x:Name="DescImage" Stretch="Uniform"/>
                                 <Border x:Name="DescArtPlaceholder" Visibility="Collapsed">
@@ -944,7 +1007,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="10" ClipToBounds="True" Background="#2A2438">
+                    <Border Grid.Row="0" CornerRadius="10" ClipToBounds="True" Background="{StaticResource B.PhotoBack}">
                         <Grid>
                             <!-- HoverGif: арт заклинания не разбирается заранее,
                                  гифка оживает только под курсором -->
@@ -1152,7 +1215,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Button x:Name="BtnCancelCreate" Grid.Column="0" Style="{StaticResource GhostBtn}" Content="Отмена" HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,12,0"/>
                                 <Button x:Name="BtnFullSave" Grid.Column="1" Style="{StaticResource ActionBtn}" HorizontalAlignment="Right">
-                                    <TextBlock Text="Сохранить карточку" Foreground="#1A1206" FontWeight="SemiBold" FontSize="12.5"/>
+                                    <TextBlock Text="Сохранить карточку" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
                                 </Button>
                             </Grid>
                         </StackPanel>
@@ -1295,7 +1358,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="SbStatus" Foreground="{StaticResource B.Mute}" FontSize="11" VerticalAlignment="Center"/>
                         <Button x:Name="SbAddSelected" Grid.Column="1" Style="{StaticResource ActionBtn}">
-                            <TextBlock Text=" Добавить выбранное" Foreground="#1A1206" FontWeight="SemiBold" FontSize="12.5"/>
+                            <TextBlock Text=" Добавить выбранное" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
                         </Button>
                     </Grid>
                 </Grid>
@@ -1388,7 +1451,7 @@
                             </Button.Template>
                         </Button>
                         <Button x:Name="BtnTagAdd" Grid.Column="2" Style="{StaticResource ActionBtn}">
-                            <TextBlock Text=" Создать тег" Foreground="#1A1206" FontWeight="SemiBold" FontSize="12.5"/>
+                            <TextBlock Text=" Создать тег" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
                         </Button>
                     </Grid>
                 </Grid>
@@ -1560,7 +1623,7 @@
                         </Button>
                         <Button x:Name="BtnCancelSettings" Content="Отмена" Grid.Column="1" Style="{StaticResource GhostBtn}" Margin="0,0,12,0"/>
                         <Button x:Name="BtnSaveSettings" Grid.Column="2" Style="{StaticResource ActionBtn}">
-                            <TextBlock Text="Сохранить" Foreground="#1A1206" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Сохранить" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12"/>
                         </Button>
                     </Grid>
                 </StackPanel>

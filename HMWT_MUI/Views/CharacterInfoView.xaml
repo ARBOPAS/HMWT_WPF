@@ -6,34 +6,6 @@
 
     <UserControl.Resources>
         <!-- ПАЛИТРА -->
-        <Color x:Key="C.Void">#0C0C12</Color>
-        <Color x:Key="C.Slate">#15151F</Color>
-        <Color x:Key="C.Panel">#1B1A26</Color>
-        <Color x:Key="C.PanelHi">#232132</Color>
-        <Color x:Key="C.Line">#322E44</Color>
-        <Color x:Key="C.Ink">#ECE4D0</Color>
-        <Color x:Key="C.Mute">#8B859C</Color>
-        <Color x:Key="C.Gold">#E0AE4E</Color>
-        <Color x:Key="C.GoldSoft">#7A5E26</Color>
-        <Color x:Key="C.Arcane">#9A7BD6</Color>
-        <Color x:Key="C.Frost">#4FB6AC</Color>
-        <Color x:Key="C.Danger">#C0564F</Color>
-        <Color x:Key="C.Ok">#5BB974</Color>
-        <Color x:Key="C.Enchant">#C0568F</Color>
-        <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
-        <SolidColorBrush x:Key="B.Slate" Color="{StaticResource C.Slate}"/>
-        <SolidColorBrush x:Key="B.Panel" Color="{StaticResource C.Panel}"/>
-        <SolidColorBrush x:Key="B.PanelHi" Color="{StaticResource C.PanelHi}"/>
-        <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
-        <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
-        <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
-        <SolidColorBrush x:Key="B.GoldSoft" Color="{StaticResource C.GoldSoft}"/>
-        <SolidColorBrush x:Key="B.Arcane" Color="{StaticResource C.Arcane}"/>
-        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
-        <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
-        <SolidColorBrush x:Key="B.Ok" Color="{StaticResource C.Ok}"/>
-        <SolidColorBrush x:Key="B.Enchant" Color="{StaticResource C.Enchant}"/>
 
         <!--
           ФОН КАРТОЧЕК ХАРАКТЕРИСТИК
@@ -47,17 +19,6 @@
         -->
         <SolidColorBrush x:Key="B.AbilityCard" Color="{StaticResource C.PanelHi}" Opacity="0.92"/>
         <SolidColorBrush x:Key="B.AbilityRow" Color="{StaticResource C.Slate}" Opacity="0.88"/>
-        <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#0C0C12" Offset="0"/>
-            <GradientStop Color="#13111D" Offset="0.55"/>
-            <GradientStop Color="#0A0A10" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#E0AE4E" Offset="0"/>
-            <GradientStop Color="#9A7BD6" Offset="1"/>
-        </LinearGradientBrush>
-        <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
-        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
 
         <!-- ==========================================================
              АДАПТИВНЫЕ РАЗМЕРЫ (дефолт = Normal; меняются из code-behind)
@@ -107,7 +68,7 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontFamily" Value="{StaticResource F.Display}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="#1A1206"/>
+            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -284,7 +245,7 @@
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
                                 <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="#1A1206"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -357,7 +318,7 @@
             <Ellipse Width="900" Height="900" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-250,-300,0,0" Opacity="0.10">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
-                        <GradientStop Color="#9A7BD6" Offset="0"/>
+                        <GradientStop Color="{StaticResource C.Arcane}" Offset="0"/>
                         <GradientStop Color="#009A7BD6" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
@@ -365,7 +326,7 @@
             <Ellipse Width="900" Height="900" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-250,-300" Opacity="0.08">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
-                        <GradientStop Color="#E0AE4E" Offset="0"/>
+                        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
                         <GradientStop Color="#00E0AE4E" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>

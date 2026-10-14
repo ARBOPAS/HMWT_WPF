@@ -3042,9 +3042,21 @@ namespace HMWT_MUI.Views
 
             try
             {
-                var img = new BitmapImage();
-                img.BeginInit(); img.CacheOption = BitmapCacheOption.OnLoad;
-                img.UriSource = new Uri(fullPath, UriKind.Absolute); img.EndInit(); img.Freeze();
+                // Читаем файл в память (PhotoHelper.LoadUnlocked), а не через UriSource.
+                //
+                // Из-за UriSource здесь было два дефекта сразу. Во-первых, WPF кэширует
+                // картинки ПО АДРЕСУ, а имя файла фона не меняется (Silhouettes\char_<id>.<ext>):
+                // при второй смене возвращался прежний кадр, и казалось, что фон «не меняется».
+                // Во-вторых, картинка держала файл занятым, поэтому следующая замена
+                // упиралась в «файл используется другим процессом».
+                // У чтения из потока адреса нет — значит, нет ни кэша, ни блокировки.
+                var img = PhotoHelper.LoadUnlocked(fullPath);
+                if (img == null)
+                {
+                    ApplySilhouette(null);
+                    return;
+                }
+
                 canvasSilhouette.Background = new ImageBrush(img) { Stretch = Stretch.Uniform, Opacity = 0.22 };
                 btnChangeSilhouette.ToolTip = "Сменить фон панели экипировки";
             }
@@ -3074,15 +3086,26 @@ namespace HMWT_MUI.Views
 
                 string extension = Path.GetExtension(dialog.FileName);
                 if (string.IsNullOrWhiteSpace(extension)) extension = ".png";
+                extension = extension.ToLowerInvariant();
+
+                string dest = Path.Combine(dir, $"char_{_characterId}{extension}");
+
+                // Сначала копируем в стороне и только потом трогаем рабочий файл.
+                // Так смена фона не зависит от того, свободен ли прежний файл:
+                // раньше он удалялся до копирования, и если удаление/перезапись
+                // не проходили, фон молча оставался прежним.
+                string temp = dest + ".new";
+                File.Copy(dialog.FileName, temp, true);
 
                 // Убираем прежние фоны персонажа, чтобы файлы не копились
                 foreach (var old in Directory.GetFiles(dir, $"char_{_characterId}.*"))
                 {
+                    if (string.Equals(old, temp, StringComparison.OrdinalIgnoreCase)) continue;
                     try { File.Delete(old); } catch { }
                 }
 
-                string dest = Path.Combine(dir, $"char_{_characterId}{extension.ToLowerInvariant()}");
-                File.Copy(dialog.FileName, dest, true);
+                File.Copy(temp, dest, true);
+                try { File.Delete(temp); } catch { }
 
                 _inventory.SaveSilhouettePath(_characterId, dest);
                 ApplySilhouette(dest);

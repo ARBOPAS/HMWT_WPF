@@ -47,37 +47,16 @@ namespace HMWT_MUI.Services
         public InventoryService(int characterId)
         {
             _characterId = characterId;
-            EnsureColumns();
-        }
 
-        private void EnsureColumns()
-        {
-            try
-            {
-                using var conn = DatabaseHelper.GetConnection();
-                conn.Open();
-                foreach (var sql in new[]
-                {
-                    "ALTER TABLE Inventory ADD COLUMN max_charges INTEGER DEFAULT 0",
-                    "ALTER TABLE Inventory ADD COLUMN is_stackable INTEGER DEFAULT 0",
-                    // Отдельное фото для строки списка (магазин так уже умеет)
-                    "ALTER TABLE Inventory ADD COLUMN list_photo_path TEXT DEFAULT ''"
-                })
-                {
-                    try { using var cmd = new SqliteCommand(sql, conn); cmd.ExecuteNonQuery(); }
-                    catch (Exception ex)
-                    {
-                        // «duplicate column name» — норма: колонка уже есть.
-                        // Всё остальное означает, что миграция не прошла, и это
-                        // надо видеть, а не молча терять
-                        Debug.WriteLine($"[InventoryService] миграция «{sql}»: {ex.Message}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[InventoryService] EnsureColumns: {ex.Message}");
-            }
+            // Колонки Inventory досоздаёт DatabaseHelper на инициализации базы.
+            //
+            // Раньше конструктор на каждое создание сервиса выполнял три
+            // ALTER TABLE, которые заведомо падали с «duplicate column name»
+            // (исключение глушилось). Сервис же создаётся не только при открытии
+            // инвентаря: его создаёт сводка снаряжения на листе персонажа, то
+            // есть работа выполнялась при каждом открытии листа и при каждой
+            // смене характеристики. Миграции должны идти в одном месте — в
+            // DatabaseHelper.CreateAllTablesIfNotExists.
         }
 
         // ==================== ЧТЕНИЕ ====================

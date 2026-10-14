@@ -162,6 +162,7 @@ namespace HMWT_MUI.Views
 
         private void LoadCharacterData()
         {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 using var conn = DatabaseHelper.GetConnection();
@@ -211,6 +212,22 @@ namespace HMWT_MUI.Views
                     txtInitiative.Text = FormatModifier(Convert.ToInt32(reader["Initiative"] ?? 0));
                 }
 
+                // ВАЖНО: закрываем читатель ДО всего, что пишет в базу.
+                //
+                // Открытый SqliteDataReader держит разделяемую блокировку файла
+                // базы. Запись идёт ниже, из LoadSkills → RefreshPassiveValues:
+                // там UPDATE CharacterInfo на другом соединении. Раньше читатель
+                // жил до конца try-блока, поэтому писатель не мог получить
+                // блокировку, драйвер повторял попытку до CommandTimeout (30 с) и
+                // падал с «database is locked», а исключение глушилось catch'ем.
+                //
+                // Из-за этого открытие листа персонажа и смена характеристики
+                // «висели» около 30 секунд, а пассивные значения (внимательность,
+                // проницательность, расследование) молча не сохранялись.
+                // В режиме WAL читатель писателя не блокирует, но закрывать
+                // читателя перед записью всё равно обязательно.
+                reader.Close();
+
                 LoadProficiencyBonus(conn);
 
                 // Загружаем навыки
@@ -227,6 +244,11 @@ namespace HMWT_MUI.Views
             // Сводка по снаряжению читается своим соединением — только после
             // того, как основное закрылось
             RefreshEquipmentSummary();
+
+            // Если лист открывался долго — в журнале появится строка с точным
+            // числом: раньше на этом пути база стояла в блокировке 30 секунд,
+            // а по внешнему виду нельзя было понять, что именно тормозит
+            DatabaseHelper.ReportIfSlow($"лист персонажа id={_characterId}: полная перезагрузка данных", watch.ElapsedMilliseconds);
         }
 
         /// <summary>

@@ -63,13 +63,18 @@ namespace HMWT_MUI.Services
     /// </summary>
     public class EquipmentService
     {
-        private readonly string _connectionString;
         private readonly int _characterId;
 
         public EquipmentService(int characterId)
         {
             _characterId = characterId;
-            _connectionString = DatabaseHelper.GetConnection().ConnectionString;
+            // Строку подключения здесь больше не «одалживаем» у GetConnection().
+            //
+            // Раньше сервис брал строку подключения и открывал собственные
+            // SqliteConnection — без PRAGMA foreign_keys=ON и busy_timeout,
+            // которые GetConnection() навешивает на каждое соединение. То есть
+            // работал без контроля внешних ключей и без ожидания блокировки.
+            // Теперь все соединения идут через DatabaseHelper.
         }
 
         /// <summary>
@@ -78,7 +83,7 @@ namespace HMWT_MUI.Services
         public List<EquipmentSlot> GetAllSlots()
         {
             var slots = new List<EquipmentSlot>();
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = "SELECT id_slot, slot_name, slot_code, icon_path, sort_order FROM EquipmentSlots ORDER BY sort_order";
@@ -106,7 +111,7 @@ namespace HMWT_MUI.Services
         public List<EquipmentGroup> GetCharacterGroups()
         {
             var groups = new List<EquipmentGroup>();
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = @"
@@ -150,7 +155,7 @@ namespace HMWT_MUI.Services
         private List<EquipmentCell> GetGroupCells(int groupId)
         {
             var cells = new List<EquipmentCell>();
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = @"
@@ -189,7 +194,7 @@ namespace HMWT_MUI.Services
         /// </summary>
         public int CreateGroup(int slotId, double positionX, double positionY, string groupName = null)
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = @"
@@ -323,7 +328,7 @@ namespace HMWT_MUI.Services
         /// </summary>
         public void UpdateGroupPosition(int groupId, double positionX, double positionY)
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = "UPDATE EquipmentGroups SET position_x = @posX, position_y = @posY WHERE id_group = @groupId AND id_character = @charId";
@@ -340,7 +345,7 @@ namespace HMWT_MUI.Services
         /// </summary>
         public void ToggleGroupExpansion(int groupId)
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = "UPDATE EquipmentGroups SET is_expanded = 1 - is_expanded WHERE id_group = @groupId AND id_character = @charId";
@@ -355,7 +360,7 @@ namespace HMWT_MUI.Services
         /// </summary>
         public int CreateCell(int groupId, int cellIndex)
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = "INSERT INTO EquipmentCells (id_group, cell_index) VALUES (@groupId, @cellIndex); SELECT last_insert_rowid();";
@@ -409,7 +414,7 @@ namespace HMWT_MUI.Services
         public int CalculateTotalArmorClassBonus()
         {
             int totalBonus = 0;
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = @"
@@ -432,7 +437,7 @@ namespace HMWT_MUI.Services
         public DataTable GetEquippedItemsWithBonuses()
         {
             var dt = new DataTable();
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = @"
@@ -457,7 +462,7 @@ namespace HMWT_MUI.Services
         public List<string> GetItemEquipmentLocations(int itemId)
         {
             var locations = new List<string>();
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             string query = @"
@@ -486,7 +491,7 @@ namespace HMWT_MUI.Services
         /// </summary>
         public int CreateCustomSlot(string slotName)
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             // Проверяем, существует ли уже такой слот
@@ -540,7 +545,7 @@ namespace HMWT_MUI.Services
 
         public void UpdateGroupSize(int groupId, double newSize)
         {
-            using var conn = new SqliteConnection(_connectionString);
+            using var conn = DatabaseHelper.GetConnection();
             conn.Open();
 
             // Проверяем, есть ли колонка group_size

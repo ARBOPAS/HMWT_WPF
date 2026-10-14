@@ -94,6 +94,10 @@ namespace HMWT_MUI
             btnHPDamage.Click += BtnHPDamage_Click;
             btnHPRoll.Click += BtnHPRoll_Click;
 
+            // Размещение вкладок выставляем ДО первого SwitchView: он красит
+            // активную вкладку, и стиль должен быть уже выбран под нужный вариант
+            ApplyTabPlacement();
+
             SwitchView("Info");
 
             _diceRoller = new Services.DiceRoller();
@@ -816,41 +820,55 @@ namespace HMWT_MUI
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
 
-                using var cmd = new SqliteCommand("SELECT Level, Exp FROM LevelTable WHERE id_character = @id", conn);
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var reader = cmd.ExecuteReader();
+                int currentLevel;
+                int currentExp;
 
-                if (reader.Read())
+                // Читатель закрываем до UPDATE.
+                //
+                // Открытый SqliteDataReader держит разделяемую блокировку файла
+                // базы, поэтому UPDATE по тому же соединению не проходит: SQLite
+                // отвечает «database is locked», драйвер повторяет попытку до
+                // CommandTimeout (30 с). Кнопка «Новый уровень» из-за этого
+                // выглядела зависшей на полминуты. Заодно убрано чтение внутри
+                // ветвлений: значения считываются один раз и сразу.
+                using (var cmd = new SqliteCommand("SELECT Level, Exp FROM LevelTable WHERE id_character = @id", conn))
                 {
-                    int currentLevel = Convert.ToInt32(reader["Level"]);
-                    int currentExp = Convert.ToInt32(reader["Exp"]);
-                    int expForNextLevel = GetExpForNextLevel(currentLevel);
+                    cmd.Parameters.AddWithValue("@id", _characterId);
+                    using var reader = cmd.ExecuteReader();
+                    if (!reader.Read()) return;
 
-                    if (currentExp < expForNextLevel)
-                    {
-                        ShowToast($"Недостаточно опыта! Нужно: {expForNextLevel}, у вас: {currentExp}", true);
-                        return;
-                    }
+                    currentLevel = Convert.ToInt32(reader["Level"]);
+                    currentExp = Convert.ToInt32(reader["Exp"]);
+                }
 
-                    if (currentLevel >= 20)
-                    {
-                        ShowToast("Максимальный уровень (20)!");
-                        return;
-                    }
+                int expForNextLevel = GetExpForNextLevel(currentLevel);
 
-                    int newLevel = currentLevel + 1;
-                    int newProficiency = CalculateProficiencyBonus(newLevel);
+                if (currentExp < expForNextLevel)
+                {
+                    ShowToast($"Недостаточно опыта! Нужно: {expForNextLevel}, у вас: {currentExp}", true);
+                    return;
+                }
 
-                    using var updateCmd = new SqliteCommand("UPDATE LevelTable SET Level = @level, ProficiencyBonus = @prof WHERE id_character = @id", conn);
+                if (currentLevel >= 20)
+                {
+                    ShowToast("Максимальный уровень (20)!");
+                    return;
+                }
+
+                int newLevel = currentLevel + 1;
+                int newProficiency = CalculateProficiencyBonus(newLevel);
+
+                using (var updateCmd = new SqliteCommand("UPDATE LevelTable SET Level = @level, ProficiencyBonus = @prof WHERE id_character = @id", conn))
+                {
                     updateCmd.Parameters.AddWithValue("@level", newLevel);
                     updateCmd.Parameters.AddWithValue("@prof", newProficiency);
                     updateCmd.Parameters.AddWithValue("@id", _characterId);
                     updateCmd.ExecuteNonQuery();
-
-                    ShowToast($"Новый уровень: {newLevel}! Бонус мастерства: +{newProficiency}");
-                    LoadCharacterHeader();
-                    UpdateProgressBarFromDB();
                 }
+
+                ShowToast($"Новый уровень: {newLevel}! Бонус мастерства: +{newProficiency}");
+                LoadCharacterHeader();
+                UpdateProgressBarFromDB();
             }
             catch (Exception ex)
             {
@@ -2572,10 +2590,68 @@ namespace HMWT_MUI
         /// серого контура. Заливка — только у «ключевых» вкладок (лист, атаки,
         /// заклинания, инструменты ДМа): так видно, где ты, и не пестрит.
         /// </summary>
+        /// <summary>
+        /// Где стоят вкладки: сверху (true) или слева рейкой (false).
+        ///
+        /// Значение берётся из настроек, поэтому вариант можно попробовать без
+        /// пересборки: Ui_TopTabs = 1. По умолчанию вкладки слева — так окно
+        /// выглядит привычно, а верхний вариант остаётся тестовым.
+        /// </summary>
+        public static bool TopTabs
+        {
+            get
+            {
+                try { return DatabaseHelper.GetSetting(App.TopTabsSettingKey, "0").Trim() == "1"; }
+                catch { return false; }
+            }
+        }
+
+        /// <summary>
+        /// Переносит панель вкладок в первую строку окна и переводит кнопки на
+        /// горизонтальный стиль.
+        ///
+        /// Раскладка окна при этом не пересобирается: строка 0 в разметке уже
+        /// есть, и пока вкладки стоят слева, она пустая и нулевой высоты.
+        /// Поэтому переключение сводится к переносу одной панели.
+        /// </summary>
+        private void ApplyTabPlacement()
+        {
+            if (!TopTabs) return;
+
+            // Рейка переезжает в первую строку и растягивается на всю ширину окна
+            Grid.SetRow(LeftRail, 0);
+            Grid.SetColumn(LeftRail, 0);
+            Grid.SetColumnSpan(LeftRail, 2);
+            Grid.SetRowSpan(LeftRail, 1);
+            LeftRail.BorderThickness = new Thickness(0, 0, 0, 1);
+
+            // Колонка рейки больше не нужна: её ширину отдаём содержимому.
+            // Берём по индексу, а не по имени, чтобы не зависеть от генерации
+            // поля для ColumnDefinition
+            RootGrid.ColumnDefinitions[0].Width = new GridLength(0);
+
+            TabStrip.Orientation = Orientation.Horizontal;
+            TabStrip.HorizontalAlignment = HorizontalAlignment.Left;
+            TabStrip.VerticalAlignment = VerticalAlignment.Center;
+            TabStrip.Margin = new Thickness(12, 7, 12, 7);
+
+            // Разделители рейки в горизонтальном ряду лишние
+            foreach (var separator in TabStrip.Children.OfType<Separator>())
+                separator.Visibility = Visibility.Collapsed;
+
+            // Кнопки, которых нет в списке вкладок (назад, история бросков),
+            // тоже переводим на верхний стиль — иначе останутся квадратами
+            foreach (var button in TabStrip.Children.OfType<Button>())
+                button.Style = (Style)FindResource("TopTabBtn");
+        }
+
         private void UpdateTabButtonsStyle(string activeView)
         {
-            var normal = (Style)FindResource("RailBtn");
-            var active = (Style)FindResource("RailBtnActive");
+            // Пара стилей зависит от размещения вкладок: слева квадраты рейки,
+            // сверху — «пилюли» со подписью
+            bool top = TopTabs;
+            var normal = (Style)FindResource(top ? "TopTabBtn" : "RailBtn");
+            var active = (Style)FindResource(top ? "TopTabBtnActive" : "RailBtnActive");
             var accent = (Brush)FindResource("B.Gold");
             var mute = (Brush)FindResource("B.Mute");
 

@@ -22,13 +22,10 @@ namespace HMWT_MUI.Services
     /// </summary>
     public class TagService
     {
-        private readonly string _connectionString;
-
-        public TagService()
-        {
-            // Используем GetConnection, чтобы гарантировать применение PRAGMA foreign_keys = ON
-            _connectionString = DatabaseHelper.GetConnection().ConnectionString;
-        }
+        // Поля со строкой подключения здесь больше нет: оно только хранило
+        // результат DatabaseHelper.GetConnection() и нигде не использовалось —
+        // на каждое создание сервиса впустую открывалось соединение.
+        // Все методы и так ходят через DatabaseHelper.GetConnection().
 
         private string GenerateRandomColor()
         {

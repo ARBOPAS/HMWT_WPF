@@ -13,7 +13,7 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,9"/>
-            <Setter Property="Foreground" Value="#1A1206"/>
+            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">

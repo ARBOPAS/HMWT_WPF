@@ -38,7 +38,9 @@ namespace HMWT_MUI
             // Масштаб интерфейса: на ноутбуке всё крупно, на большом мониторе мелко
             InitializeUiScale();
 
+            var loadWatch = Stopwatch.StartNew();
             LoadCharacters();
+            DatabaseHelper.ReportIfSlow("старт: построение карточек персонажей", loadWatch.ElapsedMilliseconds);
 
             // ── Аватар могли сменить в другом окне (в том числе в комнате) ──
             // Подписка на событие, а не проверка по таймеру: карточка обновляется
@@ -55,6 +57,12 @@ namespace HMWT_MUI
             };
 
             ShowVersionFooter();
+
+            // Запуск закончен: окно собрано, курсор «занято» из App.OnStartup
+            // больше не нужен. Здесь же в журнал попадает полное время запуска —
+            // но только если оно подозрительно большое.
+            Mouse.OverrideCursor = null;
+            DatabaseHelper.ReportIfSlow("старт: до конца сборки главного окна", App.StartupWatch.ElapsedMilliseconds);
         }
 
         /// <summary>
@@ -232,9 +240,28 @@ namespace HMWT_MUI
             _isCharacterFormOpen = true;
             try
             {
+                // Окно листа собирается целиком в конструкторе, и это самая
+                // долгая часть открытия. Пока оно собирается, главное окно
+                // остаётся на экране и показывает курсор «занято»: иначе
+                // пользователь видел пустой рабочий стол и решал, что
+                // программа зависла.
+                Mouse.OverrideCursor = Cursors.Wait;
+                var buildWatch = Stopwatch.StartNew();
+                CharacterInfoWindow charWindow;
+                try
+                {
+                    charWindow = new CharacterInfoWindow(id);
+                }
+                finally
+                {
+                    Mouse.OverrideCursor = null;
+                }
+                DatabaseHelper.ReportIfSlow($"открытие листа персонажа id={id}: сборка окна", buildWatch.ElapsedMilliseconds);
+
+                // LoadCharacter здесь больше не зовём: конструктор окна уже
+                // загрузил данные, а повторный вызов — это второй полный
+                // проход по базе на каждое открытие листа
                 this.Hide();
-                var charWindow = new CharacterInfoWindow(id);
-                charWindow.LoadCharacter(id);
                 charWindow.ShowDialog();
             }
             finally

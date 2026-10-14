@@ -53,10 +53,78 @@ namespace HMWT_MUI.Views
 
             chkShowWindowsName.IsChecked = ShowWindowsName;
 
+            chkLightTheme.IsChecked = LightTheme;
+            chkTopTabs.IsChecked = TopTabs;
+
             foreach (int seconds in RefreshSteps)
                 cmbRefreshInterval.Items.Add(new ComboBoxItem { Content = seconds + " секунд" });
 
             cmbRefreshInterval.SelectedIndex = NearestRefreshIndex(RefreshSeconds);
+        }
+
+        /// <summary>
+        /// Светлая тема. Чтение значения живёт в App.CurrentTheme, здесь — запись.
+        /// </summary>
+        public static bool LightTheme
+        {
+            get
+            {
+                try { return App.CurrentTheme == "light"; }
+                catch { return false; }
+            }
+            set
+            {
+                try { DatabaseHelper.SaveSetting(App.ThemeSettingKey, value ? "light" : "dark"); }
+                catch (Exception ex) { Debug.WriteLine($"[Settings] тема: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Вкладки сверху: полоса вкладок переезжает в верхнюю строку окна.
+        /// </summary>
+        public static bool TopTabs
+        {
+            get
+            {
+                try { return DatabaseHelper.GetSetting(App.TopTabsSettingKey, "0").Trim() == "1"; }
+                catch { return false; }
+            }
+            set
+            {
+                try { DatabaseHelper.SaveSetting(App.TopTabsSettingKey, value ? "1" : "0"); }
+                catch (Exception ex) { Debug.WriteLine($"[Settings] вкладки: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Переключатели оформления.
+        ///
+        /// Применить их на лету нельзя: цвета подставлены в стили в момент загрузки
+        /// словаря, поэтому уже собранные окна сохранят прежние кисти. Настройка
+        /// сохраняется, а вариант вступает в силу при следующем запуске — рядом
+        /// стоит кнопка перезапуска.
+        /// </summary>
+        private void Appearance_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!_ready) return;
+
+            LightTheme = chkLightTheme.IsChecked == true;
+            TopTabs = chkTopTabs.IsChecked == true;
+            Note("Сохранено. Оформление применится после перезапуска.");
+        }
+
+        private void BtnRestartApp_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string exe = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+                if (!string.IsNullOrEmpty(exe)) System.Diagnostics.Process.Start(exe);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Note("Не удалось перезапустить: " + ex.Message);
+            }
         }
 
         /// <summary>

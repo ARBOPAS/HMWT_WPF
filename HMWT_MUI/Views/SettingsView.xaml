@@ -23,14 +23,14 @@
         <FontFamily x:Key="SetFontDisplay">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
         <FontFamily x:Key="SetFontBody">Segoe UI, Calibri</FontFamily>
 
-        <SolidColorBrush x:Key="SetVoid" Color="#0C0C12"/>
-        <SolidColorBrush x:Key="SetSlate" Color="#15151F"/>
-        <SolidColorBrush x:Key="SetPanel" Color="#1B1A26"/>
-        <SolidColorBrush x:Key="SetLine" Color="#322E44"/>
-        <SolidColorBrush x:Key="SetInk" Color="#ECE4D0"/>
-        <SolidColorBrush x:Key="SetMute" Color="#8B859C"/>
-        <SolidColorBrush x:Key="SetGold" Color="#E0AE4E"/>
-        <SolidColorBrush x:Key="SetFrost" Color="#4FB6AC"/>
+        <SolidColorBrush x:Key="SetVoid" Color="{StaticResource C.Void}"/>
+        <SolidColorBrush x:Key="SetSlate" Color="{StaticResource C.Slate}"/>
+        <SolidColorBrush x:Key="SetPanel" Color="{StaticResource C.Panel}"/>
+        <SolidColorBrush x:Key="SetLine" Color="{StaticResource C.Line}"/>
+        <SolidColorBrush x:Key="SetInk" Color="{StaticResource C.Ink}"/>
+        <SolidColorBrush x:Key="SetMute" Color="{StaticResource C.Mute}"/>
+        <SolidColorBrush x:Key="SetGold" Color="{StaticResource C.Gold}"/>
+        <SolidColorBrush x:Key="SetFrost" Color="{StaticResource C.Frost}"/>
 
         <Style x:Key="SetBtn" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
@@ -197,8 +197,12 @@
                                                   Content="{TemplateBinding SelectionBoxItem}"
                                                   ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                                   TextElement.Foreground="{TemplateBinding Foreground}"/>
-                                <TextBlock Grid.Column="1" Text="▾" FontSize="12"
-                                           Foreground="{StaticResource SetMute}" VerticalAlignment="Center"/>
+                                <!-- Символ «▾» заменён на общую векторную стрелку: он рисовался
+                                     системным шрифтом, из-за чего в этом окне выпадающие
+                                     списки выглядели иначе, чем во всех остальных -->
+                                <helpers:IconView Grid.Column="1" Kind="caret" IconSize="16" Filled="True"
+                                                  IconBrush="{StaticResource SetInk}" VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center"/>
                             </Grid>
                             <ToggleButton Background="Transparent" BorderThickness="0"
                                           Focusable="False" ClickMode="Press"
@@ -309,6 +313,37 @@
                         </Grid>
 
                         <TextBlock x:Name="txtScaleHint" Style="{StaticResource SetNote}" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ОФОРМЛЕНИЕ -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Оформление" Style="{StaticResource SetHeader}"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14" TextWrapping="Wrap"
+                                   Text="Тема и расположение вкладок. Обе настройки вступают в силу при следующем запуске: цвета подставляются в момент сборки окна, поэтому на лету они не меняются."/>
+
+                        <CheckBox x:Name="chkLightTheme" Margin="0,4" Style="{StaticResource SetCheck}"
+                                  Checked="Appearance_Changed" Unchecked="Appearance_Changed">
+                            <StackPanel>
+                                <TextBlock Text="Светлая тема" Style="{StaticResource SetLabel}"/>
+                                <TextBlock Text="Тёплый пергамент вместо почти чёрного фона, глубокий индиго вместо кремового текста. Стиль тот же, меняются только цвета."
+                                           Style="{StaticResource SetNote}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </CheckBox>
+
+                        <CheckBox x:Name="chkTopTabs" Margin="0,12,0,0" Style="{StaticResource SetCheck}"
+                                  Checked="Appearance_Changed" Unchecked="Appearance_Changed">
+                            <StackPanel>
+                                <TextBlock Text="Вкладки сверху" Style="{StaticResource SetLabel}"/>
+                                <TextBlock Text="Полоса вкладок переезжает наверх и получает подписи. Слева рейки не остаётся, поэтому содержимое становится шире."
+                                           Style="{StaticResource SetNote}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </CheckBox>
+
+                        <Button x:Name="btnRestartApp" Content="Перезапустить сейчас" Margin="0,14,0,0"
+                                HorizontalAlignment="Left" Style="{StaticResource SetBtn}"
+                                Click="BtnRestartApp_Click"/>
                     </StackPanel>
                 </Border>
 

@@ -57,11 +57,21 @@ namespace HMWT_MUI
             // 2. Копируем БД из ресурсов если её нет в AppData
 
 
-            _connectionString = $"Data Source={_databasePath}";
+            // Default Timeout ограничивает ожидание блокировки. По умолчанию
+            // Microsoft.Data.Sqlite повторяет попытку 30 секунд, поэтому любая
+            // коллизия блокировок выглядела как зависание на полминуты.
+            // 5 секунд согласованы с busy_timeout, который ставится при открытии.
+            _connectionString = $"Data Source={_databasePath};Default Timeout=5";
             Debug.WriteLine($"[DB] Строка подключения: {_connectionString}");
 
+            // Журнал WAL: читатель и писатель не блокируют друг друга.
+            // Режим хранится в самом файле базы, поэтому повторный вызов безвреден.
+            EnableWalJournal();
+
             // 3. Создаём все таблицы и применяем миграции
+            var ddlWatch = Stopwatch.StartNew();
             CreateAllTablesIfNotExists();
+            ReportIfSlow("старт: создание таблиц и миграции", ddlWatch.ElapsedMilliseconds);
 
             if (File.Exists(_databasePath))
             {
@@ -71,6 +81,37 @@ namespace HMWT_MUI
 
             Debug.WriteLine($"[DB] <<< ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА >>>\n");
             _initializedFile = dbFileName;
+        }
+
+        /// <summary>
+        /// Переводит базу в журнал WAL.
+        ///
+        /// Зачем: в обычном журнале (delete) активный читатель держит разделяемую
+        /// блокировку файла, и запись с другого соединения не проходит. Драйвер
+        /// повторяет попытку до CommandTimeout, после чего падает с «database is
+        /// locked» — со стороны это выглядит как зависание на десятки секунд.
+        /// В WAL читатели не мешают писателю.
+        ///
+        /// Режим журнала хранится в самом файле базы, так что выставляется один
+        /// раз и переживает перезапуск; повторный вызов просто подтверждает режим.
+        /// </summary>
+        private static void EnableWalJournal()
+        {
+            try
+            {
+                using var conn = new SqliteConnection(_connectionString);
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "PRAGMA journal_mode=WAL;";
+                var mode = cmd.ExecuteScalar()?.ToString();
+                Debug.WriteLine($"[DB] journal_mode = {mode}");
+            }
+            catch (Exception ex)
+            {
+                // Не критично: без WAL остаётся лишь риск блокировок,
+                // ради которого читатели теперь закрываются перед записью
+                Debug.WriteLine($"[DB] не удалось включить WAL: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -493,7 +534,10 @@ namespace HMWT_MUI
             EnsureColumns(conn, transaction, "Inventory",
                 "item_tag TEXT",
                 "max_charges INTEGER DEFAULT 0",
-                "is_stackable INTEGER DEFAULT 0");
+                "is_stackable INTEGER DEFAULT 0",
+                // Отдельное фото для строки списка (раньше колонку досоздавал
+                // конструктор InventoryService на каждое создание сервиса)
+                "list_photo_path TEXT DEFAULT ''");
 
             // Каталог магазина: колонки добавляются и к уже существующей таблице
             EnsureColumns(conn, transaction, "SrdItem",
@@ -976,6 +1020,50 @@ namespace HMWT_MUI
                 }
             }
             throw new Exception("Не удалось выполнить операцию: база данных заблокирована");
+        }
+
+        /// <summary>
+        /// Порог, после которого операция считается медленной и попадает в журнал.
+        /// </summary>
+        public const long SlowOperationMs = 150;
+
+        /// <summary>
+        /// Отмечает в журнале операцию, которая длилась подозрительно долго.
+        ///
+        /// Зачем: жалобы «программа думает» бесполезно разбирать догадками.
+        /// Здесь замер превращается в конкретную строку с названием операции и
+        /// числом, поэтому видно, что именно стопорится — запрос к базе,
+        /// ожидание блокировки или построение интерфейса.
+        ///
+        /// Журнал: %APPDATA%\HMWT\db-trace.log (последние ~200 КБ).
+        /// </summary>
+        public static void ReportIfSlow(string what, long elapsedMs)
+        {
+            if (elapsedMs < SlowOperationMs) return;
+
+            string line = $"{DateTime.Now:HH:mm:ss.fff} {elapsedMs,6} мс  {what}";
+            Debug.WriteLine("[DB][медленно] " + line);
+            TryWriteTrace(line);
+        }
+
+        /// <summary>Дописывает строку в журнал медленных операций (сбой журнала не мешает работе).</summary>
+        private static void TryWriteTrace(string line)
+        {
+            try
+            {
+                string dir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+                Directory.CreateDirectory(dir);
+                string file = Path.Combine(dir, "db-trace.log");
+
+                // Журнал не должен расти бесконечно: держим последние ~200 КБ
+                var info = new FileInfo(file);
+                if (info.Exists && info.Length > 200 * 1024)
+                    File.WriteAllText(file, "");
+
+                File.AppendAllText(file, line + Environment.NewLine);
+            }
+            catch { }
         }
 
         #endregion

@@ -6,21 +6,8 @@
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="800">
     <UserControl.Resources>
-        <Color x:Key="C.Slate">#15151F</Color>
-        <Color x:Key="C.Ink">#ECE4D0</Color>
-        <Color x:Key="C.Mute">#8B859C</Color>
-        <Color x:Key="C.Line">#322E44</Color>
-        <Color x:Key="C.Frost">#4FB6AC</Color>
-        <Color x:Key="C.Gold">#E0AE4E</Color>
 
-        <SolidColorBrush x:Key="B.Slate" Color="{StaticResource C.Slate}"/>
-        <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
-        <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
-        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
-        <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
 
-        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
     </UserControl.Resources>
 
     <Grid>
@@ -80,7 +67,7 @@
                 <Button Content="Обновить GIF" Click="ImageReload_Click" Height="26" Padding="8,0" Margin="2,0"
                         ToolTip="Перезапустить анимацию"/>
                 <Button Content="Удалить" Click="ImageDelete_Click" Height="26" Padding="8,0" Margin="2,0"
-                        Background="#C0564F" Foreground="#0C0C12"/>
+                        Background="{StaticResource B.Danger}" Foreground="{StaticResource B.Void}"/>
             </StackPanel>
         </Border>
     </Grid>

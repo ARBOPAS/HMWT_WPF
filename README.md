@@ -27,10 +27,22 @@ Windows, WPF, .NET Framework 4.8.
 
 ## Сборка
 
+Путь к MSBuild зависит от выпуска Visual Studio: у 18 это `Insiders`, у 17 —
+`Community`/`Professional`/`Enterprise`. Надёжнее спросить у системы:
+
 ```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" `
-    HMWT_MUI\HMWT_MUI.csproj /p:Configuration=Release /p:Platform=x64
+$msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+    -latest -products * -requires Microsoft.Component.MSBuild `
+    -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+
+& $msbuild HMWT_MUI\HMWT_MUI.csproj /p:Configuration=Release /p:Platform=x64
 ```
+
+Если vswhere недоступен, подойдёт путь напрямую, например
+`C:\Program Files\Microsoft Visual Studio\18\Insiders\MSBuild\Current\Bin\MSBuild.exe`.
+
+Собираются обе конфигурации: `Release` и `Debug` (в `Debug` включаются
+дополнительные проверки отрисовки иконок).
 
 Проект старого формата: `dotnet build` его не собирает. Новый файл исходника
 нужно добавить в `HMWT_MUI\HMWT_MUI.csproj` тегом `<Compile Include="..." />`.

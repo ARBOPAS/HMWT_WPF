@@ -6,8 +6,8 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Background="#0C0C12"
-        Foreground="#ECE4D0"
+        Background="{StaticResource B.Void}"
+        Foreground="{StaticResource B.Ink}"
         FontFamily="Segoe UI, Calibri">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -19,26 +19,26 @@
 
         <TextBlock x:Name="HeaderText" Grid.Row="0" Text="Вставка ссылки [[…]]"
                    FontFamily="Segoe UI Semibold, Segoe UI" FontSize="16" FontWeight="Bold"
-                   Foreground="#4FB6AC" Margin="0,0,0,10"/>
+                   Foreground="{StaticResource B.Frost}" Margin="0,0,0,10"/>
 
         <TextBox x:Name="SearchBox" Grid.Row="1"
-                 Background="#15151F" Foreground="#ECE4D0" CaretBrush="#E0AE4E"
-                 BorderBrush="#322E44" BorderThickness="1" Padding="10,8" FontSize="13"
+                 Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" CaretBrush="{StaticResource B.Gold}"
+                 BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10,8" FontSize="13"
                  Margin="0,0,0,10" TextChanged="SearchBox_TextChanged"/>
 
         <ListBox x:Name="ItemsList" Grid.Row="2"
-                 Background="#15151F" Foreground="#ECE4D0" BorderBrush="#322E44"
+                 Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" BorderBrush="{StaticResource B.Line}"
                  BorderThickness="1" MouseDoubleClick="ItemsList_MouseDoubleClick"
                  KeyDown="ItemsList_KeyDown"/>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <TextBlock x:Name="HintText" Text="" Foreground="#8B859C" FontSize="11"
+            <TextBlock x:Name="HintText" Text="" Foreground="{StaticResource B.Mute}" FontSize="11"
                        VerticalAlignment="Center" Margin="0,0,12,0"/>
             <Button Content="Отмена" Click="Cancel_Click" IsCancel="True"
-                    Background="#232132" Foreground="#ECE4D0" BorderThickness="0"
+                    Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}" BorderThickness="0"
                     Padding="16,8" Margin="0,0,10,0" Cursor="Hand"/>
             <Button Content="Вставить" Click="Ok_Click" IsDefault="True"
-                    Background="#4FB6AC" Foreground="#0C0C12" BorderThickness="0"
+                    Background="{StaticResource B.Frost}" Foreground="{StaticResource B.Void}" BorderThickness="0"
                     Padding="16,8" FontWeight="SemiBold" Cursor="Hand"/>
         </StackPanel>
     </Grid>

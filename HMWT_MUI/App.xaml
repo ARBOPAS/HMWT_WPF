@@ -6,7 +6,14 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Токены дизайна: один источник цветов и шрифтов на всё приложение -->
+                <!--
+                  Порядок обязателен: сначала палитра, потом стили.
+
+                  Стили подставляют цвета через StaticResource в момент загрузки
+                  словаря, поэтому палитра должна быть уже доступна. Тема меняется
+                  подменой только первой строки — см. App.ApplyTheme.
+                -->
+                <ResourceDictionary Source="Resources/Palette.Dark.xaml"/>
                 <ResourceDictionary Source="Resources/DesignTokens.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

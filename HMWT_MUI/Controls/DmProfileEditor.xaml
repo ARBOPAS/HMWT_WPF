@@ -8,10 +8,10 @@
              TextOptions.TextFormattingMode="Display">
     <UserControl.Resources>
         <Style x:Key="DmField" TargetType="TextBox">
-            <Setter Property="Background" Value="#15151F"/>
-            <Setter Property="Foreground" Value="#ECE4D0"/>
-            <Setter Property="CaretBrush" Value="#E0AE4E"/>
-            <Setter Property="BorderBrush" Value="#322E44"/>
+            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="FontSize" Value="13"/>
@@ -33,17 +33,17 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,9"/>
-            <Setter Property="Foreground" Value="#ECE4D0"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
-                                Background="#15151F" BorderBrush="#322E44" BorderThickness="1">
+                                Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="#E0AE4E"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -56,11 +56,11 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,9"/>
-            <Setter Property="Foreground" Value="#0C0C12"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Void}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}" Background="#E0AE4E">
+                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}" Background="{StaticResource B.Gold}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -76,13 +76,13 @@
 
     <!-- Затемнение на всё окно владельца -->
     <Grid x:Name="rootOverlay" Background="#D906060A">
-        <Border Background="#1B1A26" BorderBrush="#7A5E26" BorderThickness="1" CornerRadius="12"
+        <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldSoft}" BorderThickness="1" CornerRadius="12"
                 Padding="24" Width="460" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel>
                 <TextBlock x:Name="txtTitle" Text="ПРОФИЛЬ В ОТРЯДЕ" FontFamily="Cinzel, Segoe UI" FontSize="17" FontWeight="Bold"
-                           Foreground="#E0AE4E" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                           Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                 <TextBlock x:Name="txtSubtitleHint" Text="Так вас увидят в отряде."
-                           Foreground="#8B859C" FontSize="11" TextWrapping="Wrap" HorizontalAlignment="Center"
+                           Foreground="{StaticResource B.Mute}" FontSize="11" TextWrapping="Wrap" HorizontalAlignment="Center"
                            TextAlignment="Center" Margin="0,0,0,18"/>
 
                 <!-- Аватар: настоящий круг.
@@ -96,7 +96,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid Grid.Column="0" Width="76" Height="76" Margin="0,0,16,0">
-                        <Ellipse Fill="#15151F" Stroke="#7A5E26" StrokeThickness="1"/>
+                        <Ellipse Fill="{StaticResource B.Slate}" Stroke="{StaticResource B.GoldSoft}" StrokeThickness="1"/>
                         <!-- Обрезка в круг: Clip с эллипсом. Через CornerRadius
                              у Border содержимое НЕ обрезается, поэтому квадратная
                              картинка вылезала за края. -->
@@ -105,7 +105,7 @@
                                 <EllipseGeometry Center="36,36" RadiusX="36" RadiusY="36"/>
                             </Grid.Clip>
                             <TextBlock x:Name="txtAvatarLetter" Text="?" FontFamily="Cinzel, Segoe UI" FontSize="30"
-                                       FontWeight="Bold" Foreground="#E0AE4E"
+                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Image x:Name="imgAvatar" Stretch="UniformToFill"/>
                         </Grid>
@@ -116,20 +116,20 @@
                                 HorizontalAlignment="Left" Click="BtnChoosePhoto_Click"/>
                         <Button x:Name="btnClearPhoto" Content="Убрать аватар" Style="{StaticResource DmBtn}"
                                 HorizontalAlignment="Left" Margin="0,8,0,0" FontSize="11"
-                                Foreground="#C0564F" Click="BtnClearPhoto_Click"/>
+                                Foreground="{StaticResource B.Danger}" Click="BtnClearPhoto_Click"/>
                     </StackPanel>
                 </Grid>
 
                 <!-- Никнейм -->
-                <TextBlock Text="Никнейм в отряде" Foreground="#8B859C" FontSize="11" Margin="0,0,0,4"/>
+                <TextBlock Text="Никнейм в отряде" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox x:Name="txtName" Style="{StaticResource DmField}" MaxLength="40" MinHeight="38"/>
 
                 <!-- Подпись -->
-                <TextBlock Text="Подпись (например: воин 3 уровня)" Foreground="#8B859C"
+                <TextBlock Text="Подпись (например: воин 3 уровня)" Foreground="{StaticResource B.Mute}"
                            FontSize="11" Margin="0,12,0,4"/>
                 <TextBox x:Name="txtSubtitle" Style="{StaticResource DmField}" MaxLength="60" MinHeight="38"/>
 
-                <TextBlock x:Name="txtHint" Text="" Foreground="#C0564F" FontSize="11"
+                <TextBlock x:Name="txtHint" Text="" Foreground="{StaticResource B.Danger}" FontSize="11"
                            TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed"/>
 
                 <!-- Кнопки -->

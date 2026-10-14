@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Input;
 
 namespace HMWT_MUI
 {
@@ -8,6 +9,73 @@ namespace HMWT_MUI
     /// </summary>
     public partial class App : Application
     {
+        /// <summary>
+        /// Замер запуска: от инициализации приложения до конца сборки главного окна.
+        ///
+        /// Нужен, чтобы «долго запускается» превращалось в число в журнале
+        /// %APPDATA%\HMWT\db-trace.log, а не в догадки: непонятно ведь, тормозит
+        /// база, чтение персонажей или разбор разметки.
+        /// </summary>
+        public static readonly System.Diagnostics.Stopwatch StartupWatch =
+            System.Diagnostics.Stopwatch.StartNew();
+
+        /// <summary>Ключ настройки с темой оформления.</summary>
+        public const string ThemeSettingKey = "Ui_Theme";
+
+        /// <summary>Ключ настройки «вкладки сверху» (вместо левой рейки).</summary>
+        public const string TopTabsSettingKey = "Ui_TopTabs";
+
+        /// <summary>
+        /// Текущая тема: "dark" (по умолчанию) или "light".
+        /// Неизвестное значение приводим к тёмной: без палитры интерфейс не соберётся.
+        /// </summary>
+        public static string CurrentTheme
+        {
+            get
+            {
+                try
+                {
+                    string value = DatabaseHelper.GetSetting(ThemeSettingKey, "dark").Trim().ToLowerInvariant();
+                    return value == "light" ? "light" : "dark";
+                }
+                catch
+                {
+                    return "dark";
+                }
+            }
+        }
+
+        /// <summary>
+        /// Собирает ресурсы приложения с нужной палитрой.
+        ///
+        /// Тема меняется подменой ПАЛИТРЫ, а стили остаются одни и те же. Порядок
+        /// здесь принципиален: палитра подключается первой, стили — второй, потому
+        /// что стили подставляют цвета через StaticResource в момент загрузки
+        /// словаря и «запоминают» конкретные кисти. Если палитра окажется позже,
+        /// стили останутся от прежней темы.
+        ///
+        /// Поэтому ресурсы приложения пересобираются целиком и до создания окон:
+        /// вызывается из OnStartup, пока главное окно ещё не разобрано.
+        /// </summary>
+        public static void ApplyTheme()
+        {
+            string palette = CurrentTheme == "light" ? "Palette.Light.xaml" : "Palette.Dark.xaml";
+
+            var resources = new ResourceDictionary();
+            resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("Resources/" + palette, UriKind.Relative)
+            });
+            resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("Resources/DesignTokens.xaml", UriKind.Relative)
+            });
+
+            Application.Current.Resources = resources;
+
+            System.Diagnostics.Debug.WriteLine($"[App] тема: {CurrentTheme} ({palette})");
+        }
+
         /// <summary>
         /// Готовит отпечаток справочников для комнаты.
         ///
@@ -20,9 +88,20 @@ namespace HMWT_MUI
         {
             base.OnStartup(e);
 
+            // Пока главное окно собирается — инициализация базы, чтение персонажей,
+            // разбор разметки, — на экране нет вообще ничего, и это выглядит как
+            // «программа не запустилась». Курсор «занято» показывает, что работа
+            // идёт. Снимает его главное окно в конце своего конструктора.
+            Mouse.OverrideCursor = Cursors.Wait;
+
             try
             {
                 DatabaseHelper.Initialize();
+
+                // Тему выбираем до создания окон: окна и вложенные виды разбирают
+                // разметку позже и должны получить уже нужную палитру
+                ApplyTheme();
+
                 int items = Services.SrdItemImporter.GetCount();
                 int spells = Services.SpellJsonImporter.GetCount();
                 Net.RoomSession.DataFingerprint = $"items:{items}|spells:{spells}";

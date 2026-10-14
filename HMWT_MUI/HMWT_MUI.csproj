@@ -98,8 +98,8 @@
     <Reference Include="SQLitePCLRaw.batteries_v2, Version=3.0.4.3120, Culture=neutral, PublicKeyToken=8226ea5df37bcae9, processorArchitecture=MSIL">
       <HintPath>..\packages\SQLitePCLRaw.config.e_sqlite3.3.0.4\lib\net471\SQLitePCLRaw.batteries_v2.dll</HintPath>
     </Reference>
-    <Reference Include="SQLitePCLRaw.core, Version=3.0.4.3120, Culture=neutral, PublicKeyToken=1488e028ca7ab535, processorArchitecture=MSIL">
-      <HintPath>..\packages\SQLitePCLRaw.core.3.0.4\lib\netstandard2.0\SQLitePCLRaw.core.dll</HintPath>
+    <Reference Include="SQLitePCLRaw.core, Version=3.0.5.3129, Culture=neutral, PublicKeyToken=1488e028ca7ab535, processorArchitecture=MSIL">
+      <HintPath>..\packages\SQLitePCLRaw.core.3.0.5\lib\netstandard2.0\SQLitePCLRaw.core.dll</HintPath>
     </Reference>
     <Reference Include="SQLitePCLRaw.provider.dynamic_cdecl, Version=3.0.4.3120, Culture=neutral, PublicKeyToken=b68184102cba0b3b, processorArchitecture=MSIL">
       <HintPath>..\packages\SQLitePCLRaw.provider.dynamic_cdecl.3.0.4\lib\netstandard2.0\SQLitePCLRaw.provider.dynamic_cdecl.dll</HintPath>
@@ -113,7 +113,7 @@
     </Reference>
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Data" />
-        <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.IO.Pipelines, Version=10.0.0.10, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.IO.Pipelines.10.0.10\lib\net462\System.IO.Pipelines.dll</HintPath>
@@ -159,6 +159,19 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Page Include="Resources\DesignTokens.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <!--
+      Палитры. Проект старого формата: XAML-файлы перечисляются явно, и файл,
+      не указанный здесь, в сборку не попадает — приложение падает при запуске
+      с «не удается найти ресурс». Новую палитру добавлять сюда же.
+    -->
+    <Page Include="Resources\Palette.Dark.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Resources\Palette.Light.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -212,7 +225,6 @@
     <Compile Include="Services\SpellService.cs" />
     <Compile Include="Services\SrdImportService.cs" />
     <Compile Include="Services\TagService.cs" />
-
     <!-- Инструменты ДМа: бестиарий и трекер инициативы -->
     <Compile Include="Models\DamagePartData.cs" />
     <Compile Include="Models\AttackData.cs" />

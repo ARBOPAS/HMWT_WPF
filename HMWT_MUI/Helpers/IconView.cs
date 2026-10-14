@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 
@@ -86,6 +87,16 @@ namespace HMWT_MUI.Helpers
             var geometry = IconLibrary.Get(Kind);
             if (geometry == null) return;
 
+#if DEBUG
+            // Страховка от «поехавшей» иконки. Рисование не обрезается границами
+            // элемента, поэтому контур, вылезший за сетку 24×24, рисуется поверх
+            // соседних кнопок и выглядит как разорванный. Так были сломаны
+            // expand/upload/download: у одной геометрия доходила до (42,42).
+            var b = geometry.Bounds;
+            if (b.Left < -0.01 || b.Top < -0.01 || b.Right > IconLibrary.ViewBox + 0.01 || b.Bottom > IconLibrary.ViewBox + 0.01)
+                Debug.WriteLine($"[IconView] иконка «{Kind}» выходит за сетку {IconLibrary.ViewBox}: {b}");
+#endif
+
             double size = Math.Round(IconSize > 0 ? IconSize : 20.0);
             double thickness = Thickness > 0 ? Thickness : IconLibrary.DefaultThickness;
 
@@ -98,20 +109,25 @@ namespace HMWT_MUI.Helpers
                 thickness = IconLibrary.DefaultThickness * boost;
             }
 
+            // Фактический вес обводки. У залитой фигуры он тонкий — иначе по краю
+            // появляется светлая кайма, — и отступ внутри квадрата нужен под него
+            // же. Раньше здесь всегда брался номинальный вес, поэтому залитые
+            // значки сжимались лишний раз: стрелка выпадающего списка при
+            // IconSize=9 получала масштаб 0.21 и рисовалась точкой 2.7×1.3 px.
+            double strokeWeight = Filled ? 1.0 : thickness;
+
             // Толщину задаём в единицах сетки 24×24, а внутри квадрата поджимаем
             // рисунок на половину линии: иначе крайние точки срезаются краем
-            double scale = (size - thickness - 1.0) / IconLibrary.ViewBox;
+            double scale = (size - strokeWeight - 1.0) / IconLibrary.ViewBox;
             if (scale <= 0) scale = size / IconLibrary.ViewBox;
 
             // Сдвиг тоже округляем — вместе с целым размером это даёт попадание
             // линии в пиксель вместо размытой полутени
-            double inset = Math.Round((thickness * scale) / 2.0 + 0.5, 1);
+            double inset = Math.Round((strokeWeight * scale) / 2.0 + 0.5, 1);
 
             var brush = IconBrush ?? Brushes.Gainsboro;
 
-            // Заливка: контур рисуем тем же цветом тонко — так у залитой фигуры
-            // не появляется светлая кайма по краю
-            var pen = new Pen(brush, Filled ? 1.0 : thickness)
+            var pen = new Pen(brush, strokeWeight)
             {
                 StartLineCap = PenLineCap.Round,
                 EndLineCap = PenLineCap.Round,

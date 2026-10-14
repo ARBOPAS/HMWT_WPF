@@ -6,41 +6,6 @@
 
     <UserControl.Resources>
         <!-- ========== ПАЛИТРА ========== -->
-        <Color x:Key="C.Void">#0C0C12</Color>
-        <Color x:Key="C.Slate">#15151F</Color>
-        <Color x:Key="C.Panel">#1B1A26</Color>
-        <Color x:Key="C.PanelHi">#232132</Color>
-        <Color x:Key="C.Line">#322E44</Color>
-        <Color x:Key="C.Ink">#ECE4D0</Color>
-        <Color x:Key="C.Mute">#8B859C</Color>
-        <Color x:Key="C.Gold">#E0AE4E</Color>
-        <Color x:Key="C.Arcane">#9A7BD6</Color>
-        <Color x:Key="C.Frost">#4FB6AC</Color>
-        <Color x:Key="C.Danger">#C0564F</Color>
-        <Color x:Key="C.Ok">#5BB974</Color>
-        <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
-        <SolidColorBrush x:Key="B.Slate" Color="{StaticResource C.Slate}"/>
-        <SolidColorBrush x:Key="B.Panel" Color="{StaticResource C.Panel}"/>
-        <SolidColorBrush x:Key="B.PanelHi" Color="{StaticResource C.PanelHi}"/>
-        <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
-        <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
-        <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
-        <SolidColorBrush x:Key="B.Arcane" Color="{StaticResource C.Arcane}"/>
-        <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
-        <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
-        <SolidColorBrush x:Key="B.Ok" Color="{StaticResource C.Ok}"/>
-        <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#0C0C12" Offset="0"/>
-            <GradientStop Color="#13111D" Offset="0.55"/>
-            <GradientStop Color="#0A0A10" Offset="1"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#E0AE4E" Offset="0"/>
-            <GradientStop Color="#9A7BD6" Offset="1"/>
-        </LinearGradientBrush>
-        <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
-        <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
 
         <!-- ========== ПОИСК ========== -->
         <Style x:Key="SearchBox" TargetType="TextBox">
@@ -96,7 +61,16 @@
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
                                         <Border Background="Transparent">
-                                            <helpers:IconView Kind="caret" IconSize="10" Filled="True" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/>
+                                            <!-- Стрелку прижимаем к правому краю. Раньше у неё
+                                                 было только VerticalAlignment, а IconView по
+                                                 умолчанию растягивается — значок вставал по
+                                                 центру поля и налезал на выбранный текст.
+                                                 Отступ 9 оставляет его в полосе 28, которую
+                                                 под стрелку резервирует ContentPresenter -->
+                                            <helpers:IconView Kind="caret" IconSize="16" Filled="True"
+                                                              IconBrush="{StaticResource B.Ink}"
+                                                              HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                              Margin="0,0,9,0"/>
                                         </Border>
                                     </ControlTemplate>
                                 </ToggleButton.Template>
@@ -144,7 +118,7 @@
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="{StaticResource B.Gold}"/>
-                    <Setter Property="Foreground" Value="#1A1206"/>
+                    <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </Trigger>
             </Style.Triggers>
@@ -153,7 +127,7 @@
         <!-- ========== КНОПКИ ========== -->
         <Style x:Key="ActionBtn" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="#1A1206"/>
+            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -380,7 +354,7 @@
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
                                 <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="#1A1206"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>

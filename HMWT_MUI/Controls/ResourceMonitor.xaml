@@ -4,11 +4,11 @@
              UseLayoutRounding="True" SnapsToDevicePixels="True"
              TextOptions.TextFormattingMode="Display">
     <UserControl.Resources>
-        <SolidColorBrush x:Key="RmInk" Color="#ECE4D0"/>
-        <SolidColorBrush x:Key="RmMute" Color="#8B859C"/>
-        <SolidColorBrush x:Key="RmGold" Color="#E0AE4E"/>
-        <SolidColorBrush x:Key="RmFrost" Color="#4FB6AC"/>
-        <SolidColorBrush x:Key="RmLine" Color="#322E44"/>
+        <SolidColorBrush x:Key="RmInk" Color="{StaticResource C.Ink}"/>
+        <SolidColorBrush x:Key="RmMute" Color="{StaticResource C.Mute}"/>
+        <SolidColorBrush x:Key="RmGold" Color="{StaticResource C.Gold}"/>
+        <SolidColorBrush x:Key="RmFrost" Color="{StaticResource C.Frost}"/>
+        <SolidColorBrush x:Key="RmLine" Color="{StaticResource C.Line}"/>
 
         <Style x:Key="RmBar" TargetType="ProgressBar">
             <Setter Property="Height" Value="6"/>
