@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using HMWT_MUI.Services;
+using HMWT_MUI.Helpers;
 
 namespace HMWT_MUI
 {
@@ -449,7 +450,7 @@ namespace HMWT_MUI
                         Padding = new Thickness(10, 6, 10, 6),
                         BorderBrush = new SolidColorBrush(Line),
                         BorderThickness = new Thickness(0, 0, 1, 0),
-                        Background = new SolidColorBrush(r == 0 ? Slate : Color.FromRgb(0x1B, 0x1A, 0x26))
+                        Background = new SolidColorBrush(r == 0 ? Slate : Color.FromRgb(0x15, 0x1B, 0x2E))
                     });
                 }
                 group.Rows.Add(row);
@@ -623,8 +624,8 @@ namespace HMWT_MUI
             {
                 inlines.Add(new Span(new Run(token.Substring(2, token.Length - 4)))
                 {
-                    Background = new SolidColorBrush(Gold()),
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x0C, 0x0C, 0x12))
+                    Background = new SolidColorBrush(Accent()),
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x09, 0x0C, 0x16))
                 });
                 return;
             }
@@ -645,7 +646,7 @@ namespace HMWT_MUI
                 inlines.Add(new Run(token.Substring(1, token.Length - 2))
                 {
                     FontFamily = new FontFamily("Cambria Math, Consolas"),
-                    Foreground = new SolidColorBrush(Gold())
+                    Foreground = new SolidColorBrush(Accent())
                 });
                 return;
             }
@@ -653,7 +654,7 @@ namespace HMWT_MUI
             inlines.Add(new Run(Unescape(token)));
         }
 
-        private static Color Gold() => (Color)ColorConverter.ConvertFromString("#E0AE4E");
+        private static Color Accent() => PaletteBrush.GetColor("C.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD));
 
         private static string Unescape(string text)
         {
@@ -977,7 +978,7 @@ namespace HMWT_MUI
                     return "~~" + text + "~~";
                 if (span.TextDecorations == TextDecorations.Underline)
                     return "<u>" + text + "</u>";
-                if (span.Background is SolidColorBrush bg && bg.Color == Gold())
+                if (span.Background is SolidColorBrush bg && bg.Color == Accent())
                     return "==" + text + "==";
                 if (span.FontFamily?.Source != null && span.FontFamily.Source.Contains("Consolas"))
                     return "`" + text + "`";

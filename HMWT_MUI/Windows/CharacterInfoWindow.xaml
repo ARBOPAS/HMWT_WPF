@@ -828,7 +828,7 @@
 
         <!-- ОВЕРЛЕЙ: КАЛЬКУЛЯТОР ЗОЛОТА -->
         <Border x:Name="GoldCalcOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
             <Border.RenderTransform>
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
@@ -912,7 +912,7 @@
 
         <!-- ОВЕРЛЕЙ: КАЛЬКУЛЯТОР ЗДОРОВЬЯ -->
         <Border x:Name="HPCalcOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
             <Border.RenderTransform>
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
@@ -1116,7 +1116,7 @@
 
         <!-- ОВЕРЛЕЙ: МЕНЕДЖЕР УРОВНЕЙ -->
         <Border x:Name="LevelManagerOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
             <Border.RenderTransform>
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
@@ -1316,7 +1316,7 @@
 
         <!-- ОВЕРЛЕЙ: МЕНЮ ВЫБОРА КУБИКОВ -->
         <Border x:Name="DiceMenuOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="250" MouseLeftButtonDown="OverlayBackground_Click">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="250" MouseLeftButtonDown="OverlayBackground_Click">
             <Border Background="{StaticResource B.Panel}" Width="400" Height="500" HorizontalAlignment="Center" 
                     VerticalAlignment="Center" CornerRadius="12" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1">
                 <Grid Margin="24">
@@ -1423,7 +1423,7 @@
 
         <!-- ОВЕРЛЕЙ: ОТДЫХ -->
         <Border x:Name="RestOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
             <Border.RenderTransform>
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
@@ -1498,7 +1498,7 @@
 
         <!-- ОВЕРЛЕЙ: ИСТОРИЯ БРОСКОВ (СЕССИЯ) -->
         <Border x:Name="RollHistoryOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="RollHistoryOverlay_Close">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="RollHistoryOverlay_Close">
             <Border.RenderTransform>
                 <TranslateTransform X="-400"/>
             </Border.RenderTransform>
@@ -1524,7 +1524,7 @@
 
         <!-- ОВЕРЛЕЙ: КД И СКОРОСТЬ -->
         <Border x:Name="ACSpeedOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
             <Border.RenderTransform>
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
@@ -1563,7 +1563,7 @@
 
         <!-- ОВЕРЛЕЙ: ИНИЦИАТИВА (быстрый доступ из подвала окна) -->
         <Border x:Name="InitiativeOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-                Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="205"
+                Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="205"
                 MouseLeftButtonDown="InitiativeOverlay_Close">
             <Border.RenderTransform>
                 <TranslateTransform X="420"/>
@@ -1588,7 +1588,7 @@
 
         <!-- ОВЕРЛЕЙ: ПОРТРЕТ -->
         <Border x:Name="PortraitOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="210" MouseLeftButtonDown="PortraitOverlay_Close">
+        Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="210" MouseLeftButtonDown="PortraitOverlay_Close">
             <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="2"
                     CornerRadius="12" Padding="16" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>

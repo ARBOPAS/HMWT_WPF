@@ -624,7 +624,7 @@ namespace HMWT_MUI
 
             var defaultTags = new[]
             {
-                ("treasure", "#E0AE4E"), ("weapon", "#C0564F"), ("armor", "#4F7BC0"),
+                ("treasure", "#5FD4DD"), ("weapon", "#C0564F"), ("armor", "#4F7BC0"),
                 ("consumable", "#5BB974"), ("misc", "#8B859C"), ("quest", "#9A7BD6")
             };
 

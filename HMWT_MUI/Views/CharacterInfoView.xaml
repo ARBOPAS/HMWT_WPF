@@ -182,7 +182,7 @@
                 <Ellipse.Fill>
                     <RadialGradientBrush>
                         <GradientStop Color="{StaticResource C.Arcane}" Offset="0"/>
-                        <GradientStop Color="#009A7BD6" Offset="1"/>
+                        <GradientStop Color="#00A98BEC" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
             </Ellipse>
@@ -190,7 +190,7 @@
                 <Ellipse.Fill>
                     <RadialGradientBrush>
                         <GradientStop Color="{StaticResource C.Accent}" Offset="0"/>
-                        <GradientStop Color="#00E0AE4E" Offset="1"/>
+                        <GradientStop Color="#005FD4DD" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
             </Ellipse>
@@ -925,7 +925,7 @@
 
         <!-- ОВЕРЛЕЙ: ПРЕДЫСТОРИЯ -->
         <Grid x:Name="backgroundPickerOverlay" Grid.RowSpan="2" Visibility="Collapsed" Panel.ZIndex="170">
-            <Border Background="#CC06060A" MouseLeftButtonDown="BackgroundPicker_Close"/>
+            <Border Background="{StaticResource B.Scrim}" MouseLeftButtonDown="BackgroundPicker_Close"/>
             <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
                     CornerRadius="12" Padding="20" Width="600" MaxHeight="700" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>
@@ -1016,7 +1016,7 @@
 
         <!-- ОВЕРЛЕЙ: ХАРАКТЕРИСТИКА И БОНУСЫ -->
         <Grid x:Name="abilityBonusOverlay" Grid.RowSpan="2" Visibility="Collapsed" Panel.ZIndex="180">
-            <Border Background="#CC06060A" MouseLeftButtonDown="AbilityBonusOverlay_Close"/>
+            <Border Background="{StaticResource B.Scrim}" MouseLeftButtonDown="AbilityBonusOverlay_Close"/>
             <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
             CornerRadius="12" Padding="24" Width="520" MaxHeight="660"
             HorizontalAlignment="Center" VerticalAlignment="Center">

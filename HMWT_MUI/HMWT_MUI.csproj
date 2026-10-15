@@ -292,6 +292,7 @@
     <Compile Include="Helpers\DatabaseHelper.cs" />
     <Compile Include="Helpers\NumberInput.cs" />
     <Compile Include="Helpers\PhotoHelper.cs" />
+    <Compile Include="Helpers\PaletteBrush.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

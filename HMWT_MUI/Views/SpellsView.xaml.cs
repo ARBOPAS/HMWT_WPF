@@ -69,7 +69,7 @@ namespace HMWT_MUI.Views
         {
             Color.FromRgb(0x4F,0x7B,0xC0), Color.FromRgb(0x9A,0x7B,0xD6), Color.FromRgb(0x4F,0xB6,0xAC),
             Color.FromRgb(0xC0,0x8A,0x3E), Color.FromRgb(0xC0,0x56,0x8F), Color.FromRgb(0x7A,0x3B,0x3B),
-            Color.FromRgb(0x8A,0x9A,0x3E), Color.FromRgb(0xE0,0xAE,0x4E), Color.FromRgb(0x5B,0x7B,0xB0),
+            Color.FromRgb(0x8A,0x9A,0x3E), Color.FromRgb(0x5F,0xD4,0xDD), Color.FromRgb(0x5B,0x7B,0xB0),
         };
         private static readonly string[] DefaultClasses = { "Варвар", "Бард", "Жрец", "Друид", "Воин", "Монах", "Паладин", "Следопыт", "Плут", "Чародей", "Колдун", "Волшебник", "Изобретатель" };
         #endregion
@@ -620,7 +620,7 @@ namespace HMWT_MUI.Views
             var grid = new Grid();
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(96) });
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            var imgBox = new Border { Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x24, 0x38)) };
+            var imgBox = new Border { Background = new SolidColorBrush(Color.FromRgb(0x1B, 0x21, 0x38)) };
             var imgGrid = new Grid();
             // HoverGif: статичный первый кадр, анимация только при наведении.
               var img = new Controls.HoverGif { Stretch = Stretch.Uniform };
@@ -923,7 +923,7 @@ namespace HMWT_MUI.Views
                 Cursor = Cursors.Hand,
                 Background = (Brush)FindResource("B.Accent"),
                 BorderThickness = new Thickness(0),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x04, 0x22, 0x2A)),
                 FontSize = 12
             };
             btnPrepare.Click += (s, e) =>
@@ -1054,7 +1054,7 @@ namespace HMWT_MUI.Views
                         Padding = new Thickness(11, 5, 11, 5),
                         Margin = new Thickness(0, 0, 7, 7),
                         BorderThickness = new Thickness(1),
-                        Background = on ? new SolidColorBrush(Color.FromArgb(0x33, 0x9A, 0x7B, 0xD6)) : B("B.PanelHi"),
+                        Background = on ? new SolidColorBrush(Color.FromArgb(0x33, 0xA9, 0x8B, 0xEC)) : B("B.PanelHi"),
                         BorderBrush = on ? B("B.Arcane") : B("B.Line"),
                         Tag = t.Id
                     };
@@ -2646,7 +2646,7 @@ namespace HMWT_MUI.Views
             // Фон-затемнение
             var bg = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x06, 0x06, 0x0A)),
+                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x05, 0x07, 0x0E)),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch
             };

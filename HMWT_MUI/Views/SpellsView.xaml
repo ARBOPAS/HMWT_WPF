@@ -826,7 +826,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="ГОТОВАЯ КАРТОЧКА" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                             <Border x:Name="FullModifiedBadge" Grid.Column="1" Visibility="Collapsed" Margin="8,0,0,0"
-                                    Background="#33E0AE4E" CornerRadius="8" Padding="7,2" VerticalAlignment="Center" ToolTip="Изменено относительно справочника">
+                                    Background="{StaticResource B.AccentSoft}" CornerRadius="8" Padding="7,2" VerticalAlignment="Center" ToolTip="Изменено относительно справочника">
                                 <TextBlock Text="изменено" FontSize="10" Foreground="{StaticResource B.Accent}"/>
                             </Border>
                             <Button x:Name="BtnCollapseFull" Grid.Column="3" Cursor="Hand" ToolTip="Свернуть" Background="Transparent" BorderThickness="0">
@@ -916,7 +916,7 @@
                                  наполняет базу сам, и правки его же заклинания
                                  касаются только его персонажей -->
                             <Border x:Name="TxtRulebookWarning" Visibility="Collapsed" Margin="0,0,0,12"
-                                    Background="#22E0AE4E" BorderBrush="{StaticResource B.AccentDim}" BorderThickness="1" CornerRadius="6" Padding="9,7">
+                                    Background="{StaticResource B.AccentFaint}" BorderBrush="{StaticResource B.AccentDim}" BorderThickness="1" CornerRadius="6" Padding="9,7">
                                 <TextBlock x:Name="TxtRulebookWarningText" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource B.Accent}"
                                            Text="Это заклинание уже есть у других персонажей. Правки затронут и их — карточка будет помечена как «изменено»."/>
                             </Border>
@@ -1122,7 +1122,7 @@
 
         <!-- ═══════════ ОВЕРЛЕЙ: ОБЗОР ЯЧЕЕК ПО УРОВНЯМ ═══════════ -->
         <Grid x:Name="SlotsOverviewOverlay" Panel.ZIndex="175" Visibility="Collapsed">
-            <Border Background="#6606060A" MouseLeftButtonDown="SlotsOverviewBg_Click"/>
+            <Border Background="{StaticResource B.Scrim}" MouseLeftButtonDown="SlotsOverviewBg_Click"/>
             <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="66,16,0,0" Width="220"
                     Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="10" Padding="14">
                 <Border.Effect>
@@ -1140,7 +1140,7 @@
         </Grid>
 
         <!-- ═══════════ ОВЕРЛЕЙ: ФИЛЬТР ПО ТЕГАМ ═══════════ -->
-        <Grid x:Name="TagFilterOverlay" Panel.ZIndex="175" Visibility="Collapsed" Background="#CC06060A">
+        <Grid x:Name="TagFilterOverlay" Panel.ZIndex="175" Visibility="Collapsed" Background="{StaticResource B.Scrim}">
             <Border Width="Auto" MinWidth="320" MaxWidth="420" MaxHeight="520" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <Border.Effect>
@@ -1177,7 +1177,7 @@
         </Grid>
 
         <!-- ═══════════ ОВЕРЛЕЙ: СПРАВОЧНИК ═══════════ -->
-        <Grid x:Name="SpellbookOverlay" Panel.ZIndex="170" Visibility="Collapsed" Background="#CC06060A">
+        <Grid x:Name="SpellbookOverlay" Panel.ZIndex="170" Visibility="Collapsed" Background="{StaticResource B.Scrim}">
             <Border Width="Auto" MinWidth="380" MaxWidth="640" MaxHeight="640" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <Border.Effect>
@@ -1226,7 +1226,7 @@
                                                     <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
                                                 </Trigger>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="bd" Property="Background" Value="#33E0AE4E"/>
+                                                    <Setter TargetName="bd" Property="Background" Value="{StaticResource B.AccentSoft}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -1262,7 +1262,7 @@
         </Grid>
 
         <!-- ═══════════ ОВЕРЛЕЙ: РЕДАКТОР ТЕГОВ ═══════════ -->
-        <Grid x:Name="TagsOverlay" Panel.ZIndex="170" Visibility="Collapsed" Background="#CC06060A">
+        <Grid x:Name="TagsOverlay" Panel.ZIndex="170" Visibility="Collapsed" Background="{StaticResource B.Scrim}">
             <Border Width="Auto" MinWidth="340" MaxWidth="460" MaxHeight="560" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <Border.Effect>

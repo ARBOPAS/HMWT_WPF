@@ -157,7 +157,7 @@ namespace HMWT_MUI.Views
 
             _pickerLayer = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0xD0, 0x06, 0x06, 0x0A)),
+                Background = new SolidColorBrush(Color.FromArgb(0xD0, 0x05, 0x07, 0x0E)),
                 Visibility = Visibility.Collapsed,
                 Child = pickerCard
             };

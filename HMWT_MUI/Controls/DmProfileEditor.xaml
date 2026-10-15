@@ -75,7 +75,7 @@
     </UserControl.Resources>
 
     <!-- Затемнение на всё окно владельца -->
-    <Grid x:Name="rootOverlay" Background="#D906060A">
+    <Grid x:Name="rootOverlay" Background="{StaticResource B.Scrim}">
         <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentDim}" BorderThickness="1" CornerRadius="12"
                 Padding="24" Width="460" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel>

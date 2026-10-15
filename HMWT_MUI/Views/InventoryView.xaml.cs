@@ -413,7 +413,7 @@ namespace HMWT_MUI.Views
 
             // Кольца, амулеты, палочки, жезлы, посохи: магические предметы
             if (t.Contains("ring") || t.Contains("кольцо")) return Color.FromRgb(0xC0, 0x8A, 0x3E);
-            if (t.Contains("rod") || t.Contains("жезл")) return Color.FromRgb(0x9A, 0x7B, 0xD6);
+            if (t.Contains("rod") || t.Contains("жезл")) return Color.FromRgb(0xA9, 0x8B, 0xEC);
             if (t.Contains("wand") || t.Contains("staff") || t.Contains("палочка") || t.Contains("посох"))
                 return Color.FromRgb(0xB0, 0x8A, 0xE0);
             if (t.Contains("wondrous") || t.Contains("чудесн")) return Color.FromRgb(0x7E, 0x6F, 0xC9);
@@ -423,7 +423,7 @@ namespace HMWT_MUI.Views
                 t.Contains("снаряж") || t.Contains("инструмент")) return Color.FromRgb(0x4F, 0xB6, 0xAC);
 
             // Всё остальное — нейтральный
-            return Color.FromRgb(0x8B, 0x85, 0x9C);
+            return Color.FromRgb(0x8B, 0x95, 0xB4);
         }
 
         /// <summary>Цвет для рамки и подписи типа предмета в списке.</summary>
@@ -2892,7 +2892,7 @@ namespace HMWT_MUI.Views
             return new TextBlock
             {
                 Text = letter,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xF5)),
                 FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,

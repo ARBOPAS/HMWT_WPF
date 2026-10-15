@@ -49,6 +49,9 @@
     <Color x:Key="C.PhotoBack">#E4DCCB</Color>
     <!-- Текст на цветных заливках: заливки на свету темнее, текст светлый -->
     <Color x:Key="C.OnFill">#F2FBF8</Color>
+    <!-- Затемнение под всплывающими окнами: тёмный индиго, а не чёрный,
+         иначе пергамент под ним выглядит грязным -->
+    <Color x:Key="C.Scrim">#A6332B40</Color>
 
     <!-- Кисти -->
     <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
@@ -68,6 +71,10 @@
     <SolidColorBrush x:Key="B.OnAccent" Color="{StaticResource C.OnAccent}"/>
     <SolidColorBrush x:Key="B.PhotoBack" Color="{StaticResource C.PhotoBack}"/>
     <SolidColorBrush x:Key="B.OnFill" Color="{StaticResource C.OnFill}"/>
+    <SolidColorBrush x:Key="B.Scrim" Color="{StaticResource C.Scrim}"/>
+    <!-- Полупрозрачные заливки акцента: те же роли, что и в тёмной теме -->
+    <SolidColorBrush x:Key="B.AccentFaint" Color="{StaticResource C.Accent}" Opacity="0.13"/>
+    <SolidColorBrush x:Key="B.AccentSoft" Color="{StaticResource C.Accent}" Opacity="0.22"/>
 
     <!-- Градиенты собираются из цветов палитры: фон и золотая кромка -->
     <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">

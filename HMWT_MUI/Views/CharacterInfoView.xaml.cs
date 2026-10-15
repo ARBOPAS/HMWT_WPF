@@ -985,7 +985,7 @@ namespace HMWT_MUI.Views
             try
             {
                 button.Background = active ? (Brush)FindResource("B.Accent") : (Brush)FindResource("B.Slate");
-                button.Foreground = active ? new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06)) : (Brush)FindResource("B.Ink");
+                button.Foreground = active ? new SolidColorBrush(Color.FromRgb(0x04, 0x22, 0x2A)) : (Brush)FindResource("B.Ink");
                 button.BorderBrush = active ? (Brush)FindResource("B.Accent") : (Brush)FindResource("B.Line");
                 button.BorderThickness = new Thickness(1);
                 button.FontWeight = active ? FontWeights.Bold : FontWeights.Normal;

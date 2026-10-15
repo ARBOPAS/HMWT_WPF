@@ -30,22 +30,22 @@ namespace HMWT_MUI.Helpers
 
             switch (key)
             {
-                case "Void": return Frozen(Color.FromRgb(0x0C, 0x0C, 0x12));
-                case "Slate": return Frozen(Color.FromRgb(0x15, 0x15, 0x1F));
-                case "Panel": return Frozen(Color.FromRgb(0x1B, 0x1A, 0x26));
-                case "PanelHi": return Frozen(Color.FromRgb(0x23, 0x21, 0x32));
-                case "Line": return Frozen(Color.FromRgb(0x32, 0x2E, 0x44));
-                case "Ink": return Frozen(Color.FromRgb(0xEC, 0xE4, 0xD0));
-                case "Mute": return Frozen(Color.FromRgb(0x8B, 0x85, 0x9C));
-                case "Gold": return Frozen(Color.FromRgb(0xE0, 0xAE, 0x4E));
-                case "GoldSoft": return Frozen(Color.FromRgb(0x7A, 0x5E, 0x26));
-                case "Arcane": return Frozen(Color.FromRgb(0x9A, 0x7B, 0xD6));
+                case "Void": return Frozen(Color.FromRgb(0x09, 0x0C, 0x16));
+                case "Slate": return Frozen(Color.FromRgb(0x11, 0x17, 0x29));
+                case "Panel": return Frozen(Color.FromRgb(0x15, 0x1B, 0x2E));
+                case "PanelHi": return Frozen(Color.FromRgb(0x1E, 0x25, 0x40));
+                case "Line": return Frozen(Color.FromRgb(0x2B, 0x33, 0x52));
+                case "Ink": return Frozen(Color.FromRgb(0xE6, 0xEA, 0xF5));
+                case "Mute": return Frozen(Color.FromRgb(0x8B, 0x95, 0xB4));
+                case "Gold": return Frozen(Color.FromRgb(0x5F, 0xD4, 0xDD));
+                case "GoldSoft": return Frozen(Color.FromRgb(0x2A, 0x6A, 0x74));
+                case "Arcane": return Frozen(Color.FromRgb(0xA9, 0x8B, 0xEC));
                 case "Frost": return Frozen(Color.FromRgb(0x4F, 0xB6, 0xAC));
                 case "Danger": return Frozen(Color.FromRgb(0xC0, 0x56, 0x4F));
                 case "Ok": return Frozen(Color.FromRgb(0x5B, 0xB9, 0x74));
                 case "Enchant": return Frozen(Color.FromRgb(0xC0, 0x56, 0x8F));
-                case "Backdrop": return Frozen(Color.FromRgb(0x06, 0x06, 0x0A));
-                case "GoldEdge": return Frozen(Color.FromRgb(0xE0, 0xAE, 0x4E));
+                case "Backdrop": return Frozen(Color.FromRgb(0x05, 0x07, 0x0E));
+                case "GoldEdge": return Frozen(Color.FromRgb(0x5F, 0xD4, 0xDD));
                 default: return Frozen(Colors.Gray);
             }
         }
@@ -390,7 +390,7 @@ namespace HMWT_MUI.Helpers
                     break;
                 default:
                     background = B("Gold");
-                    foreground = Frozen(Color.FromRgb(0x1A, 0x12, 0x06));
+                    foreground = Frozen(Color.FromRgb(0x04, 0x22, 0x2A));
                     hover = Fade(B("Gold"), 0xCC);
                     break;
             }

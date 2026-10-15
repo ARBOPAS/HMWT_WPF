@@ -28,7 +28,7 @@ namespace HMWT_MUI.Controls
         private static readonly Color Ink = (Color)ColorConverter.ConvertFromString("#ECE4D0");
         private static readonly Color Slate = (Color)ColorConverter.ConvertFromString("#15151F");
         private static readonly Color LineColor = (Color)ColorConverter.ConvertFromString("#322E44");
-        private static readonly Color GoldColor = (Color)ColorConverter.ConvertFromString("#E0AE4E");
+        private static readonly Color GoldColor = (Color)ColorConverter.ConvertFromString("#5FD4DD");
 
         private static readonly string[] ImageExtensions = { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff" };
 

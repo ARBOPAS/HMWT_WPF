@@ -187,7 +187,7 @@ namespace HMWT_MUI.Views
             if (button == null) return;
             button.Background = active ? DmUiKit.B("Gold") : DmUiKit.B("PanelHi");
             button.Foreground = active
-                ? (Brush)new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06))
+                ? (Brush)new SolidColorBrush(Color.FromRgb(0x04, 0x22, 0x2A))
                 : DmUiKit.B("Ink");
         }
 

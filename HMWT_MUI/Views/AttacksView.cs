@@ -713,7 +713,7 @@ namespace HMWT_MUI.Views
 
             _editorLayer = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x06, 0x06, 0x0A)),
+                Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x05, 0x07, 0x0E)),
                 Visibility = Visibility.Collapsed,
                 Child = card,
                 HorizontalAlignment = HorizontalAlignment.Center,

@@ -1215,7 +1215,7 @@ namespace HMWT_MUI
         {
     ("Platinum", "ПМ", "#E8ECF0"),
     ("Electrum", "ЭМ", "#A9C4B5"),
-    ("Gold",     "ЗМ", "#E0AE4E"),
+    ("Gold",     "ЗМ", "#5FD4DD"),
     ("Silver",   "СМ", "#C3CBD6"),
     ("Copper",   "ММ", "#C47A50"),
 };
@@ -1857,7 +1857,7 @@ namespace HMWT_MUI
             var panel = new Border
             {
                 // Фон полупрозрачный: панель результатов висит поверх листа персонажа
-                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x1B, 0x1A, 0x26)),
+                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x15, 0x1B, 0x2E)),
                 CornerRadius = new CornerRadius(10),
                 BorderBrush = accent,
                 BorderThickness = new Thickness(1.5),
@@ -2045,7 +2045,7 @@ namespace HMWT_MUI
             var border = new Border
             {
                 Background = top
-                    ? new SolidColorBrush(Color.FromArgb(0x33, 0xE0, 0xAE, 0x4E))
+                    ? PaletteBrush.Get("B.AccentSoft", Color.FromArgb(0x33, 0x5F, 0xD4, 0xDD))
                     : bottom
                         ? new SolidColorBrush(Color.FromArgb(0x22, 0xB9, 0xAF, 0xA0))
                         : slate,
@@ -2097,7 +2097,7 @@ namespace HMWT_MUI
             try
             {
                 Color accent = success
-                    ? Color.FromRgb(0xE0, 0xAE, 0x4E)   // золото
+                    ? PaletteBrush.GetColor("C.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD))   // акцент темы
                     : Color.FromRgb(0x9A, 0x8F, 0x7A);  // песок
 
                 panel.BorderBrush = new SolidColorBrush(accent);

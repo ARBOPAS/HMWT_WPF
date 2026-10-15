@@ -378,7 +378,7 @@
         </Button>
 
         <!-- ═══════════ ПАНЕЛЬ ОТРЯДА: СОЗДАТЬ ИЛИ ПОДКЛЮЧИТЬСЯ ═══════════ -->
-        <Grid x:Name="RoomPanel" Visibility="Collapsed" Background="#D906060A"
+        <Grid x:Name="RoomPanel" Visibility="Collapsed" Background="{StaticResource B.Scrim}"
               Panel.ZIndex="3000" MouseLeftButtonDown="RoomPanel_BackdropClick">
             <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
                     BorderThickness="1" CornerRadius="14" Width="620" MaxHeight="600"

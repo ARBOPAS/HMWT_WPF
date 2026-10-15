@@ -13,6 +13,7 @@ using System.Windows.Shapes;
 using HMWT_MUI.Services;
 using HMWT_MUI.Windows;
 using HMWT_MUI.Net;
+using HMWT_MUI.Helpers;
 
 namespace HMWT_MUI
 {
@@ -347,7 +348,7 @@ namespace HMWT_MUI
             // ── фото-зона ──
             var photoBox = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x24, 0x38)),
+                Background = new SolidColorBrush(Color.FromRgb(0x1B, 0x21, 0x38)),
                 ClipToBounds = true
             };
             var photoGrid = new Grid { ClipToBounds = true };
@@ -379,7 +380,7 @@ namespace HMWT_MUI
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(8),
-                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0C, 0x0C, 0x12)),
+                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x09, 0x0C, 0x16)),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(7, 2, 7, 2),
                 ToolTip = $"Хиты: {hp}"
@@ -401,7 +402,7 @@ namespace HMWT_MUI
                 Padding = new Thickness(7, 2, 7, 2),
                 ToolTip = $"Уровень {level}"
             };
-            lvlBadge.Child = new TextBlock { Text = $"Ур. {level}", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06)) };
+            lvlBadge.Child = new TextBlock { Text = $"Ур. {level}", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = PaletteBrush.Get("B.OnAccent", Color.FromRgb(0x04, 0x22, 0x2A)) };
             grid.Children.Add(lvlBadge);
 
             // ── подпись: имя + класс•раса ──
@@ -471,12 +472,12 @@ namespace HMWT_MUI
 
         private static Color ClassAccentColor(string cls)
         {
-            if (string.IsNullOrWhiteSpace(cls)) return Color.FromRgb(0x9A, 0x7B, 0xD6);
+            if (string.IsNullOrWhiteSpace(cls)) return Color.FromRgb(0xA9, 0x8B, 0xEC);
             string s = cls.Trim().ToLowerInvariant();
             var map = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
             {
                 {"воин",Color.FromRgb(0x8A,0x93,0xA6)}, {"fighter",Color.FromRgb(0x8A,0x93,0xA6)},
-                {"паладин",Color.FromRgb(0xE0,0xAE,0x4E)}, {"paladin",Color.FromRgb(0xE0,0xAE,0x4E)},
+                {"паладин",Color.FromRgb(0x5F,0xD4,0xDD)}, {"paladin",Color.FromRgb(0x5F,0xD4,0xDD)},
                 {"варвар",Color.FromRgb(0xC0,0x56,0x4F)}, {"barbarian",Color.FromRgb(0xC0,0x56,0x4F)},
                 {"бард",Color.FromRgb(0xC0,0x56,0x8F)}, {"bard",Color.FromRgb(0xC0,0x56,0x8F)},
                 {"жрец",Color.FromRgb(0xD8,0xD2,0xC0)}, {"cleric",Color.FromRgb(0xD8,0xD2,0xC0)},
@@ -489,7 +490,7 @@ namespace HMWT_MUI
                 {"волшебник",Color.FromRgb(0x4F,0x7B,0xC0)}, {"wizard",Color.FromRgb(0x4F,0x7B,0xC0)},
             };
             foreach (var kv in map) if (s.Contains(kv.Key)) return kv.Value;
-            return Color.FromRgb(0x9A, 0x7B, 0xD6);
+            return Color.FromRgb(0xA9, 0x8B, 0xEC);
         }
 
         private static string GetStr(DataRow r, string col, string fb)
@@ -508,7 +509,7 @@ namespace HMWT_MUI
         {
             Color.FromRgb(0x4F,0x7B,0xC0), Color.FromRgb(0x9A,0x7B,0xD6), Color.FromRgb(0x4F,0xB6,0xAC),
             Color.FromRgb(0xC0,0x8A,0x3E), Color.FromRgb(0xC0,0x56,0x8F), Color.FromRgb(0x7A,0x3B,0x3B),
-            Color.FromRgb(0x8A,0x9A,0x3E), Color.FromRgb(0xE0,0xAE,0x4E),
+            Color.FromRgb(0x8A,0x9A,0x3E), Color.FromRgb(0x5F,0xD4,0xDD),
         };
 
         private static (Color, Color) CharPlaceholderColors(string name)

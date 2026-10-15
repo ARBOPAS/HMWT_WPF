@@ -51,13 +51,13 @@ namespace HMWT_MUI.Windows
 
             // Ресурсы берём из области видимости хоста: дизайн-токены (B.Panel и т.п.)
             // объявлены локально в каждой вью, а не в Application.Resources
-            var brushPanel = Res(host, "B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26));
-            var brushEdge = Res(host, "B.AccentEdge", Color.FromRgb(0x7A, 0x5E, 0x26));
-            var brushGold = Res(host, "B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E));
-            var brushArcane = Res(host, "B.Arcane", Color.FromRgb(0x9A, 0x7B, 0xD6));
+            var brushPanel = Res(host, "B.Panel", Color.FromRgb(0x15, 0x1B, 0x2E));
+            var brushEdge = Res(host, "B.AccentEdge", Color.FromRgb(0x2A, 0x6A, 0x74));
+            var brushGold = Res(host, "B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD));
+            var brushArcane = Res(host, "B.Arcane", Color.FromRgb(0xA9, 0x8B, 0xEC));
             var brushFrost = Res(host, "B.Frost", Color.FromRgb(0x4F, 0xB6, 0xAC));
-            var brushInk = Res(host, "B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0));
-            var brushLine = Res(host, "B.Line", Color.FromRgb(0x32, 0x2E, 0x44));
+            var brushInk = Res(host, "B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5));
+            var brushLine = Res(host, "B.Line", Color.FromRgb(0x2B, 0x33, 0x52));
             var fontDisplay = FontRes(host, "F.Display", "Segoe UI Semibold");
             var fontBody = FontRes(host, "F.Body", "Segoe UI");
 
@@ -72,7 +72,7 @@ namespace HMWT_MUI.Windows
             // Диалог должен появляться сразу резким.
             var overlay = new Grid
             {
-                Background = new SolidColorBrush(Color.FromArgb(0xD8, 0x06, 0x06, 0x0A)),
+                Background = new SolidColorBrush(Color.FromArgb(0xD8, 0x05, 0x07, 0x0E)),
                 UseLayoutRounding = true,
                 SnapsToDevicePixels = true
             };
@@ -336,7 +336,7 @@ namespace HMWT_MUI.Windows
                 FontWeight = FontWeights.SemiBold,
                 FontFamily = body,
                 Background = accent ? brush : Brushes.Transparent,
-                Foreground = accent ? new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06)) : ink,
+                Foreground = accent ? new SolidColorBrush(Color.FromRgb(0x04, 0x22, 0x2A)) : ink,
                 BorderBrush = brush,
                 BorderThickness = new Thickness(1)
             };

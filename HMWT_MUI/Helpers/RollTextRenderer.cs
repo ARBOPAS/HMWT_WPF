@@ -13,8 +13,17 @@ namespace HMWT_MUI.Helpers
     public sealed class RollTextStyle
     {
         public Brush Text { get; set; } = Brushes.Gainsboro;
-        public Brush Dice { get; set; } = Brushes.Goldenrod;
-        public Brush DiceBack { get; set; } = new SolidColorBrush(Color.FromArgb(0x30, 0xE0, 0xAE, 0x4E));
+
+        /// <summary>
+        /// Подсветка формулы. Берётся из палитры: раньше цвет был вписан числом,
+        /// и при смене палитры формулы оставались прежними — единственное место,
+        /// которое не следовало за темой.
+        /// </summary>
+        public Brush Dice { get; set; } = PaletteBrush.Get("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD));
+
+        public Brush DiceBack { get; set; } =
+            PaletteBrush.Get("B.AccentFaint", Color.FromArgb(0x30, 0x5F, 0xD4, 0xDD));
+
         public Brush Damage { get; set; } = Brushes.Gray;
         public Brush Hint { get; set; } = Brushes.Gray;
         public FontFamily Font { get; set; } = new FontFamily("Segoe UI");

@@ -338,7 +338,7 @@ namespace HMWT_MUI.Views
                         FontFamily = FontRes("F.Display"),
                         FontSize = 14,
                         FontWeight = FontWeights.Bold,
-                        Foreground = BrushRes(isCurrent ? "B.Accent" : "B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                        Foreground = BrushRes(isCurrent ? "B.Accent" : "B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                         VerticalAlignment = VerticalAlignment.Center
                     };
                     Grid.SetColumn(number, 0);
@@ -350,7 +350,7 @@ namespace HMWT_MUI.Views
                         Text = combatant.Name,
                         FontSize = 12,
                         FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal,
-                        Foreground = BrushRes(isCurrent ? "B.Accent" : "B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                        Foreground = BrushRes(isCurrent ? "B.Accent" : "B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5)),
                         TextTrimming = TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center
                     });
@@ -359,7 +359,7 @@ namespace HMWT_MUI.Views
                     {
                         nameRow.Children.Add(new Border
                         {
-                            Background = BrushRes("B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E)),
+                            Background = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD)),
                             CornerRadius = new CornerRadius(3),
                             Padding = new Thickness(5, 1, 5, 1),
                             Margin = new Thickness(6, 0, 0, 0),
@@ -369,7 +369,7 @@ namespace HMWT_MUI.Views
                                 Text = "ХОД",
                                 FontSize = 9,
                                 FontWeight = FontWeights.Bold,
-                                Foreground = BrushRes("B.Void", Color.FromRgb(0x0C, 0x0C, 0x12))
+                                Foreground = BrushRes("B.Void", Color.FromRgb(0x09, 0x0C, 0x16))
                             }
                         });
                     }
@@ -393,7 +393,7 @@ namespace HMWT_MUI.Views
                         FontSize = 14,
                         FontWeight = FontWeights.Bold,
                         FontFamily = FontRes("F.Display"),
-                        Foreground = BrushRes("B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                        Foreground = BrushRes("B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5)),
                         VerticalAlignment = VerticalAlignment.Center,
                         Margin = new Thickness(8, 0, 0, 0)
                     };
@@ -403,10 +403,10 @@ namespace HMWT_MUI.Views
                     spInitiative.Children.Add(new Border
                     {
                         Background = isCurrent
-                            ? BrushRes("B.Slate", Color.FromRgb(0x15, 0x15, 0x1F))
+                            ? BrushRes("B.Slate", Color.FromRgb(0x11, 0x17, 0x29))
                             : Brushes.Transparent,
                         BorderBrush = isCurrent
-                            ? BrushRes("B.AccentDim", Color.FromRgb(0x7A, 0x5E, 0x26))
+                            ? BrushRes("B.AccentDim", Color.FromRgb(0x2A, 0x6A, 0x74))
                             : Brushes.Transparent,
                         BorderThickness = new Thickness(1),
                         CornerRadius = new CornerRadius(4),
@@ -435,7 +435,7 @@ namespace HMWT_MUI.Views
             txtRoomStatus.Text = _session.StatusText;
 
             // Цвет точки: серая — не подключены, зелёная — хост, синяя — участник
-            brStatusDot.Background = BrushRes(!active ? "B.Mute" : (_session.IsHost ? "B.Ok" : "B.Frost"), Color.FromRgb(0x8B, 0x85, 0x9C));
+            brStatusDot.Background = BrushRes(!active ? "B.Mute" : (_session.IsHost ? "B.Ok" : "B.Frost"), Color.FromRgb(0x8B, 0x95, 0xB4));
 
             // Ключ и адрес видит только хост: остальным они не нужны
             bool host = _session.IsHost;
@@ -460,7 +460,7 @@ namespace HMWT_MUI.Views
                     ? $"{_session.PublicAddress}:{_session.Port}"
                     : (_session.IsPublicAddressLoading ? "узнаём…" : "неизвестен");
                 txtPublicAddress.Foreground = BrushRes(hasPublic ? "B.Frost" : "B.Mute",
-                    hasPublic ? Color.FromRgb(0x4F, 0xB6, 0xAC) : Color.FromRgb(0x8B, 0x85, 0x9C));
+                    hasPublic ? Color.FromRgb(0x4F, 0xB6, 0xAC) : Color.FromRgb(0x8B, 0x95, 0xB4));
 
                 txtPublicHint.Text = hasPublic
                     ? "Друзьям нужен проброс этого порта на роутере. В одной сети подойдёт локальный адрес выше."
@@ -502,7 +502,7 @@ namespace HMWT_MUI.Views
                 spPlayers.Children.Add(new TextBlock
                 {
                     Text = "Пока никого. Создайте отряд, чтобы играть вместе.",
-                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                     FontSize = 12,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 4, 0, 0)
@@ -569,8 +569,8 @@ namespace HMWT_MUI.Views
 
             var card = new Border
             {
-                Background = BrushRes(isMe ? "B.PanelHi" : "B.Slate", Color.FromRgb(0x8B, 0x85, 0x9C)),
-                BorderBrush = BrushRes(isMe ? "B.Accent" : "B.Line", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                Background = BrushRes(isMe ? "B.PanelHi" : "B.Slate", Color.FromRgb(0x8B, 0x95, 0xB4)),
+                BorderBrush = BrushRes(isMe ? "B.Accent" : "B.Line", Color.FromRgb(0x8B, 0x95, 0xB4)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(10),
@@ -588,8 +588,8 @@ namespace HMWT_MUI.Views
             // картинка вылезала за края круга.
             var avatar = TryLoadAvatar(p.AvatarPath);
             var avatarHost = RoundAvatarHost(46, avatar, Initial(p),
-                BrushRes("B.AccentEdge", Color.FromRgb(0x7A, 0x5E, 0x26)),
-                BrushRes("B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26)));
+                BrushRes("B.AccentEdge", Color.FromRgb(0x2A, 0x6A, 0x74)),
+                BrushRes("B.Panel", Color.FromRgb(0x15, 0x1B, 0x2E)));
             avatarHost.Margin = new Thickness(0, 0, 10, 0);
             avatarHost.VerticalAlignment = VerticalAlignment.Top;
 
@@ -612,7 +612,7 @@ namespace HMWT_MUI.Views
                 FontFamily = FontRes("F.Display"),
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
-                Foreground = BrushRes("B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                Foreground = BrushRes("B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5)),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 TextWrapping = TextWrapping.NoWrap,
                 VerticalAlignment = VerticalAlignment.Center
@@ -635,7 +635,7 @@ namespace HMWT_MUI.Views
             {
                 marks.Children.Add(new Border
                 {
-                    Background = BrushRes("B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E)),
+                    Background = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD)),
                     CornerRadius = new CornerRadius(4),
                     Padding = new Thickness(6, 1, 6, 1),
                     VerticalAlignment = VerticalAlignment.Center,
@@ -644,7 +644,7 @@ namespace HMWT_MUI.Views
                         Text = isMe ? "ВЕДУЩИЙ · ВЫ" : "ВЕДУЩИЙ",
                         FontSize = 9,
                         FontWeight = FontWeights.Bold,
-                        Foreground = BrushRes("B.Void", Color.FromRgb(0x0C, 0x0C, 0x12))
+                        Foreground = BrushRes("B.Void", Color.FromRgb(0x09, 0x0C, 0x16))
                     }
                 });
             }
@@ -654,7 +654,7 @@ namespace HMWT_MUI.Views
                 {
                     Text = "· вы",
                     FontSize = 10,
-                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(4, 0, 0, 0)
                 });
@@ -672,7 +672,7 @@ namespace HMWT_MUI.Views
                 {
                     Text = subtitle,
                     FontSize = 11,
-                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                     Margin = new Thickness(0, 2, 0, 0)
                 });
             }
@@ -789,7 +789,7 @@ namespace HMWT_MUI.Views
             {
                 Height = 6,
                 CornerRadius = new CornerRadius(3),
-                Background = BrushRes("B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26)),
+                Background = BrushRes("B.Panel", Color.FromRgb(0x15, 0x1B, 0x2E)),
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
@@ -799,7 +799,7 @@ namespace HMWT_MUI.Views
             {
                 Height = 6,
                 CornerRadius = new CornerRadius(3),
-                Background = BrushRes(colorKey, Color.FromRgb(0x8B, 0x85, 0x9C)),
+                Background = BrushRes(colorKey, Color.FromRgb(0x8B, 0x95, 0xB4)),
                 HorizontalAlignment = HorizontalAlignment.Left
             };
             fillHost.Children.Add(fill);
@@ -819,7 +819,7 @@ namespace HMWT_MUI.Views
                 Text = p.MaxHp > 0 ? $"{p.Hp}/{p.MaxHp}" : $"{p.Hp}",
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = BrushRes(colorKey, Color.FromRgb(0x8B, 0x85, 0x9C)),
+                Foreground = BrushRes(colorKey, Color.FromRgb(0x8B, 0x95, 0xB4)),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(hpText, 1);
@@ -846,7 +846,7 @@ namespace HMWT_MUI.Views
                 spFeed.Children.Add(new TextBlock
                 {
                     Text = "Лента пуста. Броски кубов и сообщения отряда появятся здесь.",
-                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                    Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                     FontSize = 12,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 4, 0, 0)
@@ -938,9 +938,9 @@ namespace HMWT_MUI.Views
                     // цветной корешок слева, крупный итог в плашке и кубы чипами.
                     bool hidden = entry.Hidden;
                     var rollAccent = BrushRes(hidden ? "B.Arcane" : "B.Accent",
-                        hidden ? Color.FromRgb(0x9A, 0x7B, 0xD6) : Color.FromRgb(0xE0, 0xAE, 0x4E));
+                        hidden ? Color.FromRgb(0xA9, 0x8B, 0xEC) : Color.FromRgb(0x5F, 0xD4, 0xDD));
 
-                    card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x23, 0x21, 0x32));
+                    card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x1E, 0x25, 0x40));
                     card.BorderBrush = rollAccent;
                     card.BorderThickness = new Thickness(hidden ? 1 : 0, 0, 0, 0);
                     card.Padding = new Thickness(0, 10, 14, 10);
@@ -965,7 +965,7 @@ namespace HMWT_MUI.Views
                     // Аватар бросавшего: настоящий круг, а не Border со скруглением
                     var authorImage = TryLoadAvatar(_authorAvatar(entry));
                     var authorHost = RoundAvatarHost(38, authorImage, FirstLetter(entry.AuthorName),
-                        rollAccent, BrushRes("B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26)));
+                        rollAccent, BrushRes("B.Panel", Color.FromRgb(0x15, 0x1B, 0x2E)));
                     authorHost.Margin = new Thickness(0, 0, 12, 0);
                     authorHost.VerticalAlignment = VerticalAlignment.Center;
                     Grid.SetColumn(authorHost, 0);
@@ -986,7 +986,7 @@ namespace HMWT_MUI.Views
                     {
                         rollHead.Children.Add(new Border
                         {
-                            Background = BrushRes("B.Arcane", Color.FromRgb(0x9A, 0x7B, 0xD6)),
+                            Background = BrushRes("B.Arcane", Color.FromRgb(0xA9, 0x8B, 0xEC)),
                             CornerRadius = new CornerRadius(4),
                             Padding = new Thickness(6, 1, 6, 1),
                             Margin = new Thickness(8, 0, 0, 0),
@@ -996,7 +996,7 @@ namespace HMWT_MUI.Views
                                 Text = "ТОЛЬКО ВЕДУЩЕМУ",
                                 FontSize = 8,
                                 FontWeight = FontWeights.Bold,
-                                Foreground = BrushRes("B.Void", Color.FromRgb(0x0C, 0x0C, 0x12))
+                                Foreground = BrushRes("B.Void", Color.FromRgb(0x09, 0x0C, 0x16))
                             }
                         });
                     }
@@ -1004,7 +1004,7 @@ namespace HMWT_MUI.Views
                     {
                         Text = "  " + time,
                         FontSize = 10,
-                        Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                        Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                         VerticalAlignment = VerticalAlignment.Center
                     });
                     rollLeft.Children.Add(rollHead);
@@ -1015,7 +1015,7 @@ namespace HMWT_MUI.Views
                         Text = entry.Text,
                         FontSize = 14,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = BrushRes("B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                        Foreground = BrushRes("B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5)),
                         Margin = new Thickness(0, 3, 0, 0),
                         TextWrapping = TextWrapping.Wrap
                     });
@@ -1026,7 +1026,7 @@ namespace HMWT_MUI.Views
                     {
                         diceRow.Children.Add(new Border
                         {
-                            Background = BrushRes("B.Slate", Color.FromRgb(0x15, 0x15, 0x1F)),
+                            Background = BrushRes("B.Slate", Color.FromRgb(0x11, 0x17, 0x29)),
                             CornerRadius = new CornerRadius(4),
                             Padding = new Thickness(7, 2, 7, 2),
                             Margin = new Thickness(0, 0, 6, 0),
@@ -1050,8 +1050,8 @@ namespace HMWT_MUI.Views
                             int value = entry.IndividualRolls[i];
                             diceRow.Children.Add(new Border
                             {
-                                Background = BrushRes("B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26)),
-                                BorderBrush = BrushRes("B.Line", Color.FromRgb(0x32, 0x2E, 0x44)),
+                                Background = BrushRes("B.Panel", Color.FromRgb(0x15, 0x1B, 0x2E)),
+                                BorderBrush = BrushRes("B.Line", Color.FromRgb(0x2B, 0x33, 0x52)),
                                 BorderThickness = new Thickness(1),
                                 CornerRadius = new CornerRadius(4),
                                 Padding = new Thickness(7, 2, 7, 2),
@@ -1061,7 +1061,7 @@ namespace HMWT_MUI.Views
                                     Text = value.ToString(),
                                     FontSize = 12,
                                     FontWeight = FontWeights.Bold,
-                                    Foreground = BrushRes("B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0))
+                                    Foreground = BrushRes("B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5))
                                 }
                             });
                         }
@@ -1072,7 +1072,7 @@ namespace HMWT_MUI.Views
                             {
                                 Text = $"ещё {entry.IndividualRolls.Count - shown}",
                                 FontSize = 11,
-                                Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                                Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                                 VerticalAlignment = VerticalAlignment.Center,
                                 Margin = new Thickness(2, 0, 0, 0)
                             });
@@ -1098,7 +1098,7 @@ namespace HMWT_MUI.Views
                             FontFamily = FontRes("F.Display"),
                             FontSize = 30,
                             FontWeight = FontWeights.Bold,
-                            Foreground = BrushRes("B.Void", Color.FromRgb(0x0C, 0x0C, 0x12)),
+                            Foreground = BrushRes("B.Void", Color.FromRgb(0x09, 0x0C, 0x16)),
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center
                         }
@@ -1125,26 +1125,26 @@ namespace HMWT_MUI.Views
                         Text = $"— {entry.Text} · {time}",
                         FontSize = 11,
                         FontStyle = FontStyles.Italic,
-                        Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                        Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                         TextWrapping = TextWrapping.Wrap
                     });
                     break;
 
                 default: // чат
-                    card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x23, 0x21, 0x32));
+                    card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x1E, 0x25, 0x40));
                     var head = new StackPanel { Orientation = Orientation.Horizontal };
                     head.Children.Add(new TextBlock
                     {
                         Text = entry.AuthorName,
                         FontSize = 12,
                         FontWeight = FontWeights.Bold,
-                        Foreground = BrushRes("B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E))
+                        Foreground = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD))
                     });
                     head.Children.Add(new TextBlock
                     {
                         Text = "  " + time,
                         FontSize = 10,
-                        Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                        Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                         VerticalAlignment = VerticalAlignment.Center
                     });
                     content.Children.Add(head);
@@ -1152,7 +1152,7 @@ namespace HMWT_MUI.Views
                     {
                         Text = entry.Text,
                         FontSize = 12,
-                        Foreground = BrushRes("B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                        Foreground = BrushRes("B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5)),
                         TextWrapping = TextWrapping.Wrap,
                         Margin = new Thickness(0, 2, 0, 0)
                     });
