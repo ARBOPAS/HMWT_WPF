@@ -13,12 +13,12 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="16,9"/>
-            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
-                                Background="{StaticResource B.Gold}" BorderBrush="{StaticResource B.Gold}" BorderThickness="1">
+                                Background="{StaticResource B.Accent}" BorderBrush="{StaticResource B.Accent}" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -46,7 +46,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -58,7 +58,7 @@
         <Style x:Key="RoomField" TargetType="TextBox">
             <Setter Property="Background" Value="{StaticResource B.Slate}"/>
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource B.Accent}"/>
             <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,8"/>
@@ -101,7 +101,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="txtRoomTitle" Text="ОТРЯД" FontFamily="{StaticResource F.Display}"
-                               FontSize="16" FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                               FontSize="16" FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                     <Border x:Name="brStatusDot" Width="10" Height="10" CornerRadius="5" Margin="12,0,8,0"
                             Background="{StaticResource B.Mute}" VerticalAlignment="Center"/>
                     <TextBlock x:Name="txtRoomStatus" Text="Не подключено" Foreground="{StaticResource B.Mute}"
@@ -186,7 +186,7 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" x:Name="txtPlayersHeader" Text="УЧАСТНИКИ" FontFamily="{StaticResource F.Display}"
-                               FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,0,0,12"/>
+                               FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,12"/>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="spPlayers"/>
                     </ScrollViewer>
@@ -206,7 +206,7 @@
                     <!-- Инициатива: ведущий ведёт бой у себя, остальные видят порядок хода.
                          Блок скрыт, пока бой не начат, поэтому лента не съезжает. -->
                     <Border x:Name="brInitiative" Grid.Row="0" Visibility="Collapsed"
-                            Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.GoldEdge}"
+                            Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.AccentEdge}"
                             BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                         <StackPanel>
                             <Grid Margin="0,0,0,6">
@@ -215,7 +215,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="ИНИЦИАТИВА" FontFamily="{StaticResource F.Display}"
-                                           FontSize="12" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                                           FontSize="12" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                                 <TextBlock Grid.Column="1" x:Name="txtInitiativeRound" Text="" FontSize="11"
                                            Foreground="{StaticResource B.Frost}" VerticalAlignment="Center"/>
                             </Grid>
@@ -229,7 +229,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="ОБЩАЯ ЛЕНТА" FontFamily="{StaticResource F.Display}"
-                                   FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                                   FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <TextBlock Grid.Column="1" x:Name="txtFeedHint" Text="" Foreground="{StaticResource B.Mute}"
                                    FontSize="11" VerticalAlignment="Center"/>
                     </Grid>

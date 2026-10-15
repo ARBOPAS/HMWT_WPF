@@ -76,7 +76,7 @@ namespace HMWT_MUI.Views
                     {
                         Kind = "star",
                         IconSize = 15,
-                        IconBrush = (Brush)Application.Current.FindResource("B.Gold"),
+                        IconBrush = (Brush)Application.Current.FindResource("B.Accent"),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center
                     };
@@ -621,7 +621,7 @@ namespace HMWT_MUI.Views
             // пустое кольцо — владения нет.
             btnSaveProfOverlay.Content = Marker(prof);
             btnSaveProfOverlay.FontSize = 18;
-            btnSaveProfOverlay.Foreground = new SolidColorBrush((Color)FindResource(prof ? "C.Gold" : "C.Mute"));
+            btnSaveProfOverlay.Foreground = new SolidColorBrush((Color)FindResource(prof ? "C.Accent" : "C.Mute"));
             btnSaveProfOverlay.ToolTip = prof
                 ? "Владение есть: бонус мастерства учитывается. Нажмите, чтобы снять."
                 : "Владения нет: бонус мастерства не учитывается. Нажмите, чтобы добавить.";
@@ -694,7 +694,7 @@ namespace HMWT_MUI.Views
             // Кнопка "глаз" (активен/выключен)
             var btnEye = new Button { Content = Marker(bonus.Active), ToolTip = bonus.Active ? "Бонус учтён" : "Бонус выключен" };
             btnEye.SetResourceReference(StyleProperty, "RoundBtn");
-            btnEye.Foreground = new SolidColorBrush((Color)FindResource(bonus.Active ? "C.Gold" : "C.Mute"));
+            btnEye.Foreground = new SolidColorBrush((Color)FindResource(bonus.Active ? "C.Accent" : "C.Mute"));
             bool capturedActive = bonus.Active;
             btnEye.Click += (s, e) => UpdateBonus(bonus.Id, null, null, !capturedActive);
             Grid.SetColumn(btnEye, 2);
@@ -816,7 +816,7 @@ namespace HMWT_MUI.Views
                 ? "Владение есть: бонус мастерства учитывается\nНажмите, чтобы снять"
                 : "Владения нет: бонус мастерства не учитывается\nНажмите, чтобы добавить";
             btn.Foreground = isActive
-                ? new SolidColorBrush((Color)FindResource("C.Gold"))
+                ? new SolidColorBrush((Color)FindResource("C.Accent"))
                 : new SolidColorBrush((Color)FindResource("C.Mute"));
         }
 
@@ -832,11 +832,11 @@ namespace HMWT_MUI.Views
             btn.Content = Marker(level);
             btn.FontSize = 18;
             btn.BorderBrush = level == SkillProficiencyLevel.Expert
-                ? (Brush)FindResource("B.Gold")
+                ? (Brush)FindResource("B.Accent")
                 : (Brush)FindResource("B.Line");
             btn.Foreground = level == SkillProficiencyLevel.None
                 ? new SolidColorBrush((Color)FindResource("C.Mute"))
-                : new SolidColorBrush((Color)FindResource("C.Gold"));
+                : new SolidColorBrush((Color)FindResource("C.Accent"));
 
             switch (level)
             {
@@ -984,9 +984,9 @@ namespace HMWT_MUI.Views
         {
             try
             {
-                button.Background = active ? (Brush)FindResource("B.Gold") : (Brush)FindResource("B.Slate");
+                button.Background = active ? (Brush)FindResource("B.Accent") : (Brush)FindResource("B.Slate");
                 button.Foreground = active ? new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06)) : (Brush)FindResource("B.Ink");
-                button.BorderBrush = active ? (Brush)FindResource("B.Gold") : (Brush)FindResource("B.Line");
+                button.BorderBrush = active ? (Brush)FindResource("B.Accent") : (Brush)FindResource("B.Line");
                 button.BorderThickness = new Thickness(1);
                 button.FontWeight = active ? FontWeights.Bold : FontWeights.Normal;
             }

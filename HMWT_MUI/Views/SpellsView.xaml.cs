@@ -328,7 +328,7 @@ namespace HMWT_MUI.Views
                         else
                         {
                             int a = Math.Max(0, row.Total - row.Used);
-                            Brush col = row.Total <= 0 ? B("B.Mute") : (a == 0 ? B("B.Danger") : (a >= row.Total ? B("B.Frost") : B("B.Gold")));
+                            Brush col = row.Total <= 0 ? B("B.Mute") : (a == 0 ? B("B.Danger") : (a >= row.Total ? B("B.Frost") : B("B.Accent")));
                             val = new TextBlock { Text = $"{a} / {row.Total}", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = col, VerticalAlignment = VerticalAlignment.Center };
                         }
                         Grid.SetColumn(val, 1); line.Children.Add(val);
@@ -616,7 +616,7 @@ namespace HMWT_MUI.Views
             card.SetResourceReference(StyleProperty, "FilledCardHover");
             card.DataContext = d;
             card.MouseLeftButtonUp += OnCardClick;
-            if (d.IsPrepared) card.BorderBrush = B("B.Gold");
+            if (d.IsPrepared) card.BorderBrush = B("B.Accent");
             var grid = new Grid();
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(96) });
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -642,7 +642,7 @@ namespace HMWT_MUI.Views
             if (d.ConcentrationVisibility == Visibility.Visible)
                 leftBadges.Children.Add(MakeBadge("wand", B("B.Frost"), "Концентрация", darkGlyph: true));
             if (d.PreparedVisibility == Visibility.Visible)
-                leftBadges.Children.Add(MakeBadge("check", B("B.Gold"), "Подготовлено", darkGlyph: true));
+                leftBadges.Children.Add(MakeBadge("check", B("B.Accent"), "Подготовлено", darkGlyph: true));
             if (d.ModifiedVisibility == Visibility.Visible)
                 leftBadges.Children.Add(MakeBadge("edit", B("B.Arcane"), "Изменено относительно справочника"));
             Grid.SetColumn(leftBadges, 0); topRow.Children.Add(leftBadges);
@@ -826,7 +826,7 @@ namespace HMWT_MUI.Views
             var mainBorder = new Border
             {
                 Background = (Brush)FindResource("B.Panel"),
-                BorderBrush = (Brush)FindResource("B.GoldEdge"),
+                BorderBrush = (Brush)FindResource("B.AccentEdge"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 30, Opacity = 0.7 }
@@ -848,7 +848,7 @@ namespace HMWT_MUI.Views
                 Text = "ВЫБЕРИТЕ ДЛЯ ПОДГОТОВКИ",
                 FontFamily = (FontFamily)FindResource("F.Display"),
                 FontSize = 16,
-                Foreground = (Brush)FindResource("B.Gold"),
+                Foreground = (Brush)FindResource("B.Accent"),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(title, 0);
@@ -868,7 +868,7 @@ namespace HMWT_MUI.Views
                 VerticalAlignment = VerticalAlignment.Center
             };
             closeBtn.Click += (s, e) => window.Close();
-            closeBtn.MouseEnter += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Gold");
+            closeBtn.MouseEnter += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Accent");
             closeBtn.MouseLeave += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Mute");
             Grid.SetColumn(closeBtn, 1);
             headerGrid.Children.Add(closeBtn);
@@ -921,7 +921,7 @@ namespace HMWT_MUI.Views
                 Padding = new Thickness(20, 8, 20, 8),
                 Margin = new Thickness(12, 0, 0, 0),
                 Cursor = Cursors.Hand,
-                Background = (Brush)FindResource("B.Gold"),
+                Background = (Brush)FindResource("B.Accent"),
                 BorderThickness = new Thickness(0),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x1A, 0x12, 0x06)),
                 FontSize = 12
@@ -1160,7 +1160,7 @@ namespace HMWT_MUI.Views
             }, new Helpers.RollTextStyle
             {
                 Text = (Brush)FindResource("B.Ink"),
-                Dice = (Brush)FindResource("B.Gold"),
+                Dice = (Brush)FindResource("B.Accent"),
                 DiceBack = (Brush)FindResource("B.PanelHi"),
                 Hint = (Brush)FindResource("B.Mute"),
                 Font = target.FontFamily,
@@ -1989,7 +1989,7 @@ namespace HMWT_MUI.Views
                     ApplyView();
                     var created = _prepared.Find(x => x.IdSpell == newSpellId) ?? _known.Find(x => x.IdSpell == newSpellId);
                     if (created != null) { BuildFullList(created); FillFullEditor(created); }
-                    ShowToast("Заклинание создано", "＋", B("B.Gold"));
+                    ShowToast("Заклинание создано", "＋", B("B.Accent"));
                     return;
                 }
                 if (_fullIndex < 0 || _fullIndex >= _fullList.Count) return;
@@ -2144,7 +2144,7 @@ namespace HMWT_MUI.Views
                 LoadSpellsFromDb();
                 ApplyView();
                 if (SbStatus != null) SbStatus.Text = $"Добавлено: {row.Name}";
-                ShowToast($"Добавлено: {row.Name}", "＋", B("B.Gold"));
+                ShowToast($"Добавлено: {row.Name}", "＋", B("B.Accent"));
             }
             catch (Exception ex) { Log("SbAddSelected_Click", ex); }
         }
@@ -2657,7 +2657,7 @@ namespace HMWT_MUI.Views
             {
                 Width = 420,
                 Background = (Brush)FindResource("B.Panel"),
-                BorderBrush = (Brush)FindResource("B.GoldEdge"),
+                BorderBrush = (Brush)FindResource("B.AccentEdge"),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(24, 24, 24, 24),
@@ -2689,7 +2689,7 @@ namespace HMWT_MUI.Views
                 FontFamily = (FontFamily)FindResource("F.Display"),
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
-                Foreground = (Brush)FindResource("B.Gold"),
+                Foreground = (Brush)FindResource("B.Accent"),
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(titleText, 0);
@@ -2708,7 +2708,7 @@ namespace HMWT_MUI.Views
                 VerticalAlignment = VerticalAlignment.Center
             };
             closeBtn.Click += (s, e) => CloseConfirmDialog(false);
-            closeBtn.MouseEnter += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Gold");
+            closeBtn.MouseEnter += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Accent");
             closeBtn.MouseLeave += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Mute");
             Grid.SetColumn(closeBtn, 1);
             headerGrid.Children.Add(closeBtn);
@@ -2775,7 +2775,7 @@ namespace HMWT_MUI.Views
                 FontFamily = (FontFamily)FindResource("F.Body"),
                 FontSize = 12
             };
-            btnNo.MouseEnter += (s, e) => { btnNo.Background = (Brush)FindResource("B.PanelHi"); btnNo.Foreground = (Brush)FindResource("B.Gold"); };
+            btnNo.MouseEnter += (s, e) => { btnNo.Background = (Brush)FindResource("B.PanelHi"); btnNo.Foreground = (Brush)FindResource("B.Accent"); };
             btnNo.MouseLeave += (s, e) => { btnNo.Background = Brushes.Transparent; btnNo.Foreground = (Brush)FindResource("B.Mute"); };
             btnNo.Click += (s, e) => CloseConfirmDialog(false);
 

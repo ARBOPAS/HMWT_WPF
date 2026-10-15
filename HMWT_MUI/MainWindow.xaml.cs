@@ -396,7 +396,7 @@ namespace HMWT_MUI
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(8),
-                Background = (Brush)FindResource("B.Gold"),
+                Background = (Brush)FindResource("B.Accent"),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(7, 2, 7, 2),
                 ToolTip = $"Уровень {level}"

@@ -60,7 +60,7 @@ namespace HMWT_MUI.Helpers
             set => SetValue(IconSizeProperty, value);
         }
 
-        /// <summary>Цвет линий. Кисть темы: B.Ink, B.Gold, B.Mute, B.Danger…</summary>
+        /// <summary>Цвет линий. Кисть темы: B.Ink, B.Accent, B.Mute, B.Danger…</summary>
         public Brush IconBrush
         {
             get => (Brush)GetValue(IconBrushProperty);

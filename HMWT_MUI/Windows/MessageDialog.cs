@@ -52,8 +52,8 @@ namespace HMWT_MUI.Windows
             // Ресурсы берём из области видимости хоста: дизайн-токены (B.Panel и т.п.)
             // объявлены локально в каждой вью, а не в Application.Resources
             var brushPanel = Res(host, "B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26));
-            var brushEdge = Res(host, "B.GoldEdge", Color.FromRgb(0x7A, 0x5E, 0x26));
-            var brushGold = Res(host, "B.Gold", Color.FromRgb(0xE0, 0xAE, 0x4E));
+            var brushEdge = Res(host, "B.AccentEdge", Color.FromRgb(0x7A, 0x5E, 0x26));
+            var brushGold = Res(host, "B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E));
             var brushArcane = Res(host, "B.Arcane", Color.FromRgb(0x9A, 0x7B, 0xD6));
             var brushFrost = Res(host, "B.Frost", Color.FromRgb(0x4F, 0xB6, 0xAC));
             var brushInk = Res(host, "B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0));

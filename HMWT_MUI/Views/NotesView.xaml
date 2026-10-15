@@ -288,11 +288,11 @@
                     <Style TargetType="Border">
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter Property="Opacity" Value="0.9"/>
                             </Trigger>
                             <DataTrigger Binding="{Binding IsKeyboardFocused, ElementName=NoteTitleBox}" Value="True">
-                                <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -301,7 +301,7 @@
                     <TextBox x:Name="NoteTitleBox"
                              FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold"
                              Foreground="{StaticResource B.Ink}" Background="Transparent" BorderThickness="0"
-                             CaretBrush="{StaticResource B.Gold}"
+                             CaretBrush="{StaticResource B.Accent}"
                              TextChanged="NoteTitle_TextChanged"/>
                     <TextBlock x:Name="TitlePlaceholder" Text="Название заметки" IsHitTestVisible="False"
                                FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold"
@@ -329,7 +329,7 @@
                     <Border x:Name="EmptyStatePanel" Background="{StaticResource B.Slate}"
                             Visibility="Collapsed" IsHitTestVisible="False">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="620">
-                            <helpers:IconView Kind="feather" IconSize="54" IconBrush="{StaticResource B.Gold}" Opacity="0.85"
+                            <helpers:IconView Kind="feather" IconSize="54" IconBrush="{StaticResource B.Accent}" Opacity="0.85"
                                        HorizontalAlignment="Center"/>
                             <TextBlock x:Name="EmptyStateTitle" Text="Заметка не выбрана"
                                        FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold"

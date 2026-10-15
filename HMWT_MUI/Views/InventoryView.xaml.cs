@@ -591,7 +591,7 @@ namespace HMWT_MUI.Views
                 shopDetailPanel.Children.Add(new TextBlock
                 {
                     Text = item.Subtitle,
-                    Foreground = (Brush)FindResource("B.Gold"),
+                    Foreground = (Brush)FindResource("B.Accent"),
                     FontSize = 12,
                     Margin = new Thickness(0, 4, 0, 8),
                     TextWrapping = TextWrapping.Wrap
@@ -1103,7 +1103,7 @@ namespace HMWT_MUI.Views
             var info = new StackPanel { Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
             nameRow.Children.Add(new TextBlock { Text = name, Foreground = (Brush)FindResource("B.Ink"), FontWeight = FontWeights.SemiBold, FontSize = 13 });
-            if (qty > 1) nameRow.Children.Add(new TextBlock { Text = $" ×{qty}", Foreground = (Brush)FindResource("B.Gold"), FontSize = 12, FontWeight = FontWeights.Bold });
+            if (qty > 1) nameRow.Children.Add(new TextBlock { Text = $" ×{qty}", Foreground = (Brush)FindResource("B.Accent"), FontSize = 12, FontWeight = FontWeights.Bold });
             info.Children.Add(nameRow);
 
             var subRow = new StackPanel { Orientation = Orientation.Horizontal };
@@ -1146,7 +1146,7 @@ namespace HMWT_MUI.Views
             {
                 Text = tag,
                 FontSize = fontSize,
-                Foreground = treasure ? (Brush)FindResource("B.Gold") : (Brush)FindResource("B.Arcane")
+                Foreground = treasure ? (Brush)FindResource("B.Accent") : (Brush)FindResource("B.Arcane")
             };
             return new Border
             {
@@ -1154,7 +1154,7 @@ namespace HMWT_MUI.Views
                 Padding = new Thickness(7, 2, 7, 2),
                 Margin = new Thickness(0, 0, 5, 4),
                 Background = treasure ? (Brush)FindResource("B.Panel") : (Brush)FindResource("B.PanelHi"),
-                BorderBrush = treasure ? (Brush)FindResource("B.Gold") : (Brush)FindResource("B.Line"),
+                BorderBrush = treasure ? (Brush)FindResource("B.Accent") : (Brush)FindResource("B.Line"),
                 BorderThickness = new Thickness(1),
                 Child = text
             };
@@ -1534,7 +1534,7 @@ namespace HMWT_MUI.Views
                 var val = new TextBlock
                 {
                     Text = $"{s.TotalValue:F1}",
-                    Foreground = (Brush)FindResource("B.Gold"),
+                    Foreground = (Brush)FindResource("B.Accent"),
                     FontSize = 11,
                     FontWeight = FontWeights.SemiBold
                 };
@@ -2543,7 +2543,7 @@ namespace HMWT_MUI.Views
             var title = new TextBlock
             {
                 Text = string.IsNullOrWhiteSpace(g.GroupName) ? g.SlotName : g.GroupName,
-                Foreground = (Brush)FindResource("B.Gold"),
+                Foreground = (Brush)FindResource("B.Accent"),
                 FontFamily = (FontFamily)FindResource("F.Display"),
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
@@ -2578,7 +2578,7 @@ namespace HMWT_MUI.Views
                     Height = CellSize,
                     CornerRadius = new CornerRadius(CellSize / 2),
                     Background = (Brush)FindResource("B.PanelHi"),
-                    BorderBrush = (Brush)FindResource("B.Gold"),
+                    BorderBrush = (Brush)FindResource("B.Accent"),
                     BorderThickness = new Thickness(1),
                     Cursor = Cursors.Hand,
                     ToolTip = $"Ещё {hidden} — открыть список",
@@ -2590,7 +2590,7 @@ namespace HMWT_MUI.Views
                     Child = new TextBlock
                     {
                         Text = $"+{hidden}",
-                        Foreground = (Brush)FindResource("B.Gold"),
+                        Foreground = (Brush)FindResource("B.Accent"),
                         FontSize = 14,
                         FontWeight = FontWeights.Bold,
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -2821,7 +2821,7 @@ namespace HMWT_MUI.Views
                     Margin = new Thickness(0, 2, 0, 2)
                 };
                 if (string.Equals(tag, "Сокровище", StringComparison.CurrentCultureIgnoreCase))
-                    check.Foreground = (Brush)FindResource("B.Gold");
+                    check.Foreground = (Brush)FindResource("B.Accent");
 
                 check.Checked += (s, e) =>
                 {

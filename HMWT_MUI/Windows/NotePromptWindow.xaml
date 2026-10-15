@@ -11,7 +11,7 @@
         Background="Transparent"
         FontFamily="Segoe UI, Calibri"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <Border x:Name="RootBorder" Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Gold}" BorderThickness="2" CornerRadius="12" Padding="24">
+    <Border x:Name="RootBorder" Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Accent}" BorderThickness="2" CornerRadius="12" Padding="24">
         <Grid Width="420">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -29,7 +29,7 @@
                        Margin="0,0,0,12" Visibility="Collapsed"/>
 
             <TextBox x:Name="InputBox" Grid.Row="2"
-                     Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" CaretBrush="{StaticResource B.Gold}"
+                     Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" CaretBrush="{StaticResource B.Accent}"
                      BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10,8"
                      FontSize="14" Margin="0,0,0,16"
                      KeyDown="InputBox_KeyDown"/>

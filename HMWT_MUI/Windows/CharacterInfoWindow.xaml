@@ -62,8 +62,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -89,7 +89,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -98,7 +98,7 @@
         </Style>
 
         <Style x:Key="RailBtnActive" TargetType="Button" BasedOn="{StaticResource RailBtn}">
-            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
             <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
         </Style>
 
@@ -133,7 +133,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -142,7 +142,7 @@
         </Style>
 
         <Style x:Key="TopTabBtnActive" TargetType="Button" BasedOn="{StaticResource TopTabBtn}">
-            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
             <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
         </Style>
 
@@ -157,7 +157,7 @@
                     <Setter Property="Background" Value="{StaticResource B.Slate}"/>
                 </Trigger>
                 <Trigger Property="IsFocused" Value="True">
-                    <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                     <Setter Property="Background" Value="{StaticResource B.Slate}"/>
                 </Trigger>
             </Style.Triggers>
@@ -172,7 +172,7 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                     <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
                 </Trigger>
             </Style.Triggers>
@@ -223,8 +223,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -249,7 +249,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -299,8 +299,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -318,7 +318,7 @@
         <Style x:Key="DarkMenu" TargetType="ContextMenu">
             <Setter Property="Background" Value="{StaticResource B.Slate}"/>
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
@@ -347,14 +347,14 @@
                                 </Grid.ColumnDefinitions>
                                 <ContentPresenter Grid.Column="0" ContentSource="Header" VerticalAlignment="Center"/>
                                 <helpers:IconView x:Name="tick" Grid.Column="1" Kind="check" IconSize="13"
-                                                  IconBrush="{StaticResource B.Gold}" Visibility="Collapsed"
+                                                  IconBrush="{StaticResource B.Accent}" Visibility="Collapsed"
                                                   VerticalAlignment="Center" Margin="12,0,0,0"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
@@ -421,7 +421,7 @@
                 <Separator Background="{StaticResource B.Line}" Margin="0,8,0,16"/>
                 <Button x:Name="btnInfoTab" Style="{StaticResource RailBtnActive}" Tag="Информация"
                         ToolTip="Информация" Click="btnInfoTab_Click">
-                    <helpers:IconView x:Name="icoInfoTab" Kind="wizard" IconSize="20" IconBrush="{StaticResource B.Gold}" Filled="True"/>
+                    <helpers:IconView x:Name="icoInfoTab" Kind="wizard" IconSize="20" IconBrush="{StaticResource B.Accent}" Filled="True"/>
                 </Button>
                 <Button x:Name="btnInventoryTab" Style="{StaticResource RailBtn}" Tag="Инвентарь"
                         ToolTip="Инвентарь" Click="btnInventoryTab_Click">
@@ -499,7 +499,7 @@
                                 </Setter>
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                         <Setter Property="RenderTransform">
                                             <Setter.Value>
                                                 <ScaleTransform ScaleX="1.04" ScaleY="1.04"/>
@@ -592,7 +592,7 @@
                                 <TextBlock Text="УРОВЕНЬ И ОПЫТ" Foreground="{StaticResource B.Mute}" 
                                            FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="txtLevel" Text="1" Foreground="{StaticResource B.Gold}" 
+                                    <TextBlock x:Name="txtLevel" Text="1" Foreground="{StaticResource B.Accent}" 
                                                FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"
                                                VerticalAlignment="Center"/>
                                     <helpers:IconView Kind="star" IconSize="14" IconBrush="{StaticResource B.Arcane}"
@@ -662,7 +662,7 @@
                                        Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                                        PopupAnimation="Slide" Closed="PopConditions_Closed">
                                     <Border Background="{StaticResource B.Slate}"
-                                            BorderBrush="{StaticResource B.Gold}" BorderThickness="1"
+                                            BorderBrush="{StaticResource B.Accent}" BorderThickness="1"
                                             CornerRadius="6" Margin="0,2,0,0" Padding="4" MinWidth="210">
                                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
                                             <ItemsControl x:Name="listConditions">
@@ -745,8 +745,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Grid Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False">
-                                <Ellipse Stroke="{StaticResource B.Gold}" StrokeThickness="1.6"/>
-                                <Ellipse Width="6" Height="6" Fill="{StaticResource B.Gold}"/>
+                                <Ellipse Stroke="{StaticResource B.Accent}" StrokeThickness="1.6"/>
+                                <Ellipse Width="6" Height="6" Fill="{StaticResource B.Accent}"/>
                             </Grid>
                             <WrapPanel x:Name="panelGoldHeader" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
                             <Button x:Name="btnGoldDisplayToggle" Grid.Column="2" Width="24" Height="24"
@@ -794,7 +794,7 @@
                     <helpers:IconView Kind="book" IconSize="18" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <StackPanel>
                         <TextBlock Text="HMWT / Гримуар" FontFamily="{StaticResource F.Display}" FontSize="13" 
-                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                                   FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <TextBlock Text="Редактор персонажа" FontSize="11" Foreground="{StaticResource B.Mute}"/>
                     </StackPanel>
                 </StackPanel>
@@ -833,7 +833,7 @@
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="360" HorizontalAlignment="Right" 
-                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1,0,0,0">
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -847,7 +847,7 @@
 
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="Казначейство" FontFamily="{StaticResource F.Display}" FontSize="18" 
-                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                   FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button x:Name="btnCloseGoldCalc" Style="{StaticResource GhostCloseBtn}" 
                                 HorizontalAlignment="Right" Click="btnCloseGoldCalc_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
@@ -855,7 +855,7 @@
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="10" 
                             Margin="0,0,0,10" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
                         <TextBlock x:Name="txtCalcTotal" Text="Всего: 0.00 зм" FontSize="16" FontWeight="Bold" 
-                                   Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                                   Foreground="{StaticResource B.Accent}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                     </Border>
 
                     <WrapPanel x:Name="panelCoins" Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,10"/>
@@ -901,7 +901,7 @@
                             BorderBrush="{StaticResource B.Line}" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="КУРС" FontFamily="{StaticResource F.Display}" FontSize="9" 
-                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,0,0,4" HorizontalAlignment="Center"/>
+                                       FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,4" HorizontalAlignment="Center"/>
                             <TextBlock Text="1 ПМ = 10 зм · 1 ЭМ = 0.5 зм · 1 ЗМ = 10 см · 1 СМ = 10 мм" 
                                        Foreground="{StaticResource B.Mute}" FontSize="10" HorizontalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -917,7 +917,7 @@
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="380" HorizontalAlignment="Right" 
-                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1,0,0,0">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -992,7 +992,7 @@
                              Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Void}" 
                              BorderBrush="{StaticResource B.Line}" BorderThickness="1" TextAlignment="Center" 
                              Padding="12" Margin="0,0,0,16" FontFamily="{StaticResource F.Display}"
-                             CaretBrush="{StaticResource B.Gold}"
+                             CaretBrush="{StaticResource B.Accent}"
                              PreviewTextInput="HpNumber_PreviewTextInput"
                              PreviewKeyDown="HpNumber_PreviewKeyDown"
                              TextChanged="TxtHPInput_TextChanged"
@@ -1023,11 +1023,11 @@
                                        HorizontalAlignment="Center" Margin="0,0,0,12"/>
 
                             <Button x:Name="btnHPHeal" Content="ЛЕЧЕНИЕ" Height="42" Margin="0,0,0,6" 
-                                    Style="{StaticResource ActionBtn}" Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnAccent}"/>
+                                    Style="{StaticResource ActionBtn}" Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnFill}"/>
                             <Button x:Name="btnHPDamage" Content="УРОН" Height="42" Margin="0,0,0,16" 
-                                    Style="{StaticResource ActionBtn}" Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnGold}"/>
+                                    Style="{StaticResource ActionBtn}" Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnAccent}"/>
                             <Button x:Name="btnHPTemp" Content="ПРИМЕНИТЬ ВРЕМЕННЫЕ ХИТЫ" Height="42" 
-                                    Background="{StaticResource B.Frost}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
+                                    Background="{StaticResource B.Frost}" Foreground="{StaticResource B.OnFill}" BorderThickness="0" 
                                     Cursor="Hand" FontSize="13" FontWeight="Bold" Margin="0,0,0,16" Click="BtnHPTemp_Click"/>
 
                             <TextBlock Text="Зелья лечения:" Foreground="{StaticResource B.Mute}" FontSize="12" 
@@ -1054,7 +1054,7 @@
                             <Button x:Name="btnStabilizationRollCompact" 
                                     Height="46" Background="{StaticResource B.Arcane}" Foreground="{StaticResource B.Ink}" 
                                     BorderThickness="0" Cursor="Hand" FontSize="14" FontWeight="Bold" Margin="0,0,0,16" 
-                                    Visibility="Collapsed" Click="BtnStabilizationRoll_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="СПАСБРОСОК СТАБИЛИЗАЦИИ (d20)" VerticalAlignment="Center"/></StackPanel></Button>
+                                    Visibility="Collapsed" Click="BtnStabilizationRoll_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="СПАСБРОСОК СТАБИЛИЗАЦИИ (d20)" VerticalAlignment="Center"/></StackPanel></Button>
 
                             <Border Background="{StaticResource B.Void}" CornerRadius="6" Padding="12" Margin="0,0,0,16" 
                                     BorderBrush="{StaticResource B.Line}" BorderThickness="1">
@@ -1078,7 +1078,7 @@
                                     <Button x:Name="btnHPRoll" Height="42" 
                                             Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}" 
                                             BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
-                                            FontWeight="Bold"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПРОСТОЙ БРОСОК КУБИКА" VerticalAlignment="Center"/></StackPanel></Button>
+                                            FontWeight="Bold"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПРОСТОЙ БРОСОК КУБИКА" VerticalAlignment="Center"/></StackPanel></Button>
 
                                     <!-- Кости хитов: их тратит короткий отдых. Одного
                                          размера достаточно — персонаж ведётся одной
@@ -1121,7 +1121,7 @@
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="400" HorizontalAlignment="Right" 
-                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1,0,0,0">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1132,7 +1132,7 @@
 
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock Text="Управление уровнем" FontFamily="{StaticResource F.Display}" FontSize="18" 
-                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                   FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button x:Name="btnCloseLevelManager" Style="{StaticResource GhostCloseBtn}" HorizontalAlignment="Right"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
 
@@ -1151,7 +1151,7 @@
                             </Grid>
                             <Border Height="8" Background="{StaticResource B.Void}" CornerRadius="4" Margin="0,0,0,10" 
                                     BorderBrush="{StaticResource B.Line}" BorderThickness="1">
-                                <Border x:Name="ProgressBarFill" Background="{StaticResource B.Gold}" CornerRadius="4" 
+                                <Border x:Name="ProgressBarFill" Background="{StaticResource B.Accent}" CornerRadius="4" 
                                         HorizontalAlignment="Left" Width="0"/>
                             </Border>
                             <TextBlock x:Name="txtExpCurrent" Text="Опыт: 0 / 300" Foreground="{StaticResource B.Mute}" 
@@ -1159,7 +1159,7 @@
                             <TextBlock x:Name="txtManagerProfBonus" Text="Бонус мастерства: +2" Foreground="{StaticResource B.Frost}" 
                                        FontSize="12" HorizontalAlignment="Center" FontWeight="Bold"/>
                             <Button x:Name="btnLevelUpAvailable" Height="42" 
-                                    Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" Cursor="Hand" 
+                                    Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnFill}" BorderThickness="0" Cursor="Hand" 
                                     FontWeight="Bold" Margin="0,16,0,0" Visibility="Collapsed" Click="BtnLevelUpAvailable_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="bolt" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПОВЫСИТЬ УРОВЕНЬ" VerticalAlignment="Center"/></StackPanel></Button>
                         </StackPanel>
                     </Border>
@@ -1181,7 +1181,7 @@
                                      Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Void}" 
                                      BorderBrush="{StaticResource B.Line}" BorderThickness="1" TextAlignment="Center" 
                                      Padding="12" FontFamily="{StaticResource F.Display}"
-                                     CaretBrush="{StaticResource B.Gold}"
+                                     CaretBrush="{StaticResource B.Accent}"
                                      PreviewTextInput="HpNumber_PreviewTextInput"
                                      PreviewKeyDown="HpNumber_PreviewKeyDown"
                                      TextChanged="TxtLevelInput_TextChanged"
@@ -1212,7 +1212,7 @@
                             <Button Grid.Row="0" Grid.Column="2" Content="9" Margin="3" Style="{StaticResource CalcKeyBtn}" 
                                     Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="9"/>
                             <Button Grid.Row="0" Grid.Column="3" Margin="3" Background="{StaticResource B.Ok}" 
-                                    Foreground="{StaticResource B.OnAccent}" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" 
+                                    Foreground="{StaticResource B.OnFill}" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" 
                                     Click="BtnAddExpFromInput_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,4,0"/><TextBlock Text="XP" VerticalAlignment="Center"/></StackPanel></Button>
                             <Button Grid.Row="1" Grid.Column="0" Content="4" Margin="3" Style="{StaticResource CalcKeyBtn}" 
                                     Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="4"/>
@@ -1221,7 +1221,7 @@
                             <Button Grid.Row="1" Grid.Column="2" Content="6" Margin="3" Style="{StaticResource CalcKeyBtn}" 
                                     Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="6"/>
                             <Button Grid.Row="1" Grid.Column="3" Margin="3" Background="{StaticResource B.Danger}" 
-                                    Foreground="{StaticResource B.OnGold}" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" 
+                                    Foreground="{StaticResource B.OnAccent}" BorderThickness="0" FontSize="13" FontWeight="Bold" Cursor="Hand" 
                                     Click="BtnSubtractExpFromInput_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="minus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,4,0"/><TextBlock Text="XP" VerticalAlignment="Center"/></StackPanel></Button>
                             <Button Grid.Row="2" Grid.Column="0" Content="1" Margin="3" Style="{StaticResource CalcKeyBtn}" 
                                     Width="Auto" Height="Auto" FontSize="18" Click="BtnDigit_Click" Tag="1"/>
@@ -1257,10 +1257,10 @@
                                              BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" 
                                              Margin="0,0,6,0" TextAlignment="Center" LostFocus="TxtManualLevel_LostFocus"/>
                                     <Button Grid.Column="1" x:Name="btnDecreaseLevel" Width="42" Height="42" 
-                                            Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnGold}" BorderThickness="0" 
+                                            Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
                                             Cursor="Hand" Margin="0,0,6,0" Click="BtnDecreaseLevel_Click"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
                                     <Button Grid.Column="2" x:Name="btnIncreaseLevel" Width="42" Height="42" 
-                                            Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
+                                            Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnFill}" BorderThickness="0" 
                                             Cursor="Hand" Click="BtnIncreaseLevel_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
                                 </Grid>
                             </StackPanel>
@@ -1277,10 +1277,10 @@
                                              BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" 
                                              Margin="0,0,6,0" TextAlignment="Center" LostFocus="TxtManualExp_LostFocus"/>
                                     <Button Grid.Column="1" x:Name="btnDecreaseExpManual" Width="42" Height="42" 
-                                            Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnGold}" BorderThickness="0" 
+                                            Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
                                             Cursor="Hand" Margin="0,0,6,0" Click="BtnDecreaseExpManual_Click"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
                                     <Button Grid.Column="2" x:Name="btnIncreaseExpManual" Width="42" Height="42" 
-                                            Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
+                                            Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnFill}" BorderThickness="0" 
                                             Cursor="Hand" Click="BtnIncreaseExpManual_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
                                 </Grid>
                             </StackPanel>
@@ -1297,10 +1297,10 @@
                                              BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" 
                                              Margin="0,0,6,0" TextAlignment="Center" LostFocus="TxtManualProf_LostFocus"/>
                                     <Button Grid.Column="1" x:Name="btnDecreaseProf" Width="42" Height="42" 
-                                            Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnGold}" BorderThickness="0" 
+                                            Background="{StaticResource B.Danger}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
                                             Cursor="Hand" Margin="0,0,6,0" Click="BtnDecreaseProf_Click"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
                                     <Button Grid.Column="2" x:Name="btnIncreaseProf" Width="42" Height="42" 
-                                            Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0" 
+                                            Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnFill}" BorderThickness="0" 
                                             Cursor="Hand" Click="BtnIncreaseProf_Click"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
                                 </Grid>
                             </StackPanel>
@@ -1318,7 +1318,7 @@
         <Border x:Name="DiceMenuOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
         Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="250" MouseLeftButtonDown="OverlayBackground_Click">
             <Border Background="{StaticResource B.Panel}" Width="400" Height="500" HorizontalAlignment="Center" 
-                    VerticalAlignment="Center" CornerRadius="12" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1">
+                    VerticalAlignment="Center" CornerRadius="12" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1">
                 <Grid Margin="24">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1330,7 +1330,7 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock x:Name="txtDiceMenuTitle" Text="ВЫБОР КУБИКОВ" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
+                        <TextBlock x:Name="txtDiceMenuTitle" Text="ВЫБОР КУБИКОВ" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                         <Button x:Name="btnCloseDiceMenu" Style="{StaticResource GhostCloseBtn}" 
                                 HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnCloseDiceMenu_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
@@ -1401,13 +1401,13 @@
                         </Grid.ColumnDefinitions>
                         <Button x:Name="btnRollDice" Grid.Column="0" Height="52"
                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                                Background="{StaticResource B.Gold}" Foreground="{StaticResource B.OnGold}" BorderThickness="0"
+                                Background="{StaticResource B.Accent}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0"
                                 FontWeight="Bold" Cursor="Hand" Click="BtnRollDice_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="БРОСИТЬ" VerticalAlignment="Center"/></StackPanel></Button>
                         <Button x:Name="btnRollFormula" Grid.Column="1" Content="По формуле" Height="52" MinWidth="130"
                                 Margin="10,0,0,0" Padding="12,0"
                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                                Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Gold}"
-                                BorderBrush="{StaticResource B.Gold}" BorderThickness="1"
+                                Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Accent}"
+                                BorderBrush="{StaticResource B.Accent}" BorderThickness="1"
                                 FontSize="14" FontWeight="SemiBold" Cursor="Hand" Click="BtnRollFormula_Click"/>
                     </Grid>
                 </Grid>
@@ -1428,7 +1428,7 @@
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="400" HorizontalAlignment="Right"
-                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1,0,0,0">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1440,7 +1440,7 @@
 
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock x:Name="txtRestTitle" Text="Отдых" FontFamily="{StaticResource F.Display}" FontSize="18"
-                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                   FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button x:Name="btnCloseRest" Style="{StaticResource GhostCloseBtn}" HorizontalAlignment="Right"
                                 Click="BtnCloseRest_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
@@ -1475,7 +1475,7 @@
 
                     <!-- Итог отдыха -->
                     <Border x:Name="panelRestResult" Grid.Row="3" Background="{StaticResource B.Void}" CornerRadius="6"
-                            Padding="12" BorderBrush="{StaticResource B.Gold}" BorderThickness="1" Margin="0,0,0,16"
+                            Padding="12" BorderBrush="{StaticResource B.Accent}" BorderThickness="1" Margin="0,0,0,16"
                             Visibility="Collapsed">
                         <TextBlock x:Name="txtRestResult" Foreground="{StaticResource B.Ink}" FontSize="12" TextWrapping="Wrap"/>
                     </Border>
@@ -1503,7 +1503,7 @@
                 <TranslateTransform X="-400"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="420" HorizontalAlignment="Left" Margin="58,0,0,0"
-            BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="0,0,1,0">
+            BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="0,0,1,0">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1511,7 +1511,7 @@
                     </Grid.RowDefinitions>
                     <Grid Margin="0,0,0,16">
                         <TextBlock Text="ИСТОРИЯ БРОСКОВ (СЕССИЯ)" FontFamily="{StaticResource F.Display}" FontSize="18"
-                           FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                           FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button x:Name="btnCloseRollHistory" Style="{StaticResource GhostCloseBtn}"
                         HorizontalAlignment="Right" Click="BtnCloseRollHistory_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
@@ -1529,7 +1529,7 @@
                 <TranslateTransform X="400"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="340" HorizontalAlignment="Right" 
-                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1,0,0,0">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1569,7 +1569,7 @@
                 <TranslateTransform X="420"/>
             </Border.RenderTransform>
             <Border Background="{StaticResource B.Panel}" Width="480" HorizontalAlignment="Right"
-                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1,0,0,0">
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1577,7 +1577,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="Инициатива" FontFamily="{StaticResource F.Display}" FontSize="18"
-                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                   FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button x:Name="btnCloseInitiative" Style="{StaticResource GhostCloseBtn}"
                                 HorizontalAlignment="Right" Click="btnCloseInitiative_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
@@ -1589,7 +1589,7 @@
         <!-- ОВЕРЛЕЙ: ПОРТРЕТ -->
         <Border x:Name="PortraitOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
         Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="210" MouseLeftButtonDown="PortraitOverlay_Close">
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="2"
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="2"
                     CornerRadius="12" Padding="16" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="Black" Opacity="0.7"/>
@@ -1602,7 +1602,7 @@
         <Border x:Name="ToastPanel" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,60"
                 Panel.ZIndex="300" Visibility="Collapsed" IsHitTestVisible="False"
-                Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1"
+                Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
                 CornerRadius="8" Padding="18,10">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.6"/>

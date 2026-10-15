@@ -36,8 +36,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -87,7 +87,7 @@
                             -->
                             <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.Opacity)" To="0.85" Duration="0:0:0.2"/>
                             <!-- Изменение цвета рамки на золотой -->
-                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Gold}" Duration="0:0:0.16"/>
+                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Accent}" Duration="0:0:0.16"/>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -114,7 +114,7 @@
         <Style x:Key="RoomFieldStyle" TargetType="TextBox">
             <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource B.Accent}"/>
             <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,8"/>
@@ -141,7 +141,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
-                                Background="{StaticResource B.Gold}">
+                                Background="{StaticResource B.Accent}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -169,7 +169,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -195,7 +195,7 @@
             <Ellipse Width="560" Height="560" Margin="0,0,-180,-220" HorizontalAlignment="Right" VerticalAlignment="Bottom" Opacity="0.08">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
-                        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
+                        <GradientStop Color="{StaticResource C.Accent}" Offset="0"/>
                         <GradientStop Color="Transparent" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
@@ -255,7 +255,7 @@
                     <!-- брендинг -->
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="HMWT" FontFamily="{StaticResource F.Display}" FontSize="22" FontWeight="Bold"
-                                   Foreground="{StaticResource B.Gold}" />
+                                   Foreground="{StaticResource B.Accent}" />
                         <TextBlock Text="ГРИМУАР ПЕРСОНАЖЕЙ" FontFamily="{StaticResource F.Display}" FontSize="10"
                                    Foreground="{StaticResource B.Mute}" Margin="0,2,0,0"/>
                     </StackPanel>
@@ -347,12 +347,12 @@
                             <ScaleTransform/>
                         </Grid.RenderTransform>
                         <Ellipse Width="52" Height="52" Fill="{StaticResource B.Panel}"
-                                 Stroke="{StaticResource B.GoldEdge}" StrokeThickness="1.5"/>
+                                 Stroke="{StaticResource B.AccentEdge}" StrokeThickness="1.5"/>
                         <!-- Плюс строго по центру круга: без HorizontalAlignment
                              значок растягивается на всю клетку 52×52 и рисуется
                              от её левого края — плюс уезжал влево (у соседних
                              значков выравнивание задано) -->
-                        <helpers:IconView Kind="plus" IconSize="22" IconBrush="{StaticResource B.Gold}"
+                        <helpers:IconView Kind="plus" IconSize="22" IconBrush="{StaticResource B.Accent}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
@@ -380,7 +380,7 @@
         <!-- ═══════════ ПАНЕЛЬ ОТРЯДА: СОЗДАТЬ ИЛИ ПОДКЛЮЧИТЬСЯ ═══════════ -->
         <Grid x:Name="RoomPanel" Visibility="Collapsed" Background="#D906060A"
               Panel.ZIndex="3000" MouseLeftButtonDown="RoomPanel_BackdropClick">
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}"
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
                     BorderThickness="1" CornerRadius="14" Width="620" MaxHeight="600"
                     HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid Margin="24">
@@ -394,7 +394,7 @@
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <StackPanel>
                             <TextBlock Text="ОТРЯД" FontFamily="{StaticResource F.Display}" FontSize="20"
-                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                                       FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                             <TextBlock x:Name="txtRoomPanelSubtitle"
                                        Text="Создайте комнату или подключитесь к уже созданной"
                                        FontSize="12" Foreground="{StaticResource B.Mute}" Margin="0,4,0,0"/>
@@ -513,7 +513,7 @@
 
                             <!-- СОСТОЯНИЕ -->
                             <Border x:Name="brRoomConnected" Background="{StaticResource B.Slate}"
-                                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1"
+                                    BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
                                     CornerRadius="10" Padding="16" Margin="0,0,0,12" Visibility="Collapsed">
                                 <StackPanel>
                                     <TextBlock x:Name="txtRoomConnectedTitle" Text="ВЫ В ОТРЯДЕ"
@@ -542,7 +542,7 @@
 
                             <!-- СОХРАНЁННЫЕ КОМНАТЫ -->
                             <TextBlock Text="СОХРАНЁННЫЕ КОМНАТЫ" FontFamily="{StaticResource F.Display}" FontSize="12"
-                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,4,0,8"/>
+                                       FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,4,0,8"/>
                             <TextBlock x:Name="txtNoRooms" Text="Пока нет сохранённых комнат."
                                        FontSize="11" FontStyle="Italic" Foreground="{StaticResource B.Mute}"/>
                             <StackPanel x:Name="spSavedRooms"/>

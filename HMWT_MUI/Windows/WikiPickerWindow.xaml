@@ -22,7 +22,7 @@
                    Foreground="{StaticResource B.Frost}" Margin="0,0,0,10"/>
 
         <TextBox x:Name="SearchBox" Grid.Row="1"
-                 Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" CaretBrush="{StaticResource B.Gold}"
+                 Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" CaretBrush="{StaticResource B.Accent}"
                  BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10,8" FontSize="13"
                  Margin="0,0,0,10" TextChanged="SearchBox_TextChanged"/>
 

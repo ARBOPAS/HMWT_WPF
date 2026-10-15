@@ -57,10 +57,10 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                             <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                             <Trigger Property="IsEditable" Value="True">
                                 <Setter TargetName="cp" Property="Visibility" Value="Collapsed"/>
@@ -82,8 +82,8 @@
                     <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{StaticResource B.Gold}"/>
-                    <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+                    <Setter Property="Background" Value="{StaticResource B.Accent}"/>
+                    <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                 </Trigger>
             </Style.Triggers>
@@ -112,8 +112,8 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
@@ -141,7 +141,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
@@ -154,13 +154,13 @@
 
         <!-- То же, но акцентная: для главного действия на панели -->
         <Style x:Key="ChipBtnAccent" TargetType="Button" BasedOn="{StaticResource ChipBtn}">
-            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
                                 Background="#1FE0AE4E"
-                                BorderBrush="{StaticResource B.Gold}" BorderThickness="1">
+                                BorderBrush="{StaticResource B.Accent}" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -217,13 +217,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -243,7 +243,7 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                     <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
                 </Trigger>
             </Style.Triggers>
@@ -298,7 +298,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="1*" MinHeight="92"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="ИНВЕНТАРЬ" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="0" Text="ИНВЕНТАРЬ" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">
                         <Button x:Name="btnAddItem" Height="32" Style="{StaticResource ActionBtn}" Margin="0,0,0,8"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Добавить предмет" VerticalAlignment="Center"/></StackPanel></Button>
                         <TextBox x:Name="txtSearch" Height="32" Style="{StaticResource SearchBox}" Margin="0,0,0,8" Tag="поиск предметов…" />
@@ -327,10 +327,10 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="СОКРОВИЩА" FontFamily="{StaticResource F.Display}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                <TextBlock Text="СОКРОВИЩА" FontFamily="{StaticResource F.Display}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                                 <Button x:Name="btnToggleTreasureMode" Grid.Column="1" Height="26" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="backpack" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Все предметы" VerticalAlignment="Center"/></StackPanel></Button>
                             </Grid>
-                            <TextBlock Grid.Row="1" x:Name="txtTreasureTotal" Text="Общая стоимость: 0 зм" FontFamily="{StaticResource F.Display}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="1" x:Name="txtTreasureTotal" Text="Общая стоимость: 0 зм" FontFamily="{StaticResource F.Display}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Accent}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                             <!-- Высоту задаёт строка сетки, а не MaxHeight: список не должен исчезать -->
                             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                                 <StackPanel x:Name="spTreasureList"/>
@@ -383,7 +383,7 @@
                         <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                             <StackPanel>
                                 <TextBlock Text="Стоимость:" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="txtItemCost" Text="0 зм" Foreground="{StaticResource B.Gold}" FontSize="14" FontWeight="Bold"/>
+                                <TextBlock x:Name="txtItemCost" Text="0 зм" Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold"/>
                             </StackPanel>
                         </Border>
                         <StackPanel x:Name="spItemTags" Margin="0,0,0,10">
@@ -413,7 +413,7 @@
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              Background="{StaticResource B.Panel}" Foreground="{StaticResource B.Frost}"
                                              BorderBrush="{StaticResource B.Line}" BorderThickness="1"
-                                             CaretBrush="{StaticResource B.Gold}"
+                                             CaretBrush="{StaticResource B.Accent}"
                                              ToolTip="Максимальный вес, который персонаж может нести. Можно точку или запятую: 150.5 или 150,5"
                                              LostFocus="TxtMaxWeightEdit_LostFocus"
                                              KeyDown="TxtMaxWeightEdit_KeyDown"
@@ -461,7 +461,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="ЭКИПИРОВКА" FontFamily="{StaticResource F.Display}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="0" Text="ЭКИПИРОВКА" FontFamily="{StaticResource F.Display}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                             <Button x:Name="btnAddGroup" Style="{StaticResource ChipBtnAccent}" Margin="0,0,8,0" ToolTip="Создать группу экипировки: выберите слот и разместите её на силуэте">
                                 <StackPanel Orientation="Horizontal">
@@ -489,7 +489,7 @@
         <!-- ========== ОВЕРЛЕЙ: ВЫБОР ПРЕДМЕТА ДЛЯ ЯЧЕЙКИ ========== -->
         <Grid x:Name="overlayItemSelect" Visibility="Collapsed" Panel.ZIndex="150" Background="Transparent">
             <Border Background="#CC06060A" MouseLeftButtonDown="OverlayItemSelect_Close"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="500" MaxHeight="560" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="500" MaxHeight="560" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
                 </Border.Effect>
@@ -501,7 +501,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock Text="Выберите предмет" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                        <TextBlock Text="Выберите предмет" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayItemSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <TextBox x:Name="txtItemSelectSearch" Grid.Row="1" Height="36" Style="{StaticResource SearchBox}" Margin="0,0,0,12" TextChanged="TxtItemSelectSearch_TextChanged" Tag="поиск предметов…" />
@@ -521,7 +521,7 @@
         <!-- ========== ОВЕРЛЕЙ: НОВАЯ ГРУППА ЭКИПИРОВКИ ========== -->
         <Grid x:Name="overlaySlotSelect" Visibility="Collapsed" Panel.ZIndex="150" Background="Transparent">
             <Border Background="#CC06060A" MouseLeftButtonDown="OverlaySlotSelect_Background_Click"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="420" MaxHeight="550" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="420" MaxHeight="550" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
                 </Border.Effect>
@@ -532,7 +532,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock Text="НОВАЯ ГРУППА ЭКИПИРОВКИ" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                        <TextBlock Text="НОВАЯ ГРУППА ЭКИПИРОВКИ" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlaySlotSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,16">
@@ -566,7 +566,7 @@
         <!-- ========== ОВЕРЛЕЙ: РЕДАКТОР ПРЕДМЕТА ========== -->
         <Grid x:Name="overlayItemEditor" Visibility="Collapsed" Panel.ZIndex="200" Background="Transparent">
             <Border Background="#CC06060A" MouseLeftButtonDown="OverlayEditor_Background_Click"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="740" MaxHeight="600" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="740" MaxHeight="600" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
                 </Border.Effect>
@@ -577,7 +577,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock x:Name="txtEditorTitle" Text="РЕДАКТОР ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                        <TextBlock x:Name="txtEditorTitle" Text="РЕДАКТОР ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayEditor_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
@@ -645,7 +645,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                        <TextBlock Text="Золото" Foreground="{StaticResource B.Gold}" FontSize="10" Margin="0,0,0,5"/>
+                                        <TextBlock Text="Золото" Foreground="{StaticResource B.Accent}" FontSize="10" Margin="0,0,0,5"/>
                                         <TextBox x:Name="ed_txtCostGold" Style="{StaticResource TextField}" Text="0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="4,0">
@@ -787,7 +787,7 @@
         <!-- ========== ОВЕРЛЕЙ: ВЫБОР ТЕГОВ ПРЕДМЕТА ========== -->
         <Grid x:Name="overlayTagsPicker" Visibility="Collapsed" Panel.ZIndex="220" Background="Transparent">
             <Border Background="#CC06060A" MouseLeftButtonDown="OverlayTagsPicker_Background_Click"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="420" MaxHeight="620" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="420" MaxHeight="620" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
                 </Border.Effect>
@@ -799,7 +799,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,14">
-                        <TextBlock Text="ТЕГИ ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <TextBlock Text="ТЕГИ ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayTagsPicker_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Grid Grid.Row="1" Margin="0,0,0,14">
@@ -834,7 +834,7 @@
         <!-- ========== ОВЕРЛЕЙ: УПРАВЛЕНИЕ ТЕГАМИ ========== -->
         <Grid x:Name="overlayTagManager" Visibility="Collapsed" Panel.ZIndex="170" Background="Transparent">
             <Border Background="#CC06060A" MouseLeftButtonDown="OverlayTagManager_Background_Click"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="450" MaxHeight="600" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="450" MaxHeight="600" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
                 </Border.Effect>
@@ -845,7 +845,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock Text="УПРАВЛЕНИЕ ТЕГАМИ" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                        <TextBlock Text="УПРАВЛЕНИЕ ТЕГАМИ" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayTagManager_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,16">
@@ -897,7 +897,7 @@
                               <TextBox x:Name="txtDeleteQuantity" Text="1" Width="64" Height="32" Margin="6,0" FontSize="14"
                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                        Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}"
-                                       CaretBrush="{StaticResource B.Gold}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                       CaretBrush="{StaticResource B.Accent}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
                               <Button x:Name="btnDeleteQtyPlus" Content="+" Width="32" Height="32" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnDeleteQtyPlus_Click"/>
                               <TextBlock x:Name="txtDeleteQtyMax" Text="" Foreground="{StaticResource B.Mute}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
                           </StackPanel>
@@ -919,7 +919,7 @@
           <!-- ========== ОВЕРЛЕЙ: ЯЧЕЙКИ ГРУППЫ ========== -->
         <Grid x:Name="overlayGroupCells" Visibility="Collapsed" Panel.ZIndex="180" Background="Transparent">
             <Border Background="#CC06060A" MouseLeftButtonDown="OverlayGroupCells_Background_Click"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="450" MaxHeight="600" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24" Width="450" MaxHeight="600" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
                 </Border.Effect>
@@ -930,7 +930,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <TextBlock x:Name="txtGroupCellsTitle" Text="Ячейки группы" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                        <TextBlock x:Name="txtGroupCellsTitle" Text="Ячейки группы" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayGroupCells_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8">
@@ -959,7 +959,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <TextBlock Text="ФИЛЬТРЫ" FontFamily="{StaticResource F.Display}" FontSize="14"
-                                       FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,0,0,14"/>
+                                       FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,14"/>
 
                             <TextBlock Text="Поиск" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
                             <TextBox x:Name="shopSearch" Style="{StaticResource SearchBox}" Margin="0,0,0,14"
@@ -993,7 +993,7 @@
                                  фильтра созданный предмет не видно, и кажется,
                                  что создание не сработало. -->
                             <CheckBox x:Name="shopOnlyCustom" Style="{StaticResource CustomCheckBox}"
-                                      Content="Только свои предметы" Foreground="{StaticResource B.Gold}"
+                                      Content="Только свои предметы" Foreground="{StaticResource B.Accent}"
                                       FontSize="11" Margin="0,0,0,16"/>
 
                             <Button x:Name="btnShopClearFilters" Content="Сбросить фильтры" Height="32"
@@ -1003,8 +1003,8 @@
                             <!-- Свой предмет: нужен тем, у кого нет файла справочника.
                                  Без этого магазин пуст и с ним нельзя взаимодействовать. -->
                             <Button x:Name="btnShopCreateItem" Height="32"
-                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Gold}"
-                                    Foreground="{StaticResource B.Gold}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Accent}"
+                                    Foreground="{StaticResource B.Accent}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,8"
                                     Click="BtnShopCreateItem_Click"
                                     ToolTip="Добавить свой предмет в каталог магазина"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Создать предмет" VerticalAlignment="Center"/></StackPanel></Button>
@@ -1087,7 +1087,7 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Text="КАРТОЧКА ПРЕДМЕТА" FontFamily="{StaticResource F.Display}"
-                                   FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Gold}" Margin="0,0,0,12"/>
+                                   FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,12"/>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="shopDetailPanel">
@@ -1111,7 +1111,7 @@
                             </Grid>
                             <Button x:Name="btnShopBuy" Height="40"
                                     Style="{StaticResource ActionBtn}"
-                                    ToolTip="Предмет появится в инвентаре. Деньги списывайте вручную — цену обсуждаете с DM"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="coin" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Купить и добавить в инвентарь" VerticalAlignment="Center"/></StackPanel></Button>
+                                    ToolTip="Предмет появится в инвентаре. Деньги списывайте вручную — цену обсуждаете с DM"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="coin" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Купить и добавить в инвентарь" VerticalAlignment="Center"/></StackPanel></Button>
 
                             <!-- Два разных фото: в списке картинка мелкая, в карточке крупная,
                                  и игрок сам решает, что показывать в каждом месте -->
@@ -1163,7 +1163,7 @@
                поверх рисуется тот, кто объявлен позже. -->
           <Grid x:Name="overlayShopItem" Grid.Row="1" Visibility="Collapsed" Panel.ZIndex="260" Background="Transparent">
               <Border Background="#CC06060A" MouseLeftButtonDown="OverlayShopItem_Background_Click"/>
-              <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}"
+              <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
                       BorderThickness="1" CornerRadius="12" Padding="24" Width="600" MaxHeight="560"
                       VerticalAlignment="Center" HorizontalAlignment="Center"
                       UseLayoutRounding="True" SnapsToDevicePixels="True">
@@ -1178,7 +1178,7 @@
                       <StackPanel Grid.Row="0" Margin="0,0,0,14">
                           <TextBlock x:Name="txtShopItemTitle" Text="СВОЙ ПРЕДМЕТ"
                                      FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold"
-                                     Foreground="{StaticResource B.Gold}"/>
+                                     Foreground="{StaticResource B.Accent}"/>
                           <TextBlock Text="Предмет попадёт в каталог магазина — как если бы он был импортирован из справочника."
                                      FontSize="11" Foreground="{StaticResource B.Mute}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                       </StackPanel>
@@ -1259,14 +1259,14 @@
                       <!-- Проверка на похожий предмет: свой предмет не должен дублировать
                            уже существующий в каталоге -->
                       <Border Grid.Row="2" x:Name="pnlShopItemHint" Visibility="Collapsed"
-                              Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Gold}"
+                              Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Accent}"
                               BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,12,0,0">
                           <StackPanel>
-                              <TextBlock x:Name="txtShopItemHint" Foreground="{StaticResource B.Gold}"
+                              <TextBlock x:Name="txtShopItemHint" Foreground="{StaticResource B.Accent}"
                                          FontSize="11" TextWrapping="Wrap"/>
                               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                   <Button x:Name="btnShopItemUseExisting" Content="Выбрать существующий"
-                                          Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Gold}"
+                                          Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Accent}"
                                           BorderThickness="1" FontSize="11" Click="BtnShopItemUseExisting_Click"/>
                                   <Button x:Name="btnShopItemSaveAnyway" Content="Всё равно сохранить"
                                           Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"

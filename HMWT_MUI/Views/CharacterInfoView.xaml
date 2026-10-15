@@ -45,12 +45,12 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontFamily" Value="{StaticResource F.Display}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{StaticResource B.Gold}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bd" Background="{StaticResource B.Accent}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -80,8 +80,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -105,8 +105,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -124,14 +124,14 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="6">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                                 <ContentPresenter Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -155,13 +155,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -189,7 +189,7 @@
             <Ellipse Width="900" Height="900" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-250,-300" Opacity="0.08">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
-                        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
+                        <GradientStop Color="{StaticResource C.Accent}" Offset="0"/>
                         <GradientStop Color="#00E0AE4E" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
@@ -359,7 +359,7 @@
                 <Border Background="{StaticResource B.AbilityCard}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="{DynamicResource TH.AbilityCardPadding}" Margin="4">
                     <StackPanel>
                         <Grid Margin="0,0,0,4">
-                            <TextBlock Text="ТЕЛОСЛОЖЕНИЕ" Foreground="{StaticResource B.Gold}" FontFamily="{StaticResource F.Display}" FontSize="{DynamicResource FS.AbilityTitle}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="ТЕЛОСЛОЖЕНИЕ" Foreground="{StaticResource B.Accent}" FontFamily="{StaticResource F.Display}" FontSize="{DynamicResource FS.AbilityTitle}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                              </Grid>
                         <Border Height="1" Background="{StaticResource B.Line}" Margin="0,0,0,8" Opacity="0.3"/>
                         <TextBlock x:Name="txtConScore" Text="10" FontSize="{DynamicResource FS.AbilityScore}" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center" Cursor="Hand" Background="Transparent" MouseLeftButtonUp="AbilityScore_Click" Tag="ТЕЛОСЛОЖЕНИЕ"/>
@@ -692,8 +692,8 @@
             <Border Grid.Row="1" Background="{StaticResource B.AbilityCard}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="8,4,8,12"
                     HorizontalAlignment="Left">
                 <StackPanel Orientation="Horizontal">
-                    <helpers:IconView Kind="eye" IconSize="16" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/>
-                    <TextBlock Text="ПАССИВНЫЕ НАВЫКИ" Foreground="{StaticResource B.Gold}" FontSize="13" FontWeight="Bold"
+                    <helpers:IconView Kind="eye" IconSize="16" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+                    <TextBlock Text="ПАССИВНЫЕ НАВЫКИ" Foreground="{StaticResource B.Accent}" FontSize="13" FontWeight="Bold"
                                FontFamily="{StaticResource F.Display}" Margin="0,0,22,0" VerticalAlignment="Center"/>
 
                     <TextBlock Text="Восприятие" Foreground="{StaticResource B.Mute}" FontSize="13" VerticalAlignment="Center"/>
@@ -713,7 +713,7 @@
                                FontWeight="Bold" VerticalAlignment="Center" Margin="7,0,22,0"/>
 
                     <TextBlock Text="Бонус мастерства" Foreground="{StaticResource B.Mute}" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="txtProfBonus" Text="+2" Foreground="{StaticResource B.Gold}" FontSize="15"
+                    <TextBlock x:Name="txtProfBonus" Text="+2" Foreground="{StaticResource B.Accent}" FontSize="15"
                                FontWeight="Bold" VerticalAlignment="Center" Margin="7,0,0,0"/>
                 </StackPanel>
             </Border>
@@ -743,8 +743,8 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                            <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/>
-                            <TextBlock Text="ВЛАДЕНИЯ" Foreground="{StaticResource B.Gold}" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="10,0,0,0"/>
+                            <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="ВЛАДЕНИЯ" Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="10,0,0,0"/>
                         </StackPanel>
 
                         <!-- Доспехи: категории по рулбуку. Клик по кнопке отмечает владение,
@@ -780,8 +780,8 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                            <helpers:IconView Kind="note" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/>
-                            <TextBlock Text="ЗАМЕТКИ О ПЕРСОНАЖЕ" Foreground="{StaticResource B.Gold}" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="10,0,0,0"/>
+                            <helpers:IconView Kind="note" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="ЗАМЕТКИ О ПЕРСОНАЖЕ" Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="10,0,0,0"/>
                         </StackPanel>
                         <TextBox x:Name="txtCharacterNotes" Grid.Row="1" Style="{StaticResource AreaField}" Tag="Notes"
                                  LostFocus="AddInfo_LostFocus" AcceptsReturn="True" TextWrapping="Wrap"
@@ -790,7 +790,7 @@
                         <!-- Сводка по снаряжению: короткая справка, которую игрок
                              иначе искал бы по вкладке инвентаря -->
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,14,0,8">
-                            <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                            <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                             <TextBlock Text="СНАРЯЖЕНИЕ" Foreground="{StaticResource B.Frost}" FontSize="14" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="10,0,0,0"/>
                         </StackPanel>
                         <Border Grid.Row="3" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
@@ -808,7 +808,7 @@
                                 </Grid>
                                 <Grid>
                                     <TextBlock Text="Золото" Foreground="{StaticResource B.Mute}" FontSize="12"/>
-                                    <TextBlock x:Name="txtGoldSummary" Text="—" Foreground="{StaticResource B.Gold}" FontSize="12"
+                                    <TextBlock x:Name="txtGoldSummary" Text="—" Foreground="{StaticResource B.Accent}" FontSize="12"
                                                FontWeight="Bold" HorizontalAlignment="Right"/>
                                 </Grid>
                             </StackPanel>
@@ -841,7 +841,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="ЛИЧНОСТЬ" Foreground="{StaticResource B.Gold}" FontSize="16" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="0,0,0,8"/>
+                <TextBlock Text="ЛИЧНОСТЬ" Foreground="{StaticResource B.Accent}" FontSize="16" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="0,0,0,8"/>
                 <TextBlock Grid.Row="1" Text="Мировоззрение" Foreground="{StaticResource B.Mute}" FontSize="12" Margin="0,0,0,4"/>
                 <UniformGrid Grid.Row="2" Columns="3" Margin="0,0,0,10">
                     <RadioButton x:Name="align0" Style="{StaticResource ViewTab}" Content="Законно-добрый" FontSize="11" GroupName="Align" Tag="0" Checked="Alignment_Checked"/>
@@ -888,7 +888,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="ВНЕШНОСТЬ И ИСТОРИЯ" Foreground="{StaticResource B.Gold}" FontSize="16" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="0,0,0,8"/>
+                <TextBlock Text="ВНЕШНОСТЬ И ИСТОРИЯ" Foreground="{StaticResource B.Accent}" FontSize="16" FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="0,0,0,8"/>
                 <Grid Grid.Row="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -926,7 +926,7 @@
         <!-- ОВЕРЛЕЙ: ПРЕДЫСТОРИЯ -->
         <Grid x:Name="backgroundPickerOverlay" Grid.RowSpan="2" Visibility="Collapsed" Panel.ZIndex="170">
             <Border Background="#CC06060A" MouseLeftButtonDown="BackgroundPicker_Close"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1"
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
                     CornerRadius="12" Padding="20" Width="600" MaxHeight="700" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="30" ShadowDepth="0" Color="Black" Opacity="0.7"/>
@@ -944,7 +944,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="ВЫБОР ПРЕДЫСТОРИИ" Foreground="{StaticResource B.Gold}" FontSize="18" FontWeight="Bold" FontFamily="{StaticResource F.Display}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Text="ВЫБОР ПРЕДЫСТОРИИ" Foreground="{StaticResource B.Accent}" FontSize="18" FontWeight="Bold" FontFamily="{StaticResource F.Display}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <Button Grid.Column="1" x:Name="btnBgCreate" Style="{StaticResource GhostBtn}"
                                 Height="28" Padding="12,0" Click="BtnBgCreate_Click"
                                 ToolTip="Создать предысторию с нужными владениями и снаряжением"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Своя предыстория" VerticalAlignment="Center"/></StackPanel></Button>
@@ -957,11 +957,11 @@
                             <!-- Своя предыстория: надо дать игроку
                                  возможность создавать их самому -->
                             <Border x:Name="pnlBackgroundEditor" Visibility="Collapsed" Margin="0,12,0,0"
-                                    Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Gold}"
+                                    Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Accent}"
                                     BorderThickness="1" CornerRadius="8" Padding="14">
                                 <StackPanel>
                                     <TextBlock x:Name="txtBackgroundEditorTitle" Text="НОВАЯ ПРЕДЫСТОРИЯ"
-                                               Foreground="{StaticResource B.Gold}" FontSize="14" FontWeight="Bold"
+                                               Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold"
                                                FontFamily="{StaticResource F.Display}" Margin="0,0,0,10"/>
 
                                     <TextBlock Text="Название" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
@@ -1017,7 +1017,7 @@
         <!-- ОВЕРЛЕЙ: ХАРАКТЕРИСТИКА И БОНУСЫ -->
         <Grid x:Name="abilityBonusOverlay" Grid.RowSpan="2" Visibility="Collapsed" Panel.ZIndex="180">
             <Border Background="#CC06060A" MouseLeftButtonDown="AbilityBonusOverlay_Close"/>
-            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1"
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
             CornerRadius="12" Padding="24" Width="520" MaxHeight="660"
             HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border.Effect>
@@ -1033,7 +1033,7 @@
                     <!-- Шапка -->
                     <Grid Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock x:Name="txtAbilityEditorTitle" Text="ХАРАКТЕРИСТИКА" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
+                            <TextBlock x:Name="txtAbilityEditorTitle" Text="ХАРАКТЕРИСТИКА" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                 <TextBlock Text="Значение:" Foreground="{StaticResource B.Mute}" FontSize="12"/>
                                 <TextBlock x:Name="txtAbilityEditorScore" Text="10" Foreground="{StaticResource B.Ink}" FontSize="12" FontWeight="Bold" Margin="6,0,14,0"/>

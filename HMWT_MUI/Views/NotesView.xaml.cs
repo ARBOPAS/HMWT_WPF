@@ -51,7 +51,7 @@ namespace HMWT_MUI.Views
             Editor.AttachmentsFolder = _notesService.GetAttachmentsPath();
             Editor.WikiLinkClicked += Editor_WikiLinkClicked;
             Editor.RequestWikiLink += (s, e) => InsertWikiLink();
-            Editor.Hint += text => SetStatus(text, "B.Gold");
+            Editor.Hint += text => SetStatus(text, "B.Accent");
             Editor.TextChanged += Editor_TextChanged;
 
             BuildToolbar();

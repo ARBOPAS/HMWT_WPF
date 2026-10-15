@@ -29,7 +29,7 @@
         <SolidColorBrush x:Key="SetLine" Color="{StaticResource C.Line}"/>
         <SolidColorBrush x:Key="SetInk" Color="{StaticResource C.Ink}"/>
         <SolidColorBrush x:Key="SetMute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="SetGold" Color="{StaticResource C.Gold}"/>
+        <SolidColorBrush x:Key="SetGold" Color="{StaticResource C.Accent}"/>
         <SolidColorBrush x:Key="SetFrost" Color="{StaticResource C.Frost}"/>
 
         <Style x:Key="SetBtn" TargetType="Button">

@@ -50,10 +50,10 @@
                             Background="{StaticResource B.Line}"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -167,7 +167,7 @@
                         <Border x:Name="checkBorder" Width="18" Height="18" CornerRadius="4"
                                 Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
                             <helpers:IconView x:Name="checkMark" Kind="check" IconSize="14" Thickness="2.6"
-                                              IconBrush="{StaticResource B.Gold}" Visibility="Collapsed"
+                                              IconBrush="{StaticResource B.Accent}" Visibility="Collapsed"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
@@ -175,7 +175,7 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
-                            <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Arcane}"/>
@@ -206,7 +206,7 @@
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-        <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource B.Accent}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -216,7 +216,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -238,7 +238,7 @@
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-        <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource B.Accent}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
         <Setter Property="AcceptsReturn" Value="True"/>
         <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
@@ -251,7 +251,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -278,8 +278,8 @@
         <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
-        <Setter Property="Background" Value="{StaticResource B.Gold}"/>
+        <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
+        <Setter Property="Background" Value="{StaticResource B.Accent}"/>
         <Setter Property="Padding" Value="14,7"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -325,7 +325,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -391,8 +391,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -416,7 +416,7 @@
         <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-        <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource B.Accent}"/>
         <Setter Property="Background" Value="{StaticResource B.Slate}"/>
         <Setter Property="Padding" Value="30,7,10,7"/>
         <Setter Property="Template">
@@ -435,7 +435,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
@@ -478,7 +478,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Arcane}"/>
-                            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+                            <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -539,7 +539,7 @@
                             <TextBox x:Name="PART_EditableTextBox" Grid.Column="0"
                                      Background="Transparent" BorderThickness="0"
                                      Foreground="{TemplateBinding Foreground}"
-                                     CaretBrush="{StaticResource B.Gold}"
+                                     CaretBrush="{StaticResource B.Accent}"
                                      VerticalContentAlignment="Center"
                                      Visibility="Collapsed"/>
                             <!-- Стрелка списка. Размер 16 и цвет текста: при 10 и
@@ -556,7 +556,7 @@
                                StaysOpen="False"
                                PopupAnimation="Slide">
                             <Border Background="{StaticResource B.Slate}"
-                                    BorderBrush="{StaticResource B.Gold}"
+                                    BorderBrush="{StaticResource B.Accent}"
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Margin="0,2,0,0"
@@ -571,10 +571,10 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                         <Trigger Property="IsDropDownOpen" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                         </Trigger>
                         <Trigger Property="IsEditable" Value="True">
                             <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>

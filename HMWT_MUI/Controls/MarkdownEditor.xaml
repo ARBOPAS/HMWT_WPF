@@ -18,7 +18,7 @@
                      Padding="18,14,18,14"
                      FontFamily="{StaticResource F.Body}"
                      FontSize="14"
-                     CaretBrush="{StaticResource B.Gold}"
+                     CaretBrush="{StaticResource B.Accent}"
                      SelectionBrush="#664FB6AC"
                      AcceptsTab="True"
                      IsUndoEnabled="True"

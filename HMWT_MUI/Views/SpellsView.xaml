@@ -36,13 +36,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                 <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
                                 <Setter Property="FontWeight" Value="Bold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -65,12 +65,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -100,10 +100,10 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                             </Trigger>
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -115,7 +115,7 @@
                               Margin="12,7,28,7" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                             <Popup Placement="Bottom" AllowsTransparency="True" Focusable="False"
                    IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Fade">
-                                <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldSoft}" BorderThickness="1"
+                                <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentDim}" BorderThickness="1"
                         CornerRadius="8" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="320" Margin="0,4,0,0">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <ItemsPresenter/>
@@ -144,7 +144,7 @@
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter TargetName="ibd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -177,14 +177,14 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                             </Trigger>
                                             <!-- Список открыт — рамка тоже золотая. В остальных
                                                  шаблонах проекта (DmComboBox, DarkComboBox, SourceBox)
                                                  это есть, а здесь не было: раскрытый список ничем
                                                  не отличался от закрытого -->
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -197,10 +197,10 @@
                             <TextBox x:Name="PART_EditableTextBox" Visibility="Collapsed"
                                      Background="Transparent" BorderThickness="0"
                                      Foreground="{TemplateBinding Foreground}"
-                                     CaretBrush="{StaticResource B.Gold}"
+                                     CaretBrush="{StaticResource B.Accent}"
                                      Margin="10,0,26,0" VerticalContentAlignment="Center"/>
                             <Popup Placement="Bottom" AllowsTransparency="True" Focusable="False" IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Fade">
-                                <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldSoft}" BorderThickness="1" CornerRadius="6" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="240" Margin="0,4,0,0">
+                                <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentDim}" BorderThickness="1" CornerRadius="6" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="240" Margin="0,4,0,0">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <ItemsPresenter/>
                                     </ScrollViewer>
@@ -235,7 +235,7 @@
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter TargetName="ibd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -313,7 +313,7 @@
                 <EventTrigger RoutedEvent="MouseEnter">
                     <BeginStoryboard>
                         <Storyboard>
-                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Gold}" Duration="0:0:0.18"/>
+                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Accent}" Duration="0:0:0.18"/>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -355,7 +355,7 @@
                             <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" To="1.04" Duration="0:0:0.15"/>
                             <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" To="1.04" Duration="0:0:0.15"/>
                             <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.BlurRadius)" To="16" Duration="0:0:0.2"/>
-                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Gold}" Duration="0:0:0.15"/>
+                            <ColorAnimation Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)" To="{StaticResource C.Accent}" Duration="0:0:0.15"/>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
@@ -398,7 +398,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -421,7 +421,7 @@
             <Ellipse Width="460" Height="460" Margin="0,0,-140,-160" HorizontalAlignment="Right" VerticalAlignment="Bottom" Opacity="0.08">
                 <Ellipse.Fill>
                     <RadialGradientBrush>
-                        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
+                        <GradientStop Color="{StaticResource C.Accent}" Offset="0"/>
                         <GradientStop Color="Transparent" Offset="1"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
@@ -447,8 +447,8 @@
                                     <Grid.RenderTransform>
                                         <ScaleTransform/>
                                     </Grid.RenderTransform>
-                                    <Ellipse Width="40" Height="40" Fill="{StaticResource B.Panel}" Stroke="{StaticResource B.GoldEdge}" StrokeThickness="1.5"/>
-                                    <helpers:IconView Kind="plus" IconSize="18" IconBrush="{StaticResource B.Gold}"
+                                    <Ellipse Width="40" Height="40" Fill="{StaticResource B.Panel}" Stroke="{StaticResource B.AccentEdge}" StrokeThickness="1.5"/>
+                                    <helpers:IconView Kind="plus" IconSize="18" IconBrush="{StaticResource B.Accent}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Grid>
                                 <ControlTemplate.Triggers>
@@ -563,7 +563,7 @@
 
                         <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <RadioButton x:Name="TabAll" Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="ВСЕ" Tag="-1" IsChecked="True" Checked="LevelTab_Checked" ToolTip="Показать все уровни"/>
-                            <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs"  Tag="0" Checked="LevelTab_Checked" ToolTip="Заговоры"><helpers:IconView Kind="star" IconSize="15" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center"/></RadioButton>
+                            <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs"  Tag="0" Checked="LevelTab_Checked" ToolTip="Заговоры"><helpers:IconView Kind="star" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/></RadioButton>
                             <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="I"   Tag="1" Checked="LevelTab_Checked"/>
                             <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="II"  Tag="2" Checked="LevelTab_Checked"/>
                             <RadioButton Style="{StaticResource LevelTab}" GroupName="LevelTabs" Content="III" Tag="3" Checked="LevelTab_Checked"/>
@@ -690,7 +690,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Style="{StaticResource SectionHead}" Text="ПОДГОТОВЛЕННЫЕ ЗАКЛИНАНИЯ" Margin="0,0,10,0"/>
-                                <TextBlock x:Name="TxtPreparedCount" Text="подготовлено 0" FontFamily="{StaticResource F.Body}" FontSize="12" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,0,0"/>
+                                <TextBlock x:Name="TxtPreparedCount" Text="подготовлено 0" FontFamily="{StaticResource F.Body}" FontSize="12" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center" Margin="0,0,0,0"/>
                             </StackPanel>
                             <!-- Кнопка «Подготовить» убрана: режим подготовки дублировал
                                  обычное добавление заклинания и только путал -->
@@ -723,7 +723,7 @@
                                 </Border>
                             </Grid>
                         </Border>
-                        <TextBlock Text="Характеристики" FontFamily="{StaticResource F.Display}" FontSize="13" Foreground="{StaticResource B.Gold}" Margin="0,0,0,5"/>
+                        <TextBlock Text="Характеристики" FontFamily="{StaticResource F.Display}" FontSize="13" Foreground="{StaticResource B.Accent}" Margin="0,0,0,5"/>
                         <TextBlock x:Name="DescLevelSchool" Text="—" Foreground="{StaticResource B.Ink}" FontSize="13" FontStyle="Italic" Margin="0,0,0,4"/>
                         <TextBlock Foreground="{StaticResource B.Ink}" FontSize="13" Margin="0,0,0,3"><Run FontWeight="SemiBold">Время:</Run> <Run x:Name="DescCasting" Text="—"/></TextBlock>
                         <TextBlock Foreground="{StaticResource B.Ink}" FontSize="13" Margin="0,0,0,3"><Run FontWeight="SemiBold">Дистанция:</Run> <Run x:Name="DescRange" Text="—"/></TextBlock>
@@ -824,10 +824,10 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="ГОТОВАЯ КАРТОЧКА" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                            <TextBlock Text="ГОТОВАЯ КАРТОЧКА" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                             <Border x:Name="FullModifiedBadge" Grid.Column="1" Visibility="Collapsed" Margin="8,0,0,0"
                                     Background="#33E0AE4E" CornerRadius="8" Padding="7,2" VerticalAlignment="Center" ToolTip="Изменено относительно справочника">
-                                <TextBlock Text="изменено" FontSize="10" Foreground="{StaticResource B.Gold}"/>
+                                <TextBlock Text="изменено" FontSize="10" Foreground="{StaticResource B.Accent}"/>
                             </Border>
                             <Button x:Name="BtnCollapseFull" Grid.Column="3" Cursor="Hand" ToolTip="Свернуть" Background="Transparent" BorderThickness="0">
                                 <Button.Template>
@@ -840,7 +840,7 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -909,15 +909,15 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <Grid Margin="0,0,0,12">
-                                <TextBlock Text="НАСТРОЙКА ЗАКЛИНАНИЯ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                                <TextBlock Text="НАСТРОЙКА ЗАКЛИНАНИЯ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                             </Grid>
 
                             <!-- Предупреждение без упоминания справочника: игрок
                                  наполняет базу сам, и правки его же заклинания
                                  касаются только его персонажей -->
                             <Border x:Name="TxtRulebookWarning" Visibility="Collapsed" Margin="0,0,0,12"
-                                    Background="#22E0AE4E" BorderBrush="{StaticResource B.GoldSoft}" BorderThickness="1" CornerRadius="6" Padding="9,7">
-                                <TextBlock x:Name="TxtRulebookWarningText" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource B.Gold}"
+                                    Background="#22E0AE4E" BorderBrush="{StaticResource B.AccentDim}" BorderThickness="1" CornerRadius="6" Padding="9,7">
+                                <TextBlock x:Name="TxtRulebookWarningText" TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource B.Accent}"
                                            Text="Это заклинание уже есть у других персонажей. Правки затронут и их — карточка будет помечена как «изменено»."/>
                             </Border>
 
@@ -1111,7 +1111,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Button x:Name="BtnCancelCreate" Grid.Column="0" Style="{StaticResource TextBtn}" Content="Отмена" HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,12,0"/>
                                 <Button x:Name="BtnFullSave" Grid.Column="1" Style="{StaticResource ActionBtn}" HorizontalAlignment="Right">
-                                    <TextBlock Text="Сохранить карточку" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
+                                    <TextBlock Text="Сохранить карточку" Foreground="{StaticResource B.OnAccent}" FontWeight="SemiBold" FontSize="12.5"/>
                                 </Button>
                             </Grid>
                         </StackPanel>
@@ -1124,7 +1124,7 @@
         <Grid x:Name="SlotsOverviewOverlay" Panel.ZIndex="175" Visibility="Collapsed">
             <Border Background="#6606060A" MouseLeftButtonDown="SlotsOverviewBg_Click"/>
             <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="66,16,0,0" Width="220"
-                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="10" Padding="14">
+                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="10" Padding="14">
                 <Border.Effect>
                     <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.6"/>
                 </Border.Effect>
@@ -1142,7 +1142,7 @@
         <!-- ═══════════ ОВЕРЛЕЙ: ФИЛЬТР ПО ТЕГАМ ═══════════ -->
         <Grid x:Name="TagFilterOverlay" Panel.ZIndex="175" Visibility="Collapsed" Background="#CC06060A">
             <Border Width="Auto" MinWidth="320" MaxWidth="420" MaxHeight="520" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
+                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <Border.Effect>
                     <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="0" Opacity="0.7"/>
                 </Border.Effect>
@@ -1179,7 +1179,7 @@
         <!-- ═══════════ ОВЕРЛЕЙ: СПРАВОЧНИК ═══════════ -->
         <Grid x:Name="SpellbookOverlay" Panel.ZIndex="170" Visibility="Collapsed" Background="#CC06060A">
             <Border Width="Auto" MinWidth="380" MaxWidth="640" MaxHeight="640" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
+                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <Border.Effect>
                     <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="0" Opacity="0.7"/>
                 </Border.Effect>
@@ -1191,10 +1191,10 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,12">
-                        <TextBlock Text="СПРАВОЧНИК ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <TextBlock Text="СПРАВОЧНИК ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
                         <Button x:Name="SbClose" Style="{StaticResource TextBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
                         <TextBlock Text="СПРАВОЧНИК ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" 
-               Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"
+               Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"
                Margin="0,0,80,0"/>
                     </Grid>
                     <Grid Grid.Row="1" Margin="0,0,0,16">
@@ -1254,7 +1254,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="SbStatus" Foreground="{StaticResource B.Mute}" FontSize="11" VerticalAlignment="Center"/>
                         <Button x:Name="SbAddSelected" Grid.Column="1" Style="{StaticResource ActionBtn}">
-                            <TextBlock Text=" Добавить выбранное" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
+                            <TextBlock Text=" Добавить выбранное" Foreground="{StaticResource B.OnAccent}" FontWeight="SemiBold" FontSize="12.5"/>
                         </Button>
                     </Grid>
                 </Grid>
@@ -1264,7 +1264,7 @@
         <!-- ═══════════ ОВЕРЛЕЙ: РЕДАКТОР ТЕГОВ ═══════════ -->
         <Grid x:Name="TagsOverlay" Panel.ZIndex="170" Visibility="Collapsed" Background="#CC06060A">
             <Border Width="Auto" MinWidth="340" MaxWidth="460" MaxHeight="560" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
+                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="20">
                 <Border.Effect>
                     <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="0" Opacity="0.7"/>
                 </Border.Effect>
@@ -1347,7 +1347,7 @@
                             </Button.Template>
                         </Button>
                         <Button x:Name="BtnTagAdd" Grid.Column="2" Style="{StaticResource ActionBtn}">
-                            <TextBlock Text=" Создать тег" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
+                            <TextBlock Text=" Создать тег" Foreground="{StaticResource B.OnAccent}" FontWeight="SemiBold" FontSize="12.5"/>
                         </Button>
                     </Grid>
                 </Grid>
@@ -1384,7 +1384,7 @@
             <Border Background="#9906060A"/>
 
             <Border Width="Auto" MinWidth="420" MaxWidth="580" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1" CornerRadius="12" Padding="24">
+                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="24">
                 <Border.Effect>
                     <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="0" Opacity="0.7"/>
                 </Border.Effect>
@@ -1397,7 +1397,7 @@
                     <TextBlock Text="«Глобально» сохраняет шаблон по умолчанию; «лист» — только этому персонажу."
                                Foreground="{StaticResource B.Mute}" FontSize="10.5" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,0,0,16"/>
 
-                    <TextBlock Text="НАСТРОЙКА ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Gold}" Margin="0,0,0,14"/>
+                    <TextBlock Text="НАСТРОЙКА ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Accent}" Margin="0,0,0,14"/>
 
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
@@ -1490,11 +1490,11 @@
                     <TextBlock Text="ФОРМУЛЫ БРОСКА" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Arcane}" Margin="0,0,0,10"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                         <TextBlock Text="Сл спасброска = 8 + бонус мастерства + мод. характеристики" Foreground="{StaticResource B.Ink}" FontSize="12" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="TxtSpellSaveDC" Text="  = —" Foreground="{StaticResource B.Gold}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtSpellSaveDC" Text="  = —" Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
                         <TextBlock Text="Атака заклинанием = бонус мастерства + мод. характеристики" Foreground="{StaticResource B.Ink}" FontSize="12" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="TxtSpellAttack" Text="  = —" Foreground="{StaticResource B.Gold}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtSpellAttack" Text="  = —" Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <Grid>
@@ -1519,7 +1519,7 @@
                         </Button>
                         <Button x:Name="BtnCancelSettings" Content="Отмена" Grid.Column="1" Style="{StaticResource TextBtn}" Margin="0,0,12,0"/>
                         <Button x:Name="BtnSaveSettings" Grid.Column="2" Style="{StaticResource ActionBtn}">
-                            <TextBlock Text="Сохранить" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12"/>
+                            <TextBlock Text="Сохранить" Foreground="{StaticResource B.OnAccent}" FontWeight="SemiBold" FontSize="12"/>
                         </Button>
                     </Grid>
                 </StackPanel>
@@ -1530,7 +1530,7 @@
         <!-- ═══════════ ТОСТ (живой отклик) ═══════════ -->
         <Border x:Name="Toast" Panel.ZIndex="300" Visibility="Collapsed" Opacity="0"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,26"
-                Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.GoldEdge}"
+                Background="{StaticResource B.PanelHi}" BorderBrush="{StaticResource B.AccentEdge}"
                 BorderThickness="1" CornerRadius="20" Padding="18,9" IsHitTestVisible="False">
             <Border.Effect>
                 <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="0" Opacity="0.6"/>

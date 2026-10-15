@@ -1299,7 +1299,7 @@ namespace HMWT_MUI
         {
             _goldExpanded = !_goldExpanded;
             UpdateHeaderGoldDisplay();
-            btnGoldDisplayToggle.Foreground = new SolidColorBrush((Color)FindResource(_goldExpanded ? "C.Gold" : "C.Mute"));
+            btnGoldDisplayToggle.Foreground = new SolidColorBrush((Color)FindResource(_goldExpanded ? "C.Accent" : "C.Mute"));
             btnGoldDisplayToggle.ToolTip = _goldExpanded
                 ? "Режим: все монеты (клик — свернуть до золота)"
                 : "Режим: только золото (клик — показать все монеты)";
@@ -1846,7 +1846,7 @@ namespace HMWT_MUI
         private Border BuildRollPanel(Services.DiceRollResult result, bool isCritSuccess, bool isCritFail)
         {
             var accent = (Brush)FindResource("B.Arcane");
-            var gold = (Brush)FindResource("B.Gold");
+            var gold = (Brush)FindResource("B.Accent");
             var ink = (Brush)FindResource("B.Ink");
             var mute = (Brush)FindResource("B.Mute");
             var frost = (Brush)FindResource("B.Frost");
@@ -2440,7 +2440,7 @@ namespace HMWT_MUI
                     Text = r.Total.ToString(),
                     FontSize = 22,
                     FontWeight = FontWeights.Bold,
-                    Foreground = (Brush)FindResource("B.Gold"),
+                    Foreground = (Brush)FindResource("B.Accent"),
                     HorizontalAlignment = HorizontalAlignment.Right,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -2674,7 +2674,7 @@ namespace HMWT_MUI
             bool top = TopTabs;
             var normal = (Style)FindResource(top ? "TopTabBtn" : "RailBtn");
             var active = (Style)FindResource(top ? "TopTabBtnActive" : "RailBtnActive");
-            var accent = (Brush)FindResource("B.Gold");
+            var accent = (Brush)FindResource("B.Accent");
             var mute = (Brush)FindResource("B.Mute");
 
             var tabs = new (Button Button, string View, IconView Icon, bool FillWhenActive)[]
@@ -2874,7 +2874,7 @@ namespace HMWT_MUI
                     ? $"Раунд {Math.Max(1, encounter.Round)} · {current?.Name ?? "—"}"
                     : "Инициатива";
 
-                brInitiativeDot.Background = (Brush)FindResource(encounter.IsActive ? "B.Gold" : "B.Mute");
+                brInitiativeDot.Background = (Brush)FindResource(encounter.IsActive ? "B.Accent" : "B.Mute");
                 btnInitiative.ToolTip = encounter.IsActive
                     ? $"Бой идёт: {encounter.StatusLine()}\nНажмите, чтобы открыть трекер"
                     : $"Группа «{encounter.Name}»: {encounter.StatusLine()}\nНажмите, чтобы открыть трекер";
@@ -3251,7 +3251,7 @@ namespace HMWT_MUI
                 selected.Select(o => o.Key), _conditionOptions);
 
             // Пусто — серым, отмечено — золотым: состояние видно с одного взгляда
-            txtConditions.Foreground = ThemeBrush(selected.Count == 0 ? "B.Mute" : "B.Gold");
+            txtConditions.Foreground = ThemeBrush(selected.Count == 0 ? "B.Mute" : "B.Accent");
 
             btnConditions.ToolTip = selected.Count == 0
                 ? "Отметьте состояния, которые сейчас действуют на персонажа"
@@ -3293,7 +3293,7 @@ namespace HMWT_MUI
 
         private void UpdateInspirationDisplay()
         {
-            string color = _hasInspiration ? "B.Gold" : "B.Mute";
+            string color = _hasInspiration ? "B.Accent" : "B.Mute";
             txtInspiration.Text = _hasInspiration ? "есть" : "нет";
             txtInspiration.Foreground = ThemeBrush(color);
             icoInspiration.IconBrush = ThemeBrush(color);

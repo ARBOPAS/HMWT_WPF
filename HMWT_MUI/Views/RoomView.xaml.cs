@@ -338,7 +338,7 @@ namespace HMWT_MUI.Views
                         FontFamily = FontRes("F.Display"),
                         FontSize = 14,
                         FontWeight = FontWeights.Bold,
-                        Foreground = BrushRes(isCurrent ? "B.Gold" : "B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                        Foreground = BrushRes(isCurrent ? "B.Accent" : "B.Mute", Color.FromRgb(0x8B, 0x85, 0x9C)),
                         VerticalAlignment = VerticalAlignment.Center
                     };
                     Grid.SetColumn(number, 0);
@@ -350,7 +350,7 @@ namespace HMWT_MUI.Views
                         Text = combatant.Name,
                         FontSize = 12,
                         FontWeight = isCurrent ? FontWeights.Bold : FontWeights.Normal,
-                        Foreground = BrushRes(isCurrent ? "B.Gold" : "B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
+                        Foreground = BrushRes(isCurrent ? "B.Accent" : "B.Ink", Color.FromRgb(0xEC, 0xE4, 0xD0)),
                         TextTrimming = TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center
                     });
@@ -359,7 +359,7 @@ namespace HMWT_MUI.Views
                     {
                         nameRow.Children.Add(new Border
                         {
-                            Background = BrushRes("B.Gold", Color.FromRgb(0xE0, 0xAE, 0x4E)),
+                            Background = BrushRes("B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E)),
                             CornerRadius = new CornerRadius(3),
                             Padding = new Thickness(5, 1, 5, 1),
                             Margin = new Thickness(6, 0, 0, 0),
@@ -406,7 +406,7 @@ namespace HMWT_MUI.Views
                             ? BrushRes("B.Slate", Color.FromRgb(0x15, 0x15, 0x1F))
                             : Brushes.Transparent,
                         BorderBrush = isCurrent
-                            ? BrushRes("B.GoldSoft", Color.FromRgb(0x7A, 0x5E, 0x26))
+                            ? BrushRes("B.AccentDim", Color.FromRgb(0x7A, 0x5E, 0x26))
                             : Brushes.Transparent,
                         BorderThickness = new Thickness(1),
                         CornerRadius = new CornerRadius(4),
@@ -570,7 +570,7 @@ namespace HMWT_MUI.Views
             var card = new Border
             {
                 Background = BrushRes(isMe ? "B.PanelHi" : "B.Slate", Color.FromRgb(0x8B, 0x85, 0x9C)),
-                BorderBrush = BrushRes(isMe ? "B.Gold" : "B.Line", Color.FromRgb(0x8B, 0x85, 0x9C)),
+                BorderBrush = BrushRes(isMe ? "B.Accent" : "B.Line", Color.FromRgb(0x8B, 0x85, 0x9C)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(10),
@@ -588,7 +588,7 @@ namespace HMWT_MUI.Views
             // картинка вылезала за края круга.
             var avatar = TryLoadAvatar(p.AvatarPath);
             var avatarHost = RoundAvatarHost(46, avatar, Initial(p),
-                BrushRes("B.GoldEdge", Color.FromRgb(0x7A, 0x5E, 0x26)),
+                BrushRes("B.AccentEdge", Color.FromRgb(0x7A, 0x5E, 0x26)),
                 BrushRes("B.Panel", Color.FromRgb(0x1B, 0x1A, 0x26)));
             avatarHost.Margin = new Thickness(0, 0, 10, 0);
             avatarHost.VerticalAlignment = VerticalAlignment.Top;
@@ -635,7 +635,7 @@ namespace HMWT_MUI.Views
             {
                 marks.Children.Add(new Border
                 {
-                    Background = BrushRes("B.Gold", Color.FromRgb(0xE0, 0xAE, 0x4E)),
+                    Background = BrushRes("B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E)),
                     CornerRadius = new CornerRadius(4),
                     Padding = new Thickness(6, 1, 6, 1),
                     VerticalAlignment = VerticalAlignment.Center,
@@ -783,7 +783,7 @@ namespace HMWT_MUI.Views
 
             // Цвет полосы зависит от доли здоровья: зелёный, жёлтый, красный
             double ratio = p.MaxHp > 0 ? Math.Max(0, Math.Min(1.0, (double)p.Hp / p.MaxHp)) : 0;
-            string colorKey = ratio > 0.5 ? "B.Ok" : (ratio > 0.25 ? "B.Gold" : "B.Danger");
+            string colorKey = ratio > 0.5 ? "B.Ok" : (ratio > 0.25 ? "B.Accent" : "B.Danger");
 
             var track = new Border
             {
@@ -937,7 +937,7 @@ namespace HMWT_MUI.Views
                     // Бросок — самое важное в ленте, поэтому он заметно выделяется:
                     // цветной корешок слева, крупный итог в плашке и кубы чипами.
                     bool hidden = entry.Hidden;
-                    var rollAccent = BrushRes(hidden ? "B.Arcane" : "B.Gold",
+                    var rollAccent = BrushRes(hidden ? "B.Arcane" : "B.Accent",
                         hidden ? Color.FromRgb(0x9A, 0x7B, 0xD6) : Color.FromRgb(0xE0, 0xAE, 0x4E));
 
                     card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x23, 0x21, 0x32));
@@ -1138,7 +1138,7 @@ namespace HMWT_MUI.Views
                         Text = entry.AuthorName,
                         FontSize = 12,
                         FontWeight = FontWeights.Bold,
-                        Foreground = BrushRes("B.Gold", Color.FromRgb(0xE0, 0xAE, 0x4E))
+                        Foreground = BrushRes("B.Accent", Color.FromRgb(0xE0, 0xAE, 0x4E))
                     });
                     head.Children.Add(new TextBlock
                     {

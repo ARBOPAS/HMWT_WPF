@@ -161,7 +161,7 @@ namespace HMWT_MUI.RoomUiTests
             int tokenCount = Application.Current.Resources.MergedDictionaries
                 .Sum(d => d.Keys.Count);
             Check("словарь токенов загружен", tokenCount > 0, $"ключей: {tokenCount}");
-            foreach (var key in new[] { "B.Panel", "B.Backdrop", "B.Gold", "B.Ok", "B.Frost", "F.Display" })
+            foreach (var key in new[] { "B.Panel", "B.Backdrop", "B.Accent", "B.Ok", "B.Frost", "F.Display" })
                 Check($"токен {key} доступен", Application.Current.TryFindResource(key) != null);
 
             Say("═══ СВЯЗКА КНОПОК С КОДОМ ═══");

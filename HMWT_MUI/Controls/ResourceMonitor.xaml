@@ -6,7 +6,7 @@
     <UserControl.Resources>
         <SolidColorBrush x:Key="RmInk" Color="{StaticResource C.Ink}"/>
         <SolidColorBrush x:Key="RmMute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="RmGold" Color="{StaticResource C.Gold}"/>
+        <SolidColorBrush x:Key="RmGold" Color="{StaticResource C.Accent}"/>
         <SolidColorBrush x:Key="RmFrost" Color="{StaticResource C.Frost}"/>
         <SolidColorBrush x:Key="RmLine" Color="{StaticResource C.Line}"/>
 
