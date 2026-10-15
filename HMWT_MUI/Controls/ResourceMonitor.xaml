@@ -4,33 +4,6 @@
              UseLayoutRounding="True" SnapsToDevicePixels="True"
              TextOptions.TextFormattingMode="Display">
     <UserControl.Resources>
-        <SolidColorBrush x:Key="RmInk" Color="{StaticResource C.Ink}"/>
-        <SolidColorBrush x:Key="RmMute" Color="{StaticResource C.Mute}"/>
-        <SolidColorBrush x:Key="RmGold" Color="{StaticResource C.Accent}"/>
-        <SolidColorBrush x:Key="RmFrost" Color="{StaticResource C.Frost}"/>
-        <SolidColorBrush x:Key="RmLine" Color="{StaticResource C.Line}"/>
-
-        <Style x:Key="RmBar" TargetType="ProgressBar">
-            <Setter Property="Height" Value="6"/>
-            <Setter Property="Minimum" Value="0"/>
-            <Setter Property="Maximum" Value="100"/>
-            <Setter Property="Foreground" Value="{StaticResource RmGold}"/>
-            <Setter Property="Background" Value="{StaticResource RmLine}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ProgressBar">
-                        <Border CornerRadius="3" Background="{TemplateBinding Background}" ClipToBounds="True">
-                            <Grid>
-                                <Rectangle x:Name="PART_Track"/>
-                                <Rectangle x:Name="PART_Indicator" Fill="{TemplateBinding Foreground}"
-                                           HorizontalAlignment="Left" RadiusX="3" RadiusY="3"/>
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
     <StackPanel>
@@ -41,37 +14,37 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Память приложения (как в диспетчере задач)" FontSize="11" Foreground="{StaticResource RmMute}"/>
+                <TextBlock Text="Память приложения (как в диспетчере задач)" FontSize="11" Foreground="{StaticResource B.Mute}"/>
                 <TextBlock x:Name="txtProcessMemory" Text="—" FontSize="16" FontWeight="Bold"
-                           Foreground="{StaticResource RmGold}"
+                           Foreground="{StaticResource B.Accent}"
                            ToolTip="Приватный рабочий набор процесса: то же число, что в столбце «Память» диспетчера задач"/>
             </StackPanel>
             <TextBlock Grid.Column="1" x:Name="txtGifCache" Text="" FontSize="10"
-                       Foreground="{StaticResource RmMute}" VerticalAlignment="Bottom"
+                       Foreground="{StaticResource B.Mute}" VerticalAlignment="Bottom"
                        TextAlignment="Right"/>
         </Grid>
 
         <!-- Память компьютера -->
-        <TextBlock Text="Память компьютера" FontSize="11" Foreground="{StaticResource RmMute}" Margin="0,0,0,4"/>
+        <TextBlock Text="Память компьютера" FontSize="11" Foreground="{StaticResource B.Mute}" Margin="0,0,0,4"/>
         <ProgressBar x:Name="barMemory" Style="{StaticResource RmBar}" Margin="0,0,0,4"/>
         <TextBlock x:Name="txtSystemMemory" Text="—" FontSize="11"
-                   Foreground="{StaticResource RmInk}" Margin="0,0,0,12"/>
+                   Foreground="{StaticResource B.Ink}" Margin="0,0,0,12"/>
 
         <!-- Процессор -->
         <TextBlock Text="Процессор (загрузка приложением)" FontSize="11"
-                   Foreground="{StaticResource RmMute}" Margin="0,0,0,4"/>
+                   Foreground="{StaticResource B.Mute}" Margin="0,0,0,4"/>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <ProgressBar Grid.Column="0" x:Name="barCpu" Style="{StaticResource RmBar}"
-                         Foreground="{StaticResource RmFrost}" VerticalAlignment="Center"/>
+                         Foreground="{StaticResource B.Frost}" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="1" x:Name="txtCpu" Text="—" FontSize="12" FontWeight="Bold"
-                       Foreground="{StaticResource RmFrost}" Margin="10,0,0,0"/>
+                       Foreground="{StaticResource B.Frost}" Margin="10,0,0,0"/>
         </Grid>
 
         <TextBlock Text="Если память растёт при просмотре списков — понизьте качество анимации гифок выше."
-                   FontSize="10" Foreground="{StaticResource RmMute}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+                   FontSize="10" Foreground="{StaticResource B.Mute}" TextWrapping="Wrap" Margin="0,12,0,0"/>
     </StackPanel>
 </UserControl>

@@ -9,68 +9,6 @@
 
         <!-- ========== ПОИСК ========== -->
         <!-- ========== COMBOBOX (тёмный, с редактируемым режимом) ========== -->
-        <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"/>
-                            <ToggleButton x:Name="tg" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Focusable="False" ClickMode="Press" Cursor="Hand">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="Transparent">
-                                            <!-- Стрелку прижимаем к правому краю. Раньше у неё
-                                                 было только VerticalAlignment, а IconView по
-                                                 умолчанию растягивается — значок вставал по
-                                                 центру поля и налезал на выбранный текст.
-                                                 Отступ 9 оставляет его в полосе 28, которую
-                                                 под стрелку резервирует ContentPresenter -->
-                                            <helpers:IconView Kind="caret" IconSize="16" Filled="True"
-                                                              IconBrush="{StaticResource B.Ink}"
-                                                              HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                              Margin="0,0,9,0"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                            <ContentPresenter x:Name="cp" IsHitTestVisible="False" Margin="12,0,28,0" VerticalAlignment="Center" HorizontalAlignment="Left"
-                                              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
-                            <TextBox x:Name="PART_EditableTextBox" Visibility="Collapsed" Background="Transparent" BorderThickness="0"
-                                     Foreground="{TemplateBinding Foreground}" Padding="10,0" Margin="2,0,28,0" VerticalContentAlignment="Center" Focusable="True"/>
-                            <Popup x:Name="pop" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Slide">
-                                <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="6" Margin="0,4,0,0" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="240">
-                                    <Border.Effect>
-                                        <DropShadowEffect BlurRadius="16" ShadowDepth="0" Color="#000000" Opacity="0.6"/>
-                                    </Border.Effect>
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="4">
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                            </Trigger>
-                            <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                            </Trigger>
-                            <Trigger Property="IsEditable" Value="True">
-                                <Setter TargetName="cp" Property="Visibility" Value="Collapsed"/>
-                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
@@ -94,160 +32,16 @@
              Раньше она была совсем «призрачной»: серый текст без рамки и фона, и
              до наведения её не было видно — выглядела как выключенная. Теперь у
              неё есть фон и рамка, поэтому сразу понятно, что на неё можно нажать. -->
-        <Style x:Key="SoftBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="6" Padding="8,4"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <!-- Красивая кнопка-«чип» для панели экипировки: рамка, иконка, hover-заливка -->
-        <Style x:Key="ChipBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,7"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
-                                Background="{StaticResource B.Slate}"
-                                BorderBrush="{StaticResource B.Line}" BorderThickness="1">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <!-- То же, но акцентная: для главного действия на панели -->
-        <Style x:Key="ChipBtnAccent" TargetType="Button" BasedOn="{StaticResource ChipBtn}">
-            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="8" Padding="{TemplateBinding Padding}"
-                                Background="{StaticResource B.AccentFaint}"
-                                BorderBrush="{StaticResource B.Accent}" BorderThickness="1">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.AccentSoft}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <!-- Красная кнопка удаления: hover = заливка + БЕЛЫЙ текст -->
-        <Style x:Key="DangerBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Danger}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{StaticResource B.Danger}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="10,6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Danger}"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
         <!-- Чекбокс в стиле приложения (в инвентаре своего не было) -->
         <!-- Вкладки «Инвентарь» / «Магазин» — как в характеристиках -->
-        <Style x:Key="MainTab" TargetType="RadioButton">
-            <Setter Property="FontFamily" Value="{StaticResource F.Display}"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="bd" Background="Transparent" BorderBrush="{StaticResource B.Line}"
-                                BorderThickness="1" CornerRadius="6" Padding="16,8" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Accent}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <!-- Чип-карточка предмета магазина -->
-        <Style x:Key="ShopCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource B.Panel}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                    <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </UserControl.Resources>
 
     <Grid Background="Transparent" TextElement.FontFamily="{StaticResource F.Body}">
