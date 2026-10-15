@@ -31,44 +31,6 @@
         <helpers:TreeIndentConverter x:Key="TreeIndent" Step="12" MaxIndent="72"/>
 
         <!-- СТИЛИ -->
-        <Style x:Key="SearchBox" TargetType="TextBox">
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="Padding" Value="30,7,10,7"/>
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" 
-                                BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
-                            <Grid>
-                                <helpers:IconView Kind="search" IconSize="15" IconBrush="{StaticResource B.Mute}" 
-                                           Margin="11,0,0,0" VerticalAlignment="Center"/>
-                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ph" Text="поиск…" Foreground="{StaticResource B.Mute}" 
-                                           Margin="30,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="Text" Value=""/>
-                                    <Condition Property="IsFocused" Value="False"/>
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
-                            </MultiTrigger>
-                            <Trigger Property="Text" Value="{x:Null}">
-                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
         <Style x:Key="ToolbarBtn" TargetType="Button">
             <Setter Property="MinWidth" Value="32"/>
             <Setter Property="Height" Value="30"/>
@@ -245,7 +207,7 @@
 
                 <!-- ПОИСК И КНОПКИ -->
                 <StackPanel Grid.Row="1" Margin="10,10,10,5">
-                    <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" TextChanged="SearchBox_TextChanged"/>
+                    <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" TextChanged="SearchBox_TextChanged" Tag="поиск…" />
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Style="{StaticResource NoteActionBtn}" Margin="0,0,5,0" Click="CreateGroup_Click" ToolTip="Создать группу (или подгруппу в выбранной группе)"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Группа" VerticalAlignment="Center"/></StackPanel></Button>
 

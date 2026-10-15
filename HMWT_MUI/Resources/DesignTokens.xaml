@@ -401,6 +401,59 @@
     </Style>
 
     <!--
+      Поле поиска: лупа, скруглённая рамка и подсказка, пока поле пустое
+      и не в фокусе.
+
+      Подсказка берётся из Tag самой строки поиска, поэтому стиль один на всё
+      приложение: раньше он был скопирован в пять вкладок, и текст подсказки
+      был зашит внутрь каждой копии.
+
+      ВАЖНО: это стиль именно поиска. Для обычного поля ввода он не годится —
+      в пустом поле появилась бы лупа и надпись «поиск» (так и было в редакторе
+      предмета). Обычные поля — TextField и AreaField выше.
+    -->
+    <Style x:Key="SearchBox" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+        <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+        <Setter Property="Padding" Value="30,7,10,7"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
+                        <Grid>
+                            <helpers:IconView Kind="search" IconSize="15" IconBrush="{StaticResource B.Mute}"
+                                              VerticalAlignment="Center" Margin="11,0,0,0"/>
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ph" Text="{TemplateBinding Tag}" Foreground="{StaticResource B.Mute}"
+                                       Margin="30,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="Text" Value=""/>
+                                <Condition Property="IsFocused" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+                        </MultiTrigger>
+                        <Trigger Property="Text" Value="{x:Null}">
+                            <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
       Выпадающие списки инструментов ДМа.
 
       Стиль лежит в общих токенах, потому что бестиарий и трекер собирают

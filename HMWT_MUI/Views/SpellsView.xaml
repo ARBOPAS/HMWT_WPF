@@ -285,46 +285,6 @@
         <Style x:Key="SlotRestBtn" TargetType="Button" BasedOn="{StaticResource MiniRound}">
             <Setter Property="Foreground" Value="{StaticResource B.Ok}"/>
         </Style>
-
-        <Style x:Key="SearchBox" TargetType="TextBox">
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="Padding" Value="30,7,10,7"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
-                            <Grid>
-                                <helpers:IconView Kind="search" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="11,0,0,0"/>
-                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ph" Text="поиск по всем уровням…" Foreground="{StaticResource B.Mute}"
-                                           Margin="30,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="Text" Value=""/>
-                                    <Condition Property="IsFocused" Value="False"/>
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
-                            </MultiTrigger>
-                            <Trigger Property="Text" Value="{x:Null}">
-                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <Style x:Key="SectionHead" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource F.Display}"/>
             <Setter Property="FontSize" Value="13"/>
@@ -690,7 +650,7 @@
                                 <helpers:IconView Kind="filter" IconSize="16" Filled="True"
                                                   IconBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                             </Button>
-                            <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Width="200"/>
+                            <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Width="200" Tag="поиск по всем уровням…" />
                             <ToggleButton x:Name="ToggleSettings" Style="{StaticResource IconBtn}" ToolTip="Настройки заклинаний и теги" Margin="8,0,0,0">
                                 <helpers:IconView Kind="gear" IconSize="16" IconBrush="{StaticResource B.Mute}"/>
                             </ToggleButton>
@@ -1243,7 +1203,7 @@
                             <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="260"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="SbSearch" Style="{StaticResource SearchBox}" TextChanged="SbSearch_TextChanged"/>
+                        <TextBox x:Name="SbSearch" Style="{StaticResource SearchBox}" TextChanged="SbSearch_TextChanged" Tag="поиск по названию…" />
                         <ComboBox Grid.Column="2" x:Name="SbSourceFilter" Style="{StaticResource SourceBox}"
               SelectionChanged="SbSourceFilter_SelectionChanged"
               Panel.ZIndex="5"/>

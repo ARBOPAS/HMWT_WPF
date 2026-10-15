@@ -8,41 +8,6 @@
         <!-- ========== ПАЛИТРА ========== -->
 
         <!-- ========== ПОИСК ========== -->
-        <Style x:Key="SearchBox" TargetType="TextBox">
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="Padding" Value="30,7,10,7"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
-                            <Grid>
-                                <helpers:IconView Kind="search" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="11,0,0,0"/>
-                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ph" Text="поиск предметов…" Foreground="{StaticResource B.Mute}" Margin="30,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="Text" Value=""/>
-                                    <Condition Property="IsFocused" Value="False"/>
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
-                            </MultiTrigger>
-                            <Trigger Property="Text" Value="{x:Null}">
-                                <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- ========== COMBOBOX (тёмный, с редактируемым режимом) ========== -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
@@ -336,7 +301,7 @@
                     <TextBlock Grid.Row="0" Text="ИНВЕНТАРЬ" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">
                         <Button x:Name="btnAddItem" Height="32" Style="{StaticResource ActionBtn}" Margin="0,0,0,8"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Добавить предмет" VerticalAlignment="Center"/></StackPanel></Button>
-                        <TextBox x:Name="txtSearch" Height="32" Style="{StaticResource SearchBox}" Margin="0,0,0,8"/>
+                        <TextBox x:Name="txtSearch" Height="32" Style="{StaticResource SearchBox}" Margin="0,0,0,8" Tag="поиск предметов…" />
                         <ComboBox x:Name="cbFilterTag" Height="32" Style="{StaticResource DarkComboBox}" Margin="0,0,0,8">
                             <ComboBoxItem Content="Все теги" IsSelected="True"/>
                         </ComboBox>
@@ -539,7 +504,7 @@
                         <TextBlock Text="Выберите предмет" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
                         <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayItemSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
-                    <TextBox x:Name="txtItemSelectSearch" Grid.Row="1" Height="36" Style="{StaticResource SearchBox}" Margin="0,0,0,12" TextChanged="TxtItemSelectSearch_TextChanged"/>
+                    <TextBox x:Name="txtItemSelectSearch" Grid.Row="1" Height="36" Style="{StaticResource SearchBox}" Margin="0,0,0,12" TextChanged="TxtItemSelectSearch_TextChanged" Tag="поиск предметов…" />
                     <Border Grid.Row="2" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
                             <StackPanel x:Name="spItemSelectList"/>
@@ -998,7 +963,7 @@
 
                             <TextBlock Text="Поиск" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
                             <TextBox x:Name="shopSearch" Style="{StaticResource SearchBox}" Margin="0,0,0,14"
-                                     ToolTip="Искать по названию и описанию"/>
+                                     ToolTip="Искать по названию и описанию" Tag="поиск по магазину…" />
 
                             <TextBlock Text="Тип предмета" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
                             <ComboBox x:Name="shopTypeFilter" Style="{StaticResource DarkComboBox}" Margin="0,0,0,14"
@@ -1221,7 +1186,7 @@
                       <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                           <StackPanel>
                               <TextBlock Text="Название" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
-                              <TextBox x:Name="si_txtName" Style="{StaticResource SearchBox}" MinHeight="36" MaxLength="120"/>
+                              <TextBox x:Name="si_txtName" Style="{StaticResource TextField}" MinHeight="36" MaxLength="120"/>
 
                               <Grid Margin="0,12,0,0">
                                   <Grid.ColumnDefinitions>
@@ -1247,13 +1212,13 @@
                                   </Grid.ColumnDefinitions>
                                   <StackPanel Grid.Column="0">
                                       <TextBlock Text="Вес (фунты)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
-                                      <TextBox x:Name="si_txtWeight" Style="{StaticResource SearchBox}" Text="0" MinHeight="34"
+                                      <TextBox x:Name="si_txtWeight" Style="{StaticResource TextField}" Text="0" MinHeight="34"
                                  PreviewTextInput="DecimalField_PreviewTextInput"
                                  ToolTip="Вес предмета. Можно точку или запятую: 2.5 или 2,5"/>
                                   </StackPanel>
                                   <StackPanel Grid.Column="2">
                                       <TextBlock Text="Класс доспеха" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
-                                      <TextBox x:Name="si_txtAc" Style="{StaticResource SearchBox}" Text="0" MinHeight="34"/>
+                                      <TextBox x:Name="si_txtAc" Style="{StaticResource TextField}" Text="0" MinHeight="34"/>
                                   </StackPanel>
                               </Grid>
 
@@ -1265,7 +1230,7 @@
                                   </Grid.ColumnDefinitions>
                                   <StackPanel Grid.Column="0">
                                       <TextBlock Text="Урон (например 1d8)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
-                                      <TextBox x:Name="si_txtDamage" Style="{StaticResource SearchBox}" MinHeight="34"/>
+                                      <TextBox x:Name="si_txtDamage" Style="{StaticResource TextField}" MinHeight="34"/>
                                   </StackPanel>
                                   <StackPanel Grid.Column="2">
                                       <TextBlock Text="Тип урона" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
@@ -1279,7 +1244,7 @@
                               </Grid>
 
                               <TextBlock Text="Описание" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,12,0,4"/>
-                              <TextBox x:Name="si_txtDescription" Style="{StaticResource SearchBox}" MinHeight="80"
+                              <TextBox x:Name="si_txtDescription" Style="{StaticResource AreaField}" MinHeight="80"
                                        AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
 
                               <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
