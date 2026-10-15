@@ -527,8 +527,12 @@ namespace HMWT_MUI.Services
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
+
+                // Колонка называется slot_level: запрос с прежним именем
+                // (spell_level) падал на «no such column», ошибку глотал catch, и
+                // кнопка отдыха по уровню молча не делала ничего
                 using var cmd = new SqliteCommand(
-                    "UPDATE CharacterSpellSlots SET used_slots=0 WHERE id_character=@id AND spell_level=@lvl", conn);
+                    "UPDATE CharacterSpellSlots SET used_slots=0 WHERE id_character=@id AND slot_level=@lvl", conn);
                 cmd.Parameters.AddWithValue("@id", characterId);
                 cmd.Parameters.AddWithValue("@lvl", level);
                 cmd.ExecuteNonQuery();
