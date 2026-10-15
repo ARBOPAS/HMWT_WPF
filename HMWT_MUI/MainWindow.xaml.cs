@@ -22,6 +22,13 @@ namespace HMWT_MUI
     public partial class MainWindow : Window
     {
         private bool _isCharacterFormOpen = false;
+
+        /// <summary>
+        /// Окно уже закрыто. После закрытия WPF запрещает Show и Hide, а во время
+        /// выхода или перезапуска приложение закрывает окна до того, как вернётся
+        /// управление из открытого листа персонажа.
+        /// </summary>
+        private bool _windowClosed = false;
         private ContextMenu _settingsContextMenu;
         private readonly Dictionary<Border, string> _cardSearchKeys = new Dictionary<Border, string>();
 
@@ -52,6 +59,7 @@ namespace HMWT_MUI
             UpdateRoomIndicator();
             Closed += (_, __) =>
             {
+                _windowClosed = true;
                 RoomSession.Instance.StateChanged -= Room_StateChanged;
                 PhotoHelper.CharacterPhotoChanged -= MainWindow_PhotoChanged;
             };
@@ -240,6 +248,9 @@ namespace HMWT_MUI
             _isCharacterFormOpen = true;
             try
             {
+                // Окно уже закрыто (выход или перезапуск приложения): собирать
+                // лист персонажа некуда, показывать его тоже
+                if (_windowClosed) return;
                 // Окно листа собирается целиком в конструкторе, и это самая
                 // долгая часть открытия. Пока оно собирается, главное окно
                 // остаётся на экране и показывает курсор «занято»: иначе
@@ -261,14 +272,24 @@ namespace HMWT_MUI
                 // LoadCharacter здесь больше не зовём: конструктор окна уже
                 // загрузил данные, а повторный вызов — это второй полный
                 // проход по базе на каждое открытие листа
-                this.Hide();
-                charWindow.ShowDialog();
+                if (!_windowClosed)
+                {
+                    this.Hide();
+                    charWindow.ShowDialog();
+                }
             }
             finally
             {
-                this.Show();
-                this.Activate();
-                LoadCharacters();   // аватар/уровень/HP могли измениться
+                // Пока лист персонажа был открыт, приложение могли закрыть или
+                // перезапустить: тогда это окно уже закрыто и Show() бросает
+                // исключение. Обновлять список в этом случае тоже незачем.
+                if (!_windowClosed)
+                {
+                    this.Show();
+                    this.Activate();
+                    LoadCharacters();   // аватар/уровень/HP могли измениться
+                }
+
                 _isCharacterFormOpen = false;
             }
         }
