@@ -12,16 +12,6 @@
 
         <!-- КИСТИ -->
 
-        <!--
-          Кнопки заметок бирюзовые, а не золотые: в этой вкладке золото занято
-          выделением дерева. Цвета переопределяем, форму и поведение берём
-          из общей кнопки действия.
-        -->
-        <Style x:Key="NoteActionBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Background" Value="{StaticResource B.Frost}"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-        </Style>
-
         <!-- ГРАДИЕНТЫ -->
 
         <!-- ШРИФТЫ -->
@@ -31,32 +21,6 @@
         <helpers:TreeIndentConverter x:Key="TreeIndent" Step="12" MaxIndent="72"/>
 
         <!-- СТИЛИ -->
-        <Style x:Key="ToolbarBtn" TargetType="Button">
-            <Setter Property="MinWidth" Value="32"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="6,0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" 
-                                BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Frost}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Frost}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
         <!-- Пункт дерева: заголовок + кнопка удаления (видна при наведении) -->
         <Style x:Key="TreeItemStyle" TargetType="TreeViewItem">
@@ -138,31 +102,6 @@
                                 <Setter TargetName="Expander" Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                         </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!--
-          Шаблон дерева заметок.
-
-          Нужен ради одной вещи: у TreeView своя внутренняя полоса прокрутки, и
-          свойство ScrollViewer.HorizontalScrollBarVisibility на сам TreeView до
-          неё не доходит. Из-за этого внизу висела горизонтальная полоса, которая
-          при перетаскивании дёргалась и вела себя непредсказуемо.
-          Здесь внутренний прокрутчик описан явно, и горизонтальная полоса выключена.
-        -->
-        <Style x:Key="NotesTreeStyle" TargetType="TreeView">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TreeView">
-                        <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      VerticalScrollBarVisibility="Auto">
-                            <ItemsPresenter/>
-                        </ScrollViewer>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
