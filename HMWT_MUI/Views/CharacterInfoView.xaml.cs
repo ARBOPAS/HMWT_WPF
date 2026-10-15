@@ -894,7 +894,15 @@ namespace HMWT_MUI.Views
         #endregion
 
         #region === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
-        private int CalculateModifier(int score) => (score - 10) / 2;
+        /// <summary>
+        /// Модификатор характеристики: половина разницы с 10, округление вниз.
+        ///
+        /// Именно вниз: при значении 9 модификатор −1, а целочисленное деление
+        /// в C# отбрасывает дробь к нулю и давало 0. Из-за этого все нечётные
+        /// значения ниже 10 были завышены на единицу — вместе с навыками,
+        /// спасбросками и пассивными значениями.
+        /// </summary>
+        private int CalculateModifier(int score) => (int)Math.Floor((score - 10) / 2.0);
 
         private string FormatModifier(int mod) => mod >= 0 ? $"+{mod}" : mod.ToString();
 
