@@ -46,10 +46,14 @@
             <Setter Property="Height" Value="{DynamicResource SZ.RoundBtn}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+            <!-- Фон и рамка берутся из свойств кнопки: по ним видно ступень
+                 владения навыком — у экспертизы рамка золотая -->
+            <Setter Property="Background" Value="{StaticResource B.Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="16">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="16">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -1104,9 +1108,19 @@
                                     <TextBlock Text="Название" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
                                     <TextBox x:Name="bg_txtName" Style="{StaticResource TextField}" Margin="0,0,0,8"/>
 
-                                    <TextBlock Text="Владение навыками (два, через запятую)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
-                                    <TextBox x:Name="bg_txtSkills" Style="{StaticResource TextField}" Margin="0,0,0,8"
-                                             ToolTip="Например: Проницательность, Религия"/>
+                                    <!-- Навыки выбираются из списка, а не пишутся
+                                         руками: по названию строка связывается с
+                                         колонкой в базе, и опечатка молча ломала
+                                         отметку владения -->
+                                    <TextBlock Text="Владение навыками (выберите из списка)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
+                                    <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Line}"
+                                            BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel x:Name="bg_pnlSkills"/>
+                                            <TextBlock x:Name="bg_txtSkillsHint" Foreground="{StaticResource B.Danger}" FontSize="10"
+                                                       TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
+                                        </StackPanel>
+                                    </Border>
 
                                     <TextBlock Text="Владение инструментами" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
                                     <TextBox x:Name="bg_txtTools" Style="{StaticResource TextField}" Margin="0,0,0,8"/>

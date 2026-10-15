@@ -229,6 +229,11 @@ namespace HMWT_MUI.Services
         /// <summary>
         /// Проставляет персонажу выбранную предысторию и, если он согласен,
         /// отмечает владение навыками из неё.
+        ///
+        /// Навыки разбираются через <see cref="SkillCatalog"/>: в базе они лежат
+        /// названиями («Обман, Скрытность»), а таблица характеристик знает только
+        /// ключи колонок. Раньше названия подставлялись как есть, ни одно не
+        /// совпадало, и предыстория молча не отмечала ничего.
         /// </summary>
         public static void ApplyToCharacter(int characterId, BackgroundData background, bool applySkills)
         {
@@ -238,16 +243,18 @@ namespace HMWT_MUI.Services
 
             if (!applySkills) return;
 
-            foreach (var skill in SplitSkills(background.SkillProficiencies))
+            foreach (string key in SkillCatalog.KeysFrom(background.SkillProficiencies))
             {
                 try
                 {
-                    if (!AbilityService.ReadSkillProficiency(characterId, skill))
-                        AbilityService.ToggleSkillProficiency(characterId, skill);
+                    // Уже отмеченное не трогаем: если игрок поставил экспертизу,
+                    // предыстория не должна её снимать до простого владения
+                    if (AbilityService.GetSkillLevel(characterId, key) != SkillProficiencyLevel.None) continue;
+                    AbilityService.SetSkillLevel(characterId, key, SkillProficiencyLevel.Proficient);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[BackgroundService] навык «{skill}»: {ex.Message}");
+                    Debug.WriteLine($"[BackgroundService] навык «{key}»: {ex.Message}");
                 }
             }
         }
@@ -283,7 +290,15 @@ namespace HMWT_MUI.Services
             }
         }
 
-        /// <summary>Разбирает строку владений навыками на отдельные названия.</summary>
+        /// <summary>
+        /// Разбирает строку владений навыками на отдельные названия — как они
+        /// написаны в предыстории.
+        ///
+        /// Ключи навыков (для отметки) даёт <see cref="SkillCatalog.KeysFrom"/>:
+        /// эта же строка приходит и русскими названиями, и английскими, и ключами
+        /// справочника, поэтому показывать её надо как есть, а понимать — через
+        /// общий список навыков.
+        /// </summary>
         public static List<string> SplitSkills(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return new List<string>();
@@ -294,6 +309,13 @@ namespace HMWT_MUI.Services
                 .Where(s => s.Length > 0 && s != "—" && s != "-")
                 .ToList();
         }
+
+        /// <summary>
+        /// Строка владений навыками по отметкам персонажа: нужна, чтобы у своей
+        /// предыстории в списке было видно то же, что и у встроенной.
+        /// </summary>
+        public static string DescribeSkills(IEnumerable<string> skillKeys)
+            => SkillCatalog.JoinRussian(skillKeys);
 
         private static BackgroundData Read(SqliteDataReader r)
         {

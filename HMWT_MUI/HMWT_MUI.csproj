@@ -236,6 +236,7 @@
     <Compile Include="Models\InitiativeData.cs" />
     <Compile Include="Services\DiceFormulaParser.cs" />
     <Compile Include="Services\CharacterStateService.cs" />
+    <Compile Include="Services\SkillCatalog.cs" />
     <Compile Include="Services\RestService.cs" />
     <Compile Include="Services\AttackService.cs" />
     <Compile Include="Services\BestiaryService.cs" />

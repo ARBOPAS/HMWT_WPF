@@ -258,6 +258,16 @@ namespace HMWT_MUI
                 PRIMARY KEY (id_character, condition_key),
                 FOREIGN KEY (id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE);",
 
+            // Экспертиза навыка: владение хранится галочкой в таблице характеристик,
+            // а экспертиза — вторым бонусом мастерства. Отдельной таблицей, а не
+            // второй колонкой рядом с каждой из восемнадцати: колонок стало бы
+            // вдвое больше, и половина всегда пустовала бы.
+            @"CREATE TABLE IF NOT EXISTS CharacterSkillExpertise (
+                id_character INTEGER NOT NULL,
+                skill_key TEXT NOT NULL,
+                PRIMARY KEY (id_character, skill_key),
+                FOREIGN KEY (id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE);",
+
             @"CREATE TABLE IF NOT EXISTS DiceRollHistory (
                 id_roll INTEGER PRIMARY KEY AUTOINCREMENT, id_character INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, 
                 roll_type TEXT, description TEXT, result INTEGER,
@@ -1005,7 +1015,7 @@ namespace HMWT_MUI
                 "SpellReference", "CharacterSpells", "CharacterSpellSlots",
                 "EquipmentSlots", "EquipmentGroups", "EquipmentCells",
                 "Tags", "ItemTagMapping", "SrdReference", "SrdItem",
-                "CharacterConditions"
+                "CharacterConditions", "CharacterSkillExpertise"
             };
 
             using var conn = GetConnection();

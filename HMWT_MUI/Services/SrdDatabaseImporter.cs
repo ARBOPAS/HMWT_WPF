@@ -487,26 +487,69 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>
-        /// Владения предыстории лежат одним списком с пометкой в начале названия
-        /// («Skill: Insight», «Tool: Calligrapher's supplies») — отбираем нужные.
+        /// Владения предыстории. Две выгрузки пишут их по-разному:
+        ///
+        /// 2014 — список starting_proficiencies, где вид владения стоит приставкой
+        /// в названии: «Skill: Insight», «Tool: Calligrapher's supplies».
+        /// 2024 — список proficiencies, где вид виден по ключу записи: «skill-insight»,
+        /// «tool-calligraphers-supplies», а название идёт без приставки.
+        ///
+        /// Раньше читался только первый вариант, поэтому у предысторий из базы 2024
+        /// навыков не оказывалось вовсе.
         /// </summary>
         private static string MarkedNames(JsonElement el, string prefix)
         {
-            if (!el.TryGetProperty("starting_proficiencies", out var list) ||
-                list.ValueKind != JsonValueKind.Array)
-                return "";
-
+            string kind = prefix.TrimEnd(':').ToLowerInvariant();
             var names = new List<string>();
-            foreach (var item in list.EnumerateArray())
-            {
-                string name = Text(item, "name");
-                if (name.Length == 0) continue;
-                if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
 
-                names.Add(name.Substring(prefix.Length).Trim());
+            // Старая выгрузка: вид владения приписан к названию
+            if (el.TryGetProperty("starting_proficiencies", out var marked) &&
+                marked.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in marked.EnumerateArray())
+                {
+                    string name = Text(item, "name");
+                    if (name.Length == 0) continue;
+                    if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    names.Add(CleanProficiencyName(name.Substring(prefix.Length)));
+                }
             }
 
-            return string.Join(", ", names);
+            // Новая выгрузка: вид владения виден по ключу записи
+            if (el.TryGetProperty("proficiencies", out var keyed) &&
+                keyed.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in keyed.EnumerateArray())
+                {
+                    string key = Text(item, "index");
+                    if (key.Length == 0 || !key.StartsWith(kind + "-", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    string name = CleanProficiencyName(Text(item, "name"));
+                    if (name.Length > 0) names.Add(name);
+                }
+            }
+
+            var unique = names.Where(n => n.Length > 0).Distinct().ToList();
+
+            // Навыки приводим к тому написанию, что и на листе персонажа: иначе
+            // в списке предысторий рядом стояли бы «Insight» и «Проницательность»
+            if (kind == "skill")
+            {
+                return string.Join(", ", unique.Select(SkillCatalog.RussianOf));
+            }
+
+            return string.Join(", ", unique);
+        }
+
+        /// <summary>Убирает пояснения в скобках: «Calligrapher's supplies (pen)».</summary>
+        private static string CleanProficiencyName(string name)
+        {
+            string value = (name ?? "").Trim();
+            int bracket = value.IndexOf('(');
+            if (bracket > 0) value = value.Substring(0, bracket).Trim();
+            return value;
         }
 
         /// <summary>Умение предыстории: название и текст одним значением.</summary>

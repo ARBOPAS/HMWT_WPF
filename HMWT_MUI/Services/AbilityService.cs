@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HMWT_MUI.Services
 {
@@ -16,33 +17,48 @@ namespace HMWT_MUI.Services
     }
 
     /// <summary>
+    /// Насколько персонаж владеет навыком.
+    ///
+    /// В книге правил этих ступеней две: владение даёт один бонус мастерства,
+    /// экспертиза — второй (то же, что удвоенный бонус). Раньше была только
+    /// галочка «владеет», и экспертизу — а её дают плут и бард — отметить было
+    /// нечем.
+    /// </summary>
+    public enum SkillProficiencyLevel
+    {
+        /// <summary>Не владеет.</summary>
+        None = 0,
+
+        /// <summary>Владеет: бонус мастерства прибавляется один раз.</summary>
+        Proficient = 1,
+
+        /// <summary>Экспертиза: бонус мастерства прибавляется дважды.</summary>
+        Expert = 2
+    }
+
+    /// <summary>
     /// Сервис работы с характеристиками, навыками и бонусами.
     /// Весь SQL — здесь. View его не видит.
     /// </summary>
     public static class AbilityService
     {
-        /// Карта навыков: имя навыка → (таблица, колонка)
-        public static readonly Dictionary<string, (string Table, string Column)> SkillMap = new()
+        /// <summary>
+        /// Карта навыков: ключ → (таблица, колонка). Собирается из общего списка
+        /// навыков, чтобы ключ в интерфейсе и колонка в базе не разъезжались.
+        /// </summary>
+        public static readonly Dictionary<string, (string Table, string Column)> SkillMap =
+            SkillCatalog.All.ToDictionary(
+                s => s.Key,
+                s => (s.Table, s.Column),
+                StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Разбирает название навыка в любом написании.</summary>
+        private static bool TryGetSkill(string skillName, out SkillInfo skill, out (string Table, string Column) map)
         {
-            ["Athletics"] = ("CharacterStrenghtSkills", "Athletics"),
-            ["Acrobatics"] = ("CharacterDexteritySkills", "Acrobatics"),
-            ["Stealth"] = ("CharacterDexteritySkills", "Stealth"),
-            ["SleightOfHand"] = ("CharacterDexteritySkills", "SleightOfHand"),
-            ["Analysis"] = ("CharacterIntSkills", "Analysis"),
-            ["History"] = ("CharacterIntSkills", "History"),
-            ["Magic"] = ("CharacterIntSkills", "Magic"),
-            ["Nature"] = ("CharacterIntSkills", "Nature"),
-            ["Religion"] = ("CharacterIntSkills", "Religion"),
-            ["Perception"] = ("CharacterWisdomSkills", "Perception"),
-            ["Survival"] = ("CharacterWisdomSkills", "Survival"),
-            ["Medicine"] = ("CharacterWisdomSkills", "Medicine"),
-            ["Insight"] = ("CharacterWisdomSkills", "Insight"),
-            ["AnimalCare"] = ("CharacterWisdomSkills", "AnimalCare"),
-            ["Performance"] = ("CharacterCharismaSkills", "Performance"),
-            ["Deception"] = ("CharacterCharismaSkills", "Deception"),
-            ["Persuasion"] = ("CharacterCharismaSkills", "Persuasion"),
-            ["Intimidation"] = ("CharacterCharismaSkills", "Intimidation")
-        };
+            skill = SkillCatalog.Resolve(skillName);
+            map = default;
+            return skill != null && SkillMap.TryGetValue(skill.Key, out map);
+        }
 
         /// Карта спасбросков: сокращение → таблица
         public static readonly Dictionary<string, string> SaveTableMap = new()
@@ -68,11 +84,117 @@ namespace HMWT_MUI.Services
 
         // ========================= НАВЫКИ И СПАСБРОСКИ =========================
 
-        /// Переключить владение навыком (0 ↔ 1)
-        public static void ToggleSkillProficiency(int characterId, string skillName)
+        /// <summary>
+        /// Круг ступеней владения навыком: нет → владение → экспертиза → нет.
+        ///
+        /// Так обе ступени помещаются на одну кнопку листа персонажа, и не
+        /// приходится добавлять вторую рядом.
+        /// </summary>
+        public static SkillProficiencyLevel NextLevel(SkillProficiencyLevel level)
         {
-            if (SkillMap.TryGetValue(skillName, out var map))
-                ToggleColumn(characterId, map.Table, map.Column);
+            switch (level)
+            {
+                case SkillProficiencyLevel.None: return SkillProficiencyLevel.Proficient;
+                case SkillProficiencyLevel.Proficient: return SkillProficiencyLevel.Expert;
+                default: return SkillProficiencyLevel.None;
+            }
+        }
+
+        /// <summary>Переключить владение навыком: нет → владение → экспертиза → нет.</summary>
+        public static void ToggleSkillProficiency(int characterId, string skillName)
+            => SetSkillLevel(characterId, skillName, NextLevel(GetSkillLevel(characterId, skillName)));
+
+        /// <summary>
+        /// Записать ступень владения навыком.
+        ///
+        /// Владение и экспертиза живут в разных местах: галочка — в таблице
+        /// характеристик, экспертиза — отдельной строкой. Пишем их одной
+        /// транзакцией, иначе персонаж мог бы остаться с экспертизой без владения.
+        /// </summary>
+        public static void SetSkillLevel(int characterId, string skillName, SkillProficiencyLevel level)
+        {
+            if (!TryGetSkill(skillName, out var skill, out var map)) return;
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var tx = conn.BeginTransaction();
+
+                using (var flag = new SqliteCommand(
+                    $"UPDATE {map.Table} SET {map.Column}=@v WHERE id_character=@id", conn, tx))
+                {
+                    flag.Parameters.AddWithValue("@v", level == SkillProficiencyLevel.None ? 0 : 1);
+                    flag.Parameters.AddWithValue("@id", characterId);
+                    flag.ExecuteNonQuery();
+                }
+
+                // Экспертиза без владения смысла не имеет: снимается вместе с ним
+                if (level == SkillProficiencyLevel.Expert)
+                {
+                    using var add = new SqliteCommand(
+                        "INSERT OR IGNORE INTO CharacterSkillExpertise (id_character, skill_key) VALUES (@id, @key)",
+                        conn, tx);
+                    add.Parameters.AddWithValue("@id", characterId);
+                    add.Parameters.AddWithValue("@key", skill.Key);
+                    add.ExecuteNonQuery();
+                }
+                else
+                {
+                    using var del = new SqliteCommand(
+                        "DELETE FROM CharacterSkillExpertise WHERE id_character=@id AND skill_key=@key", conn, tx);
+                    del.Parameters.AddWithValue("@id", characterId);
+                    del.Parameters.AddWithValue("@key", skill.Key);
+                    del.ExecuteNonQuery();
+                }
+
+                tx.Commit();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AbilityService] ступень навыка «{skillName}»: {ex.Message}");
+            }
+        }
+
+        /// <summary>Ступень владения навыком.</summary>
+        public static SkillProficiencyLevel GetSkillLevel(int characterId, string skillName)
+        {
+            if (!TryGetSkill(skillName, out var skill, out var map)) return SkillProficiencyLevel.None;
+            if (!ReadFlag(characterId, map.Table, map.Column)) return SkillProficiencyLevel.None;
+
+            return LoadExpertSkills(characterId).Contains(skill.Key)
+                ? SkillProficiencyLevel.Expert
+                : SkillProficiencyLevel.Proficient;
+        }
+
+        /// <summary>
+        /// Навыки с экспертизой. Читается целиком: лист персонажа показывает все
+        /// восемнадцать навыков сразу, и спрашивать про каждый по отдельности —
+        /// это восемнадцать запросов на одну отрисовку.
+        /// </summary>
+        public static HashSet<string> LoadExpertSkills(int characterId)
+        {
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "SELECT skill_key FROM CharacterSkillExpertise WHERE id_character=@id", conn);
+                cmd.Parameters.AddWithValue("@id", characterId);
+
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    string key = r.IsDBNull(0) ? "" : r.GetString(0);
+                    if (key.Length > 0) keys.Add(key);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AbilityService] экспертиза: {ex.Message}");
+            }
+            return keys;
         }
 
         /// <summary>
@@ -80,21 +202,24 @@ namespace HMWT_MUI.Services
         /// уже отмеченные игроком навыки.
         /// </summary>
         public static bool ReadSkillProficiency(int characterId, string skillName)
+            => GetSkillLevel(characterId, skillName) != SkillProficiencyLevel.None;
+
+        /// <summary>Читает колонку-флаг 0/1 из таблицы персонажа.</summary>
+        private static bool ReadFlag(int characterId, string table, string column)
         {
-            if (!SkillMap.TryGetValue(skillName, out var map)) return false;
             try
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
                 using var cmd = new SqliteCommand(
-                    $"SELECT {map.Column} FROM {map.Table} WHERE id_character=@id", conn);
+                    $"SELECT {column} FROM {table} WHERE id_character=@id", conn);
                 cmd.Parameters.AddWithValue("@id", characterId);
                 var res = cmd.ExecuteScalar();
                 return res != null && res != DBNull.Value && Convert.ToInt32(res) > 0;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AbilityService] ReadSkillProficiency: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AbilityService] ReadFlag {table}.{column}: {ex.Message}");
                 return false;
             }
         }

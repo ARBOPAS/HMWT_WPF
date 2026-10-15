@@ -19,6 +19,13 @@ namespace HMWT_MUI.Views
         private int _characterId;
         private DiceRoller _diceRoller;
 
+        /// <summary>
+        /// Навыки с экспертизой. Читается один раз при загрузке листа: бонус
+        /// навыка считается для всех восемнадцати сразу, и спрашивать про каждый
+        /// по отдельности было бы восемнадцать запросов.
+        /// </summary>
+        private HashSet<string> _expertSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         public CharacterInfoView(int characterId)
         {
             InitializeComponent();
@@ -30,6 +37,9 @@ namespace HMWT_MUI.Views
             // Кнопки владений строим до загрузки данных: иначе у персонажа без
             // строки доп.информации они оставались бы пустыми
             BuildProficiencyToggles();
+
+            // Флажки навыков в форме предыстории — тоже один раз, они статичны
+            BuildBackgroundSkillPicker();
 
             LoadCharacterData();
 
@@ -51,6 +61,31 @@ namespace HMWT_MUI.Views
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
+        }
+
+        /// <summary>
+        /// Метка ступени владения навыком: пустое кольцо, залитый кружок или
+        /// звезда. Экспертиза отмечена звездой: она не «ещё одно владение»,
+        /// а другой уровень — и на глаз должна отличаться сразу.
+        /// </summary>
+        private static Helpers.IconView Marker(SkillProficiencyLevel level)
+        {
+            switch (level)
+            {
+                case SkillProficiencyLevel.Expert:
+                    return new Helpers.IconView
+                    {
+                        Kind = "star",
+                        IconSize = 15,
+                        IconBrush = (Brush)Application.Current.FindResource("B.Gold"),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                case SkillProficiencyLevel.Proficient:
+                    return Marker(true);
+                default:
+                    return Marker(false);
+            }
         }
         #region === АДАПТИВНАЯ ВЕРСТКА ===
         private void ApplyAdaptiveLayout()
@@ -390,6 +425,9 @@ namespace HMWT_MUI.Views
         {
             int profBonus = int.Parse(txtProfBonus.Text.Replace("+", ""));
 
+            // Экспертизу читаем заранее: она участвует в каждом бонусе навыка
+            _expertSkills = AbilityService.LoadExpertSkills(_characterId);
+
             // Сила
             using (var cmd = new SqliteCommand("SELECT Athletics, SaveThrow FROM CharacterStrenghtSkills WHERE id_character = @id", conn))
             {
@@ -401,10 +439,10 @@ namespace HMWT_MUI.Views
                     int strSave = Convert.ToInt32(r["SaveThrow"]);
                     int strMod = CalculateModifier(int.Parse(txtStrScore.Text));
 
-                    txtAthleticsVal.Text = FormatModifier(strMod + (athletics > 0 ? profBonus : 0) + GetBonusSum("СИЛА", "Skill"));
+                    txtAthleticsVal.Text = FormatModifier(strMod + SkillBonus("athletics", athletics) + GetBonusSum("СИЛА", "Skill"));
                     txtStrSaveVal.Text = FormatModifier(strMod + (strSave > 0 ? profBonus : 0) + GetBonusSum("СИЛА", "Save"));
 
-                    UpdateToggleVisual(btnProfAthletics, athletics > 0);
+                    UpdateSkillToggleVisual(btnProfAthletics, SkillLevel("Athletics", athletics));
                     UpdateToggleVisual(btnSaveProfStr, strSave > 0);
                 }
             }
@@ -422,14 +460,14 @@ namespace HMWT_MUI.Views
                     int dexSave = Convert.ToInt32(r["SaveThrow"]);
                     int dexMod = CalculateModifier(int.Parse(txtDexScore.Text));
 
-                    txtAcrobaticsVal.Text = FormatModifier(dexMod + (acrobatics > 0 ? profBonus : 0) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
-                    txtStealthVal.Text = FormatModifier(dexMod + (stealth > 0 ? profBonus : 0) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
-                    txtSleightOfHandVal.Text = FormatModifier(dexMod + (sleight > 0 ? profBonus : 0) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
+                    txtAcrobaticsVal.Text = FormatModifier(dexMod + SkillBonus("acrobatics", acrobatics) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
+                    txtStealthVal.Text = FormatModifier(dexMod + SkillBonus("stealth", stealth) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
+                    txtSleightOfHandVal.Text = FormatModifier(dexMod + SkillBonus("sleight", sleight) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
                     txtDexSaveVal.Text = FormatModifier(dexMod + (dexSave > 0 ? profBonus : 0) + GetBonusSum("ЛОВКОСТЬ", "Save"));
 
-                    UpdateToggleVisual(btnProfAcrobatics, acrobatics > 0);
-                    UpdateToggleVisual(btnProfStealth, stealth > 0);
-                    UpdateToggleVisual(btnProfSleightOfHand, sleight > 0);
+                    UpdateSkillToggleVisual(btnProfAcrobatics, SkillLevel("Acrobatics", acrobatics));
+                    UpdateSkillToggleVisual(btnProfStealth, SkillLevel("Stealth", stealth));
+                    UpdateSkillToggleVisual(btnProfSleightOfHand, SkillLevel("SleightOfHand", sleight));
                     UpdateToggleVisual(btnSaveProfDex, dexSave > 0);
                 }
             }
@@ -463,18 +501,18 @@ namespace HMWT_MUI.Views
                     int intSave = Convert.ToInt32(r["SaveThrow"]);
                     int intMod = CalculateModifier(int.Parse(txtIntScore.Text));
 
-                    txtAnalysisVal.Text = FormatModifier(intMod + (analysis > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtHistoryVal.Text = FormatModifier(intMod + (history > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtMagicVal.Text = FormatModifier(intMod + (magic > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtNatureVal.Text = FormatModifier(intMod + (nature > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtReligionVal.Text = FormatModifier(intMod + (religion > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
+                    txtAnalysisVal.Text = FormatModifier(intMod + SkillBonus("analysis", analysis) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
+                    txtHistoryVal.Text = FormatModifier(intMod + SkillBonus("history", history) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
+                    txtMagicVal.Text = FormatModifier(intMod + SkillBonus("magic", magic) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
+                    txtNatureVal.Text = FormatModifier(intMod + SkillBonus("nature", nature) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
+                    txtReligionVal.Text = FormatModifier(intMod + SkillBonus("religion", religion) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
                     txtIntSaveVal.Text = FormatModifier(intMod + (intSave > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Save"));
 
-                    UpdateToggleVisual(btnProfAnalysis, analysis > 0);
-                    UpdateToggleVisual(btnProfHistory, history > 0);
-                    UpdateToggleVisual(btnProfMagic, magic > 0);
-                    UpdateToggleVisual(btnProfNature, nature > 0);
-                    UpdateToggleVisual(btnProfReligion, religion > 0);
+                    UpdateSkillToggleVisual(btnProfAnalysis, SkillLevel("Analysis", analysis));
+                    UpdateSkillToggleVisual(btnProfHistory, SkillLevel("History", history));
+                    UpdateSkillToggleVisual(btnProfMagic, SkillLevel("Magic", magic));
+                    UpdateSkillToggleVisual(btnProfNature, SkillLevel("Nature", nature));
+                    UpdateSkillToggleVisual(btnProfReligion, SkillLevel("Religion", religion));
                     UpdateToggleVisual(btnSaveProfInt, intSave > 0);
                 }
             }
@@ -494,18 +532,18 @@ namespace HMWT_MUI.Views
                     int wisSave = Convert.ToInt32(r["SaveThrow"]);
                     int wisMod = CalculateModifier(int.Parse(txtWisScore.Text));
 
-                    txtPerceptionVal.Text = FormatModifier(wisMod + (perception > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtSurvivalVal.Text = FormatModifier(wisMod + (survival > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtMedicineVal.Text = FormatModifier(wisMod + (medicine > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtInsightVal.Text = FormatModifier(wisMod + (insight > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtAnimalCareVal.Text = FormatModifier(wisMod + (animalCare > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Skill"));
+                    txtPerceptionVal.Text = FormatModifier(wisMod + SkillBonus("perception", perception) + GetBonusSum("МУДРОСТЬ", "Skill"));
+                    txtSurvivalVal.Text = FormatModifier(wisMod + SkillBonus("survival", survival) + GetBonusSum("МУДРОСТЬ", "Skill"));
+                    txtMedicineVal.Text = FormatModifier(wisMod + SkillBonus("medicine", medicine) + GetBonusSum("МУДРОСТЬ", "Skill"));
+                    txtInsightVal.Text = FormatModifier(wisMod + SkillBonus("insight", insight) + GetBonusSum("МУДРОСТЬ", "Skill"));
+                    txtAnimalCareVal.Text = FormatModifier(wisMod + SkillBonus("animalCare", animalCare) + GetBonusSum("МУДРОСТЬ", "Skill"));
                     txtWisSaveVal.Text = FormatModifier(wisMod + (wisSave > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Save"));
 
-                    UpdateToggleVisual(btnProfPerception, perception > 0);
-                    UpdateToggleVisual(btnProfSurvival, survival > 0);
-                    UpdateToggleVisual(btnProfMedicine, medicine > 0);
-                    UpdateToggleVisual(btnProfInsight, insight > 0);
-                    UpdateToggleVisual(btnProfAnimalCare, animalCare > 0);
+                    UpdateSkillToggleVisual(btnProfPerception, SkillLevel("Perception", perception));
+                    UpdateSkillToggleVisual(btnProfSurvival, SkillLevel("Survival", survival));
+                    UpdateSkillToggleVisual(btnProfMedicine, SkillLevel("Medicine", medicine));
+                    UpdateSkillToggleVisual(btnProfInsight, SkillLevel("Insight", insight));
+                    UpdateSkillToggleVisual(btnProfAnimalCare, SkillLevel("AnimalCare", animalCare));
                     UpdateToggleVisual(btnSaveProfWis, wisSave > 0);
                 }
             }
@@ -524,16 +562,16 @@ namespace HMWT_MUI.Views
                     int chaSave = Convert.ToInt32(r["SaveThrow"]);
                     int chaMod = CalculateModifier(int.Parse(txtChaScore.Text));
 
-                    txtPerformanceVal.Text = FormatModifier(chaMod + (performance > 0 ? profBonus : 0) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtDeceptionVal.Text = FormatModifier(chaMod + (deception > 0 ? profBonus : 0) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtPersuasionVal.Text = FormatModifier(chaMod + (persuasion > 0 ? profBonus : 0) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtIntimidationVal.Text = FormatModifier(chaMod + (intimidation > 0 ? profBonus : 0) + GetBonusSum("ХАРИЗМА", "Skill"));
+                    txtPerformanceVal.Text = FormatModifier(chaMod + SkillBonus("performance", performance) + GetBonusSum("ХАРИЗМА", "Skill"));
+                    txtDeceptionVal.Text = FormatModifier(chaMod + SkillBonus("deception", deception) + GetBonusSum("ХАРИЗМА", "Skill"));
+                    txtPersuasionVal.Text = FormatModifier(chaMod + SkillBonus("persuasion", persuasion) + GetBonusSum("ХАРИЗМА", "Skill"));
+                    txtIntimidationVal.Text = FormatModifier(chaMod + SkillBonus("intimidation", intimidation) + GetBonusSum("ХАРИЗМА", "Skill"));
                     txtChaSaveVal.Text = FormatModifier(chaMod + (chaSave > 0 ? profBonus : 0) + GetBonusSum("ХАРИЗМА", "Save"));
 
-                    UpdateToggleVisual(btnProfPerformance, performance > 0);
-                    UpdateToggleVisual(btnProfDeception, deception > 0);
-                    UpdateToggleVisual(btnProfPersuasion, persuasion > 0);
-                    UpdateToggleVisual(btnProfIntimidation, intimidation > 0);
+                    UpdateSkillToggleVisual(btnProfPerformance, SkillLevel("Performance", performance));
+                    UpdateSkillToggleVisual(btnProfDeception, SkillLevel("Deception", deception));
+                    UpdateSkillToggleVisual(btnProfPersuasion, SkillLevel("Persuasion", persuasion));
+                    UpdateSkillToggleVisual(btnProfIntimidation, SkillLevel("Intimidation", intimidation));
                     UpdateToggleVisual(btnSaveProfCha, chaSave > 0);
                 }
             }
@@ -857,6 +895,7 @@ namespace HMWT_MUI.Views
 
         #region === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
         private int CalculateModifier(int score) => (score - 10) / 2;
+
         private string FormatModifier(int mod) => mod >= 0 ? $"+{mod}" : mod.ToString();
 
         private void UpdateToggleVisual(Button btn, bool isActive)
@@ -875,6 +914,58 @@ namespace HMWT_MUI.Views
                 ? new SolidColorBrush((Color)FindResource("C.Gold"))
                 : new SolidColorBrush((Color)FindResource("C.Mute"));
         }
+
+        /// <summary>
+        /// Кнопка навыка: три ступени — нет, владение, экспертиза. Владение
+        /// даёт один бонус мастерства, экспертиза второй, поэтому и метка
+        /// у них разная.
+        /// </summary>
+        private void UpdateSkillToggleVisual(Button btn, SkillProficiencyLevel level)
+        {
+            if (btn == null) return;
+
+            btn.Content = Marker(level);
+            btn.FontSize = 18;
+            btn.BorderBrush = level == SkillProficiencyLevel.Expert
+                ? (Brush)FindResource("B.Gold")
+                : (Brush)FindResource("B.Line");
+            btn.Foreground = level == SkillProficiencyLevel.None
+                ? new SolidColorBrush((Color)FindResource("C.Mute"))
+                : new SolidColorBrush((Color)FindResource("C.Gold"));
+
+            switch (level)
+            {
+                case SkillProficiencyLevel.Expert:
+                    btn.ToolTip = "Экспертиза: бонус мастерства удваивается\nНажмите, чтобы снять";
+                    break;
+                case SkillProficiencyLevel.Proficient:
+                    btn.ToolTip = "Владение: бонус мастерства учитывается\nНажмите, чтобы поставить экспертизу";
+                    break;
+                default:
+                    btn.ToolTip = "Владения нет: бонус мастерства не учитывается\nНажмите, чтобы добавить";
+                    break;
+            }
+        }
+
+        /// <summary>Ступень владения навыком по прочитанному флагу из базы.</summary>
+        private SkillProficiencyLevel SkillLevel(string skillKey, int flag)
+        {
+            if (flag <= 0) return SkillProficiencyLevel.None;
+            return _expertSkills.Contains(skillKey) ? SkillProficiencyLevel.Expert : SkillProficiencyLevel.Proficient;
+        }
+
+        /// <summary>
+        /// Бонус владения навыком: владение даёт бонус мастерства один раз,
+        /// экспертиза — второй. По правилам это и есть удвоенный бонус.
+        /// </summary>
+        private int SkillBonus(string skillKey, int flag)
+        {
+            if (flag <= 0) return 0;
+
+            int bonus = ProfBonus();
+            if (_expertSkills.Contains(skillKey)) bonus += ProfBonus();
+            return bonus;
+        }
         #endregion
 
         #region === ОБРАБОТЧИКИ СОБЫТИЙ ===
@@ -889,7 +980,9 @@ namespace HMWT_MUI.Views
             if (sender is Button btn)
             {
                 string skillName = btn.Name.Replace("btnProf", "");
-                ToggleSkillProficiency(skillName);
+
+                // Круг ступеней: нет → владение → экспертиза → нет
+                AbilityService.ToggleSkillProficiency(_characterId, skillName);
                 LoadCharacterData();
             }
         }
@@ -903,9 +996,6 @@ namespace HMWT_MUI.Views
                 LoadCharacterData();
             }
         }
-
-        private void ToggleSkillProficiency(string skillName)
-    => AbilityService.ToggleSkillProficiency(_characterId, skillName);
 
         private void ToggleSaveThrowProficiency(string ability)
     => AbilityService.ToggleSaveThrowProficiency(_characterId, ability);
@@ -1361,6 +1451,100 @@ namespace HMWT_MUI.Views
             }
         }
 
+        /// <summary>
+        /// Флажки навыков в форме предыстории.
+        ///
+        /// Строятся из общего списка навыков: игрок выбирает из восемнадцати
+        /// названий, и строка владений всегда совпадает с тем, что понимает
+        /// таблица характеристик. Пока навыки писали руками, любая опечатка
+        /// молча ломала отметку — предыстория «давала» навык, которого не было.
+        /// </summary>
+        private readonly Dictionary<string, CheckBox> _bgSkillBoxes =
+            new Dictionary<string, CheckBox>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Владения из старой записи, которые не удалось опознать.</summary>
+        private List<string> _bgUnknownSkills = new List<string>();
+
+        private void BuildBackgroundSkillPicker()
+        {
+            if (bg_pnlSkills == null) return;
+
+            bg_pnlSkills.Children.Clear();
+            _bgSkillBoxes.Clear();
+
+            foreach (string ability in SkillCatalog.AbilityOrder)
+            {
+                var skills = SkillCatalog.ForAbility(ability);
+                if (skills.Count == 0) continue;
+
+                bg_pnlSkills.Children.Add(new TextBlock
+                {
+                    Text = ability,
+                    Foreground = (Brush)FindResource("B.Mute"),
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, bg_pnlSkills.Children.Count == 0 ? 0 : 8, 0, 4)
+                });
+
+                var row = new WrapPanel();
+                foreach (var skill in skills)
+                {
+                    var box = new CheckBox
+                    {
+                        Content = skill.Russian,
+                        Style = (Style)FindResource("CustomCheckBox"),
+                        Margin = new Thickness(0, 0, 16, 4),
+                        Tag = skill.Key
+                    };
+                    _bgSkillBoxes[skill.Key] = box;
+                    row.Children.Add(box);
+                }
+                bg_pnlSkills.Children.Add(row);
+            }
+        }
+
+        /// <summary>Отмечает в форме навыки предыстории.</summary>
+        private void LoadBackgroundSkills(string skills)
+        {
+            var keys = SkillCatalog.KeysFrom(skills);
+
+            _bgUnknownSkills = Services.BackgroundService.SplitSkills(skills)
+                .Where(name => SkillCatalog.KeyOf(name) == null)
+                .ToList();
+
+            foreach (var pair in _bgSkillBoxes)
+                pair.Value.IsChecked = keys.Contains(pair.Key);
+
+            if (bg_txtSkillsHint != null)
+            {
+                bg_txtSkillsHint.Text = _bgUnknownSkills.Count == 0
+                    ? ""
+                    : "Не опознаны и останутся как есть: " + string.Join(", ", _bgUnknownSkills);
+                bg_txtSkillsHint.Visibility = _bgUnknownSkills.Count == 0
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+            }
+        }
+
+        /// <summary>Собирает владения навыками из отмеченных флажков.</summary>
+        private string CollectBackgroundSkills()
+        {
+            var keys = _bgSkillBoxes
+                .Where(pair => pair.Value.IsChecked == true)
+                .Select(pair => pair.Key)
+                .ToList();
+
+            var parts = new List<string>();
+            string known = SkillCatalog.JoinRussian(keys);
+            if (known.Length > 0) parts.Add(known);
+
+            // Непонятые названия из старой записи не выбрасываем: игрок мог
+            // написать что-то своё, и терять это при сохранении нельзя
+            parts.AddRange(_bgUnknownSkills);
+
+            return string.Join(", ", parts);
+        }
+
         /// <summary>Открывает форму предыстории: пустую или с данными для правки.</summary>
         private void OpenBackgroundEditor(Services.BackgroundData bg)
         {
@@ -1370,7 +1554,7 @@ namespace HMWT_MUI.Views
 
             txtBackgroundEditorTitle.Text = bg == null ? "НОВАЯ ПРЕДЫСТОРИЯ" : "ИЗМЕНЕНИЕ ПРЕДЫСТОРИИ";
             bg_txtName.Text = bg?.Name ?? "";
-            bg_txtSkills.Text = bg?.SkillProficiencies ?? "";
+            LoadBackgroundSkills(bg?.SkillProficiencies);
             bg_txtTools.Text = bg?.ToolProficiencies ?? "";
             bg_txtLanguages.Text = bg?.Languages ?? "";
             bg_txtFeature.Text = bg?.Feature ?? "";
@@ -1399,7 +1583,7 @@ namespace HMWT_MUI.Views
             var data = new Services.BackgroundData
             {
                 Name = name,
-                SkillProficiencies = (bg_txtSkills?.Text ?? "").Trim(),
+                SkillProficiencies = CollectBackgroundSkills(),
                 ToolProficiencies = (bg_txtTools?.Text ?? "").Trim(),
                 Languages = (bg_txtLanguages?.Text ?? "").Trim(),
                 Feature = (bg_txtFeature?.Text ?? "").Trim(),
