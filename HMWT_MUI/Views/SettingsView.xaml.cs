@@ -56,6 +56,9 @@ namespace HMWT_MUI.Views
             chkLightTheme.IsChecked = LightTheme;
             chkTopTabs.IsChecked = TopTabs;
 
+            txtSrdHint.Text = $"Сейчас в базе: предметов {SrdItemImporter.GetCount()}, " +
+                              $"заклинаний {SpellJsonImporter.GetCount()}.";
+
             foreach (int seconds in RefreshSteps)
                 cmbRefreshInterval.Items.Add(new ComboBoxItem { Content = seconds + " секунд" });
 
@@ -250,6 +253,40 @@ namespace HMWT_MUI.Views
             int index = Math.Max(0, Math.Min(RefreshSteps.Length - 1, cmbRefreshInterval.SelectedIndex));
             RefreshSeconds = RefreshSteps[index];
             Note($"Обновление отряда: раз в {RefreshSeconds} секунд");
+        }
+
+        /// <summary>
+        /// Импорт справочников из базы 5e SRD.
+        ///
+        /// Выбирается любой файл из нужной папки: по нему определяется сама папка,
+        /// а дальше разбираются все 5e-SRD-*.json, которые в ней лежат. Так не
+        /// нужен отдельный диалог выбора папки, а промахнуться мимо языка сложно —
+        /// файлы базы разложены по папкам en, ru, fr-FR.
+        /// </summary>
+        private void BtnImportSrd_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Укажите любой файл базы 5e SRD",
+                Filter = "База 5e SRD (5e-SRD-*.json)|5e-SRD-*.json|Файлы JSON (*.json)|*.json"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                string folder = System.IO.Path.GetDirectoryName(dialog.FileName);
+                var result = SrdDatabaseImporter.Import(folder);
+
+                txtSrdHint.Text = result.Describe();
+                Note(result.Total > 0
+                    ? $"Импортировано записей: {result.Total}"
+                    : "Подходящих файлов в папке не нашлось");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Settings] импорт SRD: {ex.Message}");
+                txtSrdHint.Text = "Импорт не удался: " + ex.Message;
+            }
         }
 
         private void Note(string text)

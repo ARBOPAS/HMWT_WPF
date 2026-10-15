@@ -195,6 +195,7 @@
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
     <Compile Include="Services\SrdItemImporter.cs" />
+    <Compile Include="Services\SrdDatabaseImporter.cs" />
     <Compile Include="Services\ShareService.cs" />
     <Compile Include="Services\ShopService.cs" />
     <Compile Include="Net\RoomStore.cs" />
