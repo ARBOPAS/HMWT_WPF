@@ -65,9 +65,6 @@ namespace HMWT_MUI.Net
 
         /// <summary>Порт по умолчанию для комнаты.</summary>
         public const int DefaultPort = 47777;
-
-        /// <summary>Порт для UDP-поиска комнат в локальной сети.</summary>
-        public const int DiscoveryPort = 47778;
     }
 
     /// <summary>Роль участника в комнате. Мастер получает скрытые броски и инструменты ДМа.</summary>
@@ -100,8 +97,6 @@ namespace HMWT_MUI.Net
 
         // ── состояние ──
         public const string Snapshot = "snapshot";        // полный снимок комнаты (до 8 человек это дешевле диффов)
-        public const string PlayerJoined = "player_joined";
-        public const string PlayerLeft = "player_left";
         public const string PlayerUpdated = "player_updated";
 
         /// <summary>

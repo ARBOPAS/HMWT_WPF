@@ -1059,24 +1059,6 @@ namespace HMWT_MUI.Net
                     return string.IsNullOrEmpty(text) ? "Не удалось подключиться." : text;
             }
         }
-
-        /// <summary>Локальный IPv4 — его хост сообщает игрокам для подключения.</summary>
-        private static string LocalAddress()
-        {
-            try
-            {
-                var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
-                var ipv4 = host.AddressList.FirstOrDefault(a =>
-                    a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
-                    !System.Net.IPAddress.IsLoopback(a));
-                return ipv4?.ToString() ?? "127.0.0.1";
-            }
-            catch
-            {
-                return "127.0.0.1";
-            }
-        }
-
         #endregion
     }
 }

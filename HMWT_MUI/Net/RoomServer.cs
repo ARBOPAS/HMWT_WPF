@@ -91,13 +91,10 @@ namespace HMWT_MUI.Net
         /// </summary>
         private InitiativeState _initiative = new InitiativeState();
 
-        private int _playerCounter;
-
         public RoomServerEvents Events { get; set; } = new RoomServerEvents();
         public string RoomId => _roomId;
         public string KeySecret => _keySecret;
         public int Port => _port;
-        public bool IsRunning => _listener != null;
 
         /// <summary>Интервал heartbeat: по нему определяем отвалившихся.</summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(5);

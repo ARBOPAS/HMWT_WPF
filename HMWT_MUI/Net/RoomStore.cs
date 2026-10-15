@@ -265,17 +265,6 @@ namespace HMWT_MUI.Net
         }
 
         // ══════════════════════ ОБЩИЙ ДНЕВНИК ══════════════════════
-
-        public static string LoadDiary(string roomId)
-        {
-            try
-            {
-                var file = Path.Combine(GetRoomDir(roomId), DiaryFile);
-                return File.Exists(file) ? File.ReadAllText(file, Encoding.UTF8) : "";
-            }
-            catch { return ""; }
-        }
-
         public static void SaveDiary(string roomId, string text)
         {
             try

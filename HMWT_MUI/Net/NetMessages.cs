@@ -247,12 +247,6 @@ namespace HMWT_MUI.Net
             _expected = -1;
             return result.ToArray();
         }
-
-        public void Reset()
-        {
-            _parts.Clear();
-            _expected = -1;
-        }
     }
 
     // ══════════════════════ ЧАТ И ЛЕНТА ══════════════════════

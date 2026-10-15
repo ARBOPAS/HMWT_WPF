@@ -84,7 +84,5 @@ namespace HMWT_MUI.Net
             }
             return true;
         }
-
-        public static byte[] EncodeUtf8(string text) => Encoding.UTF8.GetBytes(text ?? "");
     }
 }

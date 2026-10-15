@@ -236,23 +236,6 @@ namespace HMWT_MUI
 
             return fullPath;
         }
-
-        public static string SaveCharacterPhoto(int characterId, string sourceFilePath)
-        {
-            if (string.IsNullOrEmpty(sourceFilePath) || !File.Exists(sourceFilePath))
-                return string.Empty;
-
-            if (!_isInitialized) Initialize();
-
-            string extension = Path.GetExtension(sourceFilePath);
-            string fileName = $"char_{characterId}_{DateTime.Now:yyyyMMddHHmmss}{extension}";
-            string destPath = Path.Combine(_charactersPath, fileName);
-
-            File.Copy(sourceFilePath, destPath, true);
-            Debug.WriteLine($"[PhotoHelper] Фото сохранено: {destPath}");
-
-            return $"Characters/{fileName}";
-        }
         public static string SaveIndividualSpellPhoto(int idCharSpell, string sourceFilePath)
         {
             if (string.IsNullOrEmpty(sourceFilePath) || !File.Exists(sourceFilePath))
@@ -271,60 +254,6 @@ namespace HMWT_MUI
         }
 
         // Для общего фото (сохраняем с id_spell)
-        public static string SaveDefaultSpellPhoto(int spellId, string sourceFilePath)
-        {
-            if (string.IsNullOrEmpty(sourceFilePath) || !File.Exists(sourceFilePath))
-                return string.Empty;
-
-            Initialize();
-
-            string extension = Path.GetExtension(sourceFilePath);
-            string fileName = $"spell_default_{spellId}_{DateTime.Now:yyyyMMddHHmmss}{extension}";
-            string destPath = Path.Combine(SpellsPhotoPath, fileName);
-
-            File.Copy(sourceFilePath, destPath, true);
-            Debug.WriteLine($"[PhotoHelper] Общее фото заклинания сохранено: {destPath}");
-
-            return $"Spells/{fileName}";
-        }
-        /// <summary>
-        /// Сохраняет фото предмета инвентаря.
-        /// ВАЖНО: кладём в GetWritableRoot()\Items — ровно туда, откуда его находит
-        /// ResolvePhotoPath. Прежний путь (CharacterPhoto\Items) не читался никем,
-        /// из-за чего фото выглядело потерянным.
-        /// </summary>
-        public static string SaveItemPhoto(int itemId, string sourceFilePath)
-        {
-            if (string.IsNullOrEmpty(sourceFilePath) || !File.Exists(sourceFilePath))
-                return string.Empty;
-
-            if (!_isInitialized) Initialize();
-
-            string extension = Path.GetExtension(sourceFilePath);
-            if (string.IsNullOrWhiteSpace(extension)) extension = ".png";
-
-            string dir = Path.Combine(GetWritableRoot(), "Items");
-            Directory.CreateDirectory(dir);
-
-            // Убираем прежние файлы этого предмета (расширение могло измениться)
-            try
-            {
-                foreach (var old in Directory.GetFiles(dir, $"item_{itemId}_*"))
-                {
-                    try { File.Delete(old); } catch { }
-                }
-            }
-            catch { }
-
-            string fileName = $"item_{itemId}_{DateTime.Now:yyyyMMddHHmmss}{extension.ToLowerInvariant()}";
-            string destPath = Path.Combine(dir, fileName);
-
-            File.Copy(sourceFilePath, destPath, true);
-            Debug.WriteLine($"[PhotoHelper] Фото предмета сохранено: {destPath}");
-
-            return $"Items/{fileName}";
-        }
-
         public static bool DeletePhoto(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath))
@@ -349,65 +278,6 @@ namespace HMWT_MUI
             }
             return false;
         }
-
-        public static void CleanupUnusedCharacterPhotos(string dbPath)
-        {
-            if (!_isInitialized) Initialize();
-
-            if (!Directory.Exists(_charactersPath)) return;
-
-            var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            try
-            {
-                using (var conn = new SqliteConnection(dbPath))
-                {
-                    conn.Open();
-                    var cmd = new SqliteCommand("SELECT PhotoPath FROM CharacterInfo WHERE PhotoPath IS NOT NULL AND PhotoPath != ''", conn);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string path = reader["PhotoPath"].ToString();
-                            if (!string.IsNullOrEmpty(path))
-                            {
-                                string fullPath = GetAbsolutePath(path);
-                                usedPaths.Add(fullPath);
-                            }
-                        }
-                    }
-                }
-
-                int deletedCount = 0;
-                foreach (var file in Directory.GetFiles(_charactersPath, "*.*", SearchOption.TopDirectoryOnly))
-                {
-                    if (!usedPaths.Contains(file))
-                    {
-                        if (File.GetLastWriteTime(file) > DateTime.Now.AddMinutes(-1))
-                            continue;
-
-                        try
-                        {
-                            File.Delete(file);
-                            deletedCount++;
-                            Debug.WriteLine($"[PhotoHelper] Удалено неиспользуемое фото: {file}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[PhotoHelper] Ошибка удаления {file}: {ex.Message}");
-                        }
-                    }
-                }
-
-                Debug.WriteLine($"[PhotoHelper] Очистка фото персонажей завершена. Удалено: {deletedCount}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PhotoHelper] Ошибка очистки: {ex.Message}");
-            }
-        }
-
         public static void CleanupUnusedItemPhotos(string dbPath)
         {
             if (!_isInitialized) Initialize();
@@ -486,83 +356,6 @@ namespace HMWT_MUI
                 Debug.WriteLine($"[PhotoHelper] Ошибка очистки: {ex.Message}");
             }
         }
-
-        public static void CleanupOldPhotos()
-        {
-            if (!_isInitialized) Initialize();
-
-            if (!Directory.Exists(_charactersPath)) return;
-
-            var files = Directory.GetFiles(_charactersPath, "char_*.*");
-            var grouped = files.GroupBy(f =>
-            {
-                string name = Path.GetFileName(f);
-                int underscoreIndex = name.IndexOf('_', 5);
-                if (underscoreIndex > 0)
-                {
-                    string idPart = name.Substring(5, underscoreIndex - 5);
-                    if (int.TryParse(idPart, out int id))
-                        return id;
-                }
-                return -1;
-            });
-
-            foreach (var group in grouped)
-            {
-                if (group.Key == -1) continue;
-
-                var sorted = group.OrderByDescending(f => File.GetLastWriteTime(f));
-                var latest = sorted.First();
-
-                // Удаляем только файлы, которые старше 1 минуты
-                foreach (var oldFile in sorted.Skip(1))
-                {
-                    try
-                    {
-                        // Не удаляем свежие файлы (моложе 1 минуты)
-                        if (File.GetLastWriteTime(oldFile) > DateTime.Now.AddMinutes(-1))
-                            continue;
-
-                        File.Delete(oldFile);
-                        Debug.WriteLine($"[PhotoHelper] Удалено старое фото: {oldFile}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[PhotoHelper] Ошибка удаления {oldFile}: {ex.Message}");
-                    }
-                }
-            }
-        }
-
-        public static List<string> GetAllCharacterPhotos(string dbPath)
-        {
-            var photos = new List<string>();
-
-            try
-            {
-                using (var conn = new SqliteConnection(dbPath))
-                {
-                    conn.Open();
-                    var cmd = new SqliteCommand("SELECT PhotoPath FROM CharacterInfo WHERE PhotoPath IS NOT NULL AND PhotoPath != ''", conn);
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            string path = reader["PhotoPath"].ToString();
-                            if (!string.IsNullOrEmpty(path))
-                                photos.Add(path);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PhotoHelper] Ошибка: {ex.Message}");
-            }
-
-            return photos;
-        }
-
         public static string GetWritableRoot()
         {
             var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");

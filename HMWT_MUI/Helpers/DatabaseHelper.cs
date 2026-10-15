@@ -480,43 +480,6 @@ namespace HMWT_MUI
             }
         }
 
-        /// <summary>
-        /// Проверяет существование колонки в таблице.
-        /// </summary>
-        private static bool ColumnExists(SqliteConnection conn, string tableName, string columnName, SqliteTransaction tx)
-        {
-            using var cmd = new SqliteCommand($"PRAGMA table_info({tableName})", conn, tx);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                if (reader["name"].ToString() == columnName)
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Гарантирует существование строки для персонажа в дочерней таблице.
-        /// Используется перед UPDATE, чтобы не было ошибок.
-        /// </summary>
-        public static void EnsureRowExists(string tableName, int characterId)
-        {
-            using var conn = GetConnection();
-            conn.Open();
-
-            using var cmdCheck = new SqliteCommand(
-                $"SELECT COUNT(1) FROM {tableName} WHERE id_character = @id", conn);
-            cmdCheck.Parameters.AddWithValue("@id", characterId);
-
-            if (Convert.ToInt32(cmdCheck.ExecuteScalar()) == 0)
-            {
-                using var cmdInsert = new SqliteCommand(
-                    $"INSERT INTO {tableName} (id_character) VALUES (@id)", conn);
-                cmdInsert.Parameters.AddWithValue("@id", characterId);
-                cmdInsert.ExecuteNonQuery();
-            }
-        }
-
         private static void CreateInventorySystemTables(SqliteConnection conn, SqliteTransaction transaction)
         {
             var queries = new[]
@@ -841,47 +804,6 @@ namespace HMWT_MUI
             });
         }
 
-        /// <summary>
-        /// Обновляет основные данные персонажа.
-        /// </summary>
-        public static void UpdateCharacter(int id, string name, string charClass, string race,
-            int hp, int speed, string photoPath,
-            int strength, int dexterity, int constitution,
-            int intelligence, int wisdom, int charisma,
-            int armorClass, int masterLVL, int exp)
-        {
-            using var conn = GetConnection();
-            conn.Open();
-
-            string query = @"
-                UPDATE CharacterInfo SET 
-                    name = @name, class = @class, race = @race, 
-                    HP = @hp, Speed = @speed, PhotoPath = @photo,
-                    Strength = @str, Dexterity = @dex, Constitution = @con,
-                    Intelligence = @int, Wisdom = @wis, Charisma = @cha,
-                    ArmorClass = @ac, MasterLVL = @lvl, Exp = @exp
-                WHERE id_character = @id";
-
-            using var cmd = new SqliteCommand(query, conn);
-            cmd.Parameters.AddWithValue("@id", id);
-            cmd.Parameters.AddWithValue("@name", name);
-            cmd.Parameters.AddWithValue("@class", charClass);
-            cmd.Parameters.AddWithValue("@race", race);
-            cmd.Parameters.AddWithValue("@hp", hp);
-            cmd.Parameters.AddWithValue("@speed", speed);
-            cmd.Parameters.AddWithValue("@photo", photoPath ?? "");
-            cmd.Parameters.AddWithValue("@str", strength);
-            cmd.Parameters.AddWithValue("@dex", dexterity);
-            cmd.Parameters.AddWithValue("@con", constitution);
-            cmd.Parameters.AddWithValue("@int", intelligence);
-            cmd.Parameters.AddWithValue("@wis", wisdom);
-            cmd.Parameters.AddWithValue("@cha", charisma);
-            cmd.Parameters.AddWithValue("@ac", armorClass);
-            cmd.Parameters.AddWithValue("@lvl", masterLVL);
-            cmd.Parameters.AddWithValue("@exp", exp);
-            cmd.ExecuteNonQuery();
-        }
-
         #endregion
 
         #region === ЗАПРОСЫ ===
@@ -1004,77 +926,6 @@ namespace HMWT_MUI
         #region === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
         /// <summary>
-        /// Проверяет существование всех необходимых таблиц.
-        /// </summary>
-        public static bool ValidateDatabase()
-        {
-            string[] requiredTables = {
-                "CharacterInfo", "CharacterStrenghtSkills", "CharacterDexteritySkills",
-                "CharacterConstSkills", "CharacterIntSkills", "CharacterWisdomSkills",
-                "CharacterCharismaSkills", "LevelTable", "GoldTable", "Inventory",
-                "SpellReference", "CharacterSpells", "CharacterSpellSlots",
-                "EquipmentSlots", "EquipmentGroups", "EquipmentCells",
-                "Tags", "ItemTagMapping", "SrdReference", "SrdItem",
-                "CharacterConditions", "CharacterSkillExpertise"
-            };
-
-            using var conn = GetConnection();
-            conn.Open();
-
-            foreach (var table in requiredTables)
-            {
-                using var cmd = new SqliteCommand(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=@name", conn);
-                cmd.Parameters.AddWithValue("@name", table);
-
-                if (cmd.ExecuteScalar() == null)
-                {
-                    Debug.WriteLine($"[DB] Отсутствует таблица: {table}");
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Проверяет целостность базы данных.
-        /// </summary>
-        public static bool CheckIntegrity()
-        {
-            using var conn = GetConnection();
-            conn.Open();
-
-            using var cmd = new SqliteCommand("PRAGMA integrity_check", conn);
-            var result = cmd.ExecuteScalar()?.ToString();
-            return result == "ok";
-        }
-
-        /// <summary>
-        /// Выполняет действие с автоматическими повторами при блокировке БД.
-        /// </summary>
-        public static void ExecuteWithRetry(Action<SqliteConnection> action, int maxRetries = 3)
-        {
-            int retryCount = 0;
-            while (retryCount < maxRetries)
-            {
-                try
-                {
-                    using var conn = GetConnection();
-                    conn.Open();
-                    action(conn);
-                    return;
-                }
-                catch (SqliteException ex) when (ex.Message.Contains("database is locked"))
-                {
-                    retryCount++;
-                    Debug.WriteLine($"[DB] Блокировка БД, попытка {retryCount}/{maxRetries}");
-                    System.Threading.Thread.Sleep(200 * retryCount);
-                }
-            }
-            throw new Exception("Не удалось выполнить операцию: база данных заблокирована");
-        }
-
-        /// <summary>
         /// Порог, после которого операция считается медленной и попадает в журнал.
         /// </summary>
         public const long SlowOperationMs = 150;
@@ -1123,38 +974,6 @@ namespace HMWT_MUI
         #region === УТИЛИТЫ ЧТЕНИЯ ===
 
         /// <summary>
-        /// Безопасно читает колонку из reader с значением по умолчанию.
-        /// Избавляет от try/catch и DBNull-проверок в каждом методе.
-        /// </summary>
-        public static T SafeRead<T>(SqliteDataReader reader, string column, T defaultValue = default)
-        {
-            try
-            {
-                if (!HasColumnInReader(reader, column)) return defaultValue;
-                int ordinal = reader.GetOrdinal(column);
-                if (reader.IsDBNull(ordinal)) return defaultValue;
-                var value = reader.GetValue(ordinal);
-                if (value == null || value == DBNull.Value) return defaultValue;
-
-                // Конвертация типов
-                var targetType = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
-                return (T)Convert.ChangeType(value, targetType);
-            }
-            catch
-            {
-                return defaultValue;
-            }
-        }
-
-        private static bool HasColumnInReader(SqliteDataReader reader, string column)
-        {
-            for (int i = 0; i < reader.FieldCount; i++)
-                if (string.Equals(reader.GetName(i), column, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            return false;
-        }
-
-        /// <summary>
         /// Обёртка для SELECT скаляра с значением по умолчанию.
         /// </summary>
         public static T GetScalarOrDefault<T>(string sql, T defaultValue, params (string name, object value)[] parameters)
@@ -1182,15 +1001,6 @@ namespace HMWT_MUI
         /// </summary>
         public static int GetCount(string sql, params (string name, object value)[] parameters)
             => GetScalarOrDefault(sql, 0, parameters);
-
-        /// <summary>
-        /// Проверяет существование строки по PK.
-        /// </summary>
-        public static bool RowExists(string table, string pkColumn, object pkValue)
-        {
-            int count = GetCount($"SELECT COUNT(*) FROM {table} WHERE {pkColumn}=@id", ("@id", pkValue));
-            return count > 0;
-        }
 
         #endregion
 

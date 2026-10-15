@@ -275,28 +275,6 @@ namespace HMWT_MUI.Services
                 return cmd.ExecuteNonQuery() > 0;
             });
         }
-
-        /// <summary>Снять предмет с конкретной ячейки (экипировка → снято).</summary>
-        public void UnequipCell(int cellId)
-        {
-            DatabaseHelper.RunInTransaction((conn, tx) =>
-            {
-                using (var unequip = new SqliteCommand(@"
-                    UPDATE Inventory SET is_equipped = 0
-                    WHERE id_item IN (SELECT id_item FROM EquipmentCells
-                                      WHERE id_cell = @cellId AND id_item IS NOT NULL)", conn, tx))
-                {
-                    unequip.Parameters.AddWithValue("@cellId", cellId);
-                    unequip.ExecuteNonQuery();
-                }
-
-                using var clear = new SqliteCommand(
-                    "UPDATE EquipmentCells SET id_item = NULL WHERE id_cell = @cellId", conn, tx);
-                clear.Parameters.AddWithValue("@cellId", cellId);
-                clear.ExecuteNonQuery();
-            });
-        }
-
         /// <summary>Сколько предметов надето через ячейки указанной группы.</summary>
         public int CountEquippedInGroup(int groupId)
         {
@@ -339,22 +317,6 @@ namespace HMWT_MUI.Services
             cmd.Parameters.AddWithValue("@charId", _characterId);
             cmd.ExecuteNonQuery();
         }
-
-        /// <summary>
-        /// Переключить состояние развернутости группы
-        /// </summary>
-        public void ToggleGroupExpansion(int groupId)
-        {
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-
-            string query = "UPDATE EquipmentGroups SET is_expanded = 1 - is_expanded WHERE id_group = @groupId AND id_character = @charId";
-            using var cmd = new SqliteCommand(query, conn);
-            cmd.Parameters.AddWithValue("@groupId", groupId);
-            cmd.Parameters.AddWithValue("@charId", _characterId);
-            cmd.ExecuteNonQuery();
-        }
-
         /// <summary>
         /// Добавить ячейку в группу
         /// </summary>
@@ -407,55 +369,6 @@ namespace HMWT_MUI.Services
                 }
             });
         }
-
-        /// <summary>
-        /// Рассчитать общий бонус КД от экипировки
-        /// </summary>
-        public int CalculateTotalArmorClassBonus()
-        {
-            int totalBonus = 0;
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-
-            string query = @"
-                SELECT COALESCE(SUM(i.armor_class_bonus), 0) as total_ac
-                FROM EquipmentCells c
-                INNER JOIN EquipmentGroups g ON c.id_group = g.id_group
-                INNER JOIN Inventory i ON c.id_item = i.id_item
-                WHERE g.id_character = @charId AND i.armor_class_bonus > 0";
-
-            using var cmd = new SqliteCommand(query, conn);
-            cmd.Parameters.AddWithValue("@charId", _characterId);
-            totalBonus = Convert.ToInt32(cmd.ExecuteScalar());
-
-            return totalBonus;
-        }
-
-        /// <summary>
-        /// Получить список экипированных предметов с их бонусами
-        /// </summary>
-        public DataTable GetEquippedItemsWithBonuses()
-        {
-            var dt = new DataTable();
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-
-            string query = @"
-                SELECT i.name, i.armor_class_bonus, i.damage_dice, i.damage_type, s.slot_name
-                FROM EquipmentCells c
-                INNER JOIN EquipmentGroups g ON c.id_group = g.id_group
-                INNER JOIN Inventory i ON c.id_item = i.id_item
-                INNER JOIN EquipmentSlots s ON g.id_slot = s.id_slot
-                WHERE g.id_character = @charId AND (i.armor_class_bonus > 0 OR i.damage_dice IS NOT NULL)";
-
-            using var cmd = new SqliteCommand(query, conn);
-            cmd.Parameters.AddWithValue("@charId", _characterId);
-            using var reader = cmd.ExecuteReader();
-            dt.Load(reader);
-
-            return dt;
-        }
-
         /// <summary>
         /// Получить список слотов, где экипирован предмет
         /// </summary>
@@ -542,61 +455,6 @@ namespace HMWT_MUI.Services
             string code = result.ToString();
             return string.IsNullOrEmpty(code) ? "custom" : code;
         }
-
-        public void UpdateGroupSize(int groupId, double newSize)
-        {
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-
-            // Проверяем, есть ли колонка group_size
-            string checkColumn = "PRAGMA table_info(EquipmentGroups)";
-            using var checkCmd = new SqliteCommand(checkColumn, conn);
-            using var reader = checkCmd.ExecuteReader();
-            bool hasSizeColumn = false;
-            while (reader.Read())
-            {
-                if (reader["name"].ToString() == "group_size")
-                {
-                    hasSizeColumn = true;
-                    break;
-                }
-            }
-            reader.Close();
-
-            if (!hasSizeColumn)
-            {
-                // Добавляем колонку
-                string addColumn = "ALTER TABLE EquipmentGroups ADD COLUMN group_size REAL DEFAULT 100";
-                using var addCmd = new SqliteCommand(addColumn, conn);
-                addCmd.ExecuteNonQuery();
-            }
-
-            string query = "UPDATE EquipmentGroups SET group_size = @size WHERE id_group = @id";
-            using var cmd = new SqliteCommand(query, conn);
-            cmd.Parameters.AddWithValue("@size", newSize);
-            cmd.Parameters.AddWithValue("@id", groupId);
-            cmd.ExecuteNonQuery();
-        }
-
-        public void DeleteSlot(int slotId)
-        {
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM EquipmentGroups WHERE id_slot = @slotId";
-            cmd.Parameters.AddWithValue("@slotId", slotId);
-            int groupCount = Convert.ToInt32(cmd.ExecuteScalar());
-
-            if (groupCount > 0)
-                throw new InvalidOperationException($"Слот используется в {groupCount} группе(ах). Сначала удалите группы.");
-
-            using var deleteCmd = conn.CreateCommand();
-            deleteCmd.CommandText = "DELETE FROM EquipmentSlots WHERE id_slot = @slotId";  // ← ИСПРАВЛЕНО: id_slot вместо id
-            deleteCmd.Parameters.AddWithValue("@slotId", slotId);
-            deleteCmd.ExecuteNonQuery();
-        }
-
         public bool IsItemEquipped(int itemId)
         {
             using var conn = DatabaseHelper.GetConnection();
@@ -607,16 +465,5 @@ namespace HMWT_MUI.Services
             int count = Convert.ToInt32(cmd.ExecuteScalar());
             return count > 0;
         }
-
-        public void UnequipItemFromAllCells(int itemId)
-        {
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "UPDATE EquipmentCells SET id_item = NULL WHERE id_item = @itemId";
-            cmd.Parameters.AddWithValue("@itemId", itemId);
-            cmd.ExecuteNonQuery();
-        }
-
     }
 }
