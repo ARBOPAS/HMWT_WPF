@@ -117,7 +117,11 @@ namespace HMWT_MUI.Windows
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Foreground = brushGold,
-                Margin = new Thickness(0, 0, 0, 14)
+                Margin = new Thickness(0, 0, 0, 14),
+                // Заголовок тоже переносим: длинная строка в нём растягивала панель
+                // далеко за края экрана, и текст сообщения становился нечитаемым
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 460
             });
 
             // Значок сообщения: вектор вместо символа — предупреждение или книга
