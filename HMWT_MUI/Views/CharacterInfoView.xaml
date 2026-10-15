@@ -1074,7 +1074,18 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="ВЫБОР ПРЕДЫСТОРИИ" Foreground="{StaticResource B.Gold}" FontSize="18" FontWeight="Bold" FontFamily="{StaticResource F.Display}" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                    <!-- Заголовок и кнопка в одной строке: кнопка в своей колонке,
+                         иначе на узком окне они наезжали друг на друга -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="ВЫБОР ПРЕДЫСТОРИИ" Foreground="{StaticResource B.Gold}" FontSize="18" FontWeight="Bold" FontFamily="{StaticResource F.Display}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" x:Name="btnBgCreate" Style="{StaticResource GhostBtn}"
+                                Height="28" Padding="12,0" Click="BtnBgCreate_Click"
+                                ToolTip="Создать предысторию с нужными владениями и снаряжением"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Своя предыстория" VerticalAlignment="Center"/></StackPanel></Button>
+                    </Grid>
                     <TextBox Grid.Row="1" x:Name="txtBackgroundSearch" Style="{StaticResource SearchBox}" Width="400" HorizontalAlignment="Center" TextChanged="BackgroundSearch_TextChanged" Margin="0,0,0,16"/>
                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
@@ -1126,11 +1137,6 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                        <Button x:Name="btnBgCreate" Style="{StaticResource GhostBtn}"
-                                Height="28" Margin="0,0,8,0" Click="BtnBgCreate_Click"
-                                ToolTip="Создать предысторию с нужными владениями и снаряжением"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Своя предыстория" VerticalAlignment="Center"/></StackPanel></Button>
-                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

@@ -1236,8 +1236,11 @@ namespace HMWT_MUI.Views
             {
                 Content = "Выбрать",
                 Style = (Style)FindResource("MagicBtn"),
-                Width = 100,
-                Height = 28,
+                MinWidth = 96,
+
+                // Отступ задаём на месте: у стиля он рассчитан на крупные кнопки
+                // (16,8), а здесь кнопка невысокая — с ним текст обрезался
+                Padding = new Thickness(14, 6, 14, 6),
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0)
@@ -1253,6 +1256,8 @@ namespace HMWT_MUI.Views
                     Style = (Style)FindResource("GhostBtn"),
                     Width = 32,
                     Height = 28,
+                    // У GhostBtn отступ 12,6 — в квадрате 32×28 он обрезал значок
+                    Padding = new Thickness(0),
                     Margin = new Thickness(6, 0, 0, 0),
                     ToolTip = "Изменить"
                 };
@@ -1265,6 +1270,7 @@ namespace HMWT_MUI.Views
                     Style = (Style)FindResource("GhostBtn"),
                     Width = 32,
                     Height = 28,
+                    Padding = new Thickness(0),
                     Margin = new Thickness(6, 0, 0, 0),
                     ToolTip = "Удалить предысторию"
                 };
