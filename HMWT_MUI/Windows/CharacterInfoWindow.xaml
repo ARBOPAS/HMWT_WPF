@@ -486,11 +486,15 @@
                                 <TextBlock x:Name="txtLevel" Text="1" Foreground="{StaticResource B.Gold}" 
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"
                                            VerticalAlignment="Center"/>
-                                <helpers:IconView Kind="star" IconSize="14" IconBrush="{StaticResource B.Arcane}" VerticalAlignment="Center"/>
-                                <TextBox x:Name="txtExp" Text="0" Foreground="{StaticResource B.Ink}" 
-                                         FontSize="{DynamicResource FS.Sub}" FontWeight="Bold"
-                                         Background="Transparent" BorderThickness="0" Width="86" IsReadOnly="True"
-                                         VerticalAlignment="Center" ToolTip="Накопленный опыт"/>
+                                <helpers:IconView Kind="star" IconSize="14" IconBrush="{StaticResource B.Arcane}"
+                                                  VerticalAlignment="Center" Margin="6,0,2,0"/>
+                                <!-- Опыт — обычная надпись: раньше здесь было поле ввода
+                                     шириной 86 с текстом по левому краю, и справа от числа
+                                     оставалась пустая дыра -->
+                                <TextBlock x:Name="txtExp" Text="0" Foreground="{StaticResource B.Ink}" 
+                                           FontSize="{DynamicResource FS.Sub}" FontWeight="Bold"
+                                           MinWidth="30" TextAlignment="Center"
+                                           VerticalAlignment="Center" ToolTip="Накопленный опыт"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
