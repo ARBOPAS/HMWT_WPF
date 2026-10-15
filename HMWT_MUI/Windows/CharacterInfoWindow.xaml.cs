@@ -76,6 +76,12 @@ namespace HMWT_MUI
         private int _tempExp = 0;
         private int _tempProficiency = 2;
 
+        // Состояние персонажа в шапке: состояния, вдохновение, концентрация
+        private List<CharacterStateService.ConditionOption> _conditionOptions =
+            new List<CharacterStateService.ConditionOption>();
+        private bool _hasInspiration;
+        private string _concentrationSpell = "";
+
         public CharacterInfoWindow(int characterId)
         {
             InitializeComponent();
@@ -131,6 +137,9 @@ namespace HMWT_MUI
                 // открытым, а правки в нём — несохранёнными
                 try { if (_currentMoney != null) _moneyService?.SaveMoney(_currentMoney); } catch { }
 
+                // Тот же случай со списком состояний: он мог быть раскрыт
+                SaveConditionsFromUi();
+
                 RoomSession.Instance.StateChanged -= RoomSession_StateChanged;
                 PhotoHelper.CharacterPhotoChanged -= CharacterInfoWindow_PhotoChanged;
                 // Поставщик указывает на закрытое окно: снимаем, иначе комната
@@ -182,6 +191,7 @@ namespace HMWT_MUI
             try
             {
                 LoadCharacterHeader();
+                LoadHeaderState();
                 _currentMoney = _moneyService.LoadMoney();
                 UpdateHeaderGoldDisplay();
             }
@@ -3178,7 +3188,191 @@ namespace HMWT_MUI
         }
         #endregion
 
-        #region === 12. АДАПТИВНАЯ ВЕРСТКА ===
+        #region === 12. СОСТОЯНИЕ ПЕРСОНАЖА В ШАПКЕ ===
+
+        /// <summary>
+        /// Состояния, вдохновение и концентрация.
+        ///
+        /// Читается вместе с остальной шапкой, а не по событию Loaded: иначе
+        /// первый кадр показывал бы «нет», и только потом настоящее значение.
+        /// </summary>
+        private void LoadHeaderState()
+        {
+            _conditionOptions = CharacterStateService.LoadConditions(_characterId);
+            var chosen = new HashSet<string>(
+                CharacterStateService.LoadConditionKeys(_characterId), StringComparer.OrdinalIgnoreCase);
+            foreach (var option in _conditionOptions) option.IsSelected = chosen.Contains(option.Key);
+
+            // Список пересобирается заново, поэтому источник назначаем в два шага:
+            // ItemsControl иначе оставил бы в флажках прежние объекты
+            listConditions.ItemsSource = null;
+            listConditions.ItemsSource = _conditionOptions;
+            UpdateConditionsDisplay();
+
+            _hasInspiration = CharacterStateService.LoadInspiration(_characterId);
+            UpdateInspirationDisplay();
+
+            _concentrationSpell = CharacterStateService.LoadConcentration(_characterId);
+            UpdateConcentrationDisplay();
+        }
+
+        /// <summary>Кисть темы по ключу: цвет плиток меняется вместе с отметками.</summary>
+        private Brush ThemeBrush(string key) => (Brush)FindResource(key);
+
+        /// <summary>Подпись плитки состояний: перечисление отметок или «нет».</summary>
+        private void UpdateConditionsDisplay()
+        {
+            var selected = _conditionOptions.Where(o => o.IsSelected).ToList();
+            txtConditions.Text = CharacterStateService.DescribeConditions(
+                selected.Select(o => o.Key), _conditionOptions);
+
+            // Пусто — серым, отмечено — золотым: состояние видно с одного взгляда
+            txtConditions.Foreground = ThemeBrush(selected.Count == 0 ? "B.Mute" : "B.Gold");
+
+            btnConditions.ToolTip = selected.Count == 0
+                ? "Отметьте состояния, которые сейчас действуют на персонажа"
+                : "Сейчас действует:\n" + string.Join("\n", selected.Select(o => "• " + o.Name));
+        }
+
+        private void BtnConditions_Click(object sender, RoutedEventArgs e)
+        {
+            popConditions.IsOpen = !popConditions.IsOpen;
+        }
+
+        /// <summary>
+        /// Отметки уходят в базу при закрытии списка: щёлкать по флажкам можно
+        /// сколько угодно, а запись будет одна.
+        /// </summary>
+        private void PopConditions_Closed(object sender, EventArgs e) => SaveConditionsFromUi();
+
+        private void SaveConditionsFromUi()
+        {
+            try
+            {
+                CharacterStateService.SaveConditionKeys(
+                    _characterId, _conditionOptions.Where(o => o.IsSelected).Select(o => o.Key));
+                UpdateConditionsDisplay();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CharacterInfoWindow] состояния: {ex.Message}");
+            }
+        }
+
+        private void BtnInspiration_Click(object sender, RoutedEventArgs e)
+        {
+            _hasInspiration = !_hasInspiration;
+            CharacterStateService.SaveInspiration(_characterId, _hasInspiration);
+            UpdateInspirationDisplay();
+            ShowToast(_hasInspiration ? "Вдохновение: есть" : "Вдохновение: нет");
+        }
+
+        private void UpdateInspirationDisplay()
+        {
+            string color = _hasInspiration ? "B.Gold" : "B.Mute";
+            txtInspiration.Text = _hasInspiration ? "есть" : "нет";
+            txtInspiration.Foreground = ThemeBrush(color);
+            icoInspiration.IconBrush = ThemeBrush(color);
+        }
+
+        /// <summary>
+        /// Концентрация: список заклинаний открывается меню от самой плитки.
+        /// Предлагаются только заклинания с пометкой «концентрация» — держать
+        /// концентрацию на «Огненном шаре» всё равно нельзя.
+        /// </summary>
+        private void BtnConcentration_Click(object sender, RoutedEventArgs e)
+        {
+            // Меню принадлежит кнопке: правый клик открывает тот же список.
+            // Собирается он каждый раз заново — он зависит от того, что сейчас
+            // записано у персонажа
+            var menu = BuildConcentrationMenu();
+            btnConcentration.ContextMenu = menu;
+            menu.IsOpen = true;
+        }
+
+        /// <summary>
+        /// Собирает меню выбора заклинания для концентрации.
+        ///
+        /// Отдельным методом, а не внутри обработчика: стенд собирает то же меню
+        /// и снимает его отдельно — ContextMenu в невидимом окне не раскрывается.
+        /// </summary>
+        public ContextMenu BuildConcentrationMenu()
+        {
+            var menu = new ContextMenu
+            {
+                Style = (Style)FindResource("DarkMenu"),
+                PlacementTarget = btnConcentration,
+                Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
+            };
+
+            var spells = CharacterStateService.LoadConcentrationSpells(_characterId);
+            if (spells.Count == 0)
+            {
+                menu.Items.Add(new MenuItem
+                {
+                    Header = "нет заклинаний с концентрацией",
+                    Style = (Style)FindResource("DarkMenuItem"),
+                    IsEnabled = false
+                });
+            }
+            else
+            {
+                foreach (string spell in spells)
+                {
+                    var item = new MenuItem
+                    {
+                        Header = spell,
+                        Style = (Style)FindResource("DarkMenuItem"),
+                        IsCheckable = true,
+                        IsChecked = string.Equals(spell, _concentrationSpell, StringComparison.CurrentCultureIgnoreCase)
+                    };
+                    string chosen = spell;
+                    item.Click += (s, args) => SetConcentration(chosen);
+                    menu.Items.Add(item);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(_concentrationSpell))
+            {
+                menu.Items.Add(new Separator { Style = (Style)FindResource("DarkMenuSeparator") });
+
+                var clear = new MenuItem
+                {
+                    Header = "Снять концентрацию",
+                    Style = (Style)FindResource("DarkMenuItem")
+                };
+                clear.Click += (s, args) => SetConcentration(null);
+                menu.Items.Add(clear);
+            }
+
+            return menu;
+        }
+
+        private void SetConcentration(string spell)
+        {
+            _concentrationSpell = spell ?? "";
+            CharacterStateService.SaveConcentration(_characterId, _concentrationSpell);
+            UpdateConcentrationDisplay();
+
+            ShowToast(string.IsNullOrWhiteSpace(_concentrationSpell)
+                ? "Концентрация снята"
+                : $"Концентрация: {_concentrationSpell}");
+        }
+
+        private void UpdateConcentrationDisplay()
+        {
+            bool active = !string.IsNullOrWhiteSpace(_concentrationSpell);
+            txtConcentration.Text = active ? _concentrationSpell : "нет";
+            txtConcentration.Foreground = ThemeBrush(active ? "B.Frost" : "B.Mute");
+
+            btnConcentration.ToolTip = active
+                ? $"Концентрация: {_concentrationSpell}\nНажмите, чтобы сменить заклинание или снять её"
+                : "Заклинание, на котором персонаж сосредоточен";
+        }
+
+        #endregion
+
+        #region === 13. АДАПТИВНАЯ ВЕРСТКА ===
         private void ApplyAdaptiveLayout()
         {
             double w = ActualWidth;

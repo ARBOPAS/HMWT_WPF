@@ -248,6 +248,16 @@ namespace HMWT_MUI
                 FOREIGN KEY (id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE,
                 UNIQUE(id_character, slot_level));",
 
+            // Состояния персонажа: отметок бывает несколько, а справочник можно
+            // переимпортировать или не импортировать вовсе — поэтому хранится не
+            // название, а ключ записи SRD (srd_index). Подпись берётся из
+            // справочника, а если его нет — из встроенного списка.
+            @"CREATE TABLE IF NOT EXISTS CharacterConditions (
+                id_character INTEGER NOT NULL,
+                condition_key TEXT NOT NULL,
+                PRIMARY KEY (id_character, condition_key),
+                FOREIGN KEY (id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE);",
+
             @"CREATE TABLE IF NOT EXISTS DiceRollHistory (
                 id_roll INTEGER PRIMARY KEY AUTOINCREMENT, id_character INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, 
                 roll_type TEXT, description TEXT, result INTEGER,
@@ -335,6 +345,16 @@ namespace HMWT_MUI
                 EnsureColumn(conn, transaction, "CharacterNotes", "sort_order INTEGER DEFAULT 0");
                 EnsureColumn(conn, transaction, "CharacterNoteGroups", "id_parent INTEGER");
                 EnsureColumn(conn, transaction, "CharacterNoteGroups", "sort_order INTEGER DEFAULT 0");
+
+                // Вдохновение — признак «есть или нет», поэтому 0/1 в самой
+                // таблице персонажа: заводить под него отдельную таблицу не за чем
+                EnsureColumn(conn, transaction, "CharacterInfo", "Inspiration INTEGER DEFAULT 0");
+
+                // Концентрация хранится названием, а не ссылкой на заклинание:
+                // запись из списка персонажа могут удалить, а подпись в шапке
+                // должна остаться осмысленной
+                EnsureColumn(conn, transaction, "CharacterInfo", "ConcentrationSpell TEXT DEFAULT ''");
+
                 EnsureColumns(conn, transaction, "CharacterSpells", "IndividualImagePath TEXT");
                 EnsureColumns(conn, transaction, "CharacterIdAddInfo",
                     "Weapons TEXT", "Ideals TEXT", "Bonds TEXT", "Background TEXT",
@@ -973,7 +993,8 @@ namespace HMWT_MUI
                 "CharacterCharismaSkills", "LevelTable", "GoldTable", "Inventory",
                 "SpellReference", "CharacterSpells", "CharacterSpellSlots",
                 "EquipmentSlots", "EquipmentGroups", "EquipmentCells",
-                "Tags", "ItemTagMapping", "SrdReference", "SrdItem"
+                "Tags", "ItemTagMapping", "SrdReference", "SrdItem",
+                "CharacterConditions"
             };
 
             using var conn = GetConnection();

@@ -141,6 +141,45 @@
     <Style TargetType="ScrollBar" BasedOn="{StaticResource DarkScrollBar}"/>
 
     <!--
+      Флажок с отметкой.
+
+      Системный CheckBox в тёмной теме — светлый квадратик, который выбивается
+      из окна, поэтому отметка нарисована сама. Стиль лежит в общих токенах:
+      шапка листа персонажа и списки отметок собираются в разных местах, а
+      рисовать один и тот же флажок заново в каждом из них не за чем.
+    -->
+    <Style x:Key="CustomCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border x:Name="checkBorder" Width="18" Height="18" CornerRadius="4"
+                                Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                            <helpers:IconView x:Name="checkMark" Kind="check" IconSize="14" Thickness="2.6"
+                                              IconBrush="{StaticResource B.Gold}" Visibility="Collapsed"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Arcane}"/>
+                            <Setter TargetName="checkBorder" Property="Background" Value="{StaticResource B.PanelHi}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
       Выпадающие списки инструментов ДМа.
 
       Стиль лежит в общих токенах, потому что бестиарий и трекер собирают
