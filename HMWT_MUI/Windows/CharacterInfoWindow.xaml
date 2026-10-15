@@ -752,9 +752,12 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- РЯД 3: Деньги. Опыт переехал в плитку «Уровень и опыт» —
-                     отдельная плитка про то же самое только занимала место. -->
-                <Grid Grid.Row="2" HorizontalAlignment="Left" MaxWidth="760">
+                <!-- РЯД 3: Деньги и отдых. Опыт переехал в плитку «Уровень и опыт» —
+                     отдельная плитка про то же самое только занимала место.
+                     Отдых стоит рядом с деньгами, а не со статами: это действие
+                     над запасами, а не показатель персонажа, и в строке со статами
+                     ему не хватало места на узком окне. -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
                     <Border Style="{StaticResource StatBox}" Cursor="Hand" MouseLeftButtonUp="HeaderGold_Click"
                             MinWidth="380">
                         <Grid>
@@ -775,7 +778,26 @@
                             </Button>
                         </Grid>
                     </Border>
-                </Grid>
+
+                    <!-- ОТДЫХ: две кнопки в одной плитке — иначе она была бы вдвое шире -->
+                    <Border Style="{StaticResource StatBox}" MinWidth="158" Margin="8,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="ОТДЫХ" Foreground="{StaticResource B.Mute}"
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold"
+                                       HorizontalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,1,0,0">
+                                <Button x:Name="btnShortRest" Content="короткий"
+                                        Style="{StaticResource HeaderMiniBtn}" Margin="0,0,4,0"
+                                        Click="BtnShortRest_Click"
+                                        ToolTip="Короткий отдых: тратятся кости хитов, возвращаются заряды предметов, отмеченных как «на коротком отдыхе»"/>
+                                <Button x:Name="btnLongRest" Content="длинный"
+                                        Style="{StaticResource HeaderMiniBtn}"
+                                        Click="BtnLongRest_Click"
+                                        ToolTip="Длинный отдых: полное здоровье, все ячейки заклинаний, заряды предметов и часть костей хитов"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -1079,6 +1101,33 @@
                                             Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}" 
                                             BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
                                             FontWeight="Bold"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Gold}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПРОСТОЙ БРОСОК КУБИКА" VerticalAlignment="Center"/></StackPanel></Button>
+
+                                    <!-- Кости хитов: их тратит короткий отдых. Одного
+                                         размера достаточно — персонаж ведётся одной
+                                         строкой класса, а не набором уровней -->
+                                    <TextBlock Text="Кость хитов" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,14,0,6"/>
+                                    <ComboBox x:Name="cbHitDie" Style="{StaticResource DmComboBox}" Height="32">
+                                        <ComboBoxItem Content="d6" Tag="6"/>
+                                        <ComboBoxItem Content="d8" Tag="8"/>
+                                        <ComboBoxItem Content="d10" Tag="10"/>
+                                        <ComboBoxItem Content="d12" Tag="12"/>
+                                    </ComboBox>
+                                    <TextBlock Text="Костей хитов (всего)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,10,0,6"/>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="txtHitDiceTotal" Text="0" FontSize="16" FontWeight="Bold"
+                                         Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}"
+                                         BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="10" Margin="0,0,6,0"
+                                         PreviewTextInput="HpNumber_PreviewTextInput"
+                                         PreviewKeyDown="HpNumber_PreviewKeyDown"/>
+                                        <Button Grid.Column="1" Width="42" Background="{StaticResource B.Ok}"
+                                                BorderThickness="0" Cursor="Hand" Click="BtnSetHitDice_Click"><helpers:IconView Kind="check" IconSize="18" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center"/></Button>
+                                    </Grid>
+                                    <TextBlock x:Name="txtHitDiceStatus" Foreground="{StaticResource B.Mute}" FontSize="11"
+                                               TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -1392,6 +1441,81 @@
                 Width="400" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20,0,0,60" 
                 Panel.ZIndex="150" Background="Transparent">
             <StackPanel x:Name="spDiceResults"/>
+        </Border>
+
+        <!-- ОВЕРЛЕЙ: ОТДЫХ -->
+        <Border x:Name="RestOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
+        Background="#CC06060A" Visibility="Collapsed" Panel.ZIndex="200" MouseLeftButtonDown="OverlayBackground_Click">
+            <Border.RenderTransform>
+                <TranslateTransform X="400"/>
+            </Border.RenderTransform>
+            <Border Background="{StaticResource B.Panel}" Width="400" HorizontalAlignment="Right"
+                    BorderBrush="{StaticResource B.GoldEdge}" BorderThickness="1,0,0,0">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock x:Name="txtRestTitle" Text="Отдых" FontFamily="{StaticResource F.Display}" FontSize="18"
+                                   FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
+                        <Button x:Name="btnCloseRest" Style="{StaticResource GhostCloseBtn}" HorizontalAlignment="Right"
+                                Click="BtnCloseRest_Click"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+
+                    <!-- Что отдых вернёт (до) или что вернул (после) -->
+                    <Border x:Name="brRestSummary" Grid.Row="1" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="12"
+                            BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,0,16">
+                        <StackPanel x:Name="panelRestSummary"/>
+                    </Border>
+
+                    <!-- Короткий отдых: сколько костей хитов потратить -->
+                    <StackPanel x:Name="panelRestHitDice" Grid.Row="2" Margin="0,0,0,16">
+                        <TextBlock Text="СКОЛЬКО КОСТЕЙ ХИТОВ ПОТРАТИТЬ" Foreground="{StaticResource B.Mute}"
+                                   FontFamily="{StaticResource F.Display}" FontSize="10" FontWeight="Bold"
+                                   Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="btnRestDiceMinus" Style="{StaticResource NumBtn}" Click="BtnRestDiceMinus_Click"
+                                    ToolTip="На одну кость меньше"><helpers:IconView Kind="minus" IconSize="15" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                            <TextBlock x:Name="txtRestDiceCount" Grid.Column="1" Text="0" FontSize="26" FontWeight="Bold"
+                                       Foreground="{StaticResource B.Ink}" FontFamily="{StaticResource F.Display}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Button x:Name="btnRestDicePlus" Grid.Column="2" Style="{StaticResource NumBtn}" Click="BtnRestDicePlus_Click"
+                                    ToolTip="На одну кость больше"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                        </Grid>
+                        <TextBlock x:Name="txtRestDiceHint" Foreground="{StaticResource B.Mute}" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <!-- Итог отдыха -->
+                    <Border x:Name="panelRestResult" Grid.Row="3" Background="{StaticResource B.Void}" CornerRadius="6"
+                            Padding="12" BorderBrush="{StaticResource B.Gold}" BorderThickness="1" Margin="0,0,0,16"
+                            Visibility="Collapsed">
+                        <TextBlock x:Name="txtRestResult" Foreground="{StaticResource B.Ink}" FontSize="12" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Grid Grid.Row="4" Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="btnRestCancel" Content="ЗАКРЫТЬ" Height="44" Margin="0,0,5,0"
+                                Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}"
+                                BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand"
+                                FontSize="13" FontWeight="Bold" Click="BtnCloseRest_Click"/>
+                        <Button x:Name="btnRestGo" Grid.Column="1" Content="ОТДОХНУТЬ" Height="44" Margin="5,0,0,0"
+                                Style="{StaticResource ActionBtn}" Click="BtnRestGo_Click"/>
+                    </Grid>
+                </Grid>
+            </Border>
         </Border>
 
         <!-- ОВЕРЛЕЙ: ИСТОРИЯ БРОСКОВ (СЕССИЯ) -->

@@ -355,6 +355,13 @@ namespace HMWT_MUI
                 // должна остаться осмысленной
                 EnsureColumn(conn, transaction, "CharacterInfo", "ConcentrationSpell TEXT DEFAULT ''");
 
+                // Кости хитов: без них короткому отдыху нечего тратить. Размер
+                // кости один — программа ведёт персонажа одной строкой класса
+                EnsureColumns(conn, transaction, "CharacterInfo",
+                    "HitDie INTEGER DEFAULT 8",
+                    "HitDiceTotal INTEGER DEFAULT 0",
+                    "HitDiceUsed INTEGER DEFAULT 0");
+
                 EnsureColumns(conn, transaction, "CharacterSpells", "IndividualImagePath TEXT");
                 EnsureColumns(conn, transaction, "CharacterIdAddInfo",
                     "Weapons TEXT", "Ideals TEXT", "Bonds TEXT", "Background TEXT",
@@ -558,6 +565,10 @@ namespace HMWT_MUI
                 "item_tag TEXT",
                 "max_charges INTEGER DEFAULT 0",
                 "is_stackable INTEGER DEFAULT 0",
+                // Когда предмету возвращаются заряды: long — на длинном отдыхе
+                // (так заряжается почти всё), short — на коротком, none — никогда.
+                // Отдых смотрит именно сюда, а не на «есть заряды или нет»
+                "recharge TEXT DEFAULT 'long'",
                 // Отдельное фото для строки списка (раньше колонку досоздавал
                 // конструктор InventoryService на каждое создание сервиса)
                 "list_photo_path TEXT DEFAULT ''");

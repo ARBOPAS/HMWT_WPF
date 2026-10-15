@@ -82,6 +82,11 @@ namespace HMWT_MUI
         private bool _hasInspiration;
         private string _concentrationSpell = "";
 
+        // Отдых: какой именно открыт, сколько костей хитов тратится и не подведён ли уже итог
+        private RestService.RestKind _restKind = RestService.RestKind.Long;
+        private int _restDiceToSpend;
+        private bool _restApplied;
+
         public CharacterInfoWindow(int characterId)
         {
             InitializeComponent();
@@ -418,6 +423,11 @@ namespace HMWT_MUI
             txtHPInput.Text = _hpInputValue;
             txtHPCurrent.Text = $"{_currentHp} / {_maxHp}";
             txtHPMax.Text = $"Максимум: {_maxHp}";
+
+            // Поля настроек заполняем при открытии: раньше в «Максимуме хитов»
+            // оставалось прежнее значение, и проверить его было не с чем
+            txtMaxHPInput.Text = _maxHp.ToString();
+            UpdateHitDiceDisplay();
 
             HPCalcOverlay.Visibility = Visibility.Visible;
             var animation = new DoubleAnimation
@@ -2708,6 +2718,7 @@ namespace HMWT_MUI
             LevelManagerOverlay.Visibility = Visibility.Collapsed;
             ACSpeedOverlay.Visibility = Visibility.Collapsed;
             RollHistoryOverlay.Visibility = Visibility.Collapsed;
+            RestOverlay.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>
@@ -3156,20 +3167,13 @@ namespace HMWT_MUI
         #endregion
 
         #region === 11. HELPERS ===
-        private int GetMaxHpFromSettings()
-        {
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-            using var cmd = new SqliteCommand("SELECT Value FROM Settings WHERE Key = @key", conn);
-            cmd.Parameters.AddWithValue("@key", $"Character_{_characterId}_MaxHP");
-            var result = cmd.ExecuteScalar();
-
-            if (result != null && int.TryParse(result.ToString(), out int maxHp)) return maxHp;
-
-            using var cmd2 = new SqliteCommand("SELECT HP FROM CharacterInfo WHERE id_character = @id", conn);
-            cmd2.Parameters.AddWithValue("@id", _characterId);
-            return Convert.ToInt32(cmd2.ExecuteScalar());
-        }
+        /// <summary>
+        /// Максимум здоровья персонажа.
+        ///
+        /// Читает его RestService: то же число нужно отдыху, а держать две
+        /// копии одного запроса к настройкам не за чем.
+        /// </summary>
+        private int GetMaxHpFromSettings() => RestService.LoadMaxHp(_characterId);
 
         public void UpdateHPDisplay(int newHP)
         {
@@ -3372,7 +3376,285 @@ namespace HMWT_MUI
 
         #endregion
 
-        #region === 13. АДАПТИВНАЯ ВЕРСТКА ===
+        #region === 13. ОТДЫХ ===
+
+        private void BtnShortRest_Click(object sender, RoutedEventArgs e) => OpenRestOverlay(RestService.RestKind.Short);
+        private void BtnLongRest_Click(object sender, RoutedEventArgs e) => OpenRestOverlay(RestService.RestKind.Long);
+
+        /// <summary>
+        /// Открывает окно отдыха. Содержимое зависит от вида: короткий спрашивает,
+        /// сколько костей хитов потратить, длинный просто перечисляет, что вернёт.
+        /// </summary>
+        private void OpenRestOverlay(RestService.RestKind kind)
+        {
+            _restKind = kind;
+            _restApplied = false;
+            _restDiceToSpend = 0;
+
+            bool isShort = kind == RestService.RestKind.Short;
+            txtRestTitle.Text = isShort ? "Короткий отдых" : "Длинный отдых";
+            panelRestHitDice.Visibility = isShort ? Visibility.Visible : Visibility.Collapsed;
+            brRestSummary.Visibility = Visibility.Visible;
+            panelRestResult.Visibility = Visibility.Collapsed;
+            btnRestCancel.Visibility = Visibility.Visible;
+            btnRestGo.Content = isShort ? "ПОТРАТИТЬ И ОТДОХНУТЬ" : "ОТДОХНУТЬ";
+
+            if (isShort) UpdateRestHitDiceUi();
+            FillRestSummary(kind);
+
+            RestOverlay.Visibility = Visibility.Visible;
+            var anim = new DoubleAnimation
+            {
+                From = 400,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            RestOverlay.RenderTransform.BeginAnimation(TranslateTransform.XProperty, anim);
+        }
+
+        private void BtnCloseRest_Click(object sender, RoutedEventArgs e) => RestOverlay.Visibility = Visibility.Collapsed;
+
+        private void BtnRestDiceMinus_Click(object sender, RoutedEventArgs e)
+        {
+            _restDiceToSpend--;
+            UpdateRestHitDiceUi();
+        }
+
+        private void BtnRestDicePlus_Click(object sender, RoutedEventArgs e)
+        {
+            _restDiceToSpend++;
+            UpdateRestHitDiceUi();
+        }
+
+        /// <summary>
+        /// Счётчик костей и подпись под ним.
+        ///
+        /// Потратить больше, чем осталось, нельзя: кости конечны, и отдых не
+        /// должен превращаться в бесконечное лечение. Отдых при этом остаётся
+        /// доступным и с нулём костей — заряды предметов он возвращает всё равно.
+        /// </summary>
+        private void UpdateRestHitDiceUi()
+        {
+            var (die, total, used) = RestService.LoadHitDice(_characterId);
+            int available = Math.Max(0, total - used);
+
+            if (total <= 0)
+            {
+                _restDiceToSpend = 0;
+                txtRestDiceCount.Text = "—";
+                txtRestDiceHint.Text = "Кости хитов не заданы, отдых пройдёт без лечения. " +
+                                       "Кость и их количество указываются в калькуляторе здоровья (плитка «ХИТЫ»).";
+                return;
+            }
+
+            _restDiceToSpend = Math.Max(0, Math.Min(_restDiceToSpend, available));
+            txtRestDiceCount.Text = _restDiceToSpend.ToString();
+
+            if (available == 0)
+            {
+                txtRestDiceHint.Text = $"Все кости потрачены: осталось 0 из {total}. Отдых пройдёт без лечения, " +
+                                       "а длинный отдых вернёт часть запаса.";
+                return;
+            }
+
+            int constitution = RestService.ConstitutionModifier(_characterId);
+            string sign = constitution >= 0 ? "+" + constitution : constitution.ToString();
+            txtRestDiceHint.Text = $"Доступно {available} из {total}. " +
+                                   $"Каждая кость лечит 1d{die} {sign} (ТЕЛОСЛОЖЕНИЕ), но не меньше одного хита. " +
+                                   "Ячейки заклинаний короткий отдых не возвращает.";
+        }
+
+        private void BtnRestGo_Click(object sender, RoutedEventArgs e)
+        {
+            // Кнопка после отдыха превращается в «Закрыть»: второй раз отдыхать
+            // тем же нажатием не нужно
+            if (_restApplied)
+            {
+                RestOverlay.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            RestService.RestOutcome outcome;
+            try
+            {
+                outcome = _restKind == RestService.RestKind.Short
+                    ? RestService.ShortRest(_characterId, _restDiceToSpend)
+                    : RestService.LongRest(_characterId);
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Отдых не получился: {ex.Message}", true);
+                return;
+            }
+
+            _restApplied = true;
+            ApplyRestToWindow(outcome);
+
+            // Список «что вернётся» на отдыхе уже неактуален, а итог ниже
+            // подробнее — держать оба незачем
+            panelRestHitDice.Visibility = Visibility.Collapsed;
+            brRestSummary.Visibility = Visibility.Collapsed;
+            panelRestResult.Visibility = Visibility.Visible;
+            txtRestResult.Text = DescribeRestOutcome(outcome);
+
+            btnRestCancel.Visibility = Visibility.Collapsed;
+            btnRestGo.Content = "ЗАКРЫТЬ";
+        }
+
+        /// <summary>Подтягивает окно к тому, что стало после отдыха.</summary>
+        private void ApplyRestToWindow(RestService.RestOutcome outcome)
+        {
+            _maxHp = RestService.LoadMaxHp(_characterId);
+            UpdateHPDisplay(RestService.LoadCurrentHp(_characterId));
+
+            // Ячейки и заряды показывают вкладки заклинаний и инвентаря. У них
+            // нет общего «перечитать»: проще собрать их заново, чем дёргать
+            // каждую — заодно подтянется всё остальное, что могло измениться
+            _viewCache.Remove("Spells");
+            _viewCache.Remove("Inventory");
+            if (_currentViewName == "Spells" || _currentViewName == "Inventory")
+            {
+                string again = _currentViewName;
+                _currentViewName = "";
+                SwitchView(again);
+            }
+        }
+
+        /// <summary>Строка итога после отдыха.</summary>
+        private static string DescribeRestOutcome(RestService.RestOutcome outcome)
+        {
+            var lines = new List<string>();
+
+            if (outcome.Healed > 0) lines.Add($"Восстановлено хитов: {outcome.Healed} (стало {outcome.HpAfter} из {outcome.HpMax}).");
+            else lines.Add($"Здоровье: {outcome.HpAfter} из {outcome.HpMax}.");
+
+            if (outcome.HitDiceSpent > 0)
+            {
+                string rolls = string.Join(" + ", outcome.HitDiceRolls);
+                lines.Add($"Потрачено костей хитов: {outcome.HitDiceSpent} ({rolls}).");
+            }
+
+            if (outcome.HitDiceRecovered > 0) lines.Add($"Вернулось костей хитов: {outcome.HitDiceRecovered}.");
+            if (outcome.SlotsRestored > 0) lines.Add($"Восстановлено ячеек заклинаний: {outcome.SlotsRestored}.");
+            if (outcome.ItemsRecharged > 0)
+                lines.Add("Заряжены предметы: " + string.Join(", ", outcome.RechargedItems) + ".");
+
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>
+        /// Что отдых вернёт — список показывается до нажатия, чтобы решение было
+        /// осознанным: длинный отдых меняет сразу всё.
+        /// </summary>
+        private void FillRestSummary(RestService.RestKind kind)
+        {
+            panelRestSummary.Children.Clear();
+
+            int hp = RestService.LoadCurrentHp(_characterId);
+            int max = RestService.LoadMaxHp(_characterId);
+            AddRestLine("Здоровье", hp >= max ? $"{hp} из {max} — уже полное" : $"{hp} → {max}");
+
+            if (kind == RestService.RestKind.Long)
+            {
+                int slots = RestService.CountSpentSlots(_characterId);
+                AddRestLine("Ячейки заклинаний", slots == 0 ? "все на месте" : $"вернётся {slots}");
+
+                int items = RestService.CountItemsToRecharge(_characterId, "long");
+                AddRestLine("Заряды предметов", items == 0 ? "всё заряжено" : $"вернётся {items}");
+
+                var (_, total, used) = RestService.LoadHitDice(_characterId);
+                if (total == 0) AddRestLine("Кости хитов", "не заданы");
+                else
+                {
+                    int back = Math.Min(used, Math.Max(1, total / 2));
+                    AddRestLine("Кости хитов", back == 0 ? "запас полный" : $"вернётся {back} из {total}");
+                }
+            }
+            else
+            {
+                int items = RestService.CountItemsToRecharge(_characterId, "short");
+                AddRestLine("Заряды предметов", items == 0 ? "всё заряжено" : $"вернётся {items}");
+                AddRestLine("Ячейки заклинаний", "короткий отдых их не возвращает");
+            }
+        }
+
+        /// <summary>Строка «подпись — значение» в блоках отдыха.</summary>
+        private void AddRestLine(string label, string value)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var caption = new TextBlock
+            {
+                Text = label,
+                Foreground = ThemeBrush("B.Mute"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var text = new TextBlock
+            {
+                Text = value,
+                Foreground = ThemeBrush("B.Ink"),
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(10, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(text, 1);
+
+            row.Children.Add(caption);
+            row.Children.Add(text);
+            panelRestSummary.Children.Add(row);
+        }
+
+        /// <summary>Сохраняет кость хитов и их количество из калькулятора здоровья.</summary>
+        private void BtnSetHitDice_Click(object sender, RoutedEventArgs e)
+        {
+            int die = 8;
+            if (cbHitDie.SelectedItem is ComboBoxItem item
+                && int.TryParse(item.Tag?.ToString(), out int parsedDie)) die = parsedDie;
+
+            if (!int.TryParse(txtHitDiceTotal.Text, out int total) || total < 0)
+            {
+                ShowToast("Костей хитов — целое число не меньше нуля", true);
+                return;
+            }
+
+            try
+            {
+                RestService.SaveHitDiceSettings(_characterId, die, total);
+                UpdateHitDiceDisplay();
+                ShowToast(total == 0 ? "Кости хитов не заданы" : $"Кость хитов d{die}, всего {total}");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Не сохранилось: {ex.Message}", true);
+            }
+        }
+
+        /// <summary>Показывает настройку костей в калькуляторе здоровья.</summary>
+        private void UpdateHitDiceDisplay()
+        {
+            var (die, total, used) = RestService.LoadHitDice(_characterId);
+
+            foreach (ComboBoxItem item in cbHitDie.Items)
+                item.IsSelected = item.Tag?.ToString() == die.ToString();
+            if (cbHitDie.SelectedIndex < 0 && cbHitDie.Items.Count > 0)
+                ((ComboBoxItem)cbHitDie.Items[1]).IsSelected = true;
+
+            txtHitDiceTotal.Text = total.ToString();
+            txtHitDiceStatus.Text = total == 0
+                ? "Кости не заданы: короткий отдых лечить не будет."
+                : $"Потрачено {used} из {total}. Каждая кость лечит 1d{die} + модификатор ТЕЛОСЛОЖЕНИЯ.";
+        }
+
+        #endregion
+
+        #region === 14. АДАПТИВНАЯ ВЕРСТКА ===
         private void ApplyAdaptiveLayout()
         {
             double w = ActualWidth;

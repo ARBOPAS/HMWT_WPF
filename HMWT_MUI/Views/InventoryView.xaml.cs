@@ -30,6 +30,13 @@ namespace HMWT_MUI.Views
 
         private int? _selectedItemId;
         private int _editingItemId;
+
+        /// <summary>
+        /// Предмет, открытый в редакторе. Нужен для полей, которых в форме нет:
+        /// заряды и настройка при сохранении возвращаются как были.
+        /// </summary>
+        private ItemData _editingItem;
+
         private string _currentItemPhotoPath;
 
         /// <summary>Отдельное фото для строки списка (может быть пустым).</summary>
@@ -65,6 +72,11 @@ namespace HMWT_MUI.Views
             _characterId = characterId;
             _inventory = new InventoryService(characterId);
             _equipment = new EquipmentService(characterId);
+
+            // Список восстановления зарядов собирается здесь, а не в разметке:
+            // подписи живут рядом со значениями в ItemData и не разъезжаются с базой
+            foreach (var (key, label) in ItemData.RechargeChoices)
+                ed_cbRecharge.Items.Add(new ComboBoxItem { Content = label, Tag = key });
 
             // === === === === === === === === === === === === === === ===
             // Подписка на события элементов
@@ -1010,6 +1022,22 @@ namespace HMWT_MUI.Views
                 ((ComboBoxItem)cb.Items[cb.Items.Count - 1]).IsSelected = true;
         }
 
+        /// <summary>
+        /// Выбирает восстановление зарядов. Здесь сравнение идёт по Tag, а не по
+        /// подписи: подпись можно переписать, а значение в базе от неё не зависит.
+        /// </summary>
+        private static void SelectRecharge(ComboBox cb, string key)
+        {
+            string target = string.IsNullOrWhiteSpace(key) ? ItemData.RechargeLong : key;
+            foreach (ComboBoxItem ci in cb.Items)
+                ci.IsSelected = string.Equals(ci.Tag?.ToString(), target, StringComparison.OrdinalIgnoreCase);
+            if (cb.SelectedIndex < 0 && cb.Items.Count > 0)
+                ((ComboBoxItem)cb.Items[0]).IsSelected = true;
+        }
+
+        private static string SelectedRecharge(ComboBox cb)
+            => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? ItemData.RechargeLong;
+
         #endregion
 
         #region === СПИСОК И ПЛИТКИ ПРЕДМЕТОВ ===
@@ -1393,7 +1421,15 @@ namespace HMWT_MUI.Views
             if (it.MaxCharges > 0)
             {
                 spItemCharges.Visibility = Visibility.Visible;
-                txtCharges.Text = $"{it.Charges} / {it.MaxCharges}";
+
+                // Про длинный отдых не пишем: это обычное поведение. А вот
+                // «на коротком» и «никогда» стоит показать — по ним видно,
+                // какие предметы требуют отдельного внимания
+                bool ordinary = string.IsNullOrWhiteSpace(it.Recharge)
+                                || it.Recharge == ItemData.RechargeLong;
+                txtCharges.Text = ordinary
+                    ? $"{it.Charges} / {it.MaxCharges}"
+                    : $"{it.Charges} / {it.MaxCharges} · {ItemData.RechargeLabel(it.Recharge).ToLowerInvariant()}";
             }
             else spItemCharges.Visibility = Visibility.Collapsed;
 
@@ -1947,6 +1983,11 @@ namespace HMWT_MUI.Views
             ed_photoPlaceholder.Visibility = Visibility.Visible;
 
             ItemData it = itemId == 0 ? null : _inventory.GetItem(itemId);
+
+            // Запоминаем исходный предмет: заряды и настройка в форме не
+            // показываются, но при сохранении их надо вернуть как было
+            _editingItem = it;
+
             txtEditorTitle.Text = it == null ? "НОВЫЙ ПРЕДМЕТ" : "РЕДАКТОР ПРЕДМЕТА";
 
             // --- Заполнение полей ---
@@ -1963,6 +2004,7 @@ namespace HMWT_MUI.Views
             SelectCombo(ed_cbDamageType, it?.DamageType, "");
             ed_txtArmorBonus.Text = (it?.ArmorClassBonus ?? 0).ToString();
             ed_txtMaxCharges.Text = (it?.MaxCharges ?? 0).ToString();
+            SelectRecharge(ed_cbRecharge, it?.Recharge);
             ed_txtNotes.Text = it?.Notes ?? "";
 
             // --- Фото ---
@@ -2149,6 +2191,14 @@ namespace HMWT_MUI.Views
             }
 
             // --- Формирование данных ---
+            int maxCharges = ParseInt(ed_txtMaxCharges.Text);
+
+            // Заряды и настройка в форме не правятся: их ведёт игра. Раньше
+            // сохранение молча обнуляло заряды и снимало настройку, и предмет
+            // после любой правки названия выглядел неиспользованным
+            int charges = _editingItem?.Charges ?? 0;
+            charges = maxCharges > 0 ? Math.Min(charges, maxCharges) : 0;
+
             var data = new ItemData
             {
                 Name = name,
@@ -2163,7 +2213,10 @@ namespace HMWT_MUI.Views
                 DamageDice = ToD(ed_cbDamageDice.Text),
                 DamageType = (ed_cbDamageType.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "",
                 ArmorClassBonus = ParseInt(ed_txtArmorBonus.Text),
-                MaxCharges = ParseInt(ed_txtMaxCharges.Text),
+                MaxCharges = maxCharges,
+                Charges = charges,
+                IsAttuned = _editingItem?.IsAttuned ?? false,
+                Recharge = SelectedRecharge(ed_cbRecharge),
                 Notes = ed_txtNotes.Text,
                 PhotoPath = _currentItemPhotoPath ?? "",
                 ListPhotoPath = _currentItemListPhotoPath ?? ""

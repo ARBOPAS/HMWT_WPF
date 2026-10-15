@@ -846,6 +846,8 @@
                                         <TextBox x:Name="ed_txtMaxCharges" Style="{StaticResource TextField}" Text="0"/>
                                     </StackPanel>
                                 </Grid>
+                                <TextBlock Text="Восстановление зарядов" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="ed_cbRecharge" Style="{StaticResource DarkComboBox}" Margin="0,0,0,12"/>
                                 <TextBlock Text="Заметки" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
                                 <TextBox x:Name="ed_txtNotes" Height="50" Style="{StaticResource TextField}" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
                             </StackPanel>

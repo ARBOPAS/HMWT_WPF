@@ -8,6 +8,34 @@ namespace HMWT_MUI.Services
 {
     public class ItemData
     {
+        /// <summary>Заряды возвращаются на длинном отдыхе — так заряжается почти всё.</summary>
+        public const string RechargeLong = "long";
+
+        /// <summary>Заряды возвращаются уже на коротком отдыхе.</summary>
+        public const string RechargeShort = "short";
+
+        /// <summary>Заряды не возвращаются сами: их выдаёт мастер или сюжет.</summary>
+        public const string RechargeNone = "none";
+
+        /// <summary>
+        /// Подписи для выбора в редакторе предмета. Порядок — от частого к редкому,
+        /// чтобы первым в списке стояло привычное «на длинном отдыхе».
+        /// </summary>
+        public static readonly (string Key, string Label)[] RechargeChoices =
+        {
+            (RechargeLong, "На длинном отдыхе"),
+            (RechargeShort, "На коротком отдыхе"),
+            (RechargeNone, "Не восстанавливается")
+        };
+
+        /// <summary>Подпись значения; незнакомое значение показываем как есть.</summary>
+        public static string RechargeLabel(string key)
+        {
+            foreach (var (k, label) in RechargeChoices)
+                if (string.Equals(k, key, StringComparison.OrdinalIgnoreCase)) return label;
+            return key ?? "";
+        }
+
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public string Category { get; set; } = "";
@@ -24,6 +52,15 @@ namespace HMWT_MUI.Services
         public bool IsAttuned { get; set; } = false;
         public int MaxCharges { get; set; } = 0;
         public int Charges { get; set; } = 0;
+
+        /// <summary>
+        /// Когда предмету возвращаются заряды: long, short или none.
+        ///
+        /// Отдых смотрит именно сюда: без этого заряды возвращались бы всем
+        /// предметам подряд, включая те, что не восстанавливаются вовсе.
+        /// </summary>
+        public string Recharge { get; set; } = RechargeLong;
+
         public bool IsStackable { get; set; } = false;
         public string Rarity { get; set; } = "";
         public string Notes { get; set; } = "";
@@ -137,6 +174,7 @@ namespace HMWT_MUI.Services
             IsAttuned = Convert.ToInt32(r["is_attuned"]) == 1,
             Charges = HasColumn(r, "charges") ? Convert.ToInt32(r["charges"]) : 0,
             MaxCharges = HasColumn(r, "max_charges") ? Convert.ToInt32(r["max_charges"]) : 0,
+            Recharge = HasColumn(r, "recharge") ? (r["recharge"]?.ToString() ?? ItemData.RechargeLong) : ItemData.RechargeLong,
             IsStackable = HasColumn(r, "is_stackable") && Convert.ToInt32(r["is_stackable"]) == 1,
             Rarity = HasColumn(r, "rarity") ? r["rarity"]?.ToString() ?? "" : "",
             Notes = HasColumn(r, "notes") ? r["notes"]?.ToString() ?? "" : "",
@@ -250,11 +288,11 @@ namespace HMWT_MUI.Services
                     INSERT INTO Inventory
                     (id_character, name, category, description, quantity, weight,
                      cost_gold, cost_silver, cost_copper, damage_dice, damage_type,
-                     armor_class_bonus, is_equipped, is_attuned, charges, max_charges, rarity, notes, PhotoPath, list_photo_path)
+                     armor_class_bonus, is_equipped, is_attuned, charges, max_charges, recharge, rarity, notes, PhotoPath, list_photo_path)
                     VALUES
                     (@charId, @name, @category, @description, @quantity, @weight,
                      @costGold, @costSilver, @costCopper, @damageDice, @damageType,
-                     @acBonus, 0, @attuned, @charges, @maxCharges, @rarity, @notes, @photoPath, @listPhotoPath);
+                     @acBonus, 0, @attuned, @charges, @maxCharges, @recharge, @rarity, @notes, @photoPath, @listPhotoPath);
                     SELECT last_insert_rowid();", conn);
                 AddItemParams(cmd, d);
                 return Convert.ToInt32(cmd.ExecuteScalar());
@@ -264,7 +302,8 @@ namespace HMWT_MUI.Services
                     name=@name, category=@category, description=@description, quantity=@quantity, weight=@weight,
                     cost_gold=@costGold, cost_silver=@costSilver, cost_copper=@costCopper,
                     damage_dice=@damageDice, damage_type=@damageType, armor_class_bonus=@acBonus,
-                    is_attuned=@attuned, charges=@charges, max_charges=@maxCharges, rarity=@rarity, notes=@notes,
+                    is_attuned=@attuned, charges=@charges, max_charges=@maxCharges, recharge=@recharge,
+                    rarity=@rarity, notes=@notes,
                     PhotoPath=@photoPath, list_photo_path=@listPhotoPath
                 WHERE id_item=@itemId AND id_character=@charId", conn);
             AddItemParams(upd, d);
@@ -291,6 +330,7 @@ namespace HMWT_MUI.Services
             cmd.Parameters.AddWithValue("@attuned", d.IsAttuned ? 1 : 0);
             cmd.Parameters.AddWithValue("@charges", d.Charges);
             cmd.Parameters.AddWithValue("@maxCharges", d.MaxCharges);
+            cmd.Parameters.AddWithValue("@recharge", string.IsNullOrWhiteSpace(d.Recharge) ? ItemData.RechargeLong : d.Recharge);
             cmd.Parameters.AddWithValue("@rarity", d.Rarity ?? "");
             cmd.Parameters.AddWithValue("@notes", d.Notes ?? "");
             cmd.Parameters.AddWithValue("@photoPath", d.PhotoPath ?? "");
