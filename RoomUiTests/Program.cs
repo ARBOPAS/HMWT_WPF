@@ -41,8 +41,16 @@ namespace HMWT_MUI.RoomUiTests
             // попытка её задать без консольного дескриптора падает с IOException.
             _outDir = AppDomain.CurrentDomain.BaseDirectory;
 
+            // Работаем на копии базы пользователя.
+            //
+            // Раньше тест открывал настоящую: DatabaseHelper.GetConnection при
+            // пустой строке подключения сам зовёт Initialize(), и прогон правил
+            // рабочую базу наравне с приложением. Копию удаляем в конце.
+            string probePath = ProbeSetup();
+
             try { RunAll(); }
             catch (Exception ex) { Say("ИСКЛЮЧЕНИЕ: " + ex); _failures++; }
+            finally { ProbeCleanup(probePath); }
 
             Say("");
             Say(_failures == 0 ? "ИТОГ: всё прошло" : $"ИТОГ: провалов {_failures}");
@@ -55,6 +63,41 @@ namespace HMWT_MUI.RoomUiTests
             catch { }
 
             return _failures == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// Готовит копию рабочей базы и переключает соединение на неё.
+        /// Возвращает путь к копии — его же удаляем в конце.
+        /// </summary>
+        private static string ProbeSetup()
+        {
+            string appDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+            string probe = Path.Combine(appDir, "probe_roomtests.db");
+
+            foreach (var extra in new[] { "", "-wal", "-shm" })
+            {
+                try { File.Delete(probe + extra); } catch { }
+            }
+
+            // Копия, а не пустая база: проверки читают те же данные, что и раньше
+            try { File.Copy(Path.Combine(appDir, "HMWT_app.db"), probe, true); }
+            catch (Exception ex) { Say("  копия базы: " + ex.Message); }
+
+            DatabaseHelper.Initialize("probe_roomtests.db");
+            return probe;
+        }
+
+        /// <summary>Убирает копию базы: пул соединений держит файл, поэтому сначала чистим его.</summary>
+        private static void ProbeCleanup(string probePath)
+        {
+            try
+            {
+                SqliteConnection.ClearAllPools();
+                foreach (var extra in new[] { "", "-wal", "-shm" })
+                    File.Delete(probePath + extra);
+            }
+            catch { }
         }
 
         private static void Say(string text)
@@ -77,6 +120,50 @@ namespace HMWT_MUI.RoomUiTests
             // у кнопок не было Click, методы лежали в коде и не вызывались — нажатие
             // не делало ничего. WPF о таком не сообщает, обработчик просто отсутствует,
             // поэтому разметку разбираем как текст.
+            // Ресурсы дизайна грузим из отдельного словаря DesignTokens.xaml.
+            //
+            // App.xaml для этого не годится: он объявлен как ApplicationDefinition
+            // и тянет StartupUri (MainWindow.xaml), которого в тестовой сборке нет.
+            // Словарь — тот же самый файл, что подключает приложение, поэтому
+            // проверяются настоящие значения, а не их копия в тесте.
+            //
+            // Палитра подключается ПЕРВОЙ, стили — второй: стили подставляют цвета
+            // через StaticResource в момент загрузки словаря и запоминают конкретные
+            // кисти. Если палитра окажется позже, окна не найдут B.Panel и упадут.
+            var app = new Application
+            {
+                // По умолчанию WPF завершает приложение при закрытии последнего окна.
+                // В тесте окна открываются по очереди, поэтому выключаем это правило.
+                ShutdownMode = ShutdownMode.OnExplicitShutdown
+            };
+            try
+            {
+                var palette = (ResourceDictionary)Application.LoadComponent(
+                    new Uri("/HMWT_MUI.RoomUiTests;component/App/Resources/Palette.Dark.xaml", UriKind.Relative));
+                if (palette != null)
+                    app.Resources.MergedDictionaries.Add(palette);
+
+                var tokens = (ResourceDictionary)Application.LoadComponent(
+                    new Uri("/HMWT_MUI.RoomUiTests;component/App/Resources/DesignTokens.xaml", UriKind.Relative));
+                if (tokens != null)
+                    app.Resources.MergedDictionaries.Add(tokens);
+            }
+            catch (Exception ex)
+            {
+                Say("  загрузка словарей оформления: " + ex.GetType().Name + " — " + ex.Message);
+            }
+
+            // Приложение задаёт отпечаток в App.OnStartup, которого в тесте нет
+            RoomSession.DataFingerprint = "items:12529|spells:5849";
+
+            Say("═══ РЕСУРСЫ ДИЗАЙНА ═══");
+            // Считаем и объединённые словари: токены лежат именно там
+            int tokenCount = Application.Current.Resources.MergedDictionaries
+                .Sum(d => d.Keys.Count);
+            Check("словарь токенов загружен", tokenCount > 0, $"ключей: {tokenCount}");
+            foreach (var key in new[] { "B.Panel", "B.Backdrop", "B.Gold", "B.Ok", "B.Frost", "F.Display" })
+                Check($"токен {key} доступен", Application.Current.TryFindResource(key) != null);
+
             Say("═══ СВЯЗКА КНОПОК С КОДОМ ═══");
             CheckButtonWiring("MainWindow.xaml",
                 new[] { "MainWindow.Room.cs" },
@@ -150,40 +237,6 @@ namespace HMWT_MUI.RoomUiTests
             Say("═══ ВЕРСИЯ ПРИЛОЖЕНИЯ ═══");
             CheckVersionConsistency();
 
-            // Ресурсы дизайна грузим из отдельного словаря DesignTokens.xaml.
-            //
-            // App.xaml для этого не годится: он объявлен как ApplicationDefinition
-            // и тянет StartupUri (MainWindow.xaml), которого в тестовой сборке нет.
-            // Словарь — тот же самый файл, что подключает приложение, поэтому
-            // проверяются настоящие значения, а не их копия в тесте.
-            var app = new Application
-            {
-                // По умолчанию WPF завершает приложение при закрытии последнего окна.
-                // В тесте окна открываются по очереди, поэтому выключаем это правило.
-                ShutdownMode = ShutdownMode.OnExplicitShutdown
-            };
-            try
-            {
-                var tokens = (ResourceDictionary)Application.LoadComponent(
-                    new Uri("/HMWT_MUI.RoomUiTests;component/App/Resources/DesignTokens.xaml", UriKind.Relative));
-                if (tokens != null)
-                    app.Resources.MergedDictionaries.Add(tokens);
-            }
-            catch (Exception ex)
-            {
-                Say("  загрузка DesignTokens.xaml: " + ex.GetType().Name + " — " + ex.Message);
-            }
-
-            // Приложение задаёт отпечаток в App.OnStartup, которого в тесте нет
-            RoomSession.DataFingerprint = "items:12529|spells:5849";
-
-            Say("═══ РЕСУРСЫ ДИЗАЙНА ═══");
-            // Считаем и объединённые словари: токены лежат именно там
-            int tokenCount = Application.Current.Resources.MergedDictionaries
-                .Sum(d => d.Keys.Count);
-            Check("словарь токенов загружен", tokenCount > 0, $"ключей: {tokenCount}");
-            foreach (var key in new[] { "B.Panel", "B.Backdrop", "B.Gold", "B.Ok", "B.Frost", "F.Display" })
-                Check($"токен {key} доступен", Application.Current.TryFindResource(key) != null);
 
             // ── Вкладка без подключения ──
             Say("");
@@ -1140,12 +1193,30 @@ namespace HMWT_MUI.RoomUiTests
             }
             catch (Exception ex)
             {
-                Check("вкладка настроек открылась без ошибки", false, ex.Message);
+                // Разворачиваем вложенные исключения: у ошибок разметки имя
+                // ненайденного ресурса лежит именно во внутреннем, а наружное
+                // сообщение говорит только «StaticResourceHolder»
+                Check("вкладка настроек открылась без ошибки", false, Describe(ex));
             }
             finally
             {
                 try { window.Close(); } catch { }
             }
+        }
+
+        /// <summary>
+        /// Собирает сообщение исключения вместе со всеми вложенными: у ошибок
+        /// разметки суть («не удалось найти ресурс с именем…») лежит внутри.
+        /// </summary>
+        private static string Describe(Exception ex)
+        {
+            var text = new StringBuilder();
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (text.Length > 0) text.Append(" ← ");
+                text.Append(current.GetType().Name).Append(": ").Append(current.Message);
+            }
+            return text.ToString();
         }
 
         /// <summary>Ищет элемент по имени в дереве разметки.</summary>

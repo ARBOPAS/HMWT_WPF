@@ -6,4 +6,13 @@
   <Project Path="HMWT_MUI/HMWT_MUI.csproj" Id="facf337f-ce3d-4b57-b5f4-d8e45231762f">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <!-- Проверки лежат рядом с приложением, а не отдельно: пока их не видно в
+       решении, они молча расходятся с кодом (в обоих не хватало ссылок на
+       новые файлы, и сборка падала незаметно). В поставку не входят. -->
+  <Project Path="NetTests/NetTests.csproj" Id="7c4e9a11-3b62-4e5d-9f1a-2d8b6c0e4f77">
+    <Platform Solution="*|x64" Project="AnyCPU" />
+  </Project>
+  <Project Path="RoomUiTests/RoomUiTests.csproj" Id="9e2b7c44-51a8-4d3e-b0f7-6a1c8d5e2b33">
+    <Platform Solution="*|x64" Project="AnyCPU" />
+  </Project>
 </Solution>

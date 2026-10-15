@@ -112,6 +112,9 @@
     <Compile Include="..\HMWT_MUI\Services\EquipmentService.cs"><Link>App\EquipmentService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\AbilityService.cs"><Link>App\AbilityService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SkillCatalog.cs"><Link>App\SkillCatalog.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\UiPreferences.cs"><Link>App\UiPreferences.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SrdImportService.cs"><Link>App\SrdImportService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SrdDatabaseImporter.cs"><Link>App\SrdDatabaseImporter.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\MoneyService.cs"><Link>App\MoneyService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\MarkdownParser.cs"><Link>App\MarkdownParser.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\ShopService.cs"><Link>App\ShopService.cs</Link></Compile>
@@ -171,6 +174,16 @@
     </Page>
     <Page Include="..\HMWT_MUI\Controls\DmProfileEditor.xaml">
       <Link>App\Controls\DmProfileEditor.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Resources\Palette.Dark.xaml">
+      <Link>App\Resources\Palette.Dark.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Resources\Palette.Light.xaml">
+      <Link>App\Resources\Palette.Light.xaml</Link>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

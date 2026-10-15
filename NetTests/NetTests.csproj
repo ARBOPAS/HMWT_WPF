@@ -58,6 +58,35 @@
       <HintPath>..\packages\System.IO.Pipelines.10.0.10\lib\net462\System.IO.Pipelines.dll</HintPath>
     </Reference>
   </ItemGroup>
+
+  <!-- Ссылки на сборки приложения: сетевой слой работает с картинками, поэтому
+       нужны и WPF, и SQLite. Путь берём от сборки, а не из packages — так
+       версии совпадают с теми, с которыми приложение и собрано. -->
+  <PropertyGroup>
+    <AppBin Condition=" '$(AppBin)' == '' ">$(MSBuildThisFileDirectory)..\HMWT_MUI\bin\x64\$(Configuration)</AppBin>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Transactions" />
+    <Reference Include="Microsoft.Data.Sqlite">
+      <HintPath>$(AppBin)\Microsoft.Data.Sqlite.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.core">
+      <HintPath>$(AppBin)\SQLitePCLRaw.core.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.batteries_v2">
+      <HintPath>$(AppBin)\SQLitePCLRaw.batteries_v2.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.provider.dynamic_cdecl">
+      <HintPath>$(AppBin)\SQLitePCLRaw.provider.dynamic_cdecl.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
   <ItemGroup>
     <Compile Include="Program.cs" />
     <!-- Исходники сетевого слоя: те же файлы, что и в приложении -->
@@ -70,6 +99,17 @@
     <Compile Include="..\HMWT_MUI\Net\RoomClient.cs"><Link>Net\RoomClient.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Net\NetworkHelper.cs"><Link>Net\NetworkHelper.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Net\RoomSession.cs"><Link>Net\RoomSession.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Net\PhotoTransferService.cs"><Link>Net\PhotoTransferService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\PhotoHelper.cs"><Link>Helpers\PhotoHelper.cs</Link></Compile>
+    <!-- PhotoHelper сбрасывает кэш кадров при замене файла, а он живёт в GifAnimator -->
+    <Compile Include="..\HMWT_MUI\Services\GifAnimator.cs"><Link>Services\GifAnimator.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\GifDecoder.cs"><Link>Services\GifDecoder.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\GifQualityService.cs"><Link>Services\GifQualityService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\DatabaseHelper.cs"><Link>Helpers\DatabaseHelper.cs</Link></Compile>
+    <!-- DatabaseHelper создаёт таблицы предысторий, а они живут в BackgroundService -->
+    <Compile Include="..\HMWT_MUI\Services\BackgroundService.cs"><Link>Services\BackgroundService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SkillCatalog.cs"><Link>Services\SkillCatalog.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\AbilityService.cs"><Link>Services\AbilityService.cs</Link></Compile>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
