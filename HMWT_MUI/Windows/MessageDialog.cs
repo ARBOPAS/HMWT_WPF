@@ -50,12 +50,13 @@ namespace HMWT_MUI.Windows
                 return Fallback(message, title, noText, danger);
 
             // Ресурсы берём из области видимости хоста: дизайн-токены (B.Panel и т.п.)
-            // объявлены локально в каждой вью, а не в Application.Resources
+            // подключаются вместе с окном
             var brushPanel = Res(host, "B.Panel", Color.FromRgb(0x15, 0x1B, 0x2E));
             var brushEdge = Res(host, "B.AccentEdge", Color.FromRgb(0x2A, 0x6A, 0x74));
-            var brushGold = Res(host, "B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD));
+            var brushAccent = Res(host, "B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD));
+            var brushDanger = Res(host, "B.Danger", Color.FromRgb(0xE0, 0x6A, 0x63));
             var brushArcane = Res(host, "B.Arcane", Color.FromRgb(0xA9, 0x8B, 0xEC));
-            var brushFrost = Res(host, "B.Frost", Color.FromRgb(0x4F, 0xB6, 0xAC));
+            var brushOnAccent = Res(host, "B.OnAccent", Color.FromRgb(0x04, 0x22, 0x2A));
             var brushInk = Res(host, "B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5));
             var brushLine = Res(host, "B.Line", Color.FromRgb(0x2B, 0x33, 0x52));
             var fontDisplay = FontRes(host, "F.Display", "Segoe UI Semibold");
@@ -116,7 +117,7 @@ namespace HMWT_MUI.Windows
                 FontFamily = fontDisplay,
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
-                Foreground = brushGold,
+                Foreground = brushAccent,
                 Margin = new Thickness(0, 0, 0, 14),
                 // Заголовок тоже переносим: длинная строка в нём растягивала панель
                 // далеко за края экрана, и текст сообщения становился нечитаемым
@@ -166,14 +167,16 @@ namespace HMWT_MUI.Windows
             if (!string.IsNullOrEmpty(noText))
             {
                 var cancel = MakeButton(noText, accent: false, danger: false,
-                    gold: brushGold, frost: brushFrost, ink: brushInk, line: brushLine, body: fontBody);
+                    accentBrush: brushAccent, dangerBrush: brushDanger, onAccent: brushOnAccent,
+                    ink: brushInk, line: brushLine, body: fontBody);
                 cancel.Margin = new Thickness(0, 0, 10, 0);
                 cancel.Click += (s, e) => finish(false);
                 buttons.Children.Add(cancel);
             }
 
             var confirm = MakeButton(yesText, accent: true, danger: danger,
-                gold: brushGold, frost: brushFrost, ink: brushInk, line: brushLine, body: fontBody);
+                accentBrush: brushAccent, dangerBrush: brushDanger, onAccent: brushOnAccent,
+                ink: brushInk, line: brushLine, body: fontBody);
             confirm.Click += (s, e) => finish(true);
             buttons.Children.Add(confirm);
 
@@ -322,10 +325,16 @@ namespace HMWT_MUI.Windows
             return new FontFamily(fallback);
         }
 
+        /// <summary>
+        /// Кнопка диалога. Обычное подтверждение красится акцентом темы, опасное —
+        /// цветом опасности. Раньше было наоборот: опасное действие получало акцент,
+        /// а обычное — «мороз», и красное предупреждение выглядело как согласие.
+        /// </summary>
         private static Button MakeButton(string text, bool accent, bool danger,
-            Brush gold, Brush frost, Brush ink, Brush line, FontFamily body)
+            Brush accentBrush, Brush dangerBrush, Brush onAccent,
+            Brush ink, Brush line, FontFamily body)
         {
-            var brush = accent ? (danger ? gold : frost) : line;
+            var brush = accent ? (danger ? dangerBrush : accentBrush) : line;
 
             var btn = new Button
             {
@@ -336,7 +345,7 @@ namespace HMWT_MUI.Windows
                 FontWeight = FontWeights.SemiBold,
                 FontFamily = body,
                 Background = accent ? brush : Brushes.Transparent,
-                Foreground = accent ? new SolidColorBrush(Color.FromRgb(0x04, 0x22, 0x2A)) : ink,
+                Foreground = accent ? onAccent : ink,
                 BorderBrush = brush,
                 BorderThickness = new Thickness(1)
             };
