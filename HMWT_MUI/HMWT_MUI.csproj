@@ -179,7 +179,6 @@
     <Compile Include="Helpers\NotePaths.cs" />
     <Compile Include="Helpers\TreeIndentConverter.cs" />
     <Compile Include="Models\NoteTreeItem.cs" />
-    <Compile Include="Windows\CustomDialog.xaml.cs" />
     <Compile Include="Models\SpellData.cs" />
     <Compile Include="Services\AbilityService.cs" />
     <Compile Include="Services\DiceRoller.cs" />
@@ -277,9 +276,6 @@
     <Compile Include="Views\SpellsView.xaml.cs">
       <DependentUpon>SpellsView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Windows\TagManagerWindow.xaml.cs">
-      <DependentUpon>TagManagerWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Windows\MessageDialog.cs" />
     <Compile Include="Windows\CharacterInfoWindow.xaml.cs">
       <DependentUpon>CharacterInfoWindow.xaml</DependentUpon>
@@ -356,10 +352,6 @@
     <Page Include="Controls\DmProfileEditor.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Windows\TagManagerWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\CharacterInfoWindow.xaml">
       <SubType>Designer</SubType>
