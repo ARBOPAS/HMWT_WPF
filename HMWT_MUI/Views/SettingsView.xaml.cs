@@ -67,20 +67,13 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>
-        /// Светлая тема. Чтение значения живёт в App.CurrentTheme, здесь — запись.
+        /// Светлая тема. Чтение и запись живут в UiPreferences: вкладке настроек
+        /// незачем зависеть от класса приложения.
         /// </summary>
         public static bool LightTheme
         {
-            get
-            {
-                try { return App.CurrentTheme == "light"; }
-                catch { return false; }
-            }
-            set
-            {
-                try { DatabaseHelper.SaveSetting(App.ThemeSettingKey, value ? "light" : "dark"); }
-                catch (Exception ex) { Debug.WriteLine($"[Settings] тема: {ex.Message}"); }
-            }
+            get { return UiPreferences.IsLightTheme; }
+            set { UiPreferences.SetLightTheme(value); }
         }
 
         /// <summary>
@@ -88,16 +81,8 @@ namespace HMWT_MUI.Views
         /// </summary>
         public static bool TopTabs
         {
-            get
-            {
-                try { return DatabaseHelper.GetSetting(App.TopTabsSettingKey, "0").Trim() == "1"; }
-                catch { return false; }
-            }
-            set
-            {
-                try { DatabaseHelper.SaveSetting(App.TopTabsSettingKey, value ? "1" : "0"); }
-                catch (Exception ex) { Debug.WriteLine($"[Settings] вкладки: {ex.Message}"); }
-            }
+            get { return UiPreferences.TopTabs; }
+            set { UiPreferences.TopTabs = value; }
         }
 
         /// <summary>

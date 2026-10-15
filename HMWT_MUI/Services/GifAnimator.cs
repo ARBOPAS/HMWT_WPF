@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using HMWT_MUI.Helpers;
 
 namespace HMWT_MUI.Services
 {

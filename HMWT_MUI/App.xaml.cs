@@ -20,30 +20,18 @@ namespace HMWT_MUI
             System.Diagnostics.Stopwatch.StartNew();
 
         /// <summary>Ключ настройки с темой оформления.</summary>
-        public const string ThemeSettingKey = "Ui_Theme";
+        public const string ThemeSettingKey = Services.UiPreferences.ThemeSettingKey;
 
         /// <summary>Ключ настройки «вкладки сверху» (вместо левой рейки).</summary>
-        public const string TopTabsSettingKey = "Ui_TopTabs";
+        public const string TopTabsSettingKey = Services.UiPreferences.TopTabsSettingKey;
 
         /// <summary>
         /// Текущая тема: "dark" (по умолчанию) или "light".
-        /// Неизвестное значение приводим к тёмной: без палитры интерфейс не соберётся.
+        ///
+        /// Само чтение живёт в UiPreferences: оно нужно и вкладке настроек,
+        /// которой незачем зависеть от класса приложения.
         /// </summary>
-        public static string CurrentTheme
-        {
-            get
-            {
-                try
-                {
-                    string value = DatabaseHelper.GetSetting(ThemeSettingKey, "dark").Trim().ToLowerInvariant();
-                    return value == "light" ? "light" : "dark";
-                }
-                catch
-                {
-                    return "dark";
-                }
-            }
-        }
+        public static string CurrentTheme => Services.UiPreferences.CurrentTheme;
 
         /// <summary>
         /// Собирает ресурсы приложения с нужной палитрой.

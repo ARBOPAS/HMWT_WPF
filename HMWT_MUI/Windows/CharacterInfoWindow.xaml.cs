@@ -2623,7 +2623,7 @@ namespace HMWT_MUI
         {
             get
             {
-                try { return DatabaseHelper.GetSetting(App.TopTabsSettingKey, "0").Trim() == "1"; }
+                try { return Services.UiPreferences.TopTabs; }
                 catch { return false; }
             }
         }
