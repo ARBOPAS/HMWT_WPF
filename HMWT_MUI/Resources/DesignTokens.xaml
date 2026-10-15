@@ -2043,6 +2043,17 @@
             </Style.Triggers>
         </Style>
 
+        <!--
+          Плитка в шапке листа персонажа: показатель, состояние или действие.
+
+          Отступ снизу и справа — на случай, когда поток плиток переносится на
+          вторую строку: с прежними отступами «только по бокам» строки слипались
+          бы. Своего отступа плитке не задаём — он здесь один на всех.
+        -->
+        <Style x:Key="HeaderTile" TargetType="Border" BasedOn="{StaticResource StatBox}">
+            <Setter Property="Margin" Value="0,0,6,6"/>
+        </Style>
+
 
     <!-- Из вкладки SettingsView.xaml -->
         <Style x:Key="SetBtn" TargetType="Button">

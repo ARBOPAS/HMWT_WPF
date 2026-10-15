@@ -10,7 +10,8 @@
         WindowStartupLocation="CenterScreen"
         TextOptions.TextFormattingMode="Display"
         SnapsToDevicePixels="True"
-        UseLayoutRounding="True">
+        UseLayoutRounding="True"
+        Typography.NumeralStyle="Lining">
 
     <Window.Resources>
         <!-- === ПАЛИТРА (дизайн-система) === -->
@@ -136,95 +137,86 @@
         <Border Grid.Column="1" Grid.Row="1" BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,0,1"
                 Padding="{DynamicResource TH.HeaderPadding}">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-                <!-- РЯД 1: Аватар + имя/класс/раса -->
-                <Grid Grid.Row="0" Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <!-- Аватар -->
+                <Border x:Name="AvatarBorder" Width="{DynamicResource SZ.Avatar}" Height="{DynamicResource SZ.Avatar}"
+                        CornerRadius="10" ClipToBounds="True" MouseLeftButtonUp="BtnAvatar_Click"
+                        ToolTip="1 клик — портрет персонажа&#10;Двойной клик — заменить фото">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+                            <Setter Property="BorderThickness" Value="1.5"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                    <Setter Property="RenderTransform">
+                                        <Setter.Value>
+                                            <ScaleTransform ScaleX="1.04" ScaleY="1.04"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid MouseLeftButtonDown="BtnAvatar_Click" Cursor="Hand" Background="Transparent" ToolTip="Клик — открыть портрет, двойной клик — сменить фото">
+                        <!-- HoverGif вместо Image: гифка не разбирается при заходе
+                             в персонажа (это занимало секунды), а оживает только
+                             когда на неё навели курсор -->
+                        <controls:HoverGif x:Name="imgCharacterPhoto" Stretch="Uniform"/>
+                        <TextBlock x:Name="txtAvatarPlaceholder" Text="?" FontFamily="{StaticResource F.Display}" FontSize="40"
+                                   FontWeight="Bold" Foreground="{StaticResource B.Mute}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                    </Grid>
+                </Border>
 
-                    <Border x:Name="AvatarBorder" Width="{DynamicResource SZ.Avatar}" Height="{DynamicResource SZ.Avatar}"
-                            CornerRadius="10" ClipToBounds="True" MouseLeftButtonUp="BtnAvatar_Click"
-                            ToolTip="1 клик — портрет персонажа&#10;Двойной клик — заменить фото">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-                                <Setter Property="BorderThickness" Value="1.5"/>
-                                <Setter Property="Cursor" Value="Hand"/>
-                                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value>
-                                        <ScaleTransform ScaleX="1" ScaleY="1"/>
-                                    </Setter.Value>
-                                </Setter>
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
-                                        <Setter Property="RenderTransform">
-                                            <Setter.Value>
-                                                <ScaleTransform ScaleX="1.04" ScaleY="1.04"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <Grid MouseLeftButtonDown="BtnAvatar_Click" Cursor="Hand" Background="Transparent" ToolTip="Клик — открыть портрет, двойной клик — сменить фото">
-                            <!-- HoverGif вместо Image: гифка не разбирается при заходе
-                                 в персонажа (это занимало секунды), а оживает только
-                                 когда на неё навели курсор -->
-                            <controls:HoverGif x:Name="imgCharacterPhoto" Stretch="Uniform"/>
-                            <TextBlock x:Name="txtAvatarPlaceholder" Text="?" FontFamily="{StaticResource F.Display}" FontSize="40"
-                                       FontWeight="Bold" Foreground="{StaticResource B.Mute}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
-                        </Grid>
-                    </Border>
-
-                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="ИМЯ ПЕРСОНАЖА" Foreground="{StaticResource B.Mute}" 
-                                   FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
-                        <TextBox x:Name="txtName" Style="{StaticResource HeaderField}" Tag="name" LostFocus="Identity_LostFocus"
-                                 FontSize="{DynamicResource FS.Name}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"
-                                 Foreground="{StaticResource B.Ink}" Width="360" HorizontalAlignment="Left"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                            <StackPanel Margin="0,0,24,0">
-                                <TextBlock Text="КЛАСС" Foreground="{StaticResource B.Mute}" 
-                                           FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
-                                <TextBox x:Name="txtClass" Style="{StaticResource HeaderField}" Tag="class" LostFocus="Identity_LostFocus"
-                                         FontSize="{DynamicResource FS.Sub}" Foreground="{StaticResource B.Arcane}" Width="160"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="РАСА" Foreground="{StaticResource B.Mute}" 
-                                           FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
-                                <TextBox x:Name="txtRace" Style="{StaticResource HeaderField}" Tag="race" LostFocus="Identity_LostFocus"
-                                         FontSize="{DynamicResource FS.Sub}" Foreground="{StaticResource B.Ink}" Width="160"/>
-                            </StackPanel>
+                <!-- Имя, класс, раса -->
+                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="ИМЯ ПЕРСОНАЖА" Foreground="{StaticResource B.Mute}" 
+                               FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
+                    <TextBox x:Name="txtName" Style="{StaticResource HeaderField}" Tag="name" LostFocus="Identity_LostFocus"
+                             FontSize="{DynamicResource FS.Name}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"
+                             Foreground="{StaticResource B.Ink}" Width="360" HorizontalAlignment="Left"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <StackPanel Margin="0,0,24,0">
+                            <TextBlock Text="КЛАСС" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
+                            <TextBox x:Name="txtClass" Style="{StaticResource HeaderField}" Tag="class" LostFocus="Identity_LostFocus"
+                                     FontSize="{DynamicResource FS.Sub}" Foreground="{StaticResource B.Arcane}" Width="160"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="РАСА" Foreground="{StaticResource B.Mute}" 
+                                       FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" FontFamily="{StaticResource F.Display}"/>
+                            <TextBox x:Name="txtRace" Style="{StaticResource HeaderField}" Tag="race" LostFocus="Identity_LostFocus"
+                                     FontSize="{DynamicResource FS.Sub}" Foreground="{StaticResource B.Ink}" Width="160"/>
                         </StackPanel>
                     </StackPanel>
-                </Grid>
+                </StackPanel>
 
-                <!-- РЯД 2: Статы. Плитки узкие: раньше они растягивались на всю ширину
-                     и занимали место впустую. Уровень и опыт объединены в одну плитку —
-                     они про одно и то же.
-                     Справа от них — то, что меняется по ходу игры: состояния,
-                     вдохновение, концентрация и отдых. Плитки статов при этом
-                     остаются той же ширины, что и раньше. -->
-                <Grid Grid.Row="1" Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <!--
+                  Один поток на все плитки: показатели, состояния, золото и отдых.
 
-                    <UniformGrid x:Name="HeaderTiles" Grid.Column="0" Columns="5"
-                                     HorizontalAlignment="Left" MaxWidth="860">
-                        <Border Style="{StaticResource StatBox}" Margin="0,0,5,0" MouseLeftButtonUp="HeaderHP_Click"
+                  Раньше это были три отдельных ряда, и каждый обрывался задолго
+                  до правого края — половина шапки пустовала, а по высоте
+                  набегало лишних полсотни точек. Поток сам заполняет ширину
+                  и переносит лишнее на вторую строку, поэтому пустоты не
+                  остаётся ни на широком окне, ни на узком.
+                -->
+                <WrapPanel x:Name="HeaderTiles" Grid.Column="2" Margin="20,0,0,0"
+                           VerticalAlignment="Center">
+                        <Border Style="{StaticResource HeaderTile}" MouseLeftButtonUp="HeaderHP_Click"
                                 ToolTip="Клик — калькулятор здоровья">
                             <StackPanel>
                                 <TextBlock Text="ХИТЫ" Foreground="{StaticResource B.Mute}" 
@@ -233,7 +225,7 @@
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource StatBox}" Margin="5,0,5,0" Cursor="Hand" MouseLeftButtonUp="HeaderACSpeed_Click"
+                        <Border Style="{StaticResource HeaderTile}" Cursor="Hand" MouseLeftButtonUp="HeaderACSpeed_Click"
                                 ToolTip="КД и скорость: клик — изменить">
                             <StackPanel>
                                 <TextBlock Text="КД" Foreground="{StaticResource B.Mute}" 
@@ -242,7 +234,7 @@
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource StatBox}" Margin="5,0,5,0" Cursor="Hand" MouseLeftButtonUp="HeaderACSpeed_Click"
+                        <Border Style="{StaticResource HeaderTile}" Cursor="Hand" MouseLeftButtonUp="HeaderACSpeed_Click"
                                 ToolTip="КД и скорость: клик — изменить">
                             <StackPanel>
                                 <TextBlock Text="СКОРОСТЬ" Foreground="{StaticResource B.Mute}" 
@@ -251,8 +243,7 @@
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </StackPanel>
                         </Border>
-                        <!-- Уровень и опыт вместе: раньше это были две отдельные плитки про одно и то же -->
-                        <Border Style="{StaticResource StatBox}" Margin="5,0,0,0" Cursor="Hand"
+                        <Border Style="{StaticResource HeaderTile}" Cursor="Hand"
                                 MouseLeftButtonUp="HeaderLevel_Click"
                                 ToolTip="Уровень и опыт: клик — управление уровнем">
                             <StackPanel>
@@ -274,7 +265,7 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource StatBox}" Margin="5,0,0,0"
+                        <Border Style="{StaticResource HeaderTile}"
                                 ToolTip="Бонус мастерства — прибавляется к проверкам и броскам атаки">
                             <StackPanel>
                                 <TextBlock Text="МАСТЕРСТВО" Foreground="{StaticResource B.Mute}" 
@@ -283,22 +274,7 @@
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </StackPanel>
                         </Border>
-                    </UniformGrid>
-
-                    <!--
-                      Состояния, вдохновение и концентрация: всё это меняется по
-                      ходу игры, поэтому живёт в шапке рядом со статами.
-
-                      Высота плиток совпадает со статами, ширину задаёт содержимое,
-                      а не растяжение — иначе на широком окне подписи разъехались бы
-                      по краям, как это было со статами.
-                    -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Margin="20,0,0,0">
-
-                        <!-- СОСТОЯНИЯ: отметок бывает несколько сразу -->
-                        <Border Style="{StaticResource StatBox}" MinWidth="150" MaxWidth="232">
+                        <Border Style="{StaticResource HeaderTile}" MinWidth="150" MaxWidth="232">
                             <StackPanel>
                                 <TextBlock Text="СОСТОЯНИЯ" Foreground="{StaticResource B.Mute}"
                                            FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold"
@@ -346,9 +322,7 @@
                                 </Popup>
                             </StackPanel>
                         </Border>
-
-                        <!-- ВДОХНОВЕНИЕ: признак «есть или нет» -->
-                        <Border Style="{StaticResource StatBox}" MinWidth="108" Margin="8,0,0,0">
+                        <Border Style="{StaticResource HeaderTile}" MinWidth="108">
                             <StackPanel>
                                 <TextBlock Text="ВДОХНОВЕНИЕ" Foreground="{StaticResource B.Mute}"
                                            FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold"
@@ -367,9 +341,7 @@
                                 </Button>
                             </StackPanel>
                         </Border>
-
-                        <!-- КОНЦЕНТРАЦИЯ: заклинание выбирается из списка персонажа -->
-                        <Border Style="{StaticResource StatBox}" MinWidth="134" MaxWidth="176" Margin="8,0,0,0">
+                        <Border Style="{StaticResource HeaderTile}" MinWidth="134" MaxWidth="176">
                             <StackPanel>
                                 <TextBlock Text="КОНЦЕНТРАЦИЯ" Foreground="{StaticResource B.Mute}"
                                            FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold"
@@ -394,16 +366,7 @@
                                 </Button>
                             </StackPanel>
                         </Border>
-                    </StackPanel>
-                </Grid>
-
-                <!-- РЯД 3: Деньги и отдых. Опыт переехал в плитку «Уровень и опыт» —
-                     отдельная плитка про то же самое только занимала место.
-                     Отдых стоит рядом с деньгами, а не со статами: это действие
-                     над запасами, а не показатель персонажа, и в строке со статами
-                     ему не хватало места на узком окне. -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <Border Style="{StaticResource StatBox}" Cursor="Hand" MouseLeftButtonUp="HeaderGold_Click"
+                    <Border Style="{StaticResource HeaderTile}" Cursor="Hand" MouseLeftButtonUp="HeaderGold_Click"
                             MinWidth="380">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -423,9 +386,7 @@
                             </Button>
                         </Grid>
                     </Border>
-
-                    <!-- ОТДЫХ: две кнопки в одной плитке — иначе она была бы вдвое шире -->
-                    <Border Style="{StaticResource StatBox}" MinWidth="158" Margin="8,0,0,0">
+                    <Border Style="{StaticResource HeaderTile}" MinWidth="158">
                         <StackPanel>
                             <TextBlock Text="ОТДЫХ" Foreground="{StaticResource B.Mute}"
                                        FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold"
@@ -442,7 +403,7 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
-                </StackPanel>
+                </WrapPanel>
             </Grid>
         </Border>
 
