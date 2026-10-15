@@ -32,10 +32,9 @@ namespace HMWT_MUI.Views
             _characterId = characterId;
             _diceRoller = new DiceRoller();
 
-            MigrateDatabase();
-
-            // Кнопки владений строим до загрузки данных: иначе у персонажа без
-            // строки доп.информации они оставались бы пустыми
+            // Схему здесь больше не трогаем: и колонки, и таблицу бонусов создаёт
+            // DatabaseHelper при запуске. Раньше вкладка догоняла их сама — по
+            // четырнадцать ALTER на каждое открытие листа персонажа
             BuildProficiencyToggles();
 
             // Флажки навыков в форме предыстории — тоже один раз, они статичны
@@ -149,51 +148,6 @@ namespace HMWT_MUI.Views
         #endregion
 
         #region === ЗАГРУЗКА ДАННЫХ ===
-        private void MigrateDatabase()
-        {
-            try
-            {
-                using var conn = DatabaseHelper.GetConnection();
-                conn.Open();
-
-                var migrations = new[]
-                {
-            "ALTER TABLE CharacterInfo ADD COLUMN Ideology INTEGER",
-            "ALTER TABLE CharacterInfo ADD COLUMN PassivePerception INTEGER DEFAULT 10",
-            "ALTER TABLE CharacterInfo ADD COLUMN PassiveInsight INTEGER DEFAULT 10",
-            "ALTER TABLE CharacterInfo ADD COLUMN PassiveInvestigation INTEGER DEFAULT 10",
-            "ALTER TABLE CharacterInfo ADD COLUMN Initiative INTEGER DEFAULT 0",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Weapons TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Ideals TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Bonds TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Height TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Weight TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Eyes TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Hair TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Backstory TEXT",
-            "ALTER TABLE CharacterIdAddInfo ADD COLUMN Background TEXT",
-            @"CREATE TABLE IF NOT EXISTS CharacterAbilityBonuses(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_character INTEGER NOT NULL,
-                ability TEXT NOT NULL,
-                scope TEXT NOT NULL,
-                name TEXT,
-                bonus INTEGER NOT NULL DEFAULT 0,
-                is_active INTEGER NOT NULL DEFAULT 1,
-                FOREIGN KEY(id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE)"
-        };
-
-                foreach (var sql in migrations)
-                {
-                    try { using var cmd = new SqliteCommand(sql, conn); cmd.ExecuteNonQuery(); }
-                    catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[Migration] {ex.Message}");
-            }
-        }
 
         private void LoadCharacterData()
         {

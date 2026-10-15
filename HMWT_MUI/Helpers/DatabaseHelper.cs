@@ -262,6 +262,20 @@ namespace HMWT_MUI
             // а экспертиза — вторым бонусом мастерства. Отдельной таблицей, а не
             // второй колонкой рядом с каждой из восемнадцати: колонок стало бы
             // вдвое больше, и половина всегда пустовала бы.
+            // Бонусы к характеристикам, которые игрок заводит сам: у одного
+            // навыка и проверки их бывает несколько, поэтому отдельными строками.
+            // Таблица раньше создавалась прямо в листе персонажа — схема жила
+            // в окне, и её не было видно ни в одном другом месте программы.
+            @"CREATE TABLE IF NOT EXISTS CharacterAbilityBonuses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_character INTEGER NOT NULL,
+                ability TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                name TEXT,
+                bonus INTEGER NOT NULL DEFAULT 0,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY (id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE);",
+
             @"CREATE TABLE IF NOT EXISTS CharacterSkillExpertise (
                 id_character INTEGER NOT NULL,
                 skill_key TEXT NOT NULL,
@@ -379,6 +393,16 @@ namespace HMWT_MUI
                     // Ссылка на предысторию из справочника: сам текст остаётся в Background,
                     // чтобы ничего не потерялось, если запись удалят
                     "id_background INTEGER");
+
+                // Колонки, которые раньше догонял лист персонажа своим MigrateDatabase.
+                // У баз, созданных до их появления, их нет, а CREATE TABLE IF NOT EXISTS
+                // к существующей таблице колонок не добавляет
+                EnsureColumns(conn, transaction, "CharacterInfo",
+                    "Ideology INTEGER",
+                    "PassivePerception INTEGER DEFAULT 10",
+                    "PassiveInsight INTEGER DEFAULT 10",
+                    "PassiveInvestigation INTEGER DEFAULT 10",
+                    "Initiative INTEGER DEFAULT 0");
 
                 CreateBackgroundTables(conn, transaction);
 
