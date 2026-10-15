@@ -2580,6 +2580,8 @@ namespace HMWT_MUI
                     return new Views.DmToolsView(_characterId);
                 case "Settings":
                     return new Views.SettingsView();
+                case "Reference":
+                    return new Views.ReferenceView();
                 default:
                     return null;
             }
@@ -2664,6 +2666,7 @@ namespace HMWT_MUI
                 (btnSpellsTab, "Spells", icoSpellsTab, true),
                 (btnRoomTab, "Room", icoRoomTab, false),
                 (btnDmToolsTab, "DmTools", icoDmToolsTab, true),
+                (btnReferenceTab, "Reference", icoReferenceTab, false),
                 (btnSettingsTab, "Settings", icoSettingsTab, false)
             };
 
@@ -2745,6 +2748,8 @@ namespace HMWT_MUI
         private void btnSpellsTab_Click(object sender, RoutedEventArgs e) => SwitchView("Spells");
         private void btnRoomTab_Click(object sender, RoutedEventArgs e) => SwitchView("Room");
         private void btnSettingsTab_Click(object sender, RoutedEventArgs e) => SwitchView("Settings");
+
+        private void btnReferenceTab_Click(object sender, RoutedEventArgs e) => SwitchView("Reference");
 
         private void btnDmToolsTab_Click(object sender, RoutedEventArgs e)
         {

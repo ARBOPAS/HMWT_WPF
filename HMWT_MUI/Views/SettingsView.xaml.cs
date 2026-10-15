@@ -57,7 +57,8 @@ namespace HMWT_MUI.Views
             chkTopTabs.IsChecked = TopTabs;
 
             txtSrdHint.Text = $"Сейчас в базе: предметов {SrdItemImporter.GetCount()}, " +
-                              $"заклинаний {SpellJsonImporter.GetCount()}.";
+                              $"заклинаний {SpellJsonImporter.GetCount()}, " +
+                              $"разделов справочника {SrdImportService.GetCategories().Count}.";
 
             foreach (int seconds in RefreshSteps)
                 cmbRefreshInterval.Items.Add(new ComboBoxItem { Content = seconds + " секунд" });

@@ -105,6 +105,29 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>
+        /// Разделы, которые есть в справочнике. Вкладка «Справка» строит по ним
+        /// подразделы, поэтому пустые разделы сразу отсеиваются.
+        /// </summary>
+        public static List<string> GetCategories()
+        {
+            var result = new List<string>();
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+
+            using var cmd = new SqliteCommand(@"
+                SELECT category
+                FROM SrdReference
+                GROUP BY category
+                HAVING COUNT(1) > 0
+                ORDER BY category", conn);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read()) result.Add(reader["category"]?.ToString() ?? "");
+
+            return result;
+        }
+
+        /// <summary>
         /// Поиск записей категории по имени (case-insensitive).
         /// </summary>
         public static List<SrdEntry> Search(string category, string query)

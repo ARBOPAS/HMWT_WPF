@@ -38,12 +38,13 @@ namespace HMWT_MUI.Services
         {
             public int Items;
             public int Spells;
+            public int References;
             public string Edition = "";
             public string Language = "";
             public readonly List<string> Skipped = new List<string>();
             public readonly List<string> Files = new List<string>();
 
-            public int Total => Items + Spells;
+            public int Total => Items + Spells + References;
 
             /// <summary>Строка для интерфейса: что и откуда перенесено.</summary>
             public string Describe()
@@ -52,7 +53,7 @@ namespace HMWT_MUI.Services
 
                 var text = new StringBuilder();
                 text.Append($"База: {Edition} ({Language}).\n");
-                text.Append($"Предметов: {Items}, заклинаний: {Spells}.\n");
+                text.Append($"Предметов: {Items}, заклинаний: {Spells}, статей справочника: {References}.\n");
                 text.Append("Файлы: " + string.Join(", ", Files) + ".");
 
                 if (Skipped.Count > 0)
@@ -61,6 +62,41 @@ namespace HMWT_MUI.Services
                 return text.ToString();
             }
         }
+
+        /// <summary>
+        /// Файлы, которые ложатся в общую таблицу справочника: состояния, правила,
+        /// навыки, языки, школы магии, расы, классы, черты и прочие списки.
+        ///
+        /// Раздел берётся из имени файла, поэтому новые файлы базы подхватываются
+        /// простым добавлением имени сюда.
+        /// </summary>
+        private static readonly HashSet<string> ReferenceFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "5e-SRD-Ability-Scores.json",
+            "5e-SRD-Alignments.json",
+            "5e-SRD-Backgrounds.json",
+            "5e-SRD-Classes.json",
+            "5e-SRD-Conditions.json",
+            "5e-SRD-Damage-Types.json",
+            "5e-SRD-Equipment-Categories.json",
+            "5e-SRD-Feats.json",
+            "5e-SRD-Features.json",
+            "5e-SRD-Languages.json",
+            "5e-SRD-Levels.json",
+            "5e-SRD-Magic-Schools.json",
+            "5e-SRD-Poisons.json",
+            "5e-SRD-Proficiencies.json",
+            "5e-SRD-Races.json",
+            "5e-SRD-Rules.json",
+            "5e-SRD-Skills.json",
+            "5e-SRD-Species.json",
+            "5e-SRD-Subclasses.json",
+            "5e-SRD-Subraces.json",
+            "5e-SRD-Subspecies.json",
+            "5e-SRD-Traits.json",
+            "5e-SRD-Weapon-Mastery-Properties.json",
+            "5e-SRD-Weapon-Properties.json"
+        };
 
         /// <summary>
         /// Читает все файлы 5e-SRD-*.json из папки и переносит их в базу.
@@ -97,6 +133,8 @@ namespace HMWT_MUI.Services
                         result.Items += ImportMagicItems(root, conn, tx, result);
                     else if (Same(fileName, "5e-SRD-Spells.json"))
                         result.Spells += ImportSpells(root, conn, tx, result);
+                    else if (ReferenceFiles.Contains(fileName))
+                        result.References += ImportReference(root, conn, tx, fileName, result);
                     else
                         continue;   // остальные файлы базы программе пока не нужны
 
@@ -349,6 +387,136 @@ namespace HMWT_MUI.Services
 
             if (letters.Length == 0) return material.Length > 0 ? material : "";
             return material.Length > 0 ? $"{letters} ({material})" : letters;
+        }
+
+        #endregion
+
+        #region === СПРАВОЧНИК ===
+
+        /// <summary>
+        /// Статьи справочника: состояния, правила, навыки, языки, школы магии,
+        /// расы, виды, классы, черты и остальные списки базы.
+        ///
+        /// Все они ложатся в одну таблицу SrdReference, а раздел хранится в поле
+        /// category — по нему вкладка «Справка» строит подразделы, и оттуда же
+        /// карточка персонажа берёт расы и классы для выпадающих списков.
+        /// </summary>
+        private static int ImportReference(JsonElement root, SqliteConnection conn,
+            SqliteTransaction tx, string fileName, ImportResult result)
+        {
+            string category = Path.GetFileNameWithoutExtension(fileName).Replace("5e-SRD-", "");
+
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = @"
+                INSERT INTO SrdReference (category, name, description, properties, publisher, book)
+                VALUES (@cat, @name, @desc, @props, @pub, @book)
+                ON CONFLICT(category, name, book) DO UPDATE SET
+                    description=excluded.description,
+                    properties=excluded.properties,
+                    publisher=excluded.publisher";
+
+            int count = 0;
+            foreach (var el in root.EnumerateArray())
+            {
+                string name = Text(el, "name");
+                if (name.Length == 0) continue;
+
+                string description = Prose(el, "desc", "description");
+                if (description.Length == 0) description = Summarize(el);
+
+                cmd.Parameters.Clear();
+                cmd.Parameters.AddWithValue("@cat", category);
+                cmd.Parameters.AddWithValue("@name", name.Trim());
+                cmd.Parameters.AddWithValue("@desc", description);
+                cmd.Parameters.AddWithValue("@props", el.GetRawText());
+                // Источник подписан прямо в записи: тексты SRD выпущены под
+                // CC-BY-4.0, и авторство должно быть видно там, где показан текст
+                cmd.Parameters.AddWithValue("@pub", "Wizards of the Coast (SRD, CC-BY-4.0)");
+                cmd.Parameters.AddWithValue("@book", Book(result));
+                cmd.ExecuteNonQuery();
+                count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// Короткая выжимка для записей без готового описания: у рас, видов
+        /// и классов в базе лежат только разобранные поля.
+        /// </summary>
+        private static string Summarize(JsonElement el)
+        {
+            var parts = new List<string>();
+
+            string type = Text(el, "type");
+            if (type.Length > 0) parts.Add($"Тип: {type}");
+
+            string size = Text(el, "size");
+            if (size.Length > 0) parts.Add($"Размер: {size}");
+
+            string speed = SpeedOf(el);
+            if (speed.Length > 0) parts.Add($"Скорость: {speed}");
+
+            string hitDie = Text(el, "hit_die");
+            if (hitDie.Length > 0) parts.Add($"Кость хитов: 1d{hitDie}");
+
+            string ability = NamesOf(el, "primary_ability");
+            if (ability.Length > 0) parts.Add($"Основная характеристика: {ability}");
+
+            string bonuses = AbilityBonuses(el);
+            if (bonuses.Length > 0) parts.Add($"Бонусы характеристик: {bonuses}");
+
+            string saves = NamesOf(el, "saving_throws");
+            if (saves.Length > 0) parts.Add($"Спасброски: {saves}");
+
+            string proficiencies = NamesOf(el, "proficiencies");
+            if (proficiencies.Length > 0) parts.Add($"Владения: {proficiencies}");
+
+            string language = Text(el, "language_desc");
+            if (language.Length > 0) parts.Add(language);
+
+            string traits = NamesOf(el, "traits");
+            if (traits.Length > 0) parts.Add($"Умения: {traits}");
+
+            string subspecies = NamesOf(el, "subspecies");
+            if (subspecies.Length > 0) parts.Add($"Подвиды: {subspecies}");
+
+            string subclasses = NamesOf(el, "subclasses");
+            if (subclasses.Length > 0) parts.Add($"Подклассы: {subclasses}");
+
+            return string.Join("\n", parts);
+        }
+
+        /// <summary>Скорость: у видов строка, у рас число.</summary>
+        private static string SpeedOf(JsonElement el)
+        {
+            if (!el.TryGetProperty("speed", out var speed)) return "";
+
+            if (speed.ValueKind == JsonValueKind.String) return speed.GetString() ?? "";
+            if (speed.ValueKind != JsonValueKind.Number) return "";
+
+            int feet = Whole(el, "speed");
+            return feet > 0 ? $"{feet} футов" : "";
+        }
+
+        /// <summary>Бонусы характеристик расы: «Сила +2, Телосложение +1».</summary>
+        private static string AbilityBonuses(JsonElement el)
+        {
+            if (!el.TryGetProperty("ability_bonuses", out var list) || list.ValueKind != JsonValueKind.Array)
+                return "";
+
+            var parts = new List<string>();
+            foreach (var item in list.EnumerateArray())
+            {
+                string ability = NestedText(item, "ability_score", "name");
+                if (ability.Length == 0) continue;
+
+                int bonus = Whole(item, "bonus");
+                parts.Add(bonus >= 0 ? $"{ability} +{bonus}" : $"{ability} {bonus}");
+            }
+
+            return string.Join(", ", parts);
         }
 
         #endregion
