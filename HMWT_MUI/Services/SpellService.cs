@@ -39,6 +39,13 @@ namespace HMWT_MUI.Services
                       "COALESCE(sr.per_level_damage,'') AS per_level_damage"
                     : "'' AS damage_formula, '' AS damage_type, '' AS per_level_damage";
 
+                // Лечение появилось позже урона: на старой базе колонок ещё нет
+                bool hasHeal = DatabaseHelper.HasColumn(conn, "SpellReference", "heal_formula");
+                string healSel = hasHeal
+                    ? "COALESCE(sr.heal_formula,'') AS heal_formula, " +
+                      "COALESCE(sr.heal_per_level,'') AS heal_per_level"
+                    : "'' AS heal_formula, '' AS heal_per_level";
+
                 bool hasParts = DatabaseHelper.HasColumn(conn, "SpellReference", "extra_damage_parts");
                 string partsSel = hasParts ? "COALESCE(sr.extra_damage_parts,'') AS extra_damage_parts"
                                            : "'' AS extra_damage_parts";
@@ -50,7 +57,7 @@ namespace HMWT_MUI.Services
                            sr.name, sr.level, sr.school, sr.casting_time, sr.range, sr.components,
                            sr.duration, sr.description, sr.at_higher_levels, sr.classes,
                            sr.concentration, sr.ritual, sr.source, sr.material, sr.page, {modSel} AS is_modified,
-                           {effSel}, {partsSel}, {saveSel}
+                           {effSel}, {healSel}, {partsSel}, {saveSel}
                     FROM CharacterSpells cs
                     LEFT JOIN SpellReference sr ON sr.id_spell = cs.id_spell
                     WHERE cs.id_character = @id
@@ -85,6 +92,8 @@ namespace HMWT_MUI.Services
                         DamageFormula = ReadText(reader, "damage_formula"),
                         DamageType = ReadText(reader, "damage_type"),
                         PerLevelDamage = ReadText(reader, "per_level_damage"),
+                        HealFormula = ReadText(reader, "heal_formula"),
+                        HealPerLevel = ReadText(reader, "heal_per_level"),
                         ExtraDamageParts = DeserializeParts(ReadText(reader, "extra_damage_parts")),
                         SaveNote = ReadText(reader, "save_note"),
                     };
@@ -253,6 +262,7 @@ namespace HMWT_MUI.Services
                         description=@desc, at_higher_levels=@hi, classes=@cl, concentration=@conc, ritual=@rit,
                         source=@src, page=@pg, material=@mat, is_modified=@mod,
                         damage_formula=@dmg, damage_type=@dtype, per_level_damage=@plvl,
+                        heal_formula=@heal, heal_per_level=@heallvl,
                         extra_damage_parts=@parts, save_note=@save
                     WHERE id_spell=@id", conn);
                 cmd.Parameters.AddWithValue("@n", spell.Name);
@@ -280,6 +290,8 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@dmg", spell.DamageFormula ?? "");
                 cmd.Parameters.AddWithValue("@dtype", spell.DamageType ?? "");
                 cmd.Parameters.AddWithValue("@plvl", spell.PerLevelDamage ?? "");
+                cmd.Parameters.AddWithValue("@heal", spell.HealFormula ?? "");
+                cmd.Parameters.AddWithValue("@heallvl", spell.HealPerLevel ?? "");
                 cmd.Parameters.AddWithValue("@parts", SerializeParts(spell.ExtraDamageParts));
                 cmd.Parameters.AddWithValue("@save", spell.SaveNote ?? "");
                 cmd.Parameters.AddWithValue("@id", spell.IdSpell);
@@ -352,9 +364,10 @@ namespace HMWT_MUI.Services
                     INSERT INTO SpellReference (name, level, school, casting_time, range, components, duration,
                         description, at_higher_levels, classes, concentration, ritual, source, page, material,
                         is_modified, damage_formula, damage_type, per_level_damage,
+                        heal_formula, heal_per_level,
                         extra_damage_parts, save_note)
                     VALUES (@n,@l,@sch,@c,@r,@co,@du,@desc,@hi,@cl,@conc,@rit,'custom',@pg,@mat,0,
-                        @dmg,@dtype,@plvl,@parts,@save);
+                        @dmg,@dtype,@plvl,@heal,@heallvl,@parts,@save);
                     SELECT last_insert_rowid();", conn);
                 cmd.Parameters.AddWithValue("@n", spell.Name.Trim());
                 cmd.Parameters.AddWithValue("@l", Math.Max(0, Math.Min(9, spell.Level)));
@@ -373,6 +386,8 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@dmg", spell.DamageFormula ?? "");
                 cmd.Parameters.AddWithValue("@dtype", spell.DamageType ?? "");
                 cmd.Parameters.AddWithValue("@plvl", spell.PerLevelDamage ?? "");
+                cmd.Parameters.AddWithValue("@heal", spell.HealFormula ?? "");
+                cmd.Parameters.AddWithValue("@heallvl", spell.HealPerLevel ?? "");
                 cmd.Parameters.AddWithValue("@parts", SerializeParts(spell.ExtraDamageParts));
                 cmd.Parameters.AddWithValue("@save", spell.SaveNote ?? "");
                 return Convert.ToInt32(cmd.ExecuteScalar());
@@ -397,9 +412,10 @@ namespace HMWT_MUI.Services
                 using var cmd = new SqliteCommand(@"
                     INSERT INTO SpellReference (name, level, school, casting_time, range, components, duration, 
                         description, at_higher_levels, classes, concentration, ritual, source, page, material, is_modified,
-                        damage_formula, damage_type, per_level_damage, extra_damage_parts, save_note)
+                        damage_formula, damage_type, per_level_damage, heal_formula, heal_per_level,
+                        extra_damage_parts, save_note)
                     VALUES (@n,@l,@sch,@c,@r,@co,@du,@desc,@hi,@cl,@conc,@rit,@src,@pg,@mat,0,
-                        @dmg,@dtype,@plvl,@parts,@save);
+                        @dmg,@dtype,@plvl,@heal,@heallvl,@parts,@save);
                     SELECT last_insert_rowid();", conn);
                 cmd.Parameters.AddWithValue("@n", spell.Name);
                 cmd.Parameters.AddWithValue("@l", spell.Level);
@@ -631,6 +647,12 @@ namespace HMWT_MUI.Services
             /// <summary>Формула броска урона с учётом подъёма уровня (пусто, если урона нет).</summary>
             public string DamageFormula = "";
 
+            /// <summary>
+            /// Формула лечения с учётом подъёма уровня. Пусто, если заклинание
+            /// не лечит: так их и различает окно заклинаний.
+            /// </summary>
+            public string HealFormula = "";
+
             public string DamageType = "";
 
             /// <summary>
@@ -700,6 +722,31 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>
+        /// Формула лечения при конкретном уровне ячейки.
+        ///
+        /// За каждый уровень выше базового добавляется HealPerLevel — как у урона.
+        /// «Исцеляющее слово» лечит 2к4, а ячейкой выше — 2к4+1к4.
+        /// </summary>
+        public static string BuildCastHealFormula(SpellData spell, int slotLevel)
+        {
+            if (spell == null) return "";
+
+            string formula = (spell.HealFormula ?? "").Trim();
+            if (formula.Length == 0) return "";
+
+            int steps = Math.Max(0, slotLevel - Math.Max(0, spell.Level));
+            string perLevel = (spell.HealPerLevel ?? "").Trim();
+
+            if (steps > 0 && perLevel.Length > 0)
+            {
+                string add = perLevel.StartsWith("+") ? perLevel : "+" + perLevel;
+                for (int i = 0; i < steps; i++) formula += add;
+            }
+
+            return formula;
+        }
+
+        /// <summary>
         /// Пробует сотворить заклинание: проверяет ячейку и тратит её.
         ///
         /// Ячейки нет — каст запрещён, и никаких предложений «сотворить выше»
@@ -729,9 +776,8 @@ namespace HMWT_MUI.Services
                 result.NoSlotSpent = true;
                 result.Parts = BuildCastParts(spell, 0);
                 result.DamageFormula = BuildCastFormula(spell, 0);
-                result.Message = string.IsNullOrEmpty(result.DamageFormula)
-                    ? $"«{spell.Name}» сотворён (заговор, ячейка не тратится)"
-                    : $"«{spell.Name}» сотворён (заговор, ячейка не тратится)";
+                result.HealFormula = BuildCastHealFormula(spell, 0);
+                result.Message = $"«{spell.Name}» сотворён (заговор, ячейка не тратится)";
                 return result;
             }
 
@@ -754,6 +800,7 @@ namespace HMWT_MUI.Services
             result.SlotsLeft = after.Total - after.Used;
             result.Parts = BuildCastParts(spell, useLevel);
             result.DamageFormula = BuildCastFormula(spell, useLevel);
+            result.HealFormula = BuildCastHealFormula(spell, useLevel);
             result.Message = $"«{spell.Name}» сотворён ячейкой {useLevel}-го уровня (осталось {result.SlotsLeft})";
             return result;
         }
@@ -1171,6 +1218,12 @@ namespace HMWT_MUI.Services
 
                 // Пометка про спасбросок цели: «Спас Ловкости Сл 15, половина при успехе»
                 AddSpellColumnIfMissing(conn, "save_note", "TEXT DEFAULT ''");
+
+                // Лечение: у заклинания бывает и урон, и лечение сразу
+                // («Исцеляющее слово» лечит 2к4 и урона не наносит вовсе),
+                // поэтому это отдельная пара полей, а не одно «значение»
+                AddSpellColumnIfMissing(conn, "heal_formula", "TEXT DEFAULT ''");
+                AddSpellColumnIfMissing(conn, "heal_per_level", "TEXT DEFAULT ''");
                 _effectColumnsChecked = true;
 
                 SeedDefaultTags(conn);
@@ -1205,6 +1258,8 @@ namespace HMWT_MUI.Services
                 AddSpellColumnIfMissing(conn, "per_level_damage", "TEXT DEFAULT ''");
                 AddSpellColumnIfMissing(conn, "extra_damage_parts", "TEXT DEFAULT ''");
                 AddSpellColumnIfMissing(conn, "save_note", "TEXT DEFAULT ''");
+                AddSpellColumnIfMissing(conn, "heal_formula", "TEXT DEFAULT ''");
+                AddSpellColumnIfMissing(conn, "heal_per_level", "TEXT DEFAULT ''");
                 _effectColumnsChecked = true;
             }
             catch (Exception ex)

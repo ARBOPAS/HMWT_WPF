@@ -3183,6 +3183,26 @@ namespace HMWT_MUI
             else if (_stabSuccesses > 0 || _stabFailures > 0) ResetStabilization();
         }
 
+        /// <summary>
+        /// Лечит персонажа на указанное число хитов: бросок лечения заклинания
+        /// прибавляется к здоровью, но выше максимума не поднимает.
+        ///
+        /// Нужно, чтобы игроку не приходилось вписывать лечение руками: броски
+        /// лечения идут из вкладки заклинаний.
+        /// </summary>
+        public void HealCharacter(int amount)
+        {
+            if (amount <= 0) return;
+
+            _maxHp = RestService.LoadMaxHp(_characterId);
+            int newHp = Math.Min(_maxHp, _currentHp + amount);
+
+            try { RestService.SaveCurrentHp(_characterId, newHp); }
+            catch (Exception ex) { Debug.WriteLine($"[CharacterInfoWindow] лечение: {ex.Message}"); }
+
+            UpdateHPDisplay(newHp);
+        }
+
         public void UpdateLevelDisplay(int newLevel)
         {
             txtLevel.Text = newLevel.ToString();

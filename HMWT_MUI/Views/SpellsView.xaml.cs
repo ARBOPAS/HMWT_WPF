@@ -90,6 +90,8 @@ namespace HMWT_MUI.Views
             {
                 SpellService.EnsureTables();
 
+                LoadHealSelfSetting();
+
                 // Панель классов нужно собрать: раньше BuildClassesPanel не вызывался,
                 // и раздел «Классы» в редакторе был пустым — «текбокс не кликабелен»
                 // означало «в нём нечего нажимать».
@@ -1130,12 +1132,41 @@ namespace HMWT_MUI.Views
             if (DescComponents != null) DescComponents.Text = Blank(d.Components);
             if (DescDuration != null) DescDuration.Text = Blank(d.Duration);
             if (DescClasses != null) DescClasses.Text = Blank(d.Classes);
-            if (DescText != null) DescText.Text = string.IsNullOrWhiteSpace(d.Description) ? "Описание отсутствует." : d.Description;
+
+            // Описание рисуется разбором формул: «2к4» в тексте становится
+            // ссылкой, по нажатию бросаются кубики. Так «Исцеляющее слово»
+            // лечит, а не «просто сотворяется», и это работает у любого
+            // заклинания из справочника — настраивать ничего не нужно.
+            FillRollText(DescText, string.IsNullOrWhiteSpace(d.Description) ? "Описание отсутствует." : d.Description,
+                "Описание", d);
+            FillRollText(DescHigher, d.AtHigherLevels, "На больших уровнях", d);
             if (DescHigher != null)
-            {
-                DescHigher.Text = d.AtHigherLevels ?? "";
                 DescHigher.Visibility = string.IsNullOrWhiteSpace(d.AtHigherLevels) ? Visibility.Collapsed : Visibility.Visible;
-            }
+        }
+
+        /// <summary>
+        /// Рисует текст с подсветкой формул броска. Обычный текст остаётся
+        /// текстом, каждая формула становится кликабельной.
+        /// </summary>
+        private void FillRollText(TextBlock target, string text, string scope, SpellData spell)
+        {
+            if (target == null) return;
+
+            string spellName = spell?.Name ?? "";
+            Helpers.RollTextRenderer.Render(target, text, part =>
+            {
+                var window = Window.GetWindow(this) as CharacterInfoWindow;
+                window?.RollExternal(part.Normalized, scope + ": " + spellName, "", part.Describe());
+            }, new Helpers.RollTextStyle
+            {
+                Text = (Brush)FindResource("B.Ink"),
+                Dice = (Brush)FindResource("B.Gold"),
+                DiceBack = (Brush)FindResource("B.PanelHi"),
+                Hint = (Brush)FindResource("B.Mute"),
+                Font = target.FontFamily,
+                FontSize = target.FontSize,
+                Wrap = true
+            });
         }
 
         #region === ОСТРОВОК КАСТОВАНИЯ ===
@@ -1177,18 +1208,18 @@ namespace HMWT_MUI.Views
                 BtnCastLevelPlus.IsEnabled = _castLevel < 9;
 
             string formula = SpellService.BuildCastFormula(spell, _castLevel);
+            string healFormula = SpellService.BuildCastHealFormula(spell, _castLevel);
+            int steps = Math.Max(0, _castLevel - Math.Max(0, spell.Level));
+
             if (CastFormulaText != null)
             {
-                if (string.IsNullOrWhiteSpace(formula))
-                {
-                    CastFormulaText.Visibility = Visibility.Collapsed;
-                }
-                else
+                var blocks = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(formula))
                 {
                     // Показываем каждую часть урона со своим типом: у заклинания
                     // их бывает несколько, и все они бросаются за одно сотворение
                     var castParts = SpellService.BuildCastParts(spell, _castLevel);
-                    int steps = Math.Max(0, _castLevel - Math.Max(0, spell.Level));
 
                     string text;
                     if (castParts.Count > 1)
@@ -1216,12 +1247,37 @@ namespace HMWT_MUI.Views
                     if (steps > 0 && spell.CanUpcast)
                         text += $" (добавка за {steps} ур. выше)";
 
-                    if (!string.IsNullOrWhiteSpace(spell.SaveNote))
-                        text += $"\nСпасбросок: {spell.SaveNote}";
+                    blocks.Add(text);
+                }
 
-                    CastFormulaText.Text = text;
+                if (!string.IsNullOrWhiteSpace(healFormula))
+                {
+                    string text = $"Лечение: {healFormula}";
+                    if (steps > 0 && spell.CanUpcastHealing)
+                        text += $" (добавка за {steps} ур. выше)";
+                    blocks.Add(text);
+                }
+
+                if (!string.IsNullOrWhiteSpace(spell.SaveNote))
+                    blocks.Add($"Спасбросок: {spell.SaveNote}");
+
+                if (blocks.Count == 0)
+                {
+                    CastFormulaText.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    CastFormulaText.Text = string.Join("\n", blocks);
                     CastFormulaText.Visibility = Visibility.Visible;
                 }
+            }
+
+            // Галочка нужна только тем заклинаниям, что лечат
+            if (ChkHealSelf != null)
+            {
+                ChkHealSelf.Visibility = string.IsNullOrWhiteSpace(healFormula)
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
             }
 
             bool cantrip = baseLevel == 0;
@@ -1337,9 +1393,14 @@ namespace HMWT_MUI.Views
             RefreshCastIsland();
             LoadSpellSlotsForLevel(_currentLevel);
 
+            // Лечение бросается и у заклинания без урона: «Исцеляющее слово»
+            // ничего не наносит, и раньше каст на этом и заканчивался — игроку
+            // оставалось только самому вписывать себе хиты
+            RollCastHealing(cast);
+
             if (cast.Parts == null || cast.Parts.Count == 0)
             {
-                // Заклинание без урона: ячейку потратили, бросать нечего
+                // Заклинание без урона: ячейку потратили, бросать урон нечего
                 if (!string.IsNullOrWhiteSpace(cast.SaveNote))
                     ShowToast(cast.SaveNote, "⚖", B("B.Frost"));
                 return;
@@ -1374,9 +1435,76 @@ namespace HMWT_MUI.Views
             if (rolled > 1)
                 ShowToast($"Всего урона за каст: {total}", "plus", B("B.Ok"));
 
+            RollCastHealing(cast);
+
             if (!string.IsNullOrWhiteSpace(cast.SaveNote))
                 ShowToast(cast.SaveNote, "⚖", B("B.Frost"));
         }
+
+        /// <summary>
+        /// Бросает лечение заклинания и, если игрок не снял галочку, прибавляет
+        /// его персонажу.
+        ///
+        /// Отдельным броском от урона: у заклинания бывает и то, и другое, и
+        /// складывать лечение с уроном в одно число нельзя.
+        /// </summary>
+        private void RollCastHealing(SpellService.CastResult cast)
+        {
+            if (cast == null || string.IsNullOrWhiteSpace(cast.HealFormula)) return;
+
+            var window = Window.GetWindow(this) as CharacterInfoWindow;
+            if (window == null) return;
+
+            string rollType = cast.SlotLevel > 0
+                ? $"Лечение: {cast.SpellName} ({cast.SlotLevel} ур.)"
+                : $"Лечение: {cast.SpellName}";
+
+            var roll = window.RollExternal(cast.HealFormula, rollType, "", cast.HealFormula);
+            if (roll == null) return;
+
+            if (ChkHealSelf?.IsChecked != true) return;
+
+            window.HealCharacter(roll.Total);
+            ShowToast($"Лечение: +{roll.Total} хитов", "plus", B("B.Ok"));
+        }
+
+        /// <summary>
+        /// Галочка «прибавлять лечение персонажу» запоминается между заходами:
+        /// целитель либо лечит себя, либо нет — это не разовое решение.
+        /// </summary>
+        private void ChkHealSelf_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_loadingHealSelf) return;
+
+            bool value = ChkHealSelf?.IsChecked == true;
+            try { DatabaseHelper.SaveSetting(HealSelfKey, value ? "1" : "0"); }
+            catch (Exception ex) { Log("HealSelf", ex); }
+        }
+
+        /// <summary>Ключ настройки «прибавлять лечение персонажу».</summary>
+        private string HealSelfKey => $"Character_{_characterId}_HealSelf";
+
+        /// <summary>
+        /// Восстанавливает галочку. По умолчанию она стоит: чаще лечат себя,
+        /// а для лечения союзника её снимают.
+        /// </summary>
+        private void LoadHealSelfSetting()
+        {
+            if (ChkHealSelf == null) return;
+
+            _loadingHealSelf = true;
+            try
+            {
+                ChkHealSelf.IsChecked = GetStringSetting(HealSelfKey, "1") != "0";
+            }
+            finally
+            {
+                _loadingHealSelf = false;
+            }
+        }
+
+        /// <summary>Галочка сейчас грузится — в этот момент её не сохраняем.</summary>
+        private bool _loadingHealSelf;
 
         #endregion
 
@@ -1452,17 +1580,26 @@ namespace HMWT_MUI.Views
                 lines.Add(DescribePart(part.Formula.Trim(), (part.PerLevelDamage ?? "").Trim(), part.DamageType));
             }
 
-            if (lines.Count == 0)
-            {
-                EdDamagePreview.Text = "Урон на базовом уровне: — (заклинание не наносит урон)";
-                return;
-            }
+            var preview = new List<string>();
 
-            string head = lines.Count == 1 ? "Урон" : $"Урон из {lines.Count} частей — за одно сотворение";
-            EdDamagePreview.Text = head + ": " + string.Join("  ·  ", lines);
+            if (lines.Count == 0)
+                preview.Add("Урон на базовом уровне: — (заклинание не наносит урон)");
+            else if (lines.Count == 1)
+                preview.Add("Урон: " + lines[0]);
+            else
+                preview.Add($"Урон из {lines.Count} частей — за одно сотворение: " + string.Join("  ·  ", lines));
+
+            // Лечение показываем рядом с уроном: у заклинания бывает и то, и другое
+            string heal = (EdHealFormula?.Text ?? "").Trim();
+            string healPerLevel = (EdHealPerLevel?.Text ?? "").Trim();
+            if (heal.Length > 0)
+                preview.Add("Лечение: " + DescribePart(
+                    heal, healPerLevel, "").Replace(" · выше: ", " · выше лечит: "));
 
             string save = (EdSaveNote?.Text ?? "").Trim();
-            if (save.Length > 0) EdDamagePreview.Text += "\n" + save;
+            if (save.Length > 0) preview.Add(save);
+
+            EdDamagePreview.Text = string.Join("\n", preview);
         }
 
         /// <summary>Одна часть урона словами: «1к10 (психический) · выше: 1к10+1к6».</summary>
@@ -1721,6 +1858,8 @@ namespace HMWT_MUI.Views
             if (EdDamageFormula != null) EdDamageFormula.Text = d.DamageFormula ?? "";
             SetEditorDamageType(d.DamageType);
             if (EdPerLevelDamage != null) EdPerLevelDamage.Text = d.PerLevelDamage ?? "";
+            if (EdHealFormula != null) EdHealFormula.Text = d.HealFormula ?? "";
+            if (EdHealPerLevel != null) EdHealPerLevel.Text = d.HealPerLevel ?? "";
             if (EdSaveNote != null) EdSaveNote.Text = d.SaveNote ?? "";
             SetExtraParts(d.ExtraDamageParts);
             if (EdSource != null) EdSource.Text = d.Source ?? "";
@@ -1769,6 +1908,8 @@ namespace HMWT_MUI.Views
             if (EdDamageFormula != null) EdDamageFormula.Text = "";
             SetEditorDamageType("");
             if (EdPerLevelDamage != null) EdPerLevelDamage.Text = "";
+            if (EdHealFormula != null) EdHealFormula.Text = "";
+            if (EdHealPerLevel != null) EdHealPerLevel.Text = "";
             if (EdSaveNote != null) EdSaveNote.Text = "";
             SetExtraParts(null);
             if (EdSource != null) EdSource.Text = "custom";
@@ -1803,6 +1944,8 @@ namespace HMWT_MUI.Views
                 string dmgFormula = (EdDamageFormula?.Text ?? "").Trim();
                 string dmgType = ReadEditorDamageType();
                 string perLevel = (EdPerLevelDamage?.Text ?? "").Trim();
+                string healFormula = (EdHealFormula?.Text ?? "").Trim();
+                string healPerLevel = (EdHealPerLevel?.Text ?? "").Trim();
                 if (string.IsNullOrWhiteSpace(source)) source = "custom";
 
                 if (_creatingNew)
@@ -1833,6 +1976,8 @@ namespace HMWT_MUI.Views
                         DamageFormula = dmgFormula,
                         DamageType = dmgType,
                         PerLevelDamage = perLevel,
+                        HealFormula = healFormula,
+                        HealPerLevel = healPerLevel,
                         ExtraDamageParts = ReadExtraParts(),
                         SaveNote = (EdSaveNote?.Text ?? "").Trim()
                     };
@@ -1857,6 +2002,7 @@ namespace HMWT_MUI.Views
                 d.Ritual = ritual; d.Description = desc; d.AtHigherLevels = higher; d.Source = source;
                 d.Page = page; d.Material = material;
                 d.DamageFormula = dmgFormula; d.DamageType = dmgType; d.PerLevelDamage = perLevel;
+                d.HealFormula = healFormula; d.HealPerLevel = healPerLevel;
                 d.ExtraDamageParts = ReadExtraParts();
                 d.SaveNote = (EdSaveNote?.Text ?? "").Trim();
                 d.IsModified = rulebook || d.IsModified;

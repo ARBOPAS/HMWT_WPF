@@ -52,6 +52,21 @@ namespace HMWT_MUI.Models
         /// </summary>
         public string SaveNote { get; set; } = "";
 
+        // === Лечение ===
+        //
+        // Отдельные поля, а не одно «значение»: у заклинания бывает и урон,
+        // и лечение сразу, и складывать их в одну формулу нельзя. Лечение
+        // бросается своим броском и, если игрок согласен, прибавляется
+        // к здоровью персонажа.
+        public string HealFormula { get; set; } = "";
+        public string HealPerLevel { get; set; } = "";
+
+        /// <summary>Есть ли что лечить при кастовании.</summary>
+        public bool HasHealing => !string.IsNullOrWhiteSpace(HealFormula);
+
+        /// <summary>Растёт ли лечение от уровня ячейки.</summary>
+        public bool CanUpcastHealing => !string.IsNullOrWhiteSpace(HealPerLevel);
+
         /// <summary>Все части урона по порядку: основная, затем дополнительные.</summary>
         public System.Collections.Generic.List<DamagePart> AllDamageParts()
         {

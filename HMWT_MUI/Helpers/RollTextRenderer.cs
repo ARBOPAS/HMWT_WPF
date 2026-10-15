@@ -36,27 +36,43 @@ namespace HMWT_MUI.Helpers
         /// </summary>
         public static TextBlock Build(string text, Action<FormulaPart> onDiceClick, RollTextStyle style)
         {
-            style = style ?? new RollTextStyle();
+            var block = new TextBlock();
+            Render(block, text, onDiceClick, style);
+            return block;
+        }
 
-            var block = new TextBlock
-            {
-                FontFamily = style.Font,
-                FontSize = style.FontSize,
-                Foreground = style.Text,
-                TextWrapping = style.Wrap ? TextWrapping.Wrap : TextWrapping.NoWrap
-            };
+        /// <summary>
+        /// Заполняет уже существующий TextBlock: текст разбирается на обычные
+        /// куски и формулы, каждая формула становится ссылкой.
+        ///
+        /// Отдельный метод, а не только <see cref="Build"/>: у готовой разметки
+        /// (описание заклинания на карточке) свой набор свойств — размер, цвет,
+        /// перенос строк, — и подменять её новым TextBlock нельзя.
+        /// </summary>
+        public static void Render(TextBlock block, string text, Action<FormulaPart> onDiceClick, RollTextStyle style)
+        {
+            if (block == null) return;
+
+            style = style ?? new RollTextStyle();
+            block.Inlines.Clear();
 
             if (string.IsNullOrEmpty(text))
             {
                 block.Inlines.Add(new Run("—") { Foreground = style.Hint });
-                return block;
+                return;
             }
+
+            // Свойства берём у самого блока, если он их уже задал разметкой
+            if (style.Font != null) block.FontFamily = style.Font;
+            if (style.FontSize > 0) block.FontSize = style.FontSize;
+            if (style.Text != null) block.Foreground = style.Text;
+            block.TextWrapping = style.Wrap ? TextWrapping.Wrap : TextWrapping.NoWrap;
 
             var parts = DiceFormulaParser.ParseDamages(text);
             if (parts.Count == 0)
             {
                 block.Inlines.Add(new Run(text) { Foreground = style.Text });
-                return block;
+                return;
             }
 
             int position = 0;
@@ -79,8 +95,6 @@ namespace HMWT_MUI.Helpers
 
             if (position < text.Length)
                 block.Inlines.Add(new Run(text.Substring(position)) { Foreground = style.Text });
-
-            return block;
         }
 
         /// <summary>Подсвеченная формула, по нажатию — бросок.</summary>

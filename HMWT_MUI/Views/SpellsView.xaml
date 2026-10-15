@@ -908,13 +908,21 @@
                                                    ToolTip="Уровень ячейки, которой будет сотворено заклинание"/>
                                         <Button x:Name="BtnCastLevelPlus" Content="+" Width="28" Height="28" FontSize="15"
                                                 Style="{StaticResource MiniRound}" Margin="6,0,0,0"
-                                                ToolTip="Сотворить уровнем выше: добавится урон за уровень"
+                                                ToolTip="Сотворить уровнем выше: добавится урон или лечение за уровень"
                                                 Click="BtnCastLevelPlus_Click"/>
                                     </StackPanel>
                                 </Grid>
 
                                 <TextBlock x:Name="CastFormulaText" Text="" Foreground="{StaticResource B.Frost}" FontSize="12"
                                            Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+
+                                <!-- Лечение бросается отдельно от урона, поэтому
+                                     решение «прибавить ли его персонажу» — тоже
+                                     отдельное: целитель чаще лечит других -->
+                                <CheckBox x:Name="ChkHealSelf" Content="Прибавлять лечение персонажу"
+                                          Style="{StaticResource CustomCheckBox}" Margin="0,8,0,0"
+                                          Checked="ChkHealSelf_Changed" Unchecked="ChkHealSelf_Changed"
+                                          ToolTip="Бросок лечения прибавится к здоровью этого персонажа. Снимите галочку, если лечите другого"/>
 
                                 <Button x:Name="BtnCastSpell" Height="36" Margin="0,10,0,0"
                                         Style="{StaticResource ActionBtn}" Click="BtnCastSpell_Click"
@@ -1165,6 +1173,38 @@
                                     <Button x:Name="btnAddDamagePart"
                                             Style="{StaticResource GhostBtn}" Click="BtnAddDamagePart_Click"
                                             HorizontalAlignment="Left" Margin="0,6,0,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Ещё один тип урона" VerticalAlignment="Center"/></StackPanel></Button>
+
+                                    <!-- === Лечение ===
+                                         Отдельный блок, а не одно «значение»: у заклинания
+                                         бывает и урон, и лечение сразу, а бывает только
+                                         лечение — «Исцеляющее слово» лечит 2к4 и урона
+                                         не наносит вовсе. -->
+                                    <Border Background="{StaticResource B.Void}" BorderBrush="{StaticResource B.Ok}"
+                                            BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,10,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="ЛЕЧЕНИЕ" FontFamily="{StaticResource F.Display}" FontSize="11"
+                                                       FontWeight="Bold" Foreground="{StaticResource B.Ok}" Margin="0,0,0,6"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="10"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Лечение на базовом уровне" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
+                                                    <TextBox x:Name="EdHealFormula" Style="{StaticResource TextField}"
+                                                             TextChanged="Ed_DamageField_TextChanged"
+                                                             ToolTip="Например 2d4 — сколько хитов возвращает заклинание. Если не лечит, оставьте пустым"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Добавка за уровень выше" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,3"/>
+                                                    <TextBox x:Name="EdHealPerLevel" Style="{StaticResource TextField}"
+                                                             TextChanged="Ed_DamageField_TextChanged"
+                                                             ToolTip="Например 1d4 — столько добавится к лечению за каждый уровень выше базового"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
 
                                     <TextBlock Text="Спасбросок цели" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,10,0,3"/>
                                     <TextBox x:Name="EdSaveNote" Style="{StaticResource TextField}"
