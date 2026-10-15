@@ -180,6 +180,78 @@
     </Style>
 
     <!--
+      ═══ ПОЛЯ ВВОДА ═══
+
+      Однострочное и многострочное поля лежат здесь, а не в каждой вкладке:
+      раньше их описывали заново в трёх местах, и копии успели разойтись —
+      в заклинаниях поле осталось без рамки и золотой каретки, потому что там
+      от стиля были одни цвета. Выглядело это как чужие поля посреди окна.
+
+      Размеры и отступы взяты у самой полной копии, поэтому лист персонажа
+      и инвентарь выглядят как раньше.
+    -->
+    <Style x:Key="TextField" TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      Многострочное поле: то же самое, но с переносом строк и своей прокруткой.
+      Отдельным ключом, а не общим с TextField, потому что перенос строк —
+      свойство самого поля, и задавать его каждому месту вручную значит
+      повторять ту же ошибку.
+    -->
+    <Style x:Key="AreaField" TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource B.Slate}"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+        <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
       Выпадающие списки инструментов ДМа.
 
       Стиль лежит в общих токенах, потому что бестиарий и трекер собирают

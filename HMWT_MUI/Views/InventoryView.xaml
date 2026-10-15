@@ -277,61 +277,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="TextField" TargetType="TextBox">
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
         <!-- Чекбокс в стиле приложения (в инвентаре своего не было) -->
-        <Style x:Key="CustomCheckBox" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border x:Name="checkBorder" Width="18" Height="18" CornerRadius="4"
-                                    Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
-                                <helpers:IconView x:Name="checkMark" Kind="check" IconSize="14" Thickness="2.6" IconBrush="{StaticResource B.Gold}"
-                                      Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
-                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Arcane}"/>
-                                <Setter TargetName="checkBorder" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Вкладки «Инвентарь» / «Магазин» — как в характеристиках -->
         <Style x:Key="MainTab" TargetType="RadioButton">
             <Setter Property="FontFamily" Value="{StaticResource F.Display}"/>

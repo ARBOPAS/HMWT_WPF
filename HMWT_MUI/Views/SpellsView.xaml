@@ -15,38 +15,6 @@
 
 
 
-
-        <Style x:Key="CustomCheckBox" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border x:Name="checkBorder" Width="18" Height="18" CornerRadius="4" 
-                                    Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
-                                <helpers:IconView x:Name="checkMark" Kind="check" IconSize="14" Thickness="2.6"
-                                                  IconBrush="{StaticResource B.Gold}" Visibility="Collapsed"
-                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
-                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="checkBorder" Property="BorderBrush" Value="{StaticResource B.Arcane}"/>
-                                <Setter TargetName="checkBorder" Property="Background" Value="{StaticResource B.PanelHi}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Чекбоксы во всей вкладке: стиль выше имеет ключ, поэтому сам не
              применялся, и обычные CheckBox выглядели системными квадратиками.
              Этот стиль без ключа действует на все чекбоксы вкладки — включая те,
@@ -479,28 +447,6 @@
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
-        <Style x:Key="TextField" TargetType="TextBox">
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="7,5"/>
-        </Style>
-        <Style x:Key="AreaField" TargetType="TextBox">
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="7,5"/>
-            <Setter Property="AcceptsReturn" Value="True"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-        </Style>
-
         <Style x:Key="NavArrow" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>

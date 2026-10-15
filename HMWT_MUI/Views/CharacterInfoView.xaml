@@ -256,59 +256,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="TextField" TargetType="TextBox">
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="AreaField" TargetType="TextBox">
-            <Setter Property="Background" Value="{StaticResource B.Slate}"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="AcceptsReturn" Value="True"/>
-            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
     <Grid Background="Transparent" TextElement.FontFamily="{StaticResource F.Body}">
