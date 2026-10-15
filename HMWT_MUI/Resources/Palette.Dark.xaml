@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      ═══ ПАЛИТРА: ТЁМНАЯ (по умолчанию) ═══
+      ═══ ПАЛИТРА: ТЁМНАЯ — «ПОЛНОЧНЫЙ ГРИМУАР» ═══
 
       Здесь только цвета и шрифты — то, что меняется вместе с темой.
       Стили лежат отдельно, в DesignTokens.xaml, и подключаются ПОСЛЕ палитры:
@@ -10,33 +10,62 @@
       палитра обязана быть уже подключена.
 
       Светлая пара лежит в Palette.Light.xaml и содержит ровно те же ключи.
+
+      ── Замысел ──
+
+      Гримуар, раскрытый в полночь: холодная сине-чёрная бумага, свет рун вместо
+      золота, костяной шрифт. Прежнее золото на тёмном смотрелось чужеродно —
+      оно тёплое, а тёмная половина приложения холодная, и глаз читал это как
+      две разные палитры в одном окне.
+
+      Поэтому акцент тёмной темы — свет рун, бирюза с холодным сдвигом. Он не
+      спорит с цветами школ заклинаний (те насыщенные и остаются как есть) и не
+      путается с «морозом»: мороз уходит в синеву, акцент остаётся бирюзой.
+
+      Светлая тема остаётся пергаментом с золотом — это тема книги, и там золото
+      на месте. Общей у тем остаётся не краска, а роль акцента; поэтому ключи
+      названы по роли, а не по цвету.
     -->
 
-    <!-- Цвета -->
-    <Color x:Key="C.Void">#0C0C12</Color>
-    <!-- Середина и конец градиента фона: оттенки основного тона -->
-    <Color x:Key="C.VoidMid">#13111D</Color>
-    <Color x:Key="C.VoidDeep">#0A0A10</Color>
-    <Color x:Key="C.Slate">#15151F</Color>
-    <Color x:Key="C.Panel">#1B1A26</Color>
-    <Color x:Key="C.PanelHi">#232132</Color>
-    <Color x:Key="C.Line">#322E44</Color>
-    <Color x:Key="C.Ink">#ECE4D0</Color>
-    <Color x:Key="C.Mute">#8B859C</Color>
-    <Color x:Key="C.Gold">#E0AE4E</Color>
-    <Color x:Key="C.GoldSoft">#7A5E26</Color>
-    <Color x:Key="C.Arcane">#9A7BD6</Color>
-    <Color x:Key="C.Frost">#4FB6AC</Color>
-    <Color x:Key="C.Danger">#C0564F</Color>
-    <Color x:Key="C.Ok">#5BB974</Color>
-    <Color x:Key="C.Enchant">#C0568F</Color>
-    <!-- Текст и значки на золотой заливке: на свету золото темнее, поэтому
-         подпись на нём должна быть светлой -->
-    <Color x:Key="C.OnGold">#1A1206</Color>
+    <!-- Фоны: от почти чёрного к приподнятым панелям -->
+    <Color x:Key="C.Void">#090C16</Color>
+    <!-- Середина и конец градиента фона -->
+    <Color x:Key="C.VoidMid">#101529</Color>
+    <Color x:Key="C.VoidDeep">#05070E</Color>
+    <!-- Поле ввода, строка списка -->
+    <Color x:Key="C.Slate">#111729</Color>
+    <!-- Панель -->
+    <Color x:Key="C.Panel">#151B2E</Color>
+    <!-- Панель под курсором, приподнятая карточка -->
+    <Color x:Key="C.PanelHi">#1E2540</Color>
+    <!-- Рамки: холодная сталь -->
+    <Color x:Key="C.Line">#2B3352</Color>
+
+    <!-- Текст: кость с холодным сдвигом, чтобы не желтила на синем -->
+    <Color x:Key="C.Ink">#E6EAF5</Color>
+    <Color x:Key="C.Mute">#8B95B4</Color>
+
+    <!--
+      Акцент: свет рун. Им залиты главные кнопки, подсвечены наведение, фокус,
+      активная вкладка и рамка экспертизы.
+    -->
+    <Color x:Key="C.Accent">#5FD4DD</Color>
+    <!-- Приглушённый акцент: тонкие рамки, подложки, пометка «изменено» -->
+    <Color x:Key="C.AccentDim">#2A6A74</Color>
+    <!-- Текст и значки на акцентной заливке -->
+    <Color x:Key="C.OnAccent">#04222A</Color>
+
+    <!-- Смысловые цвета: магия, мороз, опасность, успех, чары -->
+    <Color x:Key="C.Arcane">#A98BEC</Color>
+    <Color x:Key="C.Frost">#74A9FF</Color>
+    <Color x:Key="C.Danger">#E06A63</Color>
+    <Color x:Key="C.Ok">#5FC98A</Color>
+    <Color x:Key="C.Enchant">#D86FB0</Color>
+
     <!-- Подложка под картинку предмета, пока фото нет -->
-    <Color x:Key="C.PhotoBack">#2A2438</Color>
+    <Color x:Key="C.PhotoBack">#1B2138</Color>
     <!-- Текст и значки на цветных заливках «успех» и «мороз» -->
-    <Color x:Key="C.OnAccent">#06201D</Color>
+    <Color x:Key="C.OnFill">#071C24</Color>
 
     <!-- Кисти -->
     <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
@@ -46,19 +75,19 @@
     <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
     <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
     <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
-    <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
-    <SolidColorBrush x:Key="B.GoldSoft" Color="{StaticResource C.GoldSoft}"/>
+    <SolidColorBrush x:Key="B.Accent" Color="{StaticResource C.Accent}"/>
+    <SolidColorBrush x:Key="B.AccentDim" Color="{StaticResource C.AccentDim}"/>
     <SolidColorBrush x:Key="B.Arcane" Color="{StaticResource C.Arcane}"/>
     <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
     <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
     <SolidColorBrush x:Key="B.Ok" Color="{StaticResource C.Ok}"/>
     <SolidColorBrush x:Key="B.Enchant" Color="{StaticResource C.Enchant}"/>
-    <SolidColorBrush x:Key="B.OnGold" Color="{StaticResource C.OnGold}"/>
-    <SolidColorBrush x:Key="B.PhotoBack" Color="{StaticResource C.PhotoBack}"/>
     <SolidColorBrush x:Key="B.OnAccent" Color="{StaticResource C.OnAccent}"/>
+    <SolidColorBrush x:Key="B.OnFill" Color="{StaticResource C.OnFill}"/>
+    <SolidColorBrush x:Key="B.PhotoBack" Color="{StaticResource C.PhotoBack}"/>
 
     <!--
-      Фон окна и золотая кромка — градиентами.
+      Фон окна и кромка акцента — градиентами.
 
       Раньше эти два ключа описывались ещё и в семи окнах/вкладках сразу, причём
       градиентами, а здесь лежали плоскими. Из-за локального переопределения
@@ -73,12 +102,21 @@
         <GradientStop Color="{StaticResource C.VoidMid}" Offset="0.55"/>
         <GradientStop Color="{StaticResource C.VoidDeep}" Offset="1"/>
     </LinearGradientBrush>
-    <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
+    <!-- Кромка диалогов: свет рун переходит в магию -->
+    <LinearGradientBrush x:Key="B.AccentEdge" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource C.Accent}" Offset="0"/>
         <GradientStop Color="{StaticResource C.Arcane}" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Шрифты -->
-    <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
+    <!--
+      Шрифты.
+
+      Cinzel задумывался шрифтом заголовков, но в системе его обычно нет, и весь
+      «фэнтезийный» слой молча подменялся на Segoe UI — заголовки выглядели
+      обычными системными. Первым по-прежнему идёт Cinzel (где он есть, будет он),
+      а сразу за ним — Constantia: книжная антиква, которая есть в Windows и даёт
+      тот самый вид старинного фолианта.
+    -->
+    <FontFamily x:Key="F.Display">Cinzel, Constantia, Cambria, Georgia, Segoe UI</FontFamily>
     <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
 </ResourceDictionary>

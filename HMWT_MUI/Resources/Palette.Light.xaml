@@ -16,7 +16,7 @@
         C.Void / C.Slate / C.Panel / C.PanelHi — фоны от страницы к карточке
         C.Line                                 — разделители и рамки
         C.Ink / C.Mute                         — основной и приглушённый текст
-        C.Gold / C.GoldSoft                    — акцент и его мягкий вариант
+        C.Accent / C.AccentDim                    — акцент и его мягкий вариант
         C.Arcane / C.Frost / C.Danger / C.Ok / C.Enchant — смысловые цвета
     -->
 
@@ -36,19 +36,19 @@
     <Color x:Key="C.Mute">#6E6483</Color>
 
     <!-- Акценты -->
-    <Color x:Key="C.Gold">#9A6F10</Color>
-    <Color x:Key="C.GoldSoft">#C9A659</Color>
+    <Color x:Key="C.Accent">#9A6F10</Color>
+    <Color x:Key="C.AccentDim">#C9A659</Color>
     <Color x:Key="C.Arcane">#6D4FB0</Color>
     <Color x:Key="C.Frost">#17786F</Color>
     <Color x:Key="C.Danger">#A63A33</Color>
     <Color x:Key="C.Ok">#3D8B52</Color>
     <Color x:Key="C.Enchant">#A63A78</Color>
     <!-- Подпись на золотой заливке: золото на свету тёмное, текст — светлый -->
-    <Color x:Key="C.OnGold">#FDF6E3</Color>
+    <Color x:Key="C.OnAccent">#FDF6E3</Color>
     <!-- Подложка под картинку предмета: на свету это тёплый нейтральный тон -->
     <Color x:Key="C.PhotoBack">#E4DCCB</Color>
     <!-- Текст на цветных заливках: заливки на свету темнее, текст светлый -->
-    <Color x:Key="C.OnAccent">#F2FBF8</Color>
+    <Color x:Key="C.OnFill">#F2FBF8</Color>
 
     <!-- Кисти -->
     <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
@@ -58,16 +58,16 @@
     <SolidColorBrush x:Key="B.Line" Color="{StaticResource C.Line}"/>
     <SolidColorBrush x:Key="B.Ink" Color="{StaticResource C.Ink}"/>
     <SolidColorBrush x:Key="B.Mute" Color="{StaticResource C.Mute}"/>
-    <SolidColorBrush x:Key="B.Gold" Color="{StaticResource C.Gold}"/>
-    <SolidColorBrush x:Key="B.GoldSoft" Color="{StaticResource C.GoldSoft}"/>
+    <SolidColorBrush x:Key="B.Accent" Color="{StaticResource C.Accent}"/>
+    <SolidColorBrush x:Key="B.AccentDim" Color="{StaticResource C.AccentDim}"/>
     <SolidColorBrush x:Key="B.Arcane" Color="{StaticResource C.Arcane}"/>
     <SolidColorBrush x:Key="B.Frost" Color="{StaticResource C.Frost}"/>
     <SolidColorBrush x:Key="B.Danger" Color="{StaticResource C.Danger}"/>
     <SolidColorBrush x:Key="B.Ok" Color="{StaticResource C.Ok}"/>
     <SolidColorBrush x:Key="B.Enchant" Color="{StaticResource C.Enchant}"/>
-    <SolidColorBrush x:Key="B.OnGold" Color="{StaticResource C.OnGold}"/>
-    <SolidColorBrush x:Key="B.PhotoBack" Color="{StaticResource C.PhotoBack}"/>
     <SolidColorBrush x:Key="B.OnAccent" Color="{StaticResource C.OnAccent}"/>
+    <SolidColorBrush x:Key="B.PhotoBack" Color="{StaticResource C.PhotoBack}"/>
+    <SolidColorBrush x:Key="B.OnFill" Color="{StaticResource C.OnFill}"/>
 
     <!-- Градиенты собираются из цветов палитры: фон и золотая кромка -->
     <LinearGradientBrush x:Key="B.Backdrop" StartPoint="0,0" EndPoint="1,1">
@@ -75,12 +75,16 @@
         <GradientStop Color="{StaticResource C.VoidMid}" Offset="0.55"/>
         <GradientStop Color="{StaticResource C.VoidDeep}" Offset="1"/>
     </LinearGradientBrush>
-    <LinearGradientBrush x:Key="B.GoldEdge" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="{StaticResource C.Gold}" Offset="0"/>
+    <LinearGradientBrush x:Key="B.AccentEdge" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource C.Accent}" Offset="0"/>
         <GradientStop Color="{StaticResource C.Arcane}" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Шрифты те же: тема меняет цвет, а не начертание -->
-    <FontFamily x:Key="F.Display">Cinzel, Cinzel Decorative, Segoe UI</FontFamily>
+    <!--
+      Шрифты те же, что в тёмной: тема меняет цвет, а не начертание.
+      Constantia стоит сразу за Cinzel — в Windows его нет, и без подстраховки
+      заголовки молча становились системными.
+    -->
+    <FontFamily x:Key="F.Display">Cinzel, Constantia, Cambria, Georgia, Segoe UI</FontFamily>
     <FontFamily x:Key="F.Body">Segoe UI, Calibri</FontFamily>
 </ResourceDictionary>
