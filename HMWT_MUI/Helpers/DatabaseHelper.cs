@@ -432,6 +432,9 @@ namespace HMWT_MUI
         /// <summary>
         /// Добавляет несколько колонок в таблицу.
         /// </summary>
+        /// <summary>Ключ записи в исходной базе 5e SRD — поле index.</summary>
+        private const string SrdIndexColumn = "srd_index TEXT DEFAULT ''";
+
         private static void EnsureColumns(SqliteConnection conn, SqliteTransaction transaction, string tableName, params string[] columnDefinitions)
         {
             foreach (var colDef in columnDefinitions)
@@ -546,7 +549,14 @@ namespace HMWT_MUI
                 // картинка, а в карточке предмета — крупная, и это разные файлы
                 "list_photo_path TEXT",
                 "raw_properties TEXT",
-                "subtype TEXT");
+                "subtype TEXT",
+                SrdIndexColumn);
+
+            // Ключ записи в исходной базе. Сам текст переведён не весь: index
+            // одинаков в английских и русских файлах, поэтому по нему видно,
+            // что запись уже есть, и вторая база только дополняет первую
+            EnsureColumns(conn, transaction, "SpellReference", SrdIndexColumn);
+            EnsureColumns(conn, transaction, "SrdReference", SrdIndexColumn);
 
             SeedDefaultEquipmentSlots(conn, transaction);
             SeedDefaultTags(conn, transaction);

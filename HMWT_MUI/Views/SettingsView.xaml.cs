@@ -290,6 +290,40 @@ namespace HMWT_MUI.Views
             }
         }
 
+        /// <summary>
+        /// Дополнение второй базой.
+        ///
+        /// Перевод SRD сделан не полностью: в русской папке нет заклинаний
+        /// и магических предметов, а часть записей просто не переведена. Вторая
+        /// база закрывает эти пробелы — совпадающие записи пропускаются по ключу
+        /// index, которого язык не касается.
+        /// </summary>
+        private void BtnFillSrd_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Укажите файл базы, которой дополнить",
+                Filter = "База 5e SRD (5e-SRD-*.json)|5e-SRD-*.json|Файлы JSON (*.json)|*.json"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                string folder = System.IO.Path.GetDirectoryName(dialog.FileName);
+                var result = SrdDatabaseImporter.Import(folder, fillGaps: true);
+
+                txtSrdHint.Text = result.Describe();
+                Note(result.Total > 0
+                    ? $"Добавлено записей: {result.Total}"
+                    : "Добавлять нечего — всё уже есть");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Settings] дополнение SRD: {ex.Message}");
+                txtSrdHint.Text = "Дополнение не удалось: " + ex.Message;
+            }
+        }
+
         private void Note(string text)
         {
             if (txtSaved != null) txtSaved.Text = text;

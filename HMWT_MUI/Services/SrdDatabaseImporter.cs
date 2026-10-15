@@ -39,12 +39,17 @@ namespace HMWT_MUI.Services
             public int Items;
             public int Spells;
             public int References;
+            public int Backgrounds;
             public string Edition = "";
             public string Language = "";
+
+            /// <summary>Импорт был дополнением: совпадающие записи пропускались.</summary>
+            public bool FillGaps;
+
             public readonly List<string> Skipped = new List<string>();
             public readonly List<string> Files = new List<string>();
 
-            public int Total => Items + Spells + References;
+            public int Total => Items + Spells + References + Backgrounds;
 
             /// <summary>Строка для интерфейса: что и откуда перенесено.</summary>
             public string Describe()
@@ -53,7 +58,14 @@ namespace HMWT_MUI.Services
 
                 var text = new StringBuilder();
                 text.Append($"База: {Edition} ({Language}).\n");
-                text.Append($"Предметов: {Items}, заклинаний: {Spells}, статей справочника: {References}.\n");
+                text.Append($"Предметов: {Items}, заклинаний: {Spells}, статей справочника: {References}, " +
+                            $"предысторий: {Backgrounds}.\n");
+
+                if (FillGaps && Total == 0)
+                    text.Append("Всё это уже есть в базе — добавлено ничего не было.\n");
+                else if (FillGaps)
+                    text.Append("Это только то, чего не хватало в первой базе.\n");
+
                 text.Append("Файлы: " + string.Join(", ", Files) + ".");
 
                 if (Skipped.Count > 0)
@@ -74,7 +86,6 @@ namespace HMWT_MUI.Services
         {
             "5e-SRD-Ability-Scores.json",
             "5e-SRD-Alignments.json",
-            "5e-SRD-Backgrounds.json",
             "5e-SRD-Classes.json",
             "5e-SRD-Conditions.json",
             "5e-SRD-Damage-Types.json",
@@ -102,14 +113,20 @@ namespace HMWT_MUI.Services
         /// Читает все файлы 5e-SRD-*.json из папки и переносит их в базу.
         /// Папку выбирает игрок, поэтому отсутствие файла — не ошибка:
         /// импортируется то, что нашлось.
+        ///
+        /// <paramref name="fillGaps"/> включает дополнение: записи, которые уже
+        /// есть (по ключу index), пропускаются. Так вторая база закрывает пробелы
+        /// первой — перевод SRD сделан не полностью, и без этого половина списка
+        /// осталась бы пустой.
         /// </summary>
-        public static ImportResult Import(string folder)
+        public static ImportResult Import(string folder, bool fillGaps = false)
         {
             var result = new ImportResult();
             if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return result;
 
             result.Edition = GuessEdition(folder);
             result.Language = GuessLanguage(folder);
+            result.FillGaps = fillGaps;
 
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
@@ -128,13 +145,15 @@ namespace HMWT_MUI.Services
                     var root = doc.RootElement;
 
                     if (Same(fileName, "5e-SRD-Equipment.json"))
-                        result.Items += ImportEquipment(root, conn, tx, result);
+                        result.Items += ImportEquipment(root, conn, tx, result, fillGaps);
                     else if (Same(fileName, "5e-SRD-Magic-Items.json"))
-                        result.Items += ImportMagicItems(root, conn, tx, result);
+                        result.Items += ImportMagicItems(root, conn, tx, result, fillGaps);
                     else if (Same(fileName, "5e-SRD-Spells.json"))
-                        result.Spells += ImportSpells(root, conn, tx, result);
+                        result.Spells += ImportSpells(root, conn, tx, result, fillGaps);
+                    else if (Same(fileName, "5e-SRD-Backgrounds.json"))
+                        result.Backgrounds += ImportBackgrounds(root, conn, tx, result);
                     else if (ReferenceFiles.Contains(fileName))
-                        result.References += ImportReference(root, conn, tx, fileName, result);
+                        result.References += ImportReference(root, conn, tx, fileName, result, fillGaps);
                     else
                         continue;   // остальные файлы базы программе пока не нужны
 
@@ -151,10 +170,27 @@ namespace HMWT_MUI.Services
             return result;
         }
 
+        /// <summary>
+        /// Есть ли уже запись с таким ключом. Нужно при дополнении второй базой:
+        /// переведено не всё, и английские файлы должны закрывать только пробелы.
+        /// </summary>
+        private static bool IndexExists(SqliteConnection conn, SqliteTransaction tx,
+            string table, string index)
+        {
+            if (string.IsNullOrEmpty(index)) return false;
+
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = $"SELECT COUNT(1) FROM {table} WHERE srd_index = @i";
+            cmd.Parameters.AddWithValue("@i", index);
+
+            return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        }
+
         #region === ПРЕДМЕТЫ ===
 
         private static int ImportEquipment(JsonElement root, SqliteConnection conn,
-            SqliteTransaction tx, ImportResult result)
+            SqliteTransaction tx, ImportResult result, bool fillGaps)
         {
             using var cmd = PrepareItemCommand(conn, tx);
             int count = 0;
@@ -163,6 +199,8 @@ namespace HMWT_MUI.Services
             {
                 string name = Text(el, "name");
                 if (name.Length == 0) continue;
+
+                if (fillGaps && IndexExists(conn, tx, "SrdItem", Text(el, "index"))) continue;
 
                 string type = CategoryName(el);
                 string subtype = Text(el, "category_range");
@@ -182,7 +220,8 @@ namespace HMWT_MUI.Services
                 string properties = NamesOf(el, "properties");
 
                 SaveItem(cmd, name, description, type, subtype, "", weight, damage, damageType,
-                         ac, range, properties, false, false, el.GetRawText(), result);
+                         ac, range, properties, false, false, el.GetRawText(), result,
+                         Text(el, "index"));
                 count++;
             }
 
@@ -190,7 +229,7 @@ namespace HMWT_MUI.Services
         }
 
         private static int ImportMagicItems(JsonElement root, SqliteConnection conn,
-            SqliteTransaction tx, ImportResult result)
+            SqliteTransaction tx, ImportResult result, bool fillGaps)
         {
             using var cmd = PrepareItemCommand(conn, tx);
             int count = 0;
@@ -200,12 +239,15 @@ namespace HMWT_MUI.Services
                 string name = Text(el, "name");
                 if (name.Length == 0) continue;
 
+                if (fillGaps && IndexExists(conn, tx, "SrdItem", Text(el, "index"))) continue;
+
                 string description = Prose(el, "desc", "description");
                 string rarity = NestedText(el, "rarity", "name");
                 string type = CategoryName(el);
 
                 SaveItem(cmd, name, description, type, "", rarity, 0, "", "", 0, "",
-                         "", RequiresAttunement(el, description), true, el.GetRawText(), result);
+                         "", RequiresAttunement(el, description), true, el.GetRawText(), result,
+                         Text(el, "index"));
                 count++;
             }
 
@@ -308,7 +350,7 @@ namespace HMWT_MUI.Services
         #region === ЗАКЛИНАНИЯ ===
 
         private static int ImportSpells(JsonElement root, SqliteConnection conn,
-            SqliteTransaction tx, ImportResult result)
+            SqliteTransaction tx, ImportResult result, bool fillGaps)
         {
             string book = Book(result);
 
@@ -319,7 +361,7 @@ namespace HMWT_MUI.Services
                     level=@level, school=@school, casting_time=@cast, range=@range,
                     components=@comp, duration=@dur, description=@desc, at_higher_levels=@higher,
                     classes=@classes, ritual=@ritual, concentration=@conc, source=@src,
-                    material=@material, source_json=@raw, language=@lang
+                    material=@material, source_json=@raw, language=@lang, srd_index=@index
                 WHERE name=@name AND language=@lang";
 
             using var insert = conn.CreateCommand();
@@ -328,16 +370,18 @@ namespace HMWT_MUI.Services
                 INSERT INTO SpellReference
                     (name, level, school, casting_time, range, components, duration, description,
                      at_higher_levels, classes, ritual, concentration, source, material,
-                     source_json, language)
+                     source_json, language, srd_index)
                 VALUES
                     (@name, @level, @school, @cast, @range, @comp, @dur, @desc,
-                     @higher, @classes, @ritual, @conc, @src, @material, @raw, @lang)";
+                     @higher, @classes, @ritual, @conc, @src, @material, @raw, @lang, @index)";
 
             int count = 0;
             foreach (var el in root.EnumerateArray())
             {
                 string name = Text(el, "name");
                 if (name.Length == 0) continue;
+
+                if (fillGaps && IndexExists(conn, tx, "SpellReference", Text(el, "index"))) continue;
 
                 int level = (int)Number(el, "level");
                 string school = NestedText(el, "school", "name");
@@ -366,6 +410,7 @@ namespace HMWT_MUI.Services
                     cmd.Parameters.AddWithValue("@material", material);
                     cmd.Parameters.AddWithValue("@raw", el.GetRawText());
                     cmd.Parameters.AddWithValue("@lang", result.Language);
+                    cmd.Parameters.AddWithValue("@index", Text(el, "index"));
                 }
 
                 // Сначала пробуем обновить: повторный импорт не должен плодить
@@ -391,6 +436,115 @@ namespace HMWT_MUI.Services
 
         #endregion
 
+        #region === ПРЕДЫСТОРИИ ===
+
+        /// <summary>
+        /// Предыстории идут не в общий справочник, а в свою таблицу: их показывает
+        /// выбор предыстории в листе персонажа.
+        ///
+        /// Записи с уже существующим названием не трогаем. Встроенные предыстории
+        /// игрок мог править под свою игру, и импорт не должен затирать его текст —
+        /// добавляем только то, чего в списке ещё нет.
+        /// </summary>
+        private static int ImportBackgrounds(JsonElement root, SqliteConnection conn,
+            SqliteTransaction tx, ImportResult result)
+        {
+            using var exists = conn.CreateCommand();
+            exists.Transaction = tx;
+            exists.CommandText = "SELECT COUNT(1) FROM BackgroundReference WHERE name = @n";
+
+            using var insert = conn.CreateCommand();
+            insert.Transaction = tx;
+            insert.CommandText = @"
+                INSERT INTO BackgroundReference
+                    (name, skill_proficiencies, tool_proficiencies, languages,
+                     equipment, feature, description, is_custom)
+                VALUES (@n, @sk, @tl, @lg, @eq, @ft, @ds, 0)";
+
+            int count = 0;
+            foreach (var el in root.EnumerateArray())
+            {
+                string name = Text(el, "name");
+                if (name.Length == 0) continue;
+
+                exists.Parameters.Clear();
+                exists.Parameters.AddWithValue("@n", name.Trim());
+                if (Convert.ToInt32(exists.ExecuteScalar()) > 0) continue;
+
+                insert.Parameters.Clear();
+                insert.Parameters.AddWithValue("@n", name.Trim());
+                insert.Parameters.AddWithValue("@sk", MarkedNames(el, "Skill:"));
+                insert.Parameters.AddWithValue("@tl", MarkedNames(el, "Tool:"));
+                insert.Parameters.AddWithValue("@lg", MarkedNames(el, "Language:"));
+                insert.Parameters.AddWithValue("@eq", StartingEquipmentOf(el));
+                insert.Parameters.AddWithValue("@ft", FeatureOf(el));
+                insert.Parameters.AddWithValue("@ds", Prose(el, "desc", "description"));
+                insert.ExecuteNonQuery();
+                count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// Владения предыстории лежат одним списком с пометкой в начале названия
+        /// («Skill: Insight», «Tool: Calligrapher's supplies») — отбираем нужные.
+        /// </summary>
+        private static string MarkedNames(JsonElement el, string prefix)
+        {
+            if (!el.TryGetProperty("starting_proficiencies", out var list) ||
+                list.ValueKind != JsonValueKind.Array)
+                return "";
+
+            var names = new List<string>();
+            foreach (var item in list.EnumerateArray())
+            {
+                string name = Text(item, "name");
+                if (name.Length == 0) continue;
+                if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+
+                names.Add(name.Substring(prefix.Length).Trim());
+            }
+
+            return string.Join(", ", names);
+        }
+
+        /// <summary>Умение предыстории: название и текст одним значением.</summary>
+        private static string FeatureOf(JsonElement el)
+        {
+            if (!el.TryGetProperty("feature", out var feature) || feature.ValueKind != JsonValueKind.Object)
+                return "";
+
+            string name = Text(feature, "name");
+            string text = string.Join(" ", Lines(feature, "desc"));
+
+            if (name.Length == 0) return text;
+            return text.Length == 0 ? name : $"{name}. {text}";
+        }
+
+        /// <summary>Снаряжение предыстории: предметы с количеством и золото.</summary>
+        private static string StartingEquipmentOf(JsonElement el)
+        {
+            var parts = new List<string>();
+
+            if (el.TryGetProperty("starting_equipment", out var list) && list.ValueKind == JsonValueKind.Array)
+                foreach (var item in list.EnumerateArray())
+                {
+                    string name = NestedText(item, "item", "name");
+                    if (name.Length == 0) continue;
+
+                    int quantity = Whole(item, "quantity");
+                    parts.Add(quantity > 1 ? $"{name} ×{quantity}" : name);
+                }
+
+            int gold = Whole(el, "starting_gold");
+            if (gold > 0) parts.Add($"{gold} зм");
+
+            return string.Join(", ", parts);
+        }
+
+        #endregion
+
         #region === СПРАВОЧНИК ===
 
         /// <summary>
@@ -402,25 +556,44 @@ namespace HMWT_MUI.Services
         /// карточка персонажа берёт расы и классы для выпадающих списков.
         /// </summary>
         private static int ImportReference(JsonElement root, SqliteConnection conn,
-            SqliteTransaction tx, string fileName, ImportResult result)
+            SqliteTransaction tx, string fileName, ImportResult result, bool fillGaps)
         {
             string category = Path.GetFileNameWithoutExtension(fileName).Replace("5e-SRD-", "");
 
             using var cmd = conn.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = @"
-                INSERT INTO SrdReference (category, name, description, properties, publisher, book)
-                VALUES (@cat, @name, @desc, @props, @pub, @book)
+                INSERT INTO SrdReference (category, name, description, properties, publisher, book, srd_index)
+                VALUES (@cat, @name, @desc, @props, @pub, @book, @index)
                 ON CONFLICT(category, name, book) DO UPDATE SET
                     description=excluded.description,
                     properties=excluded.properties,
-                    publisher=excluded.publisher";
+                    publisher=excluded.publisher,
+                    srd_index=excluded.srd_index";
+
+            // Названия, уже занятые в этом файле: пара «название и книга» в таблице
+            // уникальна, и без разведения повторы схлопнулись бы в одну строку
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             int count = 0;
             foreach (var el in root.EnumerateArray())
             {
-                string name = Text(el, "name");
+                string name = QualifiedName(el);
                 if (name.Length == 0) continue;
+
+                // Совпадение всё же возможно (одно умение на двух уровнях класса):
+                // в этом случае дописываем ключ записи — он уникален всегда
+                if (!used.Add(name))
+                {
+                    string key = Text(el, "index");
+                    if (key.Length > 0)
+                    {
+                        name = $"{name} ({key})";
+                        used.Add(name);
+                    }
+                }
+
+                if (fillGaps && IndexExists(conn, tx, "SrdReference", Text(el, "index"))) continue;
 
                 string description = Prose(el, "desc", "description");
                 if (description.Length == 0) description = Summarize(el);
@@ -434,11 +607,39 @@ namespace HMWT_MUI.Services
                 // CC-BY-4.0, и авторство должно быть видно там, где показан текст
                 cmd.Parameters.AddWithValue("@pub", "Wizards of the Coast (SRD, CC-BY-4.0)");
                 cmd.Parameters.AddWithValue("@book", Book(result));
+                cmd.Parameters.AddWithValue("@index", Text(el, "index"));
                 cmd.ExecuteNonQuery();
                 count++;
             }
 
             return count;
+        }
+
+        /// <summary>
+        /// Название статьи с уточнением владельца.
+        ///
+        /// В базе одни и те же названия повторяются: «Защита без доспехов» есть
+        /// и у варвара, и у монаха, а у уровней записи класса и его подкласса
+        /// называются одинаково («Варвар 3»). Пара «название и книга» в таблице
+        /// справочника уникальна, поэтому без уточнения часть записей схлопнулась бы.
+        /// </summary>
+        private static string QualifiedName(JsonElement el)
+        {
+            string name = Text(el, "name");
+            if (name.Length == 0) return "";
+
+            // Подкласс проверяем первым: он точнее класса
+            string owner = NestedText(el, "subclass", "name");
+            if (owner.Length == 0) owner = NestedText(el, "class", "name");
+            if (owner.Length == 0) owner = NestedText(el, "subspecies", "name");
+            if (owner.Length == 0) owner = NestedText(el, "species", "name");
+            if (owner.Length == 0) owner = NestedText(el, "race", "name");
+            if (owner.Length == 0) return name;
+
+            // «Варвар 3» уже называет класс — дописывать нечего
+            if (name.IndexOf(owner, StringComparison.OrdinalIgnoreCase) >= 0) return name;
+
+            return $"{name} — {owner}";
         }
 
         /// <summary>
@@ -530,10 +731,12 @@ namespace HMWT_MUI.Services
             cmd.CommandText = @"
                 INSERT INTO SrdItem
                     (name, description, item_type, subtype, rarity, weight, damage, damage_type,
-                     ac, range, properties_text, attunement, is_magic, source, book, raw_properties)
+                     ac, range, properties_text, attunement, is_magic, source, book, raw_properties,
+                     srd_index)
                 VALUES
                     (@name, @desc, @type, @sub, @rar, @weight, @dmg, @dmgType,
-                     @ac, @range, @props, @att, @magic, @src, @book, @raw)
+                     @ac, @range, @props, @att, @magic, @src, @book, @raw,
+                     @index)
                 ON CONFLICT(name, book) DO UPDATE SET
                     description=excluded.description,
                     item_type=excluded.item_type,
@@ -548,14 +751,15 @@ namespace HMWT_MUI.Services
                     attunement=excluded.attunement,
                     is_magic=excluded.is_magic,
                     source=excluded.source,
-                    raw_properties=excluded.raw_properties";
+                    raw_properties=excluded.raw_properties,
+                    srd_index=excluded.srd_index";
             return cmd;
         }
 
         private static void SaveItem(SqliteCommand cmd, string name, string description,
             string type, string subtype, string rarity, double weight, string damage,
             string damageType, int ac, string range, string properties, bool attunement,
-            bool magic, string raw, ImportResult result)
+            bool magic, string raw, ImportResult result, string index)
         {
             cmd.Parameters.Clear();
             cmd.Parameters.AddWithValue("@name", name.Trim());
@@ -574,6 +778,7 @@ namespace HMWT_MUI.Services
             cmd.Parameters.AddWithValue("@src", result.Edition);
             cmd.Parameters.AddWithValue("@book", Book(result));
             cmd.Parameters.AddWithValue("@raw", string.IsNullOrEmpty(raw) ? "{}" : raw);
+            cmd.Parameters.AddWithValue("@index", index ?? "");
             cmd.ExecuteNonQuery();
         }
 

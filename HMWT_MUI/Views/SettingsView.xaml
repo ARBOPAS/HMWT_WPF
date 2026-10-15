@@ -352,11 +352,16 @@
                     <StackPanel>
                         <TextBlock Text="Справочники SRD" Style="{StaticResource SetHeader}"/>
                         <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14" TextWrapping="Wrap"
-                                   Text="Открытые правила 5-й редакции (System Reference Document). Программа не хранит их у себя — тексты принадлежат издателям, поэтому справочник подключает сам игрок. Скачайте базу 5e SRD (репозиторий 5e-bits/5e-srd-api), распакуйте и укажите любую папку с языком: src\2014\en — английский SRD 5.1, src\2024\ru — русский SRD 5.2. Из папки переносятся предметы, магические предметы и заклинания."/>
+                                   Text="Открытые правила 5-й редакции (System Reference Document). Программа не хранит их у себя — тексты принадлежат издателям, поэтому справочник подключает сам игрок. Скачайте базу 5e SRD (репозиторий 5e-bits/5e-srd-api), распакуйте и укажите папку с языком: src\2024\ru — русский SRD 5.2, src\2014\en — английский SRD 5.1. Из папки переносятся предметы, заклинания, предыстории и статьи справочника. Перевод сделан не полностью: если чего-то не хватает, нажмите «Дополнить другой базой…» и укажите английскую папку — добавятся только недостающие записи."/>
 
-                        <Button x:Name="btnImportSrd" Content="Импортировать из папки…"
-                                Style="{StaticResource SetBtn}" HorizontalAlignment="Left"
-                                Click="BtnImportSrd_Click"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="btnImportSrd" Content="Импортировать из папки…"
+                                    Style="{StaticResource SetBtn}" Click="BtnImportSrd_Click"/>
+                            <Button x:Name="btnFillSrd" Content="Дополнить другой базой…"
+                                    Style="{StaticResource SetBtn}" Margin="8,0,0,0"
+                                    Click="BtnFillSrd_Click"
+                                    ToolTip="Добавить то, чего нет в первой базе: перевод сделан не полностью, и английские файлы закрывают пробелы"/>
+                        </StackPanel>
 
                         <TextBlock x:Name="txtSrdHint" Style="{StaticResource SetNote}"
                                    Margin="0,10,0,0" TextWrapping="Wrap"/>
