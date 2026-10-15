@@ -125,31 +125,11 @@
         </Style>
 
         <!-- ========== КНОПКИ ========== -->
-        <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{StaticResource B.Gold}" CornerRadius="6" Padding="14,7">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Второстепенная кнопка.
              Раньше она была совсем «призрачной»: серый текст без рамки и фона, и
              до наведения её не было видно — выглядела как выключенная. Теперь у
              неё есть фон и рамка, поэтому сразу понятно, что на неё можно нажать. -->
-        <Style x:Key="GhostBtn" TargetType="Button">
+        <Style x:Key="SoftBtn" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
             <Setter Property="Background" Value="{StaticResource B.Slate}"/>
@@ -249,28 +229,6 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.Danger}"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="RoundBtn" TargetType="Button">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="17">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -383,7 +341,7 @@
                             <ComboBoxItem Content="Все теги" IsSelected="True"/>
                         </ComboBox>
                         <CheckBox x:Name="chkEquippedOnly" Content="Только экипированные" Style="{StaticResource CustomCheckBox}" Foreground="{StaticResource B.Ink}" Cursor="Hand" Margin="0,0,0,8"/>
-                        <Button x:Name="btnManageTags" Height="28" Style="{StaticResource GhostBtn}" HorizontalAlignment="Left"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="gear" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Теги" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="btnManageTags" Height="28" Style="{StaticResource SoftBtn}" HorizontalAlignment="Left"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="gear" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Теги" VerticalAlignment="Center"/></StackPanel></Button>
                     </StackPanel>
                     <ScrollViewer Grid.Row="2" x:Name="scrollList" VerticalScrollBarVisibility="Auto" Margin="0,0,-13,0">
                         <StackPanel x:Name="spItemList"/>
@@ -391,7 +349,7 @@
                     <ScrollViewer Grid.Row="2" x:Name="scrollGrid" VerticalScrollBarVisibility="Auto" Visibility="Collapsed" Margin="0,0,-13,0">
                         <WrapPanel x:Name="wpItemGrid"/>
                     </ScrollViewer>
-                    <Button Grid.Row="3" x:Name="btnViewToggle" Height="30" Style="{StaticResource GhostBtn}" HorizontalAlignment="Stretch" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,8,0,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="grid" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Плитки" VerticalAlignment="Center"/></StackPanel></Button>
+                    <Button Grid.Row="3" x:Name="btnViewToggle" Height="30" Style="{StaticResource SoftBtn}" HorizontalAlignment="Stretch" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,8,0,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="grid" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Плитки" VerticalAlignment="Center"/></StackPanel></Button>
                     <Border Grid.Row="4" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,8,0,0">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -405,7 +363,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="СОКРОВИЩА" FontFamily="{StaticResource F.Display}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
-                                <Button x:Name="btnToggleTreasureMode" Grid.Column="1" Height="26" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="backpack" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Все предметы" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button x:Name="btnToggleTreasureMode" Grid.Column="1" Height="26" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="backpack" IconSize="16" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Все предметы" VerticalAlignment="Center"/></StackPanel></Button>
                             </Grid>
                             <TextBlock Grid.Row="1" x:Name="txtTreasureTotal" Text="Общая стоимость: 0 зм" FontFamily="{StaticResource F.Display}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Gold}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                             <!-- Высоту задаёт строка сетки, а не MaxHeight: список не должен исчезать -->
@@ -473,7 +431,7 @@
                                     <TextBlock Text="Заряды:" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock x:Name="txtCharges" Text="0 / 0" Foreground="{StaticResource B.Frost}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <Button x:Name="btnUseCharge" Content="Использовать" Margin="12,0,0,0" Height="28" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
+                                        <Button x:Name="btnUseCharge" Content="Использовать" Margin="12,0,0,0" Height="28" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -516,7 +474,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Button x:Name="btnEditItem" Height="34" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="edit" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Изменить" VerticalAlignment="Center"/></StackPanel></Button>
+                            <Button x:Name="btnEditItem" Height="34" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,4,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="edit" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Изменить" VerticalAlignment="Center"/></StackPanel></Button>
                             <Button x:Name="btnDeleteItem" Height="34" Grid.Column="1" Style="{StaticResource DangerBtn}" Margin="4,0,0,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="trash" IconSize="15" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Выбросить" VerticalAlignment="Center"/></StackPanel></Button>
                         </Grid>
                     </StackPanel>
@@ -579,7 +537,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock Text="Выберите предмет" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
-                        <Button Width="32" Height="32" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right" Click="OverlayItemSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayItemSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <TextBox x:Name="txtItemSelectSearch" Grid.Row="1" Height="36" Style="{StaticResource SearchBox}" Margin="0,0,0,12" TextChanged="TxtItemSelectSearch_TextChanged"/>
                     <Border Grid.Row="2" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8">
@@ -589,7 +547,7 @@
                     </Border>
                     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                         <Button x:Name="btnItemSelectConfirm" Content="Выбрать" Width="120" Height="36" Style="{StaticResource ActionBtn}" Margin="0,0,8,0"/>
-                        <Button Content="Отмена" Width="100" Height="36" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlayItemSelect_Close"/>
+                        <Button Content="Отмена" Width="100" Height="36" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlayItemSelect_Close"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -610,7 +568,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock Text="НОВАЯ ГРУППА ЭКИПИРОВКИ" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
-                        <Button Width="32" Height="32" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right" Click="OverlaySlotSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlaySlotSelect_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,16">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="250">
@@ -632,7 +590,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" x:Name="btnSlotSelectCancel" Content="Отмена" Height="38" Margin="0,0,8,0" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlaySlotSelect_Close"/>
+                            <Button Grid.Column="0" x:Name="btnSlotSelectCancel" Content="Отмена" Height="38" Margin="0,0,8,0" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlaySlotSelect_Close"/>
                             <Button Grid.Column="1" x:Name="btnSlotSelectConfirm" Content="Разместить на силуэте" Height="38" Margin="8,0,0,0" Style="{StaticResource ActionBtn}"/>
                         </Grid>
                     </StackPanel>
@@ -655,7 +613,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock x:Name="txtEditorTitle" Text="РЕДАКТОР ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
-                        <Button Width="32" Height="32" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right" Click="OverlayEditor_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayEditor_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
                         <Grid>
@@ -834,11 +792,11 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <Button Grid.Column="0" x:Name="ed_btnListPhoto" Height="30"
-                                                Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                                Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                                 BorderThickness="1" Click="Ed_BtnListPhoto_Click"
                                                 ToolTip="Отдельная картинка для строки списка: например, красивый кадр гифки"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="note" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Фото для списка" VerticalAlignment="Center"/></StackPanel></Button>
                                         <Button Grid.Column="2" x:Name="ed_btnClearListPhoto" Content="Убрать фото списка" Height="30"
-                                                Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                                Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                                 BorderThickness="1" Visibility="Collapsed" Click="Ed_BtnClearListPhoto_Click"
                                                 ToolTip="В списке снова будет показано основное фото"/>
                                     </Grid>
@@ -854,7 +812,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" x:Name="ed_btnCancel" Content="Отмена" Height="40" Margin="0,0,8,0" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlayEditor_Close"/>
+                        <Button Grid.Column="0" x:Name="ed_btnCancel" Content="Отмена" Height="40" Margin="0,0,8,0" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlayEditor_Close"/>
                         <Button Grid.Column="1" x:Name="ed_btnSave" Content="Сохранить" Height="40" Margin="8,0,0,0" Style="{StaticResource ActionBtn}" Click="Ed_BtnSave_Click"/>
                     </Grid>
                 </Grid>
@@ -877,7 +835,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,14">
                         <TextBlock Text="ТЕГИ ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
-                        <Button Width="32" Height="32" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right" Click="OverlayTagsPicker_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayTagsPicker_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Grid Grid.Row="1" Margin="0,0,0,14">
                         <Grid.ColumnDefinitions>
@@ -901,7 +859,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="Готово" Height="38" Margin="0,0,8,0" Style="{StaticResource ActionBtn}" Click="OverlayTagsPicker_Close"/>
-                            <Button Grid.Column="1" x:Name="btnOpenTagManager" Height="38" Margin="8,0,0,0" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnOpenTagManager_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="gear" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Управление тегами" VerticalAlignment="Center"/></StackPanel></Button>
+                            <Button Grid.Column="1" x:Name="btnOpenTagManager" Height="38" Margin="8,0,0,0" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnOpenTagManager_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="gear" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Управление тегами" VerticalAlignment="Center"/></StackPanel></Button>
                         </Grid>
                     </StackPanel>
                 </Grid>
@@ -923,7 +881,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock Text="УПРАВЛЕНИЕ ТЕГАМИ" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
-                        <Button Width="32" Height="32" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right" Click="OverlayTagManager_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayTagManager_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,16">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="350">
@@ -970,12 +928,12 @@
                           </Grid.ColumnDefinitions>
                           <TextBlock Grid.Column="0" Text="Сколько выбросить:" Foreground="{StaticResource B.Ink}" FontSize="13" VerticalAlignment="Center"/>
                           <StackPanel Grid.Column="1" Orientation="Horizontal">
-                              <Button x:Name="btnDeleteQtyMinus" Width="32" Height="32" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnDeleteQtyMinus_Click"><helpers:IconView Kind="minus" IconSize="15" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                              <Button x:Name="btnDeleteQtyMinus" Width="32" Height="32" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnDeleteQtyMinus_Click"><helpers:IconView Kind="minus" IconSize="15" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
                               <TextBox x:Name="txtDeleteQuantity" Text="1" Width="64" Height="32" Margin="6,0" FontSize="14"
                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                        Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}"
                                        CaretBrush="{StaticResource B.Gold}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"/>
-                              <Button x:Name="btnDeleteQtyPlus" Content="+" Width="32" Height="32" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnDeleteQtyPlus_Click"/>
+                              <Button x:Name="btnDeleteQtyPlus" Content="+" Width="32" Height="32" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="BtnDeleteQtyPlus_Click"/>
                               <TextBlock x:Name="txtDeleteQtyMax" Text="" Foreground="{StaticResource B.Mute}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
                           </StackPanel>
                       </Grid>
@@ -985,7 +943,7 @@
                               <ColumnDefinition Width="*"/>
                               <ColumnDefinition Width="*"/>
                           </Grid.ColumnDefinitions>
-                          <Button Grid.Column="0" Content="Отмена" Height="38" Margin="0,0,8,0" Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlayDeleteConfirm_Cancel"/>
+                          <Button Grid.Column="0" Content="Отмена" Height="38" Margin="0,0,8,0" Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Click="OverlayDeleteConfirm_Cancel"/>
                           <Button Grid.Column="1" x:Name="btnDeleteConfirm" Content="Выбросить" Height="38" Margin="8,0,0,0" Style="{StaticResource DangerBtn}" Click="BtnDeleteConfirm_Click"/>
                       </Grid>
                   </Grid>
@@ -1008,7 +966,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,16">
                         <TextBlock x:Name="txtGroupCellsTitle" Text="Ячейки группы" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource B.Gold}"/>
-                        <Button Width="32" Height="32" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right" Click="OverlayGroupCells_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button Width="32" Height="32" Style="{StaticResource SoftBtn}" HorizontalAlignment="Right" Click="OverlayGroupCells_Close"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <Border Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="8">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
@@ -1074,34 +1032,34 @@
                                       FontSize="11" Margin="0,0,0,16"/>
 
                             <Button x:Name="btnShopClearFilters" Content="Сбросить фильтры" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
 
                             <!-- Свой предмет: нужен тем, у кого нет файла справочника.
                                  Без этого магазин пуст и с ним нельзя взаимодействовать. -->
                             <Button x:Name="btnShopCreateItem" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Gold}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Gold}"
                                     Foreground="{StaticResource B.Gold}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,8"
                                     Click="BtnShopCreateItem_Click"
                                     ToolTip="Добавить свой предмет в каталог магазина"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Создать предмет" VerticalAlignment="Center"/></StackPanel></Button>
 
                             <Button x:Name="btnShopEditItem" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,8"
                                     Click="BtnShopEditItem_Click"
                                     ToolTip="Изменить предмет, созданный вручную"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="edit" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Изменить выбранный" VerticalAlignment="Center"/></StackPanel></Button>
 
                             <!-- Удаление: раньше предмет можно было создать, но не убрать -->
                             <Button x:Name="btnShopDeleteItem" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Danger}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Danger}"
                                     Foreground="{StaticResource B.Danger}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,8"
                                     Click="BtnShopDeleteItem_Click"
                                     ToolTip="Удалить выбранный предмет из каталога магазина"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="trash" IconSize="15" IconBrush="{StaticResource B.Danger}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Удалить предмет" VerticalAlignment="Center"/></StackPanel></Button>
 
                             <Button x:Name="btnShopCleanup" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,12"
                                     ToolTip="Удалить файлы фото, на которые не ссылается ни инвентарь, ни магазин"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="trash" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Убрать лишние фото" VerticalAlignment="Center"/></StackPanel></Button>
 
@@ -1110,12 +1068,12 @@
                             <TextBlock Text="Обмен предметами" Foreground="{StaticResource B.Mute}"
                                        FontSize="11" Margin="0,0,0,5"/>
                             <Button x:Name="btnShopExport" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Arcane}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Arcane}"
                                     BorderThickness="1" HorizontalAlignment="Stretch" Margin="0,0,0,8"
                                     Click="BtnShopExport_Click"
                                     ToolTip="Сохранить свои предметы в файл и передать другому игроку"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="arrowUp" IconSize="15" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Выгрузить свои предметы" VerticalAlignment="Center"/></StackPanel></Button>
                             <Button x:Name="btnShopImport" Height="32"
-                                    Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Arcane}"
+                                    Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Arcane}"
                                     BorderThickness="1" HorizontalAlignment="Stretch"
                                     Click="BtnShopImport_Click"
                                     ToolTip="Прочитать файл, который сделал другой игрок"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="arrowDown" IconSize="15" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Загрузить другую базу" VerticalAlignment="Center"/></StackPanel></Button>
@@ -1201,11 +1159,11 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" x:Name="btnShopChangePhoto" Height="34"
-                                        Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                        Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                         BorderThickness="1"
                                         ToolTip="Крупное фото или гифка в карточке предмета"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="image" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Для карточки" VerticalAlignment="Center"/></StackPanel></Button>
                                 <Button Grid.Column="2" x:Name="btnShopChangeListPhoto" Height="34"
-                                        Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                        Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                         BorderThickness="1"
                                         ToolTip="Отдельное фото для строки списка — показывается уменьшенным"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="note" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Для списка" VerticalAlignment="Center"/></StackPanel></Button>
                             </Grid>
@@ -1216,9 +1174,9 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" x:Name="btnShopClearPhoto" Content="Убрать фото карточки" Height="30"
-                                        Style="{StaticResource GhostBtn}" Visibility="Collapsed"/>
+                                        Style="{StaticResource SoftBtn}" Visibility="Collapsed"/>
                                 <Button Grid.Column="2" x:Name="btnShopClearListPhoto" Content="Убрать фото списка" Height="30"
-                                        Style="{StaticResource GhostBtn}" Visibility="Collapsed"/>
+                                        Style="{StaticResource SoftBtn}" Visibility="Collapsed"/>
                             </Grid>
                         </StackPanel>
                     </Grid>
@@ -1343,10 +1301,10 @@
                                          FontSize="11" TextWrapping="Wrap"/>
                               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                   <Button x:Name="btnShopItemUseExisting" Content="Выбрать существующий"
-                                          Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Gold}"
+                                          Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Gold}"
                                           BorderThickness="1" FontSize="11" Click="BtnShopItemUseExisting_Click"/>
                                   <Button x:Name="btnShopItemSaveAnyway" Content="Всё равно сохранить"
-                                          Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                          Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                           BorderThickness="1" FontSize="11" Margin="8,0,0,0"
                                           Click="BtnShopItemSaveAnyway_Click"/>
                               </StackPanel>
@@ -1362,7 +1320,7 @@
                               <ColumnDefinition Width="*"/>
                           </Grid.ColumnDefinitions>
                           <Button Grid.Column="0" Height="38" Margin="0,0,8,0"
-                                  Style="{StaticResource GhostBtn}" BorderBrush="{StaticResource B.Line}"
+                                  Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
                                   BorderThickness="1" Click="OverlayShopItem_Cancel">
                               <TextBlock Text="Отмена" Foreground="{StaticResource B.Ink}"/>
                           </Button>

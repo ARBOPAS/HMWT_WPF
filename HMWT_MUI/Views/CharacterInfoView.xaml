@@ -40,33 +40,6 @@
         <!-- СТИЛИ (размеры берутся из адаптивных ключей) -->
 
        
-
-        <Style x:Key="RoundBtn" TargetType="Button">
-            <Setter Property="Width" Value="{DynamicResource SZ.RoundBtn}"/>
-            <Setter Property="Height" Value="{DynamicResource SZ.RoundBtn}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <!-- Фон и рамка берутся из свойств кнопки: по ним видно ступень
-                 владения навыком — у экспертизы рамка золотая -->
-            <Setter Property="Background" Value="{StaticResource B.Panel}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="16">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <Style x:Key="MagicBtn" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontSize" Value="13"/>
@@ -89,32 +62,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="GhostBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <Style x:Key="SearchBox" TargetType="TextBox">
             <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
             <Setter Property="CaretBrush" Value="{StaticResource B.Gold}"/>

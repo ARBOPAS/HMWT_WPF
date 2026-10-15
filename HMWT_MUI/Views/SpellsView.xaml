@@ -245,30 +245,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="RoundBtn" TargetType="Button">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{StaticResource B.Panel}"
-                                BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="17">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
-                                <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <Style x:Key="MiniRound" TargetType="Button">
             <Setter Property="Width" Value="22"/>
             <Setter Property="Height" Value="22"/>
@@ -469,32 +445,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{StaticResource B.Gold}" CornerRadius="6" Padding="14,7">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="GhostBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
     </UserControl.Resources>
 
     <Grid Background="Transparent">
@@ -1117,7 +1067,7 @@
                                          бросаются за одно сотворение, каждая со своей подписью. -->
                                     <StackPanel x:Name="spExtraDamage" Margin="0,8,0,0"/>
                                     <Button x:Name="btnAddDamagePart"
-                                            Style="{StaticResource GhostBtn}" Click="BtnAddDamagePart_Click"
+                                            Style="{StaticResource TextBtn}" Click="BtnAddDamagePart_Click"
                                             HorizontalAlignment="Left" Margin="0,6,0,0"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Ещё один тип урона" VerticalAlignment="Center"/></StackPanel></Button>
 
                                     <!-- === Лечение ===
@@ -1199,7 +1149,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Button x:Name="BtnCancelCreate" Grid.Column="0" Style="{StaticResource GhostBtn}" Content="Отмена" HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,12,0"/>
+                                <Button x:Name="BtnCancelCreate" Grid.Column="0" Style="{StaticResource TextBtn}" Content="Отмена" HorizontalAlignment="Left" Visibility="Collapsed" Margin="0,0,12,0"/>
                                 <Button x:Name="BtnFullSave" Grid.Column="1" Style="{StaticResource ActionBtn}" HorizontalAlignment="Right">
                                     <TextBlock Text="Сохранить карточку" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12.5"/>
                                 </Button>
@@ -1221,7 +1171,7 @@
                 <StackPanel>
                     <Grid Margin="0,0,0,10">
                         <TextBlock Text="ЯЧЕЙКИ ПО УРОВНЯМ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Frost}" VerticalAlignment="Center" FontSize="12"/>
-                        <Button x:Name="SlotsOverviewClose" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                        <Button x:Name="SlotsOverviewClose" Style="{StaticResource TextBtn}" HorizontalAlignment="Right"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
                     </Grid>
                     <TextBlock Text="осталось / всего" Foreground="{StaticResource B.Mute}" FontSize="10" FontStyle="Italic" Margin="0,0,0,8"/>
                     <StackPanel x:Name="SlotsOverviewList"/>
@@ -1245,7 +1195,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,8">
                         <TextBlock Text="ФИЛЬТР ПО ТЕГАМ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Arcane}" VerticalAlignment="Center"/>
-                        <Button x:Name="TagFilterClose" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="TagFilterClose" Style="{StaticResource TextBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
                     </Grid>
                     <TextBlock Grid.Row="1" Text="Выбранные теги комбинируются как «И» — останутся заклинания, у которых есть все отмеченные теги."
                                Foreground="{StaticResource B.Mute}" FontSize="10.5" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10"/>
@@ -1260,7 +1210,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="TagFilterStatus" Foreground="{StaticResource B.Mute}" FontSize="11" VerticalAlignment="Center"/>
-                        <Button x:Name="TagFilterClear" Grid.Column="1" Style="{StaticResource GhostBtn}" Content="сбросить всё"/>
+                        <Button x:Name="TagFilterClear" Grid.Column="1" Style="{StaticResource TextBtn}" Content="сбросить всё"/>
                     </Grid>
                 </Grid>
             </Border>
@@ -1282,7 +1232,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="СПРАВОЧНИК ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"/>
-                        <Button x:Name="SbClose" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="SbClose" Style="{StaticResource TextBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
                         <TextBlock Text="СПРАВОЧНИК ЗАКЛИНАНИЙ" Style="{StaticResource SectionHead}" 
                Foreground="{StaticResource B.Gold}" VerticalAlignment="Center"
                Margin="0,0,80,0"/>
@@ -1367,7 +1317,7 @@
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <TextBlock Text="РЕДАКТОР ТЕГОВ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Arcane}" VerticalAlignment="Center"/>
-                        <Button x:Name="TagsClose" Style="{StaticResource GhostBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button x:Name="TagsClose" Style="{StaticResource TextBtn}" HorizontalAlignment="Right"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="close" IconSize="16" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="закрыть" VerticalAlignment="Center"/></StackPanel></Button>
                     </Grid>
                     <ListBox x:Name="TagsList" Grid.Row="1" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"
                              Foreground="{StaticResource B.Ink}" ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -1607,7 +1557,7 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <Button x:Name="BtnCancelSettings" Content="Отмена" Grid.Column="1" Style="{StaticResource GhostBtn}" Margin="0,0,12,0"/>
+                        <Button x:Name="BtnCancelSettings" Content="Отмена" Grid.Column="1" Style="{StaticResource TextBtn}" Margin="0,0,12,0"/>
                         <Button x:Name="BtnSaveSettings" Grid.Column="2" Style="{StaticResource ActionBtn}">
                             <TextBlock Text="Сохранить" Foreground="{StaticResource B.OnGold}" FontWeight="SemiBold" FontSize="12"/>
                         </Button>

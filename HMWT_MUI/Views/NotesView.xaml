@@ -12,6 +12,16 @@
 
         <!-- КИСТИ -->
 
+        <!--
+          Кнопки заметок бирюзовые, а не золотые: в этой вкладке золото занято
+          выделением дерева. Цвета переопределяем, форму и поведение берём
+          из общей кнопки действия.
+        -->
+        <Style x:Key="NoteActionBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
+            <Setter Property="Background" Value="{StaticResource B.Frost}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        </Style>
+
         <!-- ГРАДИЕНТЫ -->
 
         <!-- ШРИФТЫ -->
@@ -59,29 +69,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6" Padding="14,7">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Background" Value="{StaticResource B.Frost}"/>
-        </Style>
-
         <Style x:Key="ToolbarBtn" TargetType="Button">
             <Setter Property="MinWidth" Value="32"/>
             <Setter Property="Height" Value="30"/>
@@ -260,9 +247,9 @@
                 <StackPanel Grid.Row="1" Margin="10,10,10,5">
                     <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" TextChanged="SearchBox_TextChanged"/>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button Style="{StaticResource ActionBtn}" Margin="0,0,5,0" Click="CreateGroup_Click" ToolTip="Создать группу (или подгруппу в выбранной группе)"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Группа" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Style="{StaticResource NoteActionBtn}" Margin="0,0,5,0" Click="CreateGroup_Click" ToolTip="Создать группу (или подгруппу в выбранной группе)"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Группа" VerticalAlignment="Center"/></StackPanel></Button>
 
-                        <Button Style="{StaticResource ActionBtn}" Click="CreateNote_Click" ToolTip="Создать заметку в выбранной группе"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Заметка" VerticalAlignment="Center"/></StackPanel></Button>
+                        <Button Style="{StaticResource NoteActionBtn}" Click="CreateNote_Click" ToolTip="Создать заметку в выбранной группе"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="plus" IconSize="15" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,7,0"/><TextBlock Text="Заметка" VerticalAlignment="Center"/></StackPanel></Button>
 
                         <Button Content="⤢" Style="{StaticResource ToolbarBtn}" Margin="5,0,0,0"
                                 Click="ExpandAll_Click" ToolTip="Развернуть/свернуть всё"/>

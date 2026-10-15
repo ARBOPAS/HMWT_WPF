@@ -1,6 +1,14 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
                     xmlns:helpers="clr-namespace:HMWT_MUI.Helpers">
+
+    <!--
+      Размеры, которые лист персонажа подгоняет под ширину окна. Значения здесь —
+      то, что получают остальные вкладки: они те же самые стили используют, но
+      ничего не пересчитывают.
+    -->
+    <sys:Double x:Key="SZ.RoundBtn">34</sys:Double>
 
     <!--
       ═══ ТОКЕНЫ ДИЗАЙНА ═══
@@ -244,6 +252,147 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsFocused" Value="True">
                             <Setter Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      ═══ КНОПКИ ═══
+
+      Раньше каждая вкладка описывала их заново, и копии успели разойтись:
+      под одним именем GhostBtn в одной вкладке жила кнопка с рамкой, в другой —
+      залитая серая, в третьей — просто текст без рамки. Здесь они разведены по
+      назначению, чтобы по имени было видно, какая перед тобой кнопка.
+    -->
+
+    <!--
+      Главная кнопка действия: золотая, с потемнением при наведении.
+      Цвет и отступы берутся из свойств кнопки, поэтому вкладка может их
+      переопределить, не заводя вторую копию стиля.
+    -->
+    <Style x:Key="ActionBtn" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource B.OnGold}"/>
+        <Setter Property="Background" Value="{StaticResource B.Gold}"/>
+        <Setter Property="Padding" Value="14,7"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      Кнопка с рамкой: второстепенное действие рядом с главным. Прозрачная,
+      рамка и текст подсвечиваются золотом при наведении.
+    -->
+    <Style x:Key="GhostBtn" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      Кнопка-текст без рамки: «закрыть», «сбросить», «отмена». Рамку такому
+      действию рисовать не за что, но отклик на наведение всё равно нужен —
+      иначе непонятно, что по надписи можно нажать.
+    -->
+    <Style x:Key="TextBtn" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+      Круглая кнопка: знак владения навыком, шаг уровня заклинания, стрелка.
+      Размер берётся из SZ.RoundBtn, чтобы лист персонажа мог уменьшать её
+      вместе с остальными строками; у остальных вкладок работает значение
+      по умолчанию из этого словаря.
+    -->
+    <Style x:Key="RoundBtn" TargetType="Button">
+        <Setter Property="Width" Value="{DynamicResource SZ.RoundBtn}"/>
+        <Setter Property="Height" Value="{DynamicResource SZ.RoundBtn}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
+        <!-- Фон и рамка берутся из свойств кнопки: по ним видно ступень
+             владения навыком — у экспертизы рамка золотая -->
+        <Setter Property="Background" Value="{StaticResource B.Panel}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="17">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Gold}"/>
+                            <Setter Property="Foreground" Value="{StaticResource B.Gold}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
