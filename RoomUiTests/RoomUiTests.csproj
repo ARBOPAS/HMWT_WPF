@@ -111,6 +111,7 @@
     <Compile Include="..\HMWT_MUI\Services\DmProfileService.cs"><Link>App\DmProfileService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\EquipmentService.cs"><Link>App\EquipmentService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\AbilityService.cs"><Link>App\AbilityService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SkillCatalog.cs"><Link>App\SkillCatalog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\MoneyService.cs"><Link>App\MoneyService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\MarkdownParser.cs"><Link>App\MarkdownParser.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\ShopService.cs"><Link>App\ShopService.cs</Link></Compile>

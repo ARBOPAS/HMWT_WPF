@@ -60,18 +60,33 @@ namespace HMWT_MUI.Services
             return skill != null && SkillMap.TryGetValue(skill.Key, out map);
         }
 
-        /// Карта спасбросков: сокращение → таблица
-        public static readonly Dictionary<string, string> SaveTableMap = new()
+        /// <summary>Карта характеристик: РУС → таблица, где лежат её навыки и спасбросок.</summary>
+        public static readonly Dictionary<string, string> AbilityTableMap = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["Str"] = "CharacterStrenghtSkills",
-            ["Dex"] = "CharacterDexteritySkills",
-            ["Con"] = "CharacterConstSkills",
-            ["Int"] = "CharacterIntSkills",
-            ["Wis"] = "CharacterWisdomSkills",
-            ["Cha"] = "CharacterCharismaSkills"
+            ["СИЛА"] = "CharacterStrenghtSkills",
+            ["ЛОВКОСТЬ"] = "CharacterDexteritySkills",
+            ["ТЕЛОСЛОЖЕНИЕ"] = "CharacterConstSkills",
+            ["ИНТЕЛЛЕКТ"] = "CharacterIntSkills",
+            ["МУДРОСТЬ"] = "CharacterWisdomSkills",
+            ["ХАРИЗМА"] = "CharacterCharismaSkills"
         };
 
-        /// Карта характеристик: РУС → колонка БД
+        /// <summary>
+        /// Карта спасбросков: сокращение → таблица. Собирается из карты
+        /// характеристик, чтобы имя таблицы не приходилось держать в двух видах.
+        /// </summary>
+        public static readonly Dictionary<string, string> SaveTableMap =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Str"] = AbilityTableMap["СИЛА"],
+                ["Dex"] = AbilityTableMap["ЛОВКОСТЬ"],
+                ["Con"] = AbilityTableMap["ТЕЛОСЛОЖЕНИЕ"],
+                ["Int"] = AbilityTableMap["ИНТЕЛЛЕКТ"],
+                ["Wis"] = AbilityTableMap["МУДРОСТЬ"],
+                ["Cha"] = AbilityTableMap["ХАРИЗМА"]
+            };
+
+        /// <summary>Карта характеристик: РУС → колонка БД</summary>
         public static readonly Dictionary<string, string> AbilityColumnMap = new()
         {
             ["СИЛА"] = "Strength",
@@ -81,6 +96,87 @@ namespace HMWT_MUI.Services
             ["МУДРОСТЬ"] = "Wisdom",
             ["ХАРИЗМА"] = "Charisma"
         };
+
+        /// <summary>Навыки и спасбросок одной характеристики — то, что нужно листу персонажа.</summary>
+        public sealed class AbilitySkillGroup
+        {
+            /// <summary>Характеристика: «ЛОВКОСТЬ».</summary>
+            public string Ability { get; set; } = "";
+
+            /// <summary>Отмечено ли владение спасброском этой характеристики.</summary>
+            public bool SaveProficient { get; set; }
+
+            /// <summary>Навыки характеристики: ключ и галочка владения (0 или 1).</summary>
+            public List<(string Key, int Flag)> Skills { get; } = new List<(string, int)>();
+        }
+
+        /// <summary>
+        /// Читает владения навыками и спасбросками по всем характеристикам.
+        ///
+        /// Одним вызовом, а не шестью запросами в разных местах: раньше этот SQL
+        /// лежал прямо в листе персонажа, и пересчёт бонуса мастерства означал
+        /// шесть одинаковых блоков с подстановкой имён колонок.
+        /// </summary>
+        public static List<AbilitySkillGroup> LoadAbilitySkills(int characterId)
+        {
+            var groups = new List<AbilitySkillGroup>();
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+
+                foreach (string ability in SkillCatalog.AbilityOrder)
+                {
+                    var group = new AbilitySkillGroup { Ability = ability };
+                    var skills = SkillCatalog.ForAbility(ability);
+
+                    // Характеристика без таблицы — это ошибка в списке, а не в
+                    // базе: пропускаем её, чтобы остальные всё равно прочитались
+                    if (!AbilityTableMap.TryGetValue(ability, out string table))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AbilityService] нет таблицы для «{ability}»");
+                        continue;
+                    }
+
+                    string columns = string.Join(", ", skills.Select(s => s.Column));
+                    string sql = columns.Length == 0
+                        ? $"SELECT SaveThrow FROM {table} WHERE id_character = @id"
+                        : $"SELECT SaveThrow, {columns} FROM {table} WHERE id_character = @id";
+
+                    using (var cmd = new SqliteCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", characterId);
+                        using var reader = cmd.ExecuteReader();
+                        if (reader.Read())
+                        {
+                            group.SaveProficient = !reader.IsDBNull(0) && Convert.ToInt32(reader.GetValue(0)) > 0;
+
+                            for (int i = 0; i < skills.Count; i++)
+                            {
+                                int index = i + 1;
+                                int flag = reader.IsDBNull(index) ? 0 : Convert.ToInt32(reader.GetValue(index));
+                                group.Skills.Add((skills[i].Key, flag));
+                            }
+                        }
+                    }
+
+                    // Строки в таблице могло не быть: навыки всё равно нужны,
+                    // иначе лист персонажа остался бы без значений
+                    if (group.Skills.Count == 0)
+                        foreach (var skill in skills)
+                            group.Skills.Add((skill.Key, 0));
+
+                    groups.Add(group);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AbilityService] навыки персонажа: {ex.Message}");
+            }
+
+            return groups;
+        }
 
         // ========================= НАВЫКИ И СПАСБРОСКИ =========================
 

@@ -266,7 +266,7 @@ namespace HMWT_MUI.Views
                 LoadProficiencyBonus(conn);
 
                 // Загружаем навыки
-                LoadSkills(conn);
+                LoadSkills();
 
                 // Загружаем доп.информацию
                 LoadAdditionalInfo(conn);
@@ -411,7 +411,7 @@ namespace HMWT_MUI.Views
                 conn.Open();
 
                 LoadProficiencyBonus(conn);
-                LoadSkills(conn);
+                LoadSkills();
 
                 System.Diagnostics.Debug.WriteLine("[CharacterInfoView] бонус мастерства пересчитан");
             }
@@ -420,161 +420,104 @@ namespace HMWT_MUI.Views
                 System.Diagnostics.Debug.WriteLine($"[RefreshProficiencyBonus] {ex.Message}");
             }
         }
-
-        private void LoadSkills(SqliteConnection conn)
+        /// <summary>
+        /// Пересчитывает значения навыков и спасбросков на листе.
+        ///
+        /// Чтение отметок — в AbilityService: раньше здесь стояли шесть запросов
+        /// к шести таблицам, то есть SQL жил прямо в разметке окна.
+        /// </summary>
+        private void LoadSkills()
         {
-            int profBonus = int.Parse(txtProfBonus.Text.Replace("+", ""));
+            int profBonus = ProfBonus();
 
-            // Экспертизу читаем заранее: она участвует в каждом бонусе навыка
+            // Экспертиза участвует в бонусе каждого навыка, поэтому читается заранее
             _expertSkills = AbilityService.LoadExpertSkills(_characterId);
 
-            // Сила
-            using (var cmd = new SqliteCommand("SELECT Athletics, SaveThrow FROM CharacterStrenghtSkills WHERE id_character = @id", conn))
+            var flags = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var saves = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in AbilityService.LoadAbilitySkills(_characterId))
             {
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
-                {
-                    int athletics = Convert.ToInt32(r["Athletics"]);
-                    int strSave = Convert.ToInt32(r["SaveThrow"]);
-                    int strMod = CalculateModifier(int.Parse(txtStrScore.Text));
-
-                    txtAthleticsVal.Text = FormatModifier(strMod + SkillBonus("athletics", athletics) + GetBonusSum("СИЛА", "Skill"));
-                    txtStrSaveVal.Text = FormatModifier(strMod + (strSave > 0 ? profBonus : 0) + GetBonusSum("СИЛА", "Save"));
-
-                    UpdateSkillToggleVisual(btnProfAthletics, SkillLevel("Athletics", athletics));
-                    UpdateToggleVisual(btnSaveProfStr, strSave > 0);
-                }
+                saves[group.Ability] = group.SaveProficient;
+                foreach (var (key, flag) in group.Skills) flags[key] = flag;
             }
+
+            int Flag(string key) => flags.TryGetValue(key, out int value) ? value : 0;
+            bool Save(string ability) => saves.TryGetValue(ability, out bool value) && value;
+
+            int strMod = CalculateModifier(int.Parse(txtStrScore.Text));
+            int dexMod = CalculateModifier(int.Parse(txtDexScore.Text));
+            int conMod = CalculateModifier(int.Parse(txtConScore.Text));
+            int intMod = CalculateModifier(int.Parse(txtIntScore.Text));
+            int wisMod = CalculateModifier(int.Parse(txtWisScore.Text));
+            int chaMod = CalculateModifier(int.Parse(txtChaScore.Text));
+
+            // Бонус навыка — модификатор характеристики плюс ступень владения
+            // и плюс бонусы, которые игрок завёл сам в редакторе характеристик
+            string SkillValue(int mod, string ability, string key)
+                => FormatModifier(mod + SkillBonus(key, Flag(key)) + GetBonusSum(ability, "Skill"));
+            string SaveValue(int mod, string ability)
+                => FormatModifier(mod + (Save(ability) ? profBonus : 0) + GetBonusSum(ability, "Save"));
+
+            // Сила
+            txtAthleticsVal.Text = SkillValue(strMod, "СИЛА", "Athletics");
+            txtStrSaveVal.Text = SaveValue(strMod, "СИЛА");
+            UpdateSkillToggleVisual(btnProfAthletics, SkillLevel("Athletics", Flag("Athletics")));
+            UpdateToggleVisual(btnSaveProfStr, Save("СИЛА"));
 
             // Ловкость
-            using (var cmd = new SqliteCommand("SELECT Acrobatics, Stealth, SleightOfHand, SaveThrow FROM CharacterDexteritySkills WHERE id_character = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
-                {
-                    int acrobatics = Convert.ToInt32(r["Acrobatics"]);
-                    int stealth = Convert.ToInt32(r["Stealth"]);
-                    int sleight = Convert.ToInt32(r["SleightOfHand"]);
-                    int dexSave = Convert.ToInt32(r["SaveThrow"]);
-                    int dexMod = CalculateModifier(int.Parse(txtDexScore.Text));
+            txtAcrobaticsVal.Text = SkillValue(dexMod, "ЛОВКОСТЬ", "Acrobatics");
+            txtStealthVal.Text = SkillValue(dexMod, "ЛОВКОСТЬ", "Stealth");
+            txtSleightOfHandVal.Text = SkillValue(dexMod, "ЛОВКОСТЬ", "SleightOfHand");
+            txtDexSaveVal.Text = SaveValue(dexMod, "ЛОВКОСТЬ");
+            UpdateSkillToggleVisual(btnProfAcrobatics, SkillLevel("Acrobatics", Flag("Acrobatics")));
+            UpdateSkillToggleVisual(btnProfStealth, SkillLevel("Stealth", Flag("Stealth")));
+            UpdateSkillToggleVisual(btnProfSleightOfHand, SkillLevel("SleightOfHand", Flag("SleightOfHand")));
+            UpdateToggleVisual(btnSaveProfDex, Save("ЛОВКОСТЬ"));
 
-                    txtAcrobaticsVal.Text = FormatModifier(dexMod + SkillBonus("acrobatics", acrobatics) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
-                    txtStealthVal.Text = FormatModifier(dexMod + SkillBonus("stealth", stealth) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
-                    txtSleightOfHandVal.Text = FormatModifier(dexMod + SkillBonus("sleight", sleight) + GetBonusSum("ЛОВКОСТЬ", "Skill"));
-                    txtDexSaveVal.Text = FormatModifier(dexMod + (dexSave > 0 ? profBonus : 0) + GetBonusSum("ЛОВКОСТЬ", "Save"));
-
-                    UpdateSkillToggleVisual(btnProfAcrobatics, SkillLevel("Acrobatics", acrobatics));
-                    UpdateSkillToggleVisual(btnProfStealth, SkillLevel("Stealth", stealth));
-                    UpdateSkillToggleVisual(btnProfSleightOfHand, SkillLevel("SleightOfHand", sleight));
-                    UpdateToggleVisual(btnSaveProfDex, dexSave > 0);
-                }
-            }
-
-            // Телосложение
-            using (var cmd = new SqliteCommand("SELECT SaveThrow FROM CharacterConstSkills WHERE id_character = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
-                {
-                    int conSave = Convert.ToInt32(r["SaveThrow"]);
-                    int conMod = CalculateModifier(int.Parse(txtConScore.Text));
-                    txtConSaveVal.Text = FormatModifier(conMod + (conSave > 0 ? profBonus : 0) + GetBonusSum("ТЕЛОСЛОЖЕНИЕ", "Save"));
-                    UpdateToggleVisual(btnSaveProfCon, conSave > 0);
-                }
-            }
+            // Телосложение: навыков нет, только спасбросок
+            txtConSaveVal.Text = SaveValue(conMod, "ТЕЛОСЛОЖЕНИЕ");
+            UpdateToggleVisual(btnSaveProfCon, Save("ТЕЛОСЛОЖЕНИЕ"));
 
             // Интеллект
-            using (var cmd = new SqliteCommand("SELECT Analysis, History, Magic, Nature, Religion, SaveThrow FROM CharacterIntSkills WHERE id_character = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
-                {
-                    int analysis = Convert.ToInt32(r["Analysis"]);
-                    int history = Convert.ToInt32(r["History"]);
-                    int magic = Convert.ToInt32(r["Magic"]);
-                    int nature = Convert.ToInt32(r["Nature"]);
-                    int religion = Convert.ToInt32(r["Religion"]);
-                    int intSave = Convert.ToInt32(r["SaveThrow"]);
-                    int intMod = CalculateModifier(int.Parse(txtIntScore.Text));
-
-                    txtAnalysisVal.Text = FormatModifier(intMod + SkillBonus("analysis", analysis) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtHistoryVal.Text = FormatModifier(intMod + SkillBonus("history", history) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtMagicVal.Text = FormatModifier(intMod + SkillBonus("magic", magic) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtNatureVal.Text = FormatModifier(intMod + SkillBonus("nature", nature) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtReligionVal.Text = FormatModifier(intMod + SkillBonus("religion", religion) + GetBonusSum("ИНТЕЛЛЕКТ", "Skill"));
-                    txtIntSaveVal.Text = FormatModifier(intMod + (intSave > 0 ? profBonus : 0) + GetBonusSum("ИНТЕЛЛЕКТ", "Save"));
-
-                    UpdateSkillToggleVisual(btnProfAnalysis, SkillLevel("Analysis", analysis));
-                    UpdateSkillToggleVisual(btnProfHistory, SkillLevel("History", history));
-                    UpdateSkillToggleVisual(btnProfMagic, SkillLevel("Magic", magic));
-                    UpdateSkillToggleVisual(btnProfNature, SkillLevel("Nature", nature));
-                    UpdateSkillToggleVisual(btnProfReligion, SkillLevel("Religion", religion));
-                    UpdateToggleVisual(btnSaveProfInt, intSave > 0);
-                }
-            }
+            txtAnalysisVal.Text = SkillValue(intMod, "ИНТЕЛЛЕКТ", "Analysis");
+            txtHistoryVal.Text = SkillValue(intMod, "ИНТЕЛЛЕКТ", "History");
+            txtMagicVal.Text = SkillValue(intMod, "ИНТЕЛЛЕКТ", "Magic");
+            txtNatureVal.Text = SkillValue(intMod, "ИНТЕЛЛЕКТ", "Nature");
+            txtReligionVal.Text = SkillValue(intMod, "ИНТЕЛЛЕКТ", "Religion");
+            txtIntSaveVal.Text = SaveValue(intMod, "ИНТЕЛЛЕКТ");
+            UpdateSkillToggleVisual(btnProfAnalysis, SkillLevel("Analysis", Flag("Analysis")));
+            UpdateSkillToggleVisual(btnProfHistory, SkillLevel("History", Flag("History")));
+            UpdateSkillToggleVisual(btnProfMagic, SkillLevel("Magic", Flag("Magic")));
+            UpdateSkillToggleVisual(btnProfNature, SkillLevel("Nature", Flag("Nature")));
+            UpdateSkillToggleVisual(btnProfReligion, SkillLevel("Religion", Flag("Religion")));
+            UpdateToggleVisual(btnSaveProfInt, Save("ИНТЕЛЛЕКТ"));
 
             // Мудрость
-            using (var cmd = new SqliteCommand("SELECT Perception, Survival, Medicine, Insight, AnimalCare, SaveThrow FROM CharacterWisdomSkills WHERE id_character = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
-                {
-                    int perception = Convert.ToInt32(r["Perception"]);
-                    int survival = Convert.ToInt32(r["Survival"]);
-                    int medicine = Convert.ToInt32(r["Medicine"]);
-                    int insight = Convert.ToInt32(r["Insight"]);
-                    int animalCare = Convert.ToInt32(r["AnimalCare"]);
-                    int wisSave = Convert.ToInt32(r["SaveThrow"]);
-                    int wisMod = CalculateModifier(int.Parse(txtWisScore.Text));
-
-                    txtPerceptionVal.Text = FormatModifier(wisMod + SkillBonus("perception", perception) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtSurvivalVal.Text = FormatModifier(wisMod + SkillBonus("survival", survival) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtMedicineVal.Text = FormatModifier(wisMod + SkillBonus("medicine", medicine) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtInsightVal.Text = FormatModifier(wisMod + SkillBonus("insight", insight) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtAnimalCareVal.Text = FormatModifier(wisMod + SkillBonus("animalCare", animalCare) + GetBonusSum("МУДРОСТЬ", "Skill"));
-                    txtWisSaveVal.Text = FormatModifier(wisMod + (wisSave > 0 ? profBonus : 0) + GetBonusSum("МУДРОСТЬ", "Save"));
-
-                    UpdateSkillToggleVisual(btnProfPerception, SkillLevel("Perception", perception));
-                    UpdateSkillToggleVisual(btnProfSurvival, SkillLevel("Survival", survival));
-                    UpdateSkillToggleVisual(btnProfMedicine, SkillLevel("Medicine", medicine));
-                    UpdateSkillToggleVisual(btnProfInsight, SkillLevel("Insight", insight));
-                    UpdateSkillToggleVisual(btnProfAnimalCare, SkillLevel("AnimalCare", animalCare));
-                    UpdateToggleVisual(btnSaveProfWis, wisSave > 0);
-                }
-            }
+            txtPerceptionVal.Text = SkillValue(wisMod, "МУДРОСТЬ", "Perception");
+            txtSurvivalVal.Text = SkillValue(wisMod, "МУДРОСТЬ", "Survival");
+            txtMedicineVal.Text = SkillValue(wisMod, "МУДРОСТЬ", "Medicine");
+            txtInsightVal.Text = SkillValue(wisMod, "МУДРОСТЬ", "Insight");
+            txtAnimalCareVal.Text = SkillValue(wisMod, "МУДРОСТЬ", "AnimalCare");
+            txtWisSaveVal.Text = SaveValue(wisMod, "МУДРОСТЬ");
+            UpdateSkillToggleVisual(btnProfPerception, SkillLevel("Perception", Flag("Perception")));
+            UpdateSkillToggleVisual(btnProfSurvival, SkillLevel("Survival", Flag("Survival")));
+            UpdateSkillToggleVisual(btnProfMedicine, SkillLevel("Medicine", Flag("Medicine")));
+            UpdateSkillToggleVisual(btnProfInsight, SkillLevel("Insight", Flag("Insight")));
+            UpdateSkillToggleVisual(btnProfAnimalCare, SkillLevel("AnimalCare", Flag("AnimalCare")));
+            UpdateToggleVisual(btnSaveProfWis, Save("МУДРОСТЬ"));
 
             // Харизма
-            using (var cmd = new SqliteCommand("SELECT Performance, Deception, Persuasion, Intimidation, SaveThrow FROM CharacterCharismaSkills WHERE id_character = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", _characterId);
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
-                {
-                    int performance = Convert.ToInt32(r["Performance"]);
-                    int deception = Convert.ToInt32(r["Deception"]);
-                    int persuasion = Convert.ToInt32(r["Persuasion"]);
-                    int intimidation = Convert.ToInt32(r["Intimidation"]);
-                    int chaSave = Convert.ToInt32(r["SaveThrow"]);
-                    int chaMod = CalculateModifier(int.Parse(txtChaScore.Text));
-
-                    txtPerformanceVal.Text = FormatModifier(chaMod + SkillBonus("performance", performance) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtDeceptionVal.Text = FormatModifier(chaMod + SkillBonus("deception", deception) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtPersuasionVal.Text = FormatModifier(chaMod + SkillBonus("persuasion", persuasion) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtIntimidationVal.Text = FormatModifier(chaMod + SkillBonus("intimidation", intimidation) + GetBonusSum("ХАРИЗМА", "Skill"));
-                    txtChaSaveVal.Text = FormatModifier(chaMod + (chaSave > 0 ? profBonus : 0) + GetBonusSum("ХАРИЗМА", "Save"));
-
-                    UpdateSkillToggleVisual(btnProfPerformance, SkillLevel("Performance", performance));
-                    UpdateSkillToggleVisual(btnProfDeception, SkillLevel("Deception", deception));
-                    UpdateSkillToggleVisual(btnProfPersuasion, SkillLevel("Persuasion", persuasion));
-                    UpdateSkillToggleVisual(btnProfIntimidation, SkillLevel("Intimidation", intimidation));
-                    UpdateToggleVisual(btnSaveProfCha, chaSave > 0);
-                }
-            }
+            txtPerformanceVal.Text = SkillValue(chaMod, "ХАРИЗМА", "Performance");
+            txtDeceptionVal.Text = SkillValue(chaMod, "ХАРИЗМА", "Deception");
+            txtPersuasionVal.Text = SkillValue(chaMod, "ХАРИЗМА", "Persuasion");
+            txtIntimidationVal.Text = SkillValue(chaMod, "ХАРИЗМА", "Intimidation");
+            txtChaSaveVal.Text = SaveValue(chaMod, "ХАРИЗМА");
+            UpdateSkillToggleVisual(btnProfPerformance, SkillLevel("Performance", Flag("Performance")));
+            UpdateSkillToggleVisual(btnProfDeception, SkillLevel("Deception", Flag("Deception")));
+            UpdateSkillToggleVisual(btnProfPersuasion, SkillLevel("Persuasion", Flag("Persuasion")));
+            UpdateSkillToggleVisual(btnProfIntimidation, SkillLevel("Intimidation", Flag("Intimidation")));
+            UpdateToggleVisual(btnSaveProfCha, Save("ХАРИЗМА"));
 
             // Пассивные значения считаем ПОСЛЕ навыков: они из них и берутся.
             // Раньше эти поля только читались из базы и всегда показывали 10 —
@@ -1423,7 +1366,7 @@ namespace HMWT_MUI.Views
                 {
                     using var conn = DatabaseHelper.GetConnection();
                     conn.Open();
-                    LoadSkills(conn);
+                    LoadSkills();
                 }
                 catch (Exception ex)
                 {
