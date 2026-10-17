@@ -480,6 +480,9 @@ namespace HMWT_MUI.Views
                     var part = parts[i];
                     if (i > 0) text.Inlines.Add(new System.Windows.Documents.Run(" + ") { Foreground = DmUiKit.B("Mute") });
 
+                    // Выключенные части видно, но они не бросаются: помечаем приглушённо
+                    if (!part.Enabled) text.Opacity = 0.45;
+
                     // Добавка от характеристики — только к первой части, как в правилах
                     string formula = part.Formula;
                     if (i == 0 && damageBonus != 0)
@@ -539,6 +542,16 @@ namespace HMWT_MUI.Views
 
             if (attack.HasDamage)
             {
+            // Заклинание можно сотворить ячейкой выше: тогда добавляется урон
+            // «за уровень выше» — то же, что на вкладке заклинаний
+            if (AttackSources.Normalize(attack.Source) == AttackSources.Spell && attack.HasDamage)
+            {
+                var castButton = DmUiKit.Action("✦ Каст выше", (s, e) => RollDamageAtHigherLevel(attack),
+                    DmUiKit.ButtonKind.Ghost, "Сотворить ячейкой выше: добавится урон за уровень выше", 110, 28);
+                castButton.Margin = new Thickness(0, 0, 6, 0);
+                controls.Children.Add(castButton);
+            }
+
                 var damageButton = DmUiKit.Action("🎲 Урон", (s, e) => RollAllDamage(attack),
                     DmUiKit.ButtonKind.Ghost, "Бросить весь урон этой атаки", 96, 28);
                 damageButton.Margin = new Thickness(0, 0, 6, 0);
@@ -579,6 +592,14 @@ namespace HMWT_MUI.Views
 
         private void RollDamagePart(AttackData attack, string formula, DamageKind kind, int partIndex)
         {
+            // Часть выключена — бросать нечего
+            var all = attack.CleanParts();
+            if (partIndex >= 0 && partIndex < all.Count && !all[partIndex].Enabled)
+            {
+                DmRolls.Toast(this, "Эта часть урона выключена");
+                return;
+            }
+
             int damageBonus = partIndex == 0 ? AttackService.DamageBonus(attack) : 0;
             string final = formula;
             if (damageBonus != 0) final += damageBonus > 0 ? "+" + damageBonus : damageBonus.ToString();
@@ -586,25 +607,83 @@ namespace HMWT_MUI.Views
             DmRolls.RollDamage(this, final, kind, _characterName, attack.Name);
         }
 
-        private void RollAllDamage(AttackData attack)
+        /// <summary>
+        /// Бросок урона заклинания за уровень выше: спрашиваем, на сколько уровней
+        /// выше сотворяется, и за каждый уровень добавляем «за уровень выше».
+        /// </summary>
+        private void RollDamageAtHigherLevel(AttackData attack)
         {
-            var parts = attack.CleanParts();
-            if (parts.Count == 0)
+            string answer = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                "Каст выше", "На сколько уровней выше сотворяем?", "1", "Бросить");
+            if (string.IsNullOrWhiteSpace(answer)) return;
+
+            if (!int.TryParse(answer.Trim(), out int steps) || steps < 1)
             {
-                DmRolls.Toast(this, "У этой атаки не указан урон", true);
+                DmRolls.Toast(this, "Нужно целое число уровней выше: например 1", true);
                 return;
             }
 
-            var picked = DiceFormulaParser.ParseFirstDamage(parts[0].Formula);
-            RollDamagePart(attack, picked != null ? picked.Formula : parts[0].Formula,
-                picked != null ? picked.Damage : DamageKind.None, 0);
+            var parts = attack.CleanParts().Where(p => p.Enabled).ToList();
+            if (parts.Count == 0) { DmRolls.Toast(this, "У этой атаки не указан урон", true); return; }
+
+            var list = new List<(string Formula, DamageKind Kind)>();
+            int bonus = AttackService.DamageBonus(attack);
+
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var parsed = DiceFormulaParser.ParseFirstDamage(parts[i].Formula);
+                string formula = parsed != null ? parsed.Formula : parts[i].Formula;
+                DamageKind kind = parsed != null ? parsed.Damage : DamageKind.None;
+
+                if (i == 0 && bonus != 0) formula += bonus > 0 ? "+" + bonus : bonus.ToString();
+
+                string perLevel = (parts[i].PerLevelDamage ?? "").Trim();
+                if (perLevel.Length > 0)
+                {
+                    for (int step = 0; step < steps; step++)
+                        formula += perLevel.StartsWith("-") ? perLevel : "+" + perLevel;
+                }
+
+                list.Add((formula, kind));
+            }
+
+            string levelWord = steps == 1 ? "уровень" : (steps < 5 ? "уровня" : "уровней");
+            DmRolls.RollDamageParts(this, list, _characterName,
+                attack.Name + " — за " + steps + " " + levelWord + " выше");
+        }
+
+        private void RollAllDamage(AttackData attack)
+        {
+            // Выключенные части в бросок не идут: игрок сам решает, что учитывать
+            var parts = attack.CleanParts().Where(p => p.Enabled).ToList();
+            if (parts.Count == 0)
+            {
+                DmRolls.Toast(this, attack.CleanParts().Count == 0
+                    ? "У этой атаки не указан урон"
+                    : "Все части урона выключены", true);
+                return;
+            }
+
+            // Собираем части и бросаем их ОДНИМ действием: одна панель результата
+            var list = new List<(string Formula, DamageKind Kind)>();
+
+            var first = DiceFormulaParser.ParseFirstDamage(parts[0].Formula);
+            string firstFormula = first != null ? first.Formula : parts[0].Formula;
+            DamageKind firstKind = first != null ? first.Damage : DamageKind.None;
+
+            // Добавка от характеристики — только к первой части, как в правилах
+            int damageBonus = AttackService.DamageBonus(attack);
+            if (damageBonus != 0) firstFormula += damageBonus > 0 ? "+" + damageBonus : damageBonus.ToString();
+            list.Add((firstFormula, firstKind));
 
             for (int i = 1; i < parts.Count; i++)
             {
                 var parsed = DiceFormulaParser.ParseDamages(parts[i].Formula);
                 if (parsed.Count == 0) continue;
-                DmRolls.RollDamage(this, parsed[0].Formula, parsed[0].Damage, _characterName, attack.Name);
+                list.Add((parsed[0].Formula, parsed[0].Damage));
             }
+
+            DmRolls.RollDamageParts(this, list, _characterName, attack.Name);
         }
 
         #endregion
@@ -711,13 +790,18 @@ namespace HMWT_MUI.Views
             card.Width = 900;
             card.MaxHeight = 900;
 
+            // Слой растягиваем на весь вид: раньше он был размером с карточку,
+            // и «затемнение» ограничивалось ей — фон вокруг оставался светлым
+            card.HorizontalAlignment = HorizontalAlignment.Center;
+            card.VerticalAlignment = VerticalAlignment.Center;
+
             _editorLayer = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x05, 0x07, 0x0E)),
                 Visibility = Visibility.Collapsed,
                 Child = card,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
             };
             Panel.SetZIndex(_editorLayer, 100);
             Grid.SetRow(_editorLayer, 0);
@@ -964,6 +1048,7 @@ namespace HMWT_MUI.Views
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var text = new StackPanel();
             text.Children.Add(new TextBlock
@@ -1015,6 +1100,7 @@ namespace HMWT_MUI.Views
         {
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var text = new StackPanel();
@@ -1104,6 +1190,38 @@ namespace HMWT_MUI.Views
             for (int i = 0; i < _draftParts.Count; i++) _partsHost.Children.Add(BuildDraftPartRow(_draftParts[i], i));
         }
 
+        /// <summary>
+        /// Поле с серой подсказкой ВНУТРИ: пока текста нет, видно, что сюда писать.
+        ///
+        /// Раньше пояснение стояло одной строкой над четырьмя полями сразу, и было
+        /// непонятно, какое слово к какому полю относится. Теперь подсказка лежит
+        /// в самом поле и гаснет, как только игрок начал печатать.
+        /// </summary>
+        private static Grid HintedBox(TextBox box, string hint, string fullHint = null)
+        {
+            var host = new Grid();
+            host.Children.Add(box);
+
+            // Полное пояснение — во всплывающей подсказке: в самом поле
+            // длинный текст не помещается и обрезается
+            box.ToolTip = string.IsNullOrWhiteSpace(fullHint) ? hint : fullHint;
+
+            var placeholder = new TextBlock
+            {
+                Text = hint,
+                Foreground = DmUiKit.B("Mute"),
+                FontSize = 12,
+                Margin = new Thickness(10, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
+                Visibility = string.IsNullOrEmpty(box.Text) ? Visibility.Visible : Visibility.Collapsed
+            };
+            host.Children.Add(placeholder);
+            box.TextChanged += (s, e) =>
+                placeholder.Visibility = string.IsNullOrWhiteSpace(box.Text) ? Visibility.Visible : Visibility.Collapsed;
+
+            return host;
+        }
         private UIElement BuildDraftPartRow(DamagePart part, int index)
         {
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
@@ -1115,11 +1233,13 @@ namespace HMWT_MUI.Views
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var formula = DmUiKit.Field(part.Formula, 120, "Формула: 1к8+3");
+            var formula = DmUiKit.Field(part.Formula, 120);
             formula.TextChanged += (s, e) => { part.Formula = formula.Text; RefreshEditorPreview(); };
-            Grid.SetColumn(formula, 0);
-            grid.Children.Add(formula);
+            var formulaHost = HintedBox(formula, "1к8+3", "Формула урона: 1к8+3 или 2к6+СИЛ. ХАР, ИНТ, МДР, ТЕЛ, ЛОВ, СИЛ подставляются из характеристик");
+            Grid.SetColumn(formulaHost, 0);
+            grid.Children.Add(formulaHost);
 
             var typeText = string.IsNullOrWhiteSpace(part.DamageType)
                 ? ""
@@ -1134,15 +1254,17 @@ namespace HMWT_MUI.Views
             Grid.SetColumn(typeBox, 2);
             grid.Children.Add(typeBox);
 
-            var perLevel = DmUiKit.Field(part.PerLevelDamage, 120, "За уровень выше: 1к6");
+            var perLevel = DmUiKit.Field(part.PerLevelDamage, 120);
             perLevel.TextChanged += (s, e) => { part.PerLevelDamage = perLevel.Text; RefreshEditorPreview(); };
-            Grid.SetColumn(perLevel, 4);
-            grid.Children.Add(perLevel);
+            var perLevelHost = HintedBox(perLevel, "1к6", "Что добавляется за каждый уровень выше: например 1к6");
+            Grid.SetColumn(perLevelHost, 4);
+            grid.Children.Add(perLevelHost);
 
-            var note = DmUiKit.Field(part.Note, 150, "Уточнение");
+            var note = DmUiKit.Field(part.Note, 150);
             note.TextChanged += (s, e) => { part.Note = note.Text; };
-            Grid.SetColumn(note, 6);
-            grid.Children.Add(note);
+            var noteHost = HintedBox(note, "Половина при успехе", "Уточнение к части урона: половина при успехе, только при попадании и т.п.");
+            Grid.SetColumn(noteHost, 6);
+            grid.Children.Add(noteHost);
 
             var remove = DmUiKit.Icon("✕", (s, e) =>
             {
@@ -1153,11 +1275,28 @@ namespace HMWT_MUI.Views
             Grid.SetColumn(remove, 7);
             grid.Children.Add(remove);
 
+            // Галочка «учитывать»: выключенная часть остаётся в записи, но в бросок
+            // урона не идёт — удобно, когда атака бьёт по-разному
+            var enabled = new CheckBox
+            {
+                IsChecked = part.Enabled,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                ToolTip = "Учитывать эту часть при броске урона",
+                Foreground = DmUiKit.B("Mute"),
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            enabled.Checked += (s, e) => { part.Enabled = true; RefreshEditorPreview(); };
+            enabled.Unchecked += (s, e) => { part.Enabled = false; RefreshEditorPreview(); };
+            var enabledHost = new StackPanel { Orientation = Orientation.Horizontal };
+            enabledHost.Children.Add(enabled);
+            Grid.SetColumn(enabledHost, 8);
+            grid.Children.Add(enabledHost);
+
             return new StackPanel
             {
                 Children =
                 {
-                    DmUiKit.Label("ФОРМУЛА · ТИП УРОНА · ЗА УРОВЕНЬ ВЫШЕ · УТОЧНЕНИЕ"),
                     grid
                 }
             };

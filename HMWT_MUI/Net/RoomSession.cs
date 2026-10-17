@@ -51,6 +51,12 @@ namespace HMWT_MUI.Net
 
         /// <summary>Момент последней отправки своих данных в комнату (для периодической сверки).</summary>
         private DateTime _lastSelfPublishUtc = DateTime.MinValue;
+
+        /// <summary>
+        /// Фоновая сверка своих данных. Раньше она жила в таймере вкладки «Отряд»:
+        /// закрыл вкладку — и правки (аватар, здоровье) до друзей не доходили.
+        /// </summary>
+        private System.Threading.Timer _selfSyncTimer;
         private string _lastSelfSignature = "";
 
         public SessionMode Mode { get; private set; } = SessionMode.Offline;
@@ -338,6 +344,26 @@ namespace HMWT_MUI.Net
                     }
                 };
 
+                // Хост просит наши данные: отвечаем сразу и безусловно, не глядя
+                // на подпись — иначе повторный вход в комнату остался бы без данных
+                _client.Events.ProfileRequested = ownerId =>
+                {
+                    try
+                    {
+                        var me = MyCharacterProvider?.Invoke();
+                        if (me == null) return;
+
+                        Debug.WriteLine("[Отряд] отправляю свои данные по запросу хоста");
+                        _lastSelfSignature = "";
+                        _ = _client.SendPlayerUpdateAsync(me);
+                        TrySendMyPhoto(me);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[Отряд] ответ на запрос данных: {ex.Message}");
+                    }
+                };
+
                 // У хоста нашего аватара нет: не просим его повторно
                 _client.Events.PhotoMissing = ownerId =>
                 {
@@ -369,6 +395,10 @@ namespace HMWT_MUI.Net
                 // клиент получает её снимком. Так нет двух расходящихся копий.
                 Mode = SessionMode.Client;
 
+            // Данные сверяем фоном: вкладку «Отряд» игрок может и не открывать,
+            // а аватар и здоровье у друзей должны обновляться
+            StartSelfSync();
+
                 // Ждём первый снимок от хоста.
                 //
                 // Без ожидания получалось так: вход уже выполнен, режим выставлен,
@@ -397,6 +427,33 @@ namespace HMWT_MUI.Net
         /// или здоровье, событие об этом могло не дойти, и тогда снимок
         /// запрашивается сам — раз в несколько секунд.
         /// </summary>
+        /// <summary>
+        /// Запускает фоновую сверку: раз в десять секунд проверяем, не изменились
+        /// ли наши данные, и если да — отправляем их хосту, а тот раздаёт всем.
+        /// </summary>
+        private void StartSelfSync()
+        {
+            StopSelfSync();
+            try
+            {
+                _selfSyncTimer = new System.Threading.Timer(_ =>
+                {
+                    try { RefreshMyCharacterIfStale(TimeSpan.FromSeconds(10)); }
+                    catch (Exception ex) { Debug.WriteLine($"[Отряд] фоновая сверка: {ex.Message}"); }
+                }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Отряд] таймер сверки: {ex.Message}");
+            }
+        }
+
+        private void StopSelfSync()
+        {
+            try { _selfSyncTimer?.Dispose(); } catch { }
+            _selfSyncTimer = null;
+        }
+
         public void RequestRefresh()
         {
             try
@@ -443,6 +500,16 @@ namespace HMWT_MUI.Net
 
         /// <summary>Выходит из комнаты и останавливает всё сетевое.</summary>
         public void Leave()        {
+            // Сначала прощаемся, пока соединение живо: иначе хост узнает о выходе
+            // только по таймауту (около 18 секунд) и всё это время игрок висит
+            // в комнате, а у остальных он «в отряде»
+            if (Mode == SessionMode.Client && _client != null)
+            {
+                try { _client.SendLeaveAsync().Wait(400); } catch { }
+            }
+
+            StopSelfSync();
+
             try { _client?.Disconnect(); } catch { }
             try { _server?.Stop(); } catch { }
 
@@ -1059,6 +1126,24 @@ namespace HMWT_MUI.Net
                     return string.IsNullOrEmpty(text) ? "Не удалось подключиться." : text;
             }
         }
+
+        /// <summary>Локальный IPv4 — его хост сообщает игрокам для подключения.</summary>
+        private static string LocalAddress()
+        {
+            try
+            {
+                var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+                var ipv4 = host.AddressList.FirstOrDefault(a =>
+                    a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                    !System.Net.IPAddress.IsLoopback(a));
+                return ipv4?.ToString() ?? "127.0.0.1";
+            }
+            catch
+            {
+                return "127.0.0.1";
+            }
+        }
+
         #endregion
     }
 }

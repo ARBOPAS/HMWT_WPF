@@ -68,6 +68,13 @@ namespace HMWT_MUI.Views
 
             // Разделы читаем сразу, а не по событию Loaded: вкладка должна быть
             // готовой к моменту показа, иначе первый кадр пустой
+            // Кнопки правки подключаем кодом: так же сделано в остальных видах
+            btnEditEntry.Click += BtnEditEntry_Click;
+            btnNewEntry.Click += BtnNewEntry_Click;
+            btnDeleteEntry.Click += BtnDeleteEntry_Click;
+            btnRefSave.Click += BtnRefSave_Click;
+            btnRefCancel.Click += BtnRefCancel_Click;
+
             LoadSections();
         }
 
@@ -168,6 +175,87 @@ namespace HMWT_MUI.Views
             txtSource.Text = string.IsNullOrWhiteSpace(entry.Publisher)
                 ? entry.Book
                 : $"{entry.Book} · {entry.Publisher}";
+        }
+
+        /// <summary>Номер правимой статьи; 0 — создаём новую.</summary>
+        private long _editingId;
+
+        private void BtnEditEntry_Click(object sender, RoutedEventArgs e)
+        {
+            int index = lstEntries.SelectedIndex;
+            if (index < 0 || index >= _entries.Count) { txtCount.Text = "Сначала выберите статью"; return; }
+            OpenEditor(_entries[index]);
+        }
+
+        private void BtnNewEntry_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedCategory.Length == 0) { txtCount.Text = "Сначала выберите раздел"; return; }
+            OpenEditor(null);
+        }
+
+        private void OpenEditor(SrdEntry entry)
+        {
+            _editingId = entry?.Id ?? 0;
+            edRefName.Text = entry?.Name ?? "";
+            edRefBody.Text = entry?.Description ?? "";
+            edRefBook.Text = entry?.Book ?? "";
+            edRefPublisher.Text = entry?.Publisher ?? "";
+            pnlEditEntry.Visibility = Visibility.Visible;
+            edRefName.Focus();
+        }
+
+        private void BtnRefCancel_Click(object sender, RoutedEventArgs e)
+            => pnlEditEntry.Visibility = Visibility.Collapsed;
+
+        private void BtnRefSave_Click(object sender, RoutedEventArgs e)
+        {
+            string name = edRefName.Text.Trim();
+            if (name.Length == 0) { txtCount.Text = "У статьи должно быть название"; edRefName.Focus(); return; }
+
+            try
+            {
+                if (_editingId > 0)
+                    SrdImportService.UpdateEntry(_editingId, name, edRefBody.Text,
+                        edRefBook.Text.Trim(), edRefPublisher.Text.Trim());
+                else
+                    SrdImportService.AddEntry(SelectedCategory, name, edRefBody.Text,
+                        edRefBook.Text.Trim(), edRefPublisher.Text.Trim());
+
+                pnlEditEntry.Visibility = Visibility.Collapsed;
+                ReloadEntries();
+
+                // выделяем то, что только что сохранили
+                for (int i = 0; i < _entries.Count; i++)
+                    if (string.Equals(_entries[i].Name, name, StringComparison.OrdinalIgnoreCase))
+                    { lstEntries.SelectedIndex = i; break; }
+
+                txtCount.Text = _editingId > 0 ? "Статья сохранена" : "Статья добавлена";
+            }
+            catch (Exception ex)
+            {
+                txtCount.Text = "Не сохранилось: " + ex.Message;
+            }
+        }
+
+        private void BtnDeleteEntry_Click(object sender, RoutedEventArgs e)
+        {
+            int index = lstEntries.SelectedIndex;
+            if (index < 0 || index >= _entries.Count) { txtCount.Text = "Сначала выберите статью"; return; }
+
+            var entry = _entries[index];
+            if (!Windows.MessageDialog.Confirm(this, $"Убрать статью «{entry.Name}» из справочника?", "Удаление"))
+                return;
+
+            try
+            {
+                SrdImportService.DeleteEntry(entry.Id);
+                pnlEditEntry.Visibility = Visibility.Collapsed;
+                ReloadEntries();
+            }
+            catch (Exception ex)
+            {
+                txtCount.Text = "Не удалилось: " + ex.Message;
+            }
         }
 
         private string SelectedCategory

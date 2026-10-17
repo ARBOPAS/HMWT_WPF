@@ -173,7 +173,9 @@ if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
 New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 
 $excluded = @("*.pdb", "*.xml", "*.vshost.exe", "*.vshost.exe.config", "*.vshost.exe.manifest")
-$excludedLibs = @("Microsoft.Web.WebView2.*.dll", "WebView2Loader.dll")
+# Библиотеки WebView2 нужны программе: на них работает редактор заметок.
+# Раньше здесь стояло исключение — с ним после установки заметки не открывались бы
+$excludedLibs = @()
 
 $copied = 0; $skippedData = 0; $skippedLibs = 0
 

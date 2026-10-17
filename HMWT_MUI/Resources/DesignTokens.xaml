@@ -1651,9 +1651,9 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                         Margin="{TemplateBinding Padding}">
                                 <ContentPresenter VerticalAlignment="Center"/>
-                                <TextBlock Text="{TemplateBinding Tag}" FontFamily="{StaticResource F.Body}"
-                                           FontSize="12" VerticalAlignment="Center" Margin="7,0,0,0"
-                                           Foreground="{TemplateBinding Foreground}"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontFamily="{StaticResource F.Display}"
+                                           FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           Margin="7,0,0,0" Foreground="{TemplateBinding Foreground}"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>

@@ -55,6 +55,11 @@
                             Click="BtnCopyKey_Click"/>
                     <Button x:Name="btnLeaveRoom" Content="Выйти из отряда" Style="{StaticResource RoomGhostBtn}"
                             Foreground="{StaticResource B.Danger}" Click="BtnLeaveRoom_Click"/>
+                    <!-- Подключение к чужой комнате прямо отсюда, чтобы не бегать в главное окно -->
+                    <Button x:Name="btnJoinRoomTab" Height="30" Margin="0,0,8,0" Style="{StaticResource RoomGhostBtn}"
+                            ToolTip="Подключиться к отряду по адресу и ключу" Click="BtnJoinRoomTab_Click">
+                        <TextBlock Text="Подключиться" VerticalAlignment="Center"/>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>

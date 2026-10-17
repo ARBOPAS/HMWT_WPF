@@ -1,0 +1,18 @@
+<UserControl x:Class="HMWT_MUI.Views.WebNotesEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+             Background="{StaticResource B.Slate}">
+    <Grid Background="{StaticResource B.Slate}">
+        <!-- Запасной вариант: если WebView2 на машине не поднимется, показываем
+             это сообщение и оставляем прежний редактор (его включает вкладка) -->
+        <TextBlock x:Name="FallbackNotice" Visibility="Collapsed"
+                   Text="Редактор заметок не смог загрузиться (нет компонента WebView2). Заметки остаются доступны, но правка может работать медленно."
+                   TextWrapping="Wrap" Margin="24" FontSize="13"
+                   Foreground="{StaticResource B.Mute}"/>
+
+        <!-- Окно движка. Фон задаётся цветом темы в коде: прозрачное окно
+             на части видеокарт не перерисовывается и не принимает щелчки -->
+        <wv2:WebView2 x:Name="Web" Visibility="Collapsed"/>
+    </Grid>
+</UserControl>

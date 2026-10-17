@@ -47,9 +47,13 @@ namespace HMWT_MUI.Net
         /// 1.0.0.3 — состояния, вдохновение и концентрация в шапке листа,
         /// короткий и длинный отдых с костями хитов.
         ///
+        /// 1.0.1.0 — заметки на WebView2: правка текста, размер картинки за
+        /// уголки, переключатель «ссылки внутри / в браузере». Формат сети
+        /// не менялся, но версия поднята: сборки разные — обновляться всем.
+        ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.0.0.4";
+        public const string AppVersion = "1.0.1.0";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -58,7 +62,7 @@ namespace HMWT_MUI.Net
         /// (<see cref="RoomSnapshot.Initiative"/>) и модификатор инициативы у
         /// участника: старые сборки не должны подключаться к новым.
         /// </summary>
-        public const int ProtocolVersion = 2;
+        public const int ProtocolVersion = 3;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -100,6 +104,13 @@ namespace HMWT_MUI.Net
         public const string PlayerUpdated = "player_updated";
 
         /// <summary>
+        /// Игрок выходит из комнаты. Клиент шлёт это перед закрытием соединения,
+        /// чтобы хост убрал его сразу, а не ждал таймаута: иначе игрок ещё
+        /// секунды висел в комнате «фантомом».
+        /// </summary>
+        public const string Leave = "leave";
+
+        /// <summary>
         /// Клиент просит прислать снимок заново.
         ///
         /// Нужно для периодического обновления: если другой игрок сменил аватар
@@ -123,6 +134,13 @@ namespace HMWT_MUI.Net
         /// появлялись до тех пор, пока их владелец не сменит фото.
         /// </summary>
         public const string PhotoRequest = "photo_request";
+
+        /// <summary>
+        /// Хост просит у игрока его актуальные данные (имя, класс, здоровье и т.д.).
+        /// Нужно при входе: в рукопожатии данные могли быть устаревшими, а игрок
+        /// об этом не знает — у остальных он оставался со старыми.
+        /// </summary>
+        public const string ProfileRequest = "profile_request";
 
         /// <summary>Хост отвечает: такого аватара у него нет.</summary>
         public const string PhotoMissing = "photo_missing";

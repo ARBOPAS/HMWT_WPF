@@ -156,6 +156,29 @@ namespace HMWT_MUI.Services
             @"^\s*(?<cr>\d{1,3}\s*/\s*\d{1,3}|\d{1,3})\s*(?:\((?<xp>[\d\s\u00A0]+)\s*опыт\w*)?",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        /// <summary>
+        /// Названия характеристик, которые можно писать в формуле: «+СИЛ», «+харизма», «+cha».
+        ///
+        /// Нужны, чтобы отличить характеристику от обычного слова после формулы:
+        /// «1к8+СИЛ» — это добавка, а «1к8+урон» — нет.
+        /// </summary>
+        private static readonly string[] AbilityWords =
+        {
+            "сил", "сила", "силы", "лов", "ловкость", "ловкости",
+            "тел", "телосложение", "инт", "интеллект",
+            "мдр", "мудрость", "хар", "харизма",
+            "str", "strength", "dex", "dexterity", "con", "constitution",
+            "int", "intelligence", "wis", "wisdom", "cha", "charisma"
+        };
+
+        /// <summary>Похоже ли слово на название характеристики.</summary>
+        public static bool IsAbilityWord(string word)
+        {
+            if (string.IsNullOrWhiteSpace(word)) return false;
+            string w = word.Trim().ToLowerInvariant();
+            foreach (string known in AbilityWords) if (known == w) return true;
+            return false;
+        }
         private static readonly string[] DamageWords =
         {
             "дробящ", "колющ", "рубящ", "кислот", "холод", "огн", "силов", "электрич",
@@ -228,12 +251,33 @@ namespace HMWT_MUI.Services
             if (m.Groups["mod"].Success && int.TryParse(m.Groups["mod"].Value, out int modValue))
                 modifier = m.Groups["sign"].Value == "-" ? -modValue : modValue;
 
+            // Добавка-характеристика сразу после формулы: «1к8+СИЛ», «2к6+харизма».
+            // DiceRegex ловит только числа, поэтому без этого «+СИЛ» терялось —
+            // и атака с такой формулой считалась без модификатора характеристики
+            // Пробелы вокруг плюса — обычное дело: «1к8 + ХАР». Раньше хвост
+            // сравнивался без TrimStart, знак «+» не находился, и характеристика
+            // терялась — формула считалась как «1к8». Поэтому сначала срезаем
+            // пробелы, а уже потом ищем знак и название.
+            string abilityText = "";
+            string restAfterDice = text.Substring(m.Index + m.Length).TrimStart();
+            var abilityMatch = TermAbilityRegex.Match(restAfterDice);
+            if (abilityMatch.Success && IsAbilityWord(abilityMatch.Groups["name"].Value))
+            {
+                string abilityName = abilityMatch.Groups["name"].Value.ToUpperInvariant();
+                abilityText = (abilityMatch.Groups["sign"].Value == "-" ? "-" : "+") + abilityName;
+
+                // После характеристики может стоять ещё число: «1к10 + МДР + 2».
+                var tailNumber = TermNumberRegex.Match(restAfterDice.Substring(abilityMatch.Length).TrimStart());
+                if (tailNumber.Success)
+                    abilityText += tailNumber.Groups["sign"].Value + tailNumber.Groups["value"].Value;
+            }
+
             var part = new FormulaPart
             {
-                Formula = m.Value.Trim(),
-                Normalized = $"{count}d{sides}{(modifier > 0 ? "+" + modifier : modifier < 0 ? modifier.ToString() : "")}",
+                Formula = m.Value.Trim() + abilityText,
+                Normalized = $"{count}d{sides}{(modifier > 0 ? "+" + modifier : modifier < 0 ? modifier.ToString() : "")}{abilityText}",
                 Start = m.Index,
-                Length = m.Length,
+                Length = m.Length + abilityText.Length,
                 Count = count,
                 Sides = sides,
                 Modifier = modifier

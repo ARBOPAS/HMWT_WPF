@@ -56,3 +56,13 @@ NetTests/obj/
 RoomUiTests/bin/
 RoomUiTests/obj/
 room-ui-report.txt
+
+# Мёртвые файлы, оставшиеся в папке от прежних сборок: в проект (csproj) они не
+# входят и в репозитории их нет — удалены в 1.0.0.4. Лежат на диске, но в коммит
+# не попадают, чтобы не возвращать удалённое.
+HMWT_MUI/Helpers/MarkdownEditor.xaml.cs
+HMWT_MUI/Views/ItemEditForm.xaml
+HMWT_MUI/Views/ItemEditForm.xaml.cs
+HMWT_MUI/Windows/TagManagerWindow.xaml
+HMWT_MUI/Windows/TagManagerWindow.xaml.cs
+HMWT_MUI/Windows/CustomDialog.xaml.cs

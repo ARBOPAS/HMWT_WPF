@@ -44,6 +44,17 @@
         <Border Grid.Column="2" Background="{StaticResource B.Panel}"
                 BorderBrush="{StaticResource B.Line}" BorderThickness="1">
             <DockPanel Margin="16">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                    <Button x:Name="btnEditEntry" Content="Изменить" Height="28" Margin="0,0,6,0"
+                            Style="{StaticResource GhostBtn}"
+                            ToolTip="Править выбранную статью"/>
+                    <Button x:Name="btnNewEntry" Content="Новая статья" Height="28" Margin="0,0,6,0"
+                            Style="{StaticResource GhostBtn}"
+                            ToolTip="Добавить свою статью в выбранный раздел"/>
+                    <Button x:Name="btnDeleteEntry" Content="Удалить" Height="28"
+                            Style="{StaticResource GhostBtn}"
+                            ToolTip="Убрать статью из справочника"/>
+                </StackPanel>
                 <TextBlock x:Name="txtTitle" DockPanel.Dock="Top" Style="{StaticResource RefHeader}"
                            TextWrapping="Wrap" Margin="0,0,0,6"/>
                 <TextBlock x:Name="txtSource" DockPanel.Dock="Bottom" Style="{StaticResource RefHint}"
@@ -56,6 +67,30 @@
             </DockPanel>
         </Border>
 
+        <!-- Форма статьи: открывается кнопками «Изменить» и «Новая статья» -->
+        <Border x:Name="pnlEditEntry" Grid.Column="2" Background="{StaticResource B.Panel}"
+                BorderBrush="{StaticResource B.Accent}" BorderThickness="1" Visibility="Collapsed">
+            <DockPanel Margin="16">
+                <TextBlock DockPanel.Dock="Top" Text="СТАТЬЯ СПРАВОЧНИКА" Style="{StaticResource RefHeader}" Margin="0,0,0,10"/>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+                    <Button x:Name="btnRefSave" Content="Сохранить" Height="30" Margin="0,0,8,0"
+                            Style="{StaticResource ActionBtn}"/>
+                    <Button x:Name="btnRefCancel" Content="Отмена" Height="30"
+                            Style="{StaticResource GhostBtn}"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="НАЗВАНИЕ" Style="{StaticResource RefHint}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="edRefName" Style="{StaticResource RefSearch}" Margin="0,0,0,10"/>
+                    <TextBlock Text="ТЕКСТ СТАТЬИ" Style="{StaticResource RefHint}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="edRefBody" Height="260" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" Style="{StaticResource RefSearch}" Margin="0,0,0,10"/>
+                    <TextBlock Text="ИСТОЧНИК (книга)" Style="{StaticResource RefHint}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="edRefBook" Style="{StaticResource RefSearch}" Margin="0,0,0,10"/>
+                    <TextBlock Text="ИЗДАТЕЛЬ" Style="{StaticResource RefHint}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="edRefPublisher" Style="{StaticResource RefSearch}"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
         <!-- Заглушка, пока справочник не загружен -->
         <Border x:Name="pnlEmpty" Grid.ColumnSpan="3" Background="{StaticResource B.Panel}"
                 BorderBrush="{StaticResource B.Line}" BorderThickness="1" Visibility="Collapsed">
@@ -63,7 +98,7 @@
                 <TextBlock Text="Справочник пуст" Style="{StaticResource RefHeader}"
                            HorizontalAlignment="Center" Margin="0,0,0,10"/>
                 <TextBlock Style="{StaticResource RefHint}" TextAlignment="Center" FontSize="13"
-                           Text="Открытые правила не входят в поставку: их подключает сам игрок. Скачайте базу 5e SRD (репозиторий 5e-bits/5e-srd-api), распакуйте и укажите папку с языком в разделе «Справочники SRD» на вкладке настроек — например src\2024\ru для русской базы."/>
+                           Text="Справочник наполняет сам игрок: файлы правил не входят в поставку. Импорт и настройка папки — на вкладке настроек. Любую статью можно поправить или добавить свою."/>
             </StackPanel>
         </Border>
     </Grid>

@@ -511,6 +511,8 @@
                                 </Grid>
                                 <TextBlock Text="Восстановление зарядов" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
                                 <ComboBox x:Name="ed_cbRecharge" Style="{StaticResource DarkComboBox}" Margin="0,0,0,12"/>
+                                <TextBlock Text="Кость восстановления (пусто — до максимума)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,8,0,5"/>
+                                <TextBox x:Name="ed_txtRechargeDice" Style="{StaticResource TextField}" Margin="0,0,0,12" ToolTip="Например: 1к3 — столько зарядов вернётся на отдыхе"/>
                                 <TextBlock Text="Заметки" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
                                 <TextBox x:Name="ed_txtNotes" Height="50" Style="{StaticResource TextField}" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
                             </StackPanel>

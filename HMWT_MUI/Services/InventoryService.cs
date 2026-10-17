@@ -50,6 +50,12 @@ namespace HMWT_MUI.Services
         public int ArmorClassBonus { get; set; } = 0;
         public bool IsEquipped { get; set; } = false;
         public bool IsAttuned { get; set; } = false;
+
+        /// <summary>
+        /// Кость восстановления зарядов на отдыхе: «1к3», «2к4+1».
+        /// Пусто — заряды восстанавливаются до максимума, как было раньше.
+        /// </summary>
+        public string RechargeDice { get; set; } = "";
         public int MaxCharges { get; set; } = 0;
         public int Charges { get; set; } = 0;
 
@@ -173,7 +179,7 @@ namespace HMWT_MUI.Services
             IsEquipped = Convert.ToInt32(r["is_equipped"]) == 1,
             IsAttuned = Convert.ToInt32(r["is_attuned"]) == 1,
             Charges = HasColumn(r, "charges") ? Convert.ToInt32(r["charges"]) : 0,
-            MaxCharges = HasColumn(r, "max_charges") ? Convert.ToInt32(r["max_charges"]) : 0,
+            RechargeDice = HasColumn(r, "recharge_dice") ? (r["recharge_dice"]?.ToString() ?? "") : "",            MaxCharges = HasColumn(r, "max_charges") ? Convert.ToInt32(r["max_charges"]) : 0,
             Recharge = HasColumn(r, "recharge") ? (r["recharge"]?.ToString() ?? ItemData.RechargeLong) : ItemData.RechargeLong,
             IsStackable = HasColumn(r, "is_stackable") && Convert.ToInt32(r["is_stackable"]) == 1,
             Rarity = HasColumn(r, "rarity") ? r["rarity"]?.ToString() ?? "" : "",
@@ -288,11 +294,11 @@ namespace HMWT_MUI.Services
                     INSERT INTO Inventory
                     (id_character, name, category, description, quantity, weight,
                      cost_gold, cost_silver, cost_copper, damage_dice, damage_type,
-                     armor_class_bonus, is_equipped, is_attuned, charges, max_charges, recharge, rarity, notes, PhotoPath, list_photo_path)
+                     armor_class_bonus, is_equipped, is_attuned, charges, max_charges, recharge, recharge_dice, rarity, notes, PhotoPath, list_photo_path)
                     VALUES
                     (@charId, @name, @category, @description, @quantity, @weight,
                      @costGold, @costSilver, @costCopper, @damageDice, @damageType,
-                     @acBonus, 0, @attuned, @charges, @maxCharges, @recharge, @rarity, @notes, @photoPath, @listPhotoPath);
+                     @acBonus, 0, @attuned, @charges, @maxCharges, @recharge, @rechargeDice, @rarity, @notes, @photoPath, @listPhotoPath);
                     SELECT last_insert_rowid();", conn);
                 AddItemParams(cmd, d);
                 return Convert.ToInt32(cmd.ExecuteScalar());
@@ -302,7 +308,7 @@ namespace HMWT_MUI.Services
                     name=@name, category=@category, description=@description, quantity=@quantity, weight=@weight,
                     cost_gold=@costGold, cost_silver=@costSilver, cost_copper=@costCopper,
                     damage_dice=@damageDice, damage_type=@damageType, armor_class_bonus=@acBonus,
-                    is_attuned=@attuned, charges=@charges, max_charges=@maxCharges, recharge=@recharge,
+                    is_attuned=@attuned, charges=@charges, max_charges=@maxCharges, recharge=@recharge, recharge_dice=@rechargeDice,
                     rarity=@rarity, notes=@notes,
                     PhotoPath=@photoPath, list_photo_path=@listPhotoPath
                 WHERE id_item=@itemId AND id_character=@charId", conn);
@@ -329,7 +335,7 @@ namespace HMWT_MUI.Services
             cmd.Parameters.AddWithValue("@acBonus", d.ArmorClassBonus);
             cmd.Parameters.AddWithValue("@attuned", d.IsAttuned ? 1 : 0);
             cmd.Parameters.AddWithValue("@charges", d.Charges);
-            cmd.Parameters.AddWithValue("@maxCharges", d.MaxCharges);
+            cmd.Parameters.AddWithValue("@rechargeDice", d.RechargeDice ?? "");            cmd.Parameters.AddWithValue("@maxCharges", d.MaxCharges);
             cmd.Parameters.AddWithValue("@recharge", string.IsNullOrWhiteSpace(d.Recharge) ? ItemData.RechargeLong : d.Recharge);
             cmd.Parameters.AddWithValue("@rarity", d.Rarity ?? "");
             cmd.Parameters.AddWithValue("@notes", d.Notes ?? "");

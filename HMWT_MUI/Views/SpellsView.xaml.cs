@@ -1201,10 +1201,10 @@ namespace HMWT_MUI.Views
 
             // «−» только когда уровень поднят: ниже базового уйти нельзя
             if (BtnCastLevelMinus != null)
-                BtnCastLevelMinus.Visibility = _castLevel > baseLevel ? Visibility.Visible : Visibility.Collapsed;
-
-            // «+» бессмысленен выше 9 уровня
-            if (BtnCastLevelPlus != null)
+                // Кнопка «меньше» видна всегда: раньше она пряталась на базовом
+                // уровне, и было непонятно, что уровень можно понизить
+                BtnCastLevelMinus.Visibility = Visibility.Visible;
+                BtnCastLevelMinus.IsEnabled = _castLevel > baseLevel;
                 BtnCastLevelPlus.IsEnabled = _castLevel < 9;
 
             string formula = SpellService.BuildCastFormula(spell, _castLevel);

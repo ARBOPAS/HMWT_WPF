@@ -44,6 +44,45 @@ namespace HMWT_MUI.Services
         private static readonly Random Rng = new Random();
         private static readonly object RngLock = new object();
 
+        /// <summary>
+        /// Бросок кости восстановления зарядов: «1к3», «2к4+1».
+        /// Возвращает 0, если формулы нет или она непонятна — тогда заряды
+        /// восстанавливаются до максимума, как было раньше.
+        /// </summary>
+        private static int RollRechargeDice(string formula)
+        {
+            if (string.IsNullOrWhiteSpace(formula)) return 0;
+            try
+            {
+                if (!DiceFormulaParser.TryParseExpression(formula, out var terms, out _)) return 0;
+
+                int total = 0;
+                bool anyDice = false;
+                foreach (var term in terms)
+                {
+                    if (term.IsDice)
+                    {
+                        anyDice = true;
+                        for (int i = 0; i < term.Count; i++) total += term.Sign * RollDie(term.Sides);
+                    }
+                    else if (term.IsAbility)
+                    {
+                        return 0;   // характеристики в зарядах не считаем
+                    }
+                    else
+                    {
+                        total += term.Sign * term.Modifier;
+                    }
+                }
+
+                return anyDice ? Math.Max(0, total) : 0;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RestService] кость восстановления «{formula}»: {ex.Message}");
+                return 0;
+            }
+        }
         private static int RollDie(int sides)
         {
             lock (RngLock) return Rng.Next(1, Math.Max(2, sides) + 1);
@@ -282,23 +321,47 @@ namespace HMWT_MUI.Services
                 conn.Open();
                 string filter = RechargeFilter(rest);
 
+                // Берём неполные предметы вместе с костью восстановления: часть
+                // предметов возвращает не всё сразу, а сколько выпадет на кости
+                var items = new List<(int Id, string Name, int Charges, int Max, string Dice)>();
                 using (var select = new SqliteCommand($@"
-                    SELECT name FROM Inventory
+                    SELECT id_item, name, COALESCE(charges, 0) AS charges,
+                           COALESCE(max_charges, 0) AS max_charges,
+                           COALESCE(recharge_dice, '') AS recharge_dice
+                    FROM Inventory
                     WHERE id_character = @id AND COALESCE(max_charges, 0) > 0
                       AND COALESCE(charges, 0) < max_charges AND {filter}
                     ORDER BY name", conn))
                 {
                     select.Parameters.AddWithValue("@id", characterId);
                     using var reader = select.ExecuteReader();
-                    while (reader.Read()) recharged.Add(reader["name"]?.ToString() ?? "");
+                    while (reader.Read())
+                    {
+                        items.Add((Convert.ToInt32(reader["id_item"]),
+                                   reader["name"]?.ToString() ?? "",
+                                   Convert.ToInt32(reader["charges"]),
+                                   Convert.ToInt32(reader["max_charges"]),
+                                   reader["recharge_dice"]?.ToString() ?? ""));
+                    }
                 }
 
-                using var update = new SqliteCommand($@"
-                    UPDATE Inventory SET charges = max_charges
-                    WHERE id_character = @id AND COALESCE(max_charges, 0) > 0
-                      AND COALESCE(charges, 0) < max_charges AND {filter}", conn);
-                update.Parameters.AddWithValue("@id", characterId);
-                update.ExecuteNonQuery();
+                foreach (var item in items)
+                {
+                    int rolled = RollRechargeDice(item.Dice);
+                    int charges = rolled > 0 ? Math.Min(item.Max, item.Charges + rolled) : item.Max;
+
+                    using (var update = new SqliteCommand("UPDATE Inventory SET charges = @ch WHERE id_item = @id", conn))
+                    {
+                        update.Parameters.AddWithValue("@ch", charges);
+                        update.Parameters.AddWithValue("@id", item.Id);
+                        update.ExecuteNonQuery();
+                    }
+
+                    // В подписи видно и бросок: «Кольцо — 1к3: +2 (3/3)»
+                    recharged.Add(rolled > 0
+                        ? $"{item.Name} — {item.Dice.Trim()}: +{rolled} ({charges}/{item.Max})"
+                        : item.Name);
+                }
 
                 return recharged.Count;
             }

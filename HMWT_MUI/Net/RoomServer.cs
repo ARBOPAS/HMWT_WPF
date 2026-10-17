@@ -91,10 +91,13 @@ namespace HMWT_MUI.Net
         /// </summary>
         private InitiativeState _initiative = new InitiativeState();
 
+        private int _playerCounter;
+
         public RoomServerEvents Events { get; set; } = new RoomServerEvents();
         public string RoomId => _roomId;
         public string KeySecret => _keySecret;
         public int Port => _port;
+        public bool IsRunning => _listener != null;
 
         /// <summary>Интервал heartbeat: по нему определяем отвалившихся.</summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(5);
@@ -312,6 +315,10 @@ namespace HMWT_MUI.Net
                 // аватар не появлялся бы, пока владелец не сменит фото.
                 _ = RequestPhotoAsync(conn);
 
+            // Просим и сами данные: аватар — это только картинка, а имя, класс
+            // и здоровье могли измениться уже после рукопожатия
+            _ = RequestProfileAsync(conn);
+
                 // ── 5. Читаем сообщения до разрыва ──
                 await ReadLoopAsync(conn).ConfigureAwait(false);
             }
@@ -401,6 +408,13 @@ namespace HMWT_MUI.Net
                 switch (msg.Type)
                 {
                     case MsgType.Pong:
+                        break;
+
+                    case MsgType.Leave:
+                        // Игрок попрощался: закрываем соединение сразу, чтобы он
+                        // не висел в комнате до таймаута
+                        conn.DisconnectReason = "выход игрока";
+                        try { conn.Cts.Cancel(); } catch { }
                         break;
 
                     case MsgType.ChatSend:
@@ -571,6 +585,26 @@ namespace HMWT_MUI.Net
         /// Нужно при входе: снимок содержит только путь к файлу, а самого файла
         /// у остальных нет. Игрок отвечает теми же частями, что и обычно.
         /// </summary>
+        /// <summary>
+        /// Просит игрока прислать свои данные. Ответ придёт обычным
+        /// player_updated, и его увидят все — как при смене данных вручную.
+        /// </summary>
+        private async Task RequestProfileAsync(ClientConnection conn)
+        {
+            if (conn == null || !conn.HandshakeDone) return;
+
+            try
+            {
+                await SendSafeAsync(conn, new NetMessage(MsgType.ProfileRequest,
+                    new ProfileRequest { owner = conn.PlayerId })).ConfigureAwait(false);
+                Log($"запрошены данные игрока {conn.PlayerId}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Room] запрос данных: {ex.Message}");
+            }
+        }
+
         private async Task RequestPhotoAsync(ClientConnection conn)
         {
             if (conn == null || !conn.HandshakeDone) return;

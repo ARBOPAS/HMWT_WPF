@@ -10,6 +10,9 @@ namespace HMWT_MUI.Services
     public sealed class SrdEntry
     {
         [JsonPropertyName("name")]
+        /// <summary>Номер записи в базе: по нему правим и удаляем.</summary>
+        public long Id { get; set; }
+
         public string Name { get; set; } = "";
 
         [JsonPropertyName("description")]
@@ -70,6 +73,35 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>
+        /// Разделы, которые реально лежат в базе, по алфавиту.
+        ///
+        /// Нужны вкладке «Справочники»: она показывает только то, что игрок
+        /// импортировал, а не жёсткий список ожидаемых файлов.
+        /// </summary>
+        public static List<string> GetCategories()
+        {
+            var result = new List<string>();
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "SELECT DISTINCT category FROM SrdReference WHERE COALESCE(category, '') <> '' ORDER BY category", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    string category = reader[0]?.ToString() ?? "";
+                    if (category.Length > 0) result.Add(category);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SrdImportService] разделы: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Получает все записи категории из БД.
         /// </summary>
         public static List<SrdEntry> GetAll(string category)
@@ -79,7 +111,7 @@ namespace HMWT_MUI.Services
             conn.Open();
 
             using var cmd = new SqliteCommand(@"
-                SELECT name, description, properties, publisher, book
+                SELECT id_srd, name, description, properties, publisher, book
                 FROM SrdReference
                 WHERE category = @c
                 ORDER BY name", conn);
@@ -94,6 +126,7 @@ namespace HMWT_MUI.Services
 
                 result.Add(new SrdEntry
                 {
+                    Id = Convert.ToInt64(reader["id_srd"]),
                     Name = reader["name"]?.ToString() ?? "",
                     Description = reader["description"]?.ToString() ?? "",
                     Properties = props,
@@ -101,29 +134,6 @@ namespace HMWT_MUI.Services
                     Book = reader["book"]?.ToString() ?? ""
                 });
             }
-            return result;
-        }
-
-        /// <summary>
-        /// Разделы, которые есть в справочнике. Вкладка «Справка» строит по ним
-        /// подразделы, поэтому пустые разделы сразу отсеиваются.
-        /// </summary>
-        public static List<string> GetCategories()
-        {
-            var result = new List<string>();
-            using var conn = DatabaseHelper.GetConnection();
-            conn.Open();
-
-            using var cmd = new SqliteCommand(@"
-                SELECT category
-                FROM SrdReference
-                GROUP BY category
-                HAVING COUNT(1) > 0
-                ORDER BY category", conn);
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read()) result.Add(reader["category"]?.ToString() ?? "");
-
             return result;
         }
 
@@ -139,7 +149,7 @@ namespace HMWT_MUI.Services
             conn.Open();
 
             using var cmd = new SqliteCommand(@"
-                SELECT name, description, properties, publisher, book
+                SELECT id_srd, name, description, properties, publisher, book
                 FROM SrdReference
                 WHERE category = @c AND name LIKE @q
                 ORDER BY name", conn);
@@ -155,6 +165,7 @@ namespace HMWT_MUI.Services
 
                 result.Add(new SrdEntry
                 {
+                    Id = Convert.ToInt64(reader["id_srd"]),
                     Name = reader["name"]?.ToString() ?? "",
                     Description = reader["description"]?.ToString() ?? "",
                     Properties = props,
@@ -163,6 +174,52 @@ namespace HMWT_MUI.Services
                 });
             }
             return result;
+        }
+
+        /// <summary>
+        /// Меняет статью справочника: игрок правит текст под свою игру.
+        /// </summary>
+        public static void UpdateEntry(long id, string name, string description, string book, string publisher)
+        {
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            using var cmd = new SqliteCommand(@"
+                UPDATE SrdReference
+                SET name = @n, description = @d, book = @b, publisher = @p
+                WHERE id_srd = @id", conn);
+            cmd.Parameters.AddWithValue("@n", name ?? "");
+            cmd.Parameters.AddWithValue("@d", description ?? "");
+            cmd.Parameters.AddWithValue("@b", book ?? "");
+            cmd.Parameters.AddWithValue("@p", publisher ?? "");
+            cmd.Parameters.AddWithValue("@id", id);
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>Добавляет свою статью в раздел. Возвращает её номер.</summary>
+        public static long AddEntry(string category, string name, string description, string book, string publisher)
+        {
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            using var cmd = new SqliteCommand(@"
+                INSERT INTO SrdReference (category, name, description, properties, publisher, book)
+                VALUES (@c, @n, @d, '{}', @p, @b);
+                SELECT last_insert_rowid();", conn);
+            cmd.Parameters.AddWithValue("@c", category ?? "");
+            cmd.Parameters.AddWithValue("@n", name ?? "");
+            cmd.Parameters.AddWithValue("@d", description ?? "");
+            cmd.Parameters.AddWithValue("@p", publisher ?? "");
+            cmd.Parameters.AddWithValue("@b", book ?? "");
+            return Convert.ToInt64(cmd.ExecuteScalar());
+        }
+
+        /// <summary>Удаляет статью справочника.</summary>
+        public static void DeleteEntry(long id)
+        {
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            using var cmd = new SqliteCommand("DELETE FROM SrdReference WHERE id_srd = @id", conn);
+            cmd.Parameters.AddWithValue("@id", id);
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>

@@ -6,7 +6,7 @@
              xmlns:controls="clr-namespace:HMWT_MUI.Controls"
              xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
              mc:Ignorable="d" 
-             d:DesignHeight="800" d:DesignWidth="1200">
+             d:DesignHeight="800" d:DesignWidth="1200" xmlns:views="clr-namespace:HMWT_MUI.Views">
     <UserControl.Resources>
         <!-- ЦВЕТА -->
 
@@ -179,6 +179,14 @@
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Style.Triggers>
+                                            <!-- Папки отличаем от заметок: другой шрифт,
+                                                 полужирный и цвет — чтобы дерево читалось сразу -->
+                                            <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                <Setter Property="FontFamily" Value="{StaticResource F.Display}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="FontSize" Value="13"/>
+                                                <Setter Property="Foreground" Value="{StaticResource B.Arcane}"/>
+                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding IsVisible}" Value="False">
                                                 <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
                                                 <Setter Property="Opacity" Value="0.35"/>
@@ -259,7 +267,7 @@
             <Border Grid.Row="2" Margin="15,10,15,10" Background="{StaticResource B.Slate}" 
                     BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8">
                 <Grid>
-                    <controls:MarkdownEditor x:Name="Editor"/>
+                    <views:WebNotesEditor x:Name="Editor"/>
 
                     <!-- Пустое состояние. Раньше здесь была одна серая строчка мелким
                          шрифтом, и когда заметка не выбрана, область выглядела просто

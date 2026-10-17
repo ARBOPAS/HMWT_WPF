@@ -34,6 +34,9 @@ namespace HMWT_MUI.Net
         /// а самого файла у остальных нет.
         /// </summary>
         public Action<string> PhotoRequested { get; set; }
+
+        /// <summary>Хост просит наши данные: отвечаем актуальным профилем.</summary>
+        public Action<string> ProfileRequested { get; set; }
     }
 
     /// <summary>
@@ -325,6 +328,16 @@ namespace HMWT_MUI.Net
                         }
                         break;
 
+                    case MsgType.ProfileRequest:
+                        // Хост просит наши данные: отвечаем тем, что есть сейчас
+                        var askProfile = msg.As<ProfileRequest>();
+                        if (askProfile != null)
+                        {
+                            Debug.WriteLine($"[Отряд] хост просит данные игрока {askProfile.owner}");
+                            Events?.ProfileRequested?.Invoke(askProfile.owner);
+                        }
+                        break;
+
                     case MsgType.PhotoRequest:
                         // Хост просит наш аватар: отвечаем теми же частями.
                         // Так чужой игрок получает наше фото сразу при входе.
@@ -453,6 +466,16 @@ namespace HMWT_MUI.Net
 
         public Task SendPlayerUpdateAsync(PlayerInfo me)
             => SendAsync(new NetMessage(MsgType.PlayerUpdated, me));
+
+        /// <summary>
+        /// Прощание перед выходом. Автопереподключение выключаем: иначе клиент
+        /// молча возвращался в комнату и на хосте появлялся второй такой же игрок.
+        /// </summary>
+        public Task SendLeaveAsync()
+        {
+            AutoReconnect = false;
+            return SendAsync(new NetMessage(MsgType.Leave, new LeaveRequest { owner = PlayerId }));
+        }
 
         private async Task SendAsync(NetMessage message)
         {

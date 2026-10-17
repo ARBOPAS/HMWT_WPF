@@ -1810,6 +1810,12 @@ namespace HMWT_MUI
             }
         }
 
+        /// <summary>
+        /// Показывает готовый бросок (например, суммарный урон атаки) одной панелью.
+        /// </summary>
+        public void ShowCombinedRoll(Services.DiceRollResult result, bool publish = true)
+            => ShowDiceResult(result, publish);
+
         private void ShowDiceResult(Services.DiceRollResult result, bool publish = true)
         {
             if (result == null) return;
@@ -1817,8 +1823,10 @@ namespace HMWT_MUI
             // Сначала в отряд: бросок должен уйти друзьям независимо от того, как отрисуется окно
             if (publish) PublishRollToRoom(result);
 
-            bool isCritSuccess = result.IndividualRolls != null && result.IndividualRolls.Count > 0 && result.IndividualRolls[0] == 20;
-            bool isCritFail = result.IndividualRolls != null && result.IndividualRolls.Count > 0 && result.IndividualRolls[0] == 1;
+            // Крит и провал — только про d20: «20» на кости урона не включает крит
+            bool isD20 = result.Dice != null && result.Dice.Count > 0 && result.Dice[0].Sides == 20;
+            bool isCritSuccess = isD20 && result.IndividualRolls != null && result.IndividualRolls.Count > 0 && result.IndividualRolls[0] == 20;
+            bool isCritFail = isD20 && result.IndividualRolls != null && result.IndividualRolls.Count > 0 && result.IndividualRolls[0] == 1;
 
             var resultPanel = BuildRollPanel(result, isCritSuccess, isCritFail);
 
@@ -2600,7 +2608,8 @@ namespace HMWT_MUI
                     return new Views.DmToolsView(_characterId);
                 case "Settings":
                     return new Views.SettingsView();
-                case "Reference":
+                case "DatabaseEditor":
+                    return new Views.DatabaseEditorView();                case "Reference":
                     return new Views.ReferenceView();
                 default:
                     return null;
@@ -2686,7 +2695,7 @@ namespace HMWT_MUI
                 (btnSpellsTab, "Spells", icoSpellsTab, true),
                 (btnRoomTab, "Room", icoRoomTab, false),
                 (btnDmToolsTab, "DmTools", icoDmToolsTab, true),
-                (btnReferenceTab, "Reference", icoReferenceTab, false),
+                (btnDbTab, "DatabaseEditor", icoDbTab, false),                (btnReferenceTab, "Reference", icoReferenceTab, false),
                 (btnSettingsTab, "Settings", icoSettingsTab, false)
             };
 
@@ -2770,6 +2779,7 @@ namespace HMWT_MUI
         private void btnRoomTab_Click(object sender, RoutedEventArgs e) => SwitchView("Room");
         private void btnSettingsTab_Click(object sender, RoutedEventArgs e) => SwitchView("Settings");
 
+        private void btnDbTab_Click(object sender, RoutedEventArgs e) => SwitchView("DatabaseEditor");
         private void btnReferenceTab_Click(object sender, RoutedEventArgs e) => SwitchView("Reference");
 
         private void btnDmToolsTab_Click(object sender, RoutedEventArgs e)

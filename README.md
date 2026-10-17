@@ -132,6 +132,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer\build-installer.ps
 - повторный импорт обновляет записи по названию и книге, дубли не появляются;
 - удалить импортированное можно там же, где и свои записи.
 
+## Авторы
+
+Проект сделали **Arbopas** и **XERNUSHKIN**.
+
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).

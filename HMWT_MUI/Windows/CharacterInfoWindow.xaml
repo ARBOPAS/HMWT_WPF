@@ -125,6 +125,9 @@
                         ToolTip="Справка" Click="btnReferenceTab_Click">
                     <helpers:IconView x:Name="icoReferenceTab" Kind="book" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
                 </Button>
+                <Button x:Name="btnDbTab" Style="{StaticResource RailBtn}" Tag="Редактор БД" ToolTip="Редактор БД" Click="btnDbTab_Click">
+                    <helpers:IconView x:Name="icoDbTab" Kind="grid" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
                 <Separator Background="{StaticResource B.Line}" Margin="0,16,0,8"/>
                 <Button x:Name="btnSettingsTab" Style="{StaticResource RailBtn}" Tag="Настройки"
                         ToolTip="Настройки" Click="btnSettingsTab_Click">

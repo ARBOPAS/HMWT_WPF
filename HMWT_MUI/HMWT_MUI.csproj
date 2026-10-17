@@ -113,6 +113,8 @@
     </Reference>
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Data" />
+    <!-- Нужен для цвета фона окна WebView2 (оно принимает System.Drawing.Color) -->
+    <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.IO.Pipelines, Version=10.0.0.10, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -175,6 +177,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="Helpers\NotesHtmlBridge.cs" />
+    <Compile Include="Helpers\NoteLinks.cs" />
+    <Compile Include="Helpers\WebView2Host.cs" />
     <Compile Include="Helpers\MarkdownParser.cs" />
     <Compile Include="Helpers\NotePaths.cs" />
     <Compile Include="Helpers\TreeIndentConverter.cs" />
@@ -262,6 +267,9 @@
     <Compile Include="Windows\NotePromptWindow.xaml.cs">
       <DependentUpon>NotePromptWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Windows\NoteLinkWindow.xaml.cs">
+      <DependentUpon>NoteLinkWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\WikiPickerWindow.xaml.cs">
       <DependentUpon>WikiPickerWindow.xaml</DependentUpon>
     </Compile>
@@ -311,7 +319,19 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="Views\ReferenceView.xaml">
+    <Page Include="Views\WebNotesEditor.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="Views\WebNotesEditor.xaml.cs">
+      <DependentUpon>WebNotesEditor.xaml</DependentUpon>
+    </Compile>    <Page Include="Views\DatabaseEditorView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="Views\DatabaseEditorView.xaml.cs">
+      <DependentUpon>DatabaseEditorView.xaml</DependentUpon>
+    </Compile>    <Page Include="Views\ReferenceView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -328,6 +348,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\NotePromptWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\NoteLinkWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -442,4 +466,18 @@
   <Import Project="..\packages\SourceGear.sqlite3.3.53.3\build\net471\SourceGear.sqlite3.targets" Condition="Exists('..\packages\SourceGear.sqlite3.3.53.3\build\net471\SourceGear.sqlite3.targets')" />
   <Import Project="..\packages\SQLitePCLRaw.lib.e_sqlite3.3.53.3\build\net471\SQLitePCLRaw.lib.e_sqlite3.targets" Condition="Exists('..\packages\SQLitePCLRaw.lib.e_sqlite3.3.53.3\build\net471\SQLitePCLRaw.lib.e_sqlite3.targets')" />
   <Import Project="..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" />
+  <ItemGroup>
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>..\packages\Microsoft.Web.WebView2.1.0.4191.47\lib\net462\Microsoft.Web.WebView2.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Wpf">
+      <HintPath>..\packages\Microsoft.Web.WebView2.1.0.4191.47\lib\net462\Microsoft.Web.WebView2.Wpf.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\packages\Microsoft.Web.WebView2.1.0.4191.47\runtimes\win-x64\native\WebView2Loader.dll">
+      <Link>WebView2Loader.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

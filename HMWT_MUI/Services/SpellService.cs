@@ -435,6 +435,12 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@dmg", spell.DamageFormula ?? "");
                 cmd.Parameters.AddWithValue("@dtype", spell.DamageType ?? "");
                 cmd.Parameters.AddWithValue("@plvl", spell.PerLevelDamage ?? "");
+                // Лечение: параметры были объявлены в запросе, но значения не
+                // передавались — SQLite падал с «Must add values for the following
+                // parameters: @heal, @heallvl», ошибка глоталась, и созданное
+                // заклинание не сохранялось (при этом показывался тост «создано»)
+                cmd.Parameters.AddWithValue("@heal", spell.HealFormula ?? "");
+                cmd.Parameters.AddWithValue("@heallvl", spell.HealPerLevel ?? "");
                 cmd.Parameters.AddWithValue("@parts", SerializeParts(spell.ExtraDamageParts));
                 cmd.Parameters.AddWithValue("@save", spell.SaveNote ?? "");
                 int newSpellId = Convert.ToInt32(cmd.ExecuteScalar());
@@ -449,6 +455,7 @@ namespace HMWT_MUI.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SpellService] CreateNewSpell error: {ex.Message}");
+                LastError = ex.Message;
                 return 0;
             }
         }
@@ -1240,6 +1247,9 @@ namespace HMWT_MUI.Services
         };
 
         private static bool _effectColumnsChecked;
+
+        /// <summary>Текст последней ошибки записи: показываем игроку, если сохранить не удалось.</summary>
+        public static string LastError { get; private set; } = "";
 
         /// <summary>
         /// Догоняет колонки эффекта перед записью. Нужно, если база старая,

@@ -1035,6 +1035,21 @@ namespace HMWT_MUI.Views
                 ((ComboBoxItem)cb.Items[0]).IsSelected = true;
         }
 
+        /// <summary>
+        /// Приводит формулу восстановления к виду «1к3». Пусто — как было раньше
+        /// (до максимума). Непонятную формулу не сохраняем и говорим об этом.
+        /// </summary>
+        private string NormalizeRechargeDice(string text)
+        {
+            string raw = (text ?? "").Trim();
+            if (raw.Length == 0) return "";
+            if (!Services.DiceFormulaParser.TryParseExpression(raw, out _, out string error))
+            {
+                Toast("Кость восстановления не понята: " + error, true);
+                return "";
+            }
+            return Services.DiceFormulaParser.Normalize(raw);
+        }
         private static string SelectedRecharge(ComboBox cb)
             => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? ItemData.RechargeLong;
 
@@ -2003,7 +2018,7 @@ namespace HMWT_MUI.Views
             ed_cbDamageDice.Text = ToCyr(it?.DamageDice);
             SelectCombo(ed_cbDamageType, it?.DamageType, "");
             ed_txtArmorBonus.Text = (it?.ArmorClassBonus ?? 0).ToString();
-            ed_txtMaxCharges.Text = (it?.MaxCharges ?? 0).ToString();
+            ed_txtRechargeDice.Text = it?.RechargeDice ?? "";            ed_txtMaxCharges.Text = (it?.MaxCharges ?? 0).ToString();
             SelectRecharge(ed_cbRecharge, it?.Recharge);
             ed_txtNotes.Text = it?.Notes ?? "";
 
@@ -2216,7 +2231,7 @@ namespace HMWT_MUI.Views
                 MaxCharges = maxCharges,
                 Charges = charges,
                 IsAttuned = _editingItem?.IsAttuned ?? false,
-                Recharge = SelectedRecharge(ed_cbRecharge),
+                RechargeDice = NormalizeRechargeDice(ed_txtRechargeDice.Text),                Recharge = SelectedRecharge(ed_cbRecharge),
                 Notes = ed_txtNotes.Text,
                 PhotoPath = _currentItemPhotoPath ?? "",
                 ListPhotoPath = _currentItemListPhotoPath ?? ""

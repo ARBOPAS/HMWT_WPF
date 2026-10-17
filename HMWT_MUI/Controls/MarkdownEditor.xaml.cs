@@ -28,7 +28,7 @@ namespace HMWT_MUI.Controls
         private static readonly Color Ink = (Color)ColorConverter.ConvertFromString("#ECE4D0");
         private static readonly Color Slate = (Color)ColorConverter.ConvertFromString("#15151F");
         private static readonly Color LineColor = (Color)ColorConverter.ConvertFromString("#322E44");
-        private static readonly Color GoldColor = (Color)ColorConverter.ConvertFromString("#5FD4DD");
+        private static readonly Color GoldColor = (Color)ColorConverter.ConvertFromString("#E0AE4E");
 
         private static readonly string[] ImageExtensions = { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff" };
 
@@ -100,6 +100,22 @@ namespace HMWT_MUI.Controls
             InitializeComponent();
             PhotoRoot = DatabaseHelper.GetPhotoBasePath();
             Rtb.IsReadOnly = true;
+
+            // Меню по правой кнопке: иначе ссылку не поправить — обычный клик
+            // по ней открывал браузер, и попасть в текст было нельзя
+            var linkMenu = new ContextMenu();
+            var editLinkItem = new MenuItem { Header = "Изменить ссылку…" };
+            editLinkItem.Click += (s, e) => EditSelectedLink();
+            var openLinkItem = new MenuItem { Header = "Открыть в браузере (Ctrl+клик)" };
+            openLinkItem.Click += (s, e) =>
+            {
+                var link = GetLinkAtCaret();
+                string url = link == null ? null : MarkdownParser.GetLinkUrl(link);
+                if (!string.IsNullOrEmpty(url)) OpenExternalLink(url);
+            };
+            linkMenu.Items.Add(editLinkItem);
+            linkMenu.Items.Add(openLinkItem);
+            Rtb.ContextMenu = linkMenu;
 
             // Кадры GIF отрисовываются в интерфейсном потоке. Когда их меняют
             // прямо во время набора, каждый символ конкурирует с отрисовкой
@@ -520,6 +536,8 @@ namespace HMWT_MUI.Controls
         {
             StopGifAnimation(image);
 
+            // Пока удаляем — никаких перезапусков анимаций (см. флаг выше)
+            _suppressAnimationRestart = true;
             try
             {
                 // Кадры разбираются в размере показа: тогда при смене кадра
@@ -553,6 +571,16 @@ namespace HMWT_MUI.Controls
             }
         }
 
+        /// <summary>
+        /// Идёт удаление картинки: анимации остальных не трогаем.
+        ///
+        /// Удаление поднимает изменение документа, а следом таймер паузы
+        /// перезапускал анимации — то есть пересобирал ВСЮ заметку: на каждую
+        /// оставшуюся гифку полный разбор файла в потоке интерфейса. На заметке
+        /// с несколькими крупными гифками окно переставало отвечать намертво.
+        /// </summary>
+        private bool _suppressAnimationRestart;
+
         /// <summary>Перезапускает все GIF-анимации документа.</summary>
         public void RestartAnimations()
         {
@@ -569,11 +597,16 @@ namespace HMWT_MUI.Controls
                     var full = MarkdownParser.ResolvePath(rel, PhotoRoot);
                     if (full == null || !File.Exists(full)) continue;
 
-                    // Ставим статичный кадр, затем запускаем анимацию.
-                    // Размер берём у самой картинки: кадры разбираются ровно
-                    // в нём, поэтому повторный запуск не тянет полный размер.
+                    // Уже играет — второй раз не запускаем
+                    if (_gifAnimators.ContainsKey(image)) continue;
+
                     int displayWidth = GetAnimationDisplayWidth(image);
-                    image.Source = MarkdownParser.LoadImage(full, displayWidth);
+
+                    // Первый кадр берём из кэша кадров: полный разбор гифки
+                    // (все кадры в исходном размере) подвешивал окно
+                    var firstFrame = Services.GifFrameCache.GetFirstFrame(full);
+                    if (firstFrame != null) image.Source = firstFrame;
+
                     StartGifAnimation(image, full, displayWidth);
                 }
             }
@@ -997,6 +1030,58 @@ namespace HMWT_MUI.Controls
         }
 
         /// <summary>Вставляет wiki-ссылку [[Заголовок]].</summary>
+        /// <summary>
+        /// Меняет адрес ссылки, на которой стоит курсор.
+        /// Иначе ссылку не поправить: адрес хранится отдельно от текста.
+        /// </summary>
+        public void EditSelectedLink()
+        {
+            var link = GetLinkAtCaret();
+            if (link == null)
+            {
+                System.Windows.MessageBox.Show(
+                    "Поставьте курсор на ссылку — тогда её можно поправить.",
+                    "Ссылка", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string oldUrl = MarkdownParser.GetLinkUrl(link) ?? "";
+            string newUrl = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                "Адрес ссылки", "Куда ведёт ссылка", oldUrl, "Сохранить");
+            if (newUrl == null) return;
+
+            newUrl = newUrl.Trim();
+            if (newUrl.Length == 0) return;
+
+            MarkdownParser.SetLinkUrl(link, newUrl);
+            try { link.NavigateUri = new Uri(newUrl); } catch { }
+            OnTextChangedInternal();
+            Rtb.Focus();
+        }
+
+        /// <summary>Ссылка, на которой стоит курсор, либо null.</summary>
+        private Hyperlink GetLinkAtCaret()
+        {
+            try
+            {
+                var atCaret = Rtb.CaretPosition?.Parent as DependencyObject;
+                if (atCaret != null)
+                {
+                    var link = FindParent<Hyperlink>(atCaret);
+                    if (link != null) return link;
+                }
+
+                // Курсор мог стоять рядом: смотрим выделение
+                var atSelection = Rtb.Selection?.Start?.Parent as DependencyObject;
+                return atSelection == null ? null : FindParent<Hyperlink>(atSelection);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MarkdownEditor] ссылка под курсором: {ex.Message}");
+                return null;
+            }
+        }
+
         public void InsertWikiLink(string title, string alias = null)
         {
             if (string.IsNullOrWhiteSpace(title)) return;
@@ -1105,6 +1190,7 @@ namespace HMWT_MUI.Controls
         /// </summary>
         private void PauseAnimationsWhileTyping()
         {
+            if (_suppressAnimationRestart) return;
             // Считаем анимации по документу, а не по словарю: словарь только что
             // очищен StopAllAnimations, и по нему нельзя понять, надо ли
             // возвращать кадры после паузы.
@@ -1175,7 +1261,16 @@ namespace HMWT_MUI.Controls
                 }
             }
 
+            // Клавишу Delete у выбранной картинки НЕ обрабатываем: этот путь
+            // ронял программу (удаление шло одновременно с перезапуском анимаций).
+            // Картинка удаляется кнопкой на панели — там же задаётся её размер.
             if ((e.Key == Key.Delete || e.Key == Key.Back) && _selectedImage != null)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (false && _selectedImage != null)
             {
                 e.Handled = true;
                 RemoveSelectedImage();
@@ -1297,10 +1392,12 @@ namespace HMWT_MUI.Controls
                     return;
                 }
 
-                // Обычная ссылка [текст](адрес): открываем в браузере.
-                // LocalPath здесь не годится — у http-адреса он даёт «/items/3».
+                // Обычная ссылка [текст](адрес). В браузере открываем только по
+                // Ctrl+клику: иначе в текст ссылки нельзя попасть курсором и
+                // поправить её было невозможно — любой клик уходил в браузер
+                bool ctrlPressed = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
                 var url = MarkdownParser.GetLinkUrl(link);
-                if (!string.IsNullOrEmpty(url))
+                if (!string.IsNullOrEmpty(url) && ctrlPressed)
                 {
                     e.Handled = true;
                     OpenExternalLink(url);
@@ -1425,6 +1522,8 @@ namespace HMWT_MUI.Controls
 
             StopGifAnimation(image);
 
+            // Пока удаляем — никаких перезапусков анимаций (см. флаг выше)
+            _suppressAnimationRestart = true;
             try
             {
                 var container = MarkdownParser.GetImageContainer(image) ?? image.Parent as InlineUIContainer;
@@ -1446,6 +1545,14 @@ namespace HMWT_MUI.Controls
                 System.Diagnostics.Debug.WriteLine($"[MarkdownEditor] Ошибка удаления картинки: {ex.Message}");
                 EnsureDocumentHasBlock();
             }
+            finally
+            {
+                _suppressAnimationRestart = false;
+            }
+
+            // Гасим отложенный перезапуск: он собирал всю заметку заново
+            _animationResumeTimer.Stop();
+            _animationsPaused = false;
 
             InvalidateDocumentCache();
             OnTextChangedInternal();

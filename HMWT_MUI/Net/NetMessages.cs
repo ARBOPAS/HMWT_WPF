@@ -183,6 +183,12 @@ namespace HMWT_MUI.Net
     /// игрока нет: фото передаются отдельно. Поэтому при входе клиент просит
     /// недостающие аватары у хоста.
     /// </summary>
+    /// <summary>Кто выходит из комнаты.</summary>
+    public sealed class LeaveRequest
+    {
+        public string owner { get; set; } = "";
+    }
+
     public sealed class PhotoRequest
     {
         /// <summary>Чей аватар нужен.</summary>
@@ -190,6 +196,12 @@ namespace HMWT_MUI.Net
     }
 
     /// <summary>Сборка частей фото на принимающей стороне.</summary>
+    /// <summary>Кого просят прислать свои данные.</summary>
+    public sealed class ProfileRequest
+    {
+        public string owner { get; set; } = "";
+    }
+
     public sealed class PhotoAssembler
     {
         private readonly Dictionary<int, byte[]> _parts = new Dictionary<int, byte[]>();
@@ -246,6 +258,12 @@ namespace HMWT_MUI.Net
             _parts.Clear();
             _expected = -1;
             return result.ToArray();
+        }
+
+        public void Reset()
+        {
+            _parts.Clear();
+            _expected = -1;
         }
     }
 

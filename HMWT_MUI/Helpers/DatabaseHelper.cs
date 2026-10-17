@@ -27,6 +27,18 @@ namespace HMWT_MUI
         /// <summary>Какой файл базы уже подготовлен в этом запуске.</summary>
         private static string _initializedFile;
 
+        /// <summary>Имя файла базы по умолчанию (лежит в %APPDATA%\HMWT).</summary>
+        public const string DefaultFileName = "HMWT_app.db";
+
+        /// <summary>
+        /// Переменная окружения, которой можно подменить файл базы.
+        ///
+        /// Нужна, чтобы проверки и разбор проблем запускали программу на КОПИИ
+        /// базы и не трогали рабочие заметки: достаточно задать
+        /// HMWT_DB=HMWT_selftest.db перед запуском.
+        /// </summary>
+        public const string DatabaseOverrideVariable = "HMWT_DB";
+
         #region === ИНИЦИАЛИЗАЦИЯ И ПОДКЛЮЧЕНИЕ ===
 
         /// <summary>
@@ -36,8 +48,15 @@ namespace HMWT_MUI
         /// приложения, и при создании главного окна, и из GetConnection — а под
         /// ним создание трёх десятков таблиц, проверка колонок и засев справочника.
         /// </summary>
-        public static void Initialize(string dbFileName = "HMWT_app.db")
+        public static void Initialize(string dbFileName = null)
         {
+            if (string.IsNullOrEmpty(dbFileName))
+            {
+                dbFileName = Environment.GetEnvironmentVariable(DatabaseOverrideVariable);
+                if (string.IsNullOrWhiteSpace(dbFileName)) dbFileName = DefaultFileName;
+                dbFileName = dbFileName.Trim();
+            }
+
             if (_initializedFile == dbFileName && !string.IsNullOrEmpty(_connectionString))
                 return;
 
@@ -566,6 +585,8 @@ namespace HMWT_MUI
                 // (так заряжается почти всё), short — на коротком, none — никогда.
                 // Отдых смотрит именно сюда, а не на «есть заряды или нет»
                 "recharge TEXT DEFAULT 'long'",
+                // Кость восстановления зарядов: «1к3». Пусто — до максимума, как раньше
+                "recharge_dice TEXT DEFAULT ''",
                 // Отдельное фото для строки списка (раньше колонку досоздавал
                 // конструктор InventoryService на каждое создание сервиса)
                 "list_photo_path TEXT DEFAULT ''");

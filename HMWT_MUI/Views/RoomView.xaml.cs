@@ -1279,6 +1279,34 @@ namespace HMWT_MUI.Views
             }
         }
 
+        /// <summary>
+        /// Подключение к чужой комнате прямо из вкладки: открываем панель отряда
+        /// в главном окне, где есть поля адреса, порта и ключа.
+        /// </summary>
+        private void BtnJoinRoomTab_Click(object sender, RoutedEventArgs e)
+        {
+            if (_session.IsActive)
+            {
+                ShowWindowToast("Вы уже в отряде. Сначала выйдите из комнаты.");
+                return;
+            }
+
+            // Окно главное ищем по имени метода: тестовый проект собирает этот
+            // файл без ссылки на приложение, и прямое обращение к типу MainWindow
+            // там не компилируется
+            var main = Application.Current?.MainWindow;
+            if (main != null)
+            {
+                var openPanel = main.GetType().GetMethod("OpenRoomPanel");
+                if (openPanel != null)
+                {
+                    openPanel.Invoke(main, null);
+                    return;
+                }
+            }
+
+            ShowWindowToast("Откройте главное окно программы и подключитесь там", true);
+        }
         private void BtnLeaveRoom_Click(object sender, RoutedEventArgs e)
         {
             if (!_session.IsActive) return;

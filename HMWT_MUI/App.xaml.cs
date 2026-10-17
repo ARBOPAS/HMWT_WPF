@@ -103,6 +103,7 @@ namespace HMWT_MUI
                 // Отпечаток не критичен: без него просто не будет предупреждения
                 System.Diagnostics.Debug.WriteLine($"[App] отпечаток справочников: {ex.Message}");
             }
+
         }
     }
 }

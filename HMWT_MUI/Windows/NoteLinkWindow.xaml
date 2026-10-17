@@ -1,0 +1,49 @@
+<Window x:Class="HMWT_MUI.Windows.NoteLinkWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Ссылка из заметки"
+        Height="780" Width="1060"
+        MinHeight="320" MinWidth="520"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{StaticResource B.Panel}"
+        FontFamily="{StaticResource F.Body}"
+        KeyDown="Window_KeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Панель просмотра: назад, вперёд, адрес и закрыть -->
+        <Border Grid.Row="0" Background="{StaticResource B.PanelHi}" Padding="10,7"
+                BorderBrush="{StaticResource B.Line}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BtnBack" Grid.Column="0" Content="← Назад" Click="BtnBack_Click"
+                        Style="{StaticResource GhostBtn}" ToolTip="Вернуться на предыдущую страницу (Alt+←)"
+                        Margin="0,0,6,0"/>
+
+                <Button x:Name="BtnForward" Grid.Column="1" Content="Вперёд →" Click="BtnForward_Click"
+                        Style="{StaticResource GhostBtn}" ToolTip="Вернуться на следующую страницу (Alt+→)"
+                        Margin="0,0,10,0"/>
+
+                <TextBlock x:Name="AddressText" Grid.Column="2" Text="" VerticalAlignment="Center"
+                           FontSize="12" Foreground="{StaticResource B.Mute}"
+                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+
+                <Button x:Name="BtnClose" Grid.Column="3" Content="✕ Закрыть" Click="BtnClose_Click"
+                        Style="{StaticResource ActionBtn}" ToolTip="Закрыть просмотр (Esc)"/>
+            </Grid>
+        </Border>
+
+        <wv2:WebView2 x:Name="Web" Grid.Row="1"/>
+    </Grid>
+</Window>

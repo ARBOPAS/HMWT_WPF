@@ -60,10 +60,12 @@ namespace HMWT_MUI
             UpdateRoomIndicator();
             Closed += (_, __) =>
             {
-                _windowClosed = true;
+                // Выходим из отряда по-человечески: друзья увидят сразу, а не через таймаут
+                try { RoomSession.Instance.Leave(); } catch { }                _windowClosed = true;
                 RoomSession.Instance.StateChanged -= Room_StateChanged;
                 PhotoHelper.CharacterPhotoChanged -= MainWindow_PhotoChanged;
             };
+
 
             ShowVersionFooter();
 
@@ -93,13 +95,7 @@ namespace HMWT_MUI
             if (!string.IsNullOrEmpty(query)) SearchBox_TextChanged(SearchBox, null);
         }
 
-        /// <summary>
-        /// Версия сборки в подвале главного окна.
-        ///
-        /// При проверке сборок важно сразу видеть, что у всех одинаковая версия,
-        /// и что запущен именно свежий файл, а не вчерашний: поэтому рядом с
-        /// версией из кода показываем версию самого файла и дату сборки.
-        /// </summary>
+
         private void ShowVersionFooter()
         {
             try
@@ -551,6 +547,8 @@ namespace HMWT_MUI
             var aboutItem = new MenuItem { Header = "О программе" };
             aboutItem.Click += (s, e) => MessageDialog.Info(this,
                 "Редактор персонажа и инструменты ведущего для настольных ролевых игр.\n\n" +
+                "Разработчики: Arbopas, XERNUSHKIN\n\n" +
+                "Версия: " + Net.NetVersions.AppVersion + "\n\n" +
                 "Имена, тексты и описания из книг принадлежат их издателям. " +
                 "Свой справочник можно загрузить отдельным файлом.\n\n" +
                 "Настройки масштаба и анимации — во вкладке настроек внутри персонажа.",

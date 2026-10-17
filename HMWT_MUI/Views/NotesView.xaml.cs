@@ -11,6 +11,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 using HMWT_MUI.Helpers;
@@ -24,6 +25,9 @@ namespace HMWT_MUI.Views
     /// </summary>
     public partial class NotesView : UserControl
     {
+        /// <summary>Ключ настройки: открывать ссылки внутри приложения или в браузере.</summary>
+        private const string LinkModeSettingKey = "Notes_LinkInApp";
+
         private readonly int _characterId;
         private readonly NotesService _notesService;
 
@@ -40,6 +44,9 @@ namespace HMWT_MUI.Views
         private NoteTreeItem _dragItem;
         private DateTime _lastGroupClick;
 
+        private Button _linkModeButton;
+        private NoteLinkWindow _linkWindow;
+
         public NotesView(int characterId)
         {
             InitializeComponent();
@@ -53,6 +60,11 @@ namespace HMWT_MUI.Views
             Editor.RequestWikiLink += (s, e) => InsertWikiLink();
             Editor.Hint += text => SetStatus(text, "B.Accent");
             Editor.TextChanged += Editor_TextChanged;
+            Editor.InternalLinkRequested += ShowInternalLink;
+            Editor.SaveRequested += (s, e) => SaveCurrentNote(force: true);
+            Editor.PasteImageRequested += (s, e) => InsertImageFromClipboard();
+
+            Editor.InAppLinks = LoadLinkModeSetting();
 
             BuildToolbar();
 
@@ -106,8 +118,7 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            if (Editor.IsNoteOpen && Editor.Document != null &&
-                Editor.Document.Blocks.Count > 0)
+            if (Editor.IsNoteOpen && Editor.HasContent)
             {
                 // Редактор не размонтировался — текст на месте, ничего не трогаем
                 SetStatus("заметка открыта", "B.Mute");
@@ -185,11 +196,12 @@ namespace HMWT_MUI.Views
 
             AddToolbarSeparator();
 
-            AddToolbarButton("image", "Вставить картинку (можно перетащить файл)", InsertImage);
+            AddToolbarButton("image", "Вставить картинку (Ctrl+V — из буфера)", InsertImage);
             AddToolbarButton("film", "Вставить GIF-анимацию", InsertImage);
             AddToolbarButton("paperclip", "Прикрепить файл", InsertAttachment);
             AddToolbarButton("link", "Wiki-ссылка (Ctrl+K)", InsertWikiLink);
             AddToolbarButton("table", "Таблица", InsertTable);
+            AddLinkModeButton();
 
             AddToolbarSeparator();
 
@@ -229,6 +241,132 @@ namespace HMWT_MUI.Views
                 Margin = new Thickness(6, 4, 6, 4),
                 Background = FindResource("B.Line") as System.Windows.Media.Brush
             });
+        }
+
+        /// <summary>
+        /// Переключатель «где открывать ссылки»: внутри приложения или в браузере.
+        ///
+        /// Обычный клик по ссылке следует этому выбору; Ctrl+клик всегда
+        /// открывает системный браузер. Выбор запоминается в настройках,
+        /// как тема оформления, — при следующем запуске он тот же.
+        /// </summary>
+        private void AddLinkModeButton()
+        {
+            var icon = new IconView
+            {
+                Kind = "link",
+                IconSize = 14,
+                IconBrush = DmUiKit.B("Mute"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+
+            var label = new TextBlock
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11.5
+            };
+
+            var content = new StackPanel { Orientation = Orientation.Horizontal };
+            content.Children.Add(icon);
+            content.Children.Add(label);
+
+            _linkModeButton = new Button
+            {
+                Content = content,
+                Style = FindResource("ToolbarBtn") as Style,
+                Margin = new Thickness(2, 0, 2, 0),
+                Padding = new Thickness(8, 0, 8, 0)
+            };
+            _linkModeButton.Click += (s, e) => SetLinkMode(!Editor.InAppLinks, save: true);
+
+            EditorToolbar.Children.Add(_linkModeButton);
+            UpdateLinkModeButton(label);
+        }
+
+        private TextBlock LinkModeLabel =>
+            (_linkModeButton?.Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault();
+
+        private void UpdateLinkModeButton(TextBlock label = null)
+        {
+            label = label ?? LinkModeLabel;
+            if (label == null) return;
+
+            label.Text = Editor.InAppLinks ? "Ссылки: внутри" : "Ссылки: в браузере";
+            _linkModeButton.ToolTip = Editor.InAppLinks
+                ? "Ссылки открываются окном внутри программы. Нажмите, чтобы открывать их в браузере. Ctrl+клик всегда открывает браузер."
+                : "Ссылки открываются в системном браузере. Нажмите, чтобы открывать их внутри программы. Ctrl+клик всегда открывает браузер.";
+        }
+
+        private void SetLinkMode(bool inApp, bool save)
+        {
+            Editor.InAppLinks = inApp;
+            UpdateLinkModeButton();
+
+            if (!save) return;
+
+            try
+            {
+                DatabaseHelper.SaveSetting(LinkModeSettingKey, inApp ? "internal" : "browser");
+                SetStatus(inApp ? "ссылки откроются внутри программы" : "ссылки откроются в браузере", "B.Mute");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[NotesView] режим ссылок не сохранён: {ex.Message}");
+            }
+        }
+
+        private bool LoadLinkModeSetting()
+        {
+            try
+            {
+                return string.Equals(DatabaseHelper.GetSetting(LinkModeSettingKey, "browser"),
+                    "internal", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>Показывает ссылку окном внутри программы (режим «внутри»).</summary>
+        private void ShowInternalLink(string url)
+        {
+            try
+            {
+                CloseLinkWindow();
+
+                _linkWindow = new NoteLinkWindow(url, Window.GetWindow(this));
+                _linkWindow.Closed += (s, e) =>
+                {
+                    if (ReferenceEquals(_linkWindow, s)) _linkWindow = null;
+                };
+                _linkWindow.Show();
+
+                SetStatus("ссылка открыта внутри программы", "B.Mute");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[NotesView] просмотр ссылки: {ex.Message}");
+                SetStatus("не удалось открыть ссылку внутри программы", "B.Danger");
+                NoteLinks.Open(url);
+            }
+        }
+
+        /// <summary>
+        /// Закрывает окно просмотра ссылки.
+        ///
+        /// Обязательно при выборе другой заметки: иначе поверх новой заметки
+        /// остаётся страница из прошлой, и непонятно, к чему она относится.
+        /// </summary>
+        private void CloseLinkWindow()
+        {
+            if (_linkWindow == null) return;
+
+            var window = _linkWindow;
+            _linkWindow = null;
+            try { window.Close(); }
+            catch (Exception ex) { Debug.WriteLine($"[NotesView] окно ссылки не закрылось: {ex.Message}"); }
         }
 
         #endregion
@@ -887,6 +1025,9 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            // Вместе с прошлой заметкой закрываем и открытую из неё ссылку
+            CloseLinkWindow();
+
             SaveCurrentNote(force: true);
 
             try
@@ -926,6 +1067,7 @@ namespace HMWT_MUI.Views
         {
             // Сохраняем открытую заметку, но не стираем её с экрана: иначе
             // выглядит так, будто работа пропала
+            CloseLinkWindow();
             SaveCurrentNote(force: true);
 
             // Далее редактор не считается открытой заметкой: иначе следующий
@@ -947,7 +1089,7 @@ namespace HMWT_MUI.Views
             Editor.Clear();
         }
 
-        private void Editor_TextChanged(object sender, RoutedEventArgs e)
+        private void Editor_TextChanged(object sender, EventArgs e)
         {
             if (!_currentNoteId.HasValue) return;
 
@@ -1037,7 +1179,7 @@ namespace HMWT_MUI.Views
                 // что документ не разложился (например, вкладку переключили
                 // слишком рано). Сохранение такого «пустого» документа стёрло бы
                 // содержимое заметки, поэтому не пишем.
-                if (Editor.HasNoVisibleContent() && !string.IsNullOrEmpty(_savedMarkdown))
+                if (!Editor.HasContent && !string.IsNullOrEmpty(_savedMarkdown))
                 {
                     Debug.WriteLine("[NotesView] документ пуст, а в базе текст — сохранение пропущено");
                     SetStatus("содержимое не сохранено: редактор пуст", "B.Danger");
@@ -1103,13 +1245,18 @@ namespace HMWT_MUI.Views
             }
         }
 
+        /// <summary>
+        /// Счётчик слов. Числа присылает сама страница заметки: раньше здесь
+        /// каждый раз переводился HTML → Markdown → текст, и на большой заметке
+        /// это заметно тормозило набор.
+        /// </summary>
         private void UpdateWordCount()
         {
             try
             {
-                var text = MarkdownParser.ExtractPlainText(Editor.Document);
-                var words = text.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                WordCountText.Text = words == 0 ? "" : $"{words} слов • {text.Length} симв.";
+                int words = Editor.WordCount;
+                int chars = Editor.CharCount;
+                WordCountText.Text = words == 0 ? "" : $"{words} слов • {chars} симв.";
             }
             catch
             {
@@ -1196,6 +1343,66 @@ namespace HMWT_MUI.Views
 
             Editor.InsertImage(full, relative);
             SetStatus("картинка вставлена", "B.Ok");
+        }
+
+        /// <summary>
+        /// Вставляет картинку из буфера обмена.
+        ///
+        /// Внутри WebView страница не может сохранить файл на диск, поэтому
+        /// она только сообщает «в буфере картинка», а сам снимок забирает
+        /// и раскладывает по папке заметок программа.
+        /// </summary>
+        private void InsertImageFromClipboard()
+        {
+            if (!_currentNoteId.HasValue)
+            {
+                SetStatus("сначала откройте заметку", "B.Danger");
+                return;
+            }
+
+            string temp = null;
+            try
+            {
+                if (!Clipboard.ContainsImage())
+                {
+                    SetStatus("в буфере обмена нет картинки", "B.Mute");
+                    return;
+                }
+
+                var image = Clipboard.GetImage();
+                if (image == null)
+                {
+                    SetStatus("не удалось прочитать картинку из буфера", "B.Danger");
+                    return;
+                }
+
+                temp = Path.Combine(Path.GetTempPath(), "hmwt-paste-" + Guid.NewGuid().ToString("N") + ".png");
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(image));
+                using (var stream = File.Create(temp)) encoder.Save(stream);
+
+                var full = Editor.SaveImageFile(temp, out var relative);
+                if (full == null)
+                {
+                    SetStatus("не удалось сохранить картинку из буфера", "B.Danger");
+                    return;
+                }
+
+                Editor.InsertImage(full, relative);
+                SetStatus("картинка вставлена из буфера", "B.Ok");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[NotesView] вставка из буфера: {ex.Message}");
+                SetStatus("не удалось вставить картинку из буфера", "B.Danger");
+            }
+            finally
+            {
+                if (temp != null)
+                {
+                    try { File.Delete(temp); } catch { /* временный файл — не критично */ }
+                }
+            }
         }
 
         private void InsertAttachment()

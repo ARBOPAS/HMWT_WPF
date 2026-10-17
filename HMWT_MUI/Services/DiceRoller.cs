@@ -423,9 +423,17 @@ namespace HMWT_MUI.Services
                 foreach (int roll in IndividualRolls) parts.Add(roll.ToString());
             }
 
-            if (Modifier != 0) parts.Add(Modifier > 0 ? "+" + Modifier : "−" + Math.Abs(Modifier));
-            if (parts.Count == 0) return Total.ToString();
+            // Добавку печатаем аккуратно: раньше к строке добавлялось «+3»,
+            // а потом всё соединялось через « + », и получалось «5 + +3»
+            string text = string.Join(" + ", parts);
+            if (Modifier != 0)
+            {
+                string sign = Modifier > 0 ? " + " : " − ";
+                text = text.Length == 0 ? Math.Abs(Modifier).ToString() : text + sign + Math.Abs(Modifier);
+            }
 
+            if (text.Length == 0) return Total.ToString();
+            return text + " = " + Total;
             return string.Join(" + ", parts).Replace("+ −", "−") + " = " + Total;
         }
     }

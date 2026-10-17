@@ -1,6 +1,8 @@
 using HMWT_MUI.Services;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows;
 
 namespace HMWT_MUI.Helpers
@@ -21,6 +23,14 @@ namespace HMWT_MUI.Helpers
 
         /// <summary>Всплывающая подсказка в окне.</summary>
         void ShowToast(string message, bool isError = false);
+
+        /// <summary>
+        /// Показать уже готовый бросок одной панелью.
+        ///
+        /// Нужно видам, которые складывают несколько бросков в один итог
+        /// (например, составной урон атаки): панель должна быть одна.
+        /// </summary>
+        void ShowCombinedRoll(DiceRollResult result, bool publish = true);
     }
 
     /// <summary>
@@ -75,6 +85,59 @@ namespace HMWT_MUI.Helpers
             if (!string.IsNullOrEmpty(damageWord)) label = $"{what} — {damageWord}";
 
             return Roll(source, formula, "Урон", who, label);
+        }
+
+        /// <summary>
+        /// Бросок всего урона одной атаки: все части считаются за один раз и
+        /// показываются ОДНОЙ панелью результата.
+        ///
+        /// Раньше каждая часть показывала свою панель: при «2к6 рубящим + 1к8
+        /// огнём» игрок видел два окна подряд и сам складывал итог. Здесь части
+        /// бросаются по отдельности (видно, сколько выпало на каждой), но итог
+        /// складывается в одну запись — в панели видно и общую сумму, и все кости.
+        /// </summary>
+        public static DiceRollResult RollDamageParts(FrameworkElement source,
+            IEnumerable<(string Formula, DamageKind Kind)> parts, string who, string what)
+        {
+            var host = Host(source);
+            if (host == null) return null;
+
+            var list = parts?.Where(p => !string.IsNullOrWhiteSpace(p.Formula)).ToList()
+                       ?? new List<(string Formula, DamageKind Kind)>();
+            if (list.Count == 0) return null;
+
+            var combined = new DiceRollResult
+            {
+                Timestamp = DateTime.Now,
+                RollType = "Урон",
+                Dice = new List<RolledDie>(),
+                IndividualRolls = new List<int>()
+            };
+            var labels = new List<string>();
+
+            foreach (var part in list)
+            {
+                // showPanel: false — панель покажем одну, общую; publish: false —
+                // в отряд и историю запись уйдёт тоже один раз
+                var one = host.RollExternal(part.Formula, "Урон", who, what, false, false);
+                if (one == null) continue;
+
+                combined.Total += one.Total;
+                combined.Modifier += one.Modifier;
+                if (one.Dice != null) combined.Dice.AddRange(one.Dice);
+                if (one.IndividualRolls != null) combined.IndividualRolls.AddRange(one.IndividualRolls);
+                if ((combined.Formula ?? "").Length > 0) combined.Formula += " + ";
+                combined.Formula += one.Formula ?? part.Formula;
+
+                string word = DiceFormulaParser.DamageWord(part.Kind);
+                if (!string.IsNullOrEmpty(word) && !labels.Contains(word)) labels.Add(word);
+            }
+
+            if (combined.Dice.Count == 0 && combined.IndividualRolls.Count == 0) return null;
+
+            combined.Description = labels.Count == 0 ? what : $"{what} — {string.Join(" и ", labels)}";
+            host.ShowCombinedRoll(combined);
+            return combined;
         }
 
         /// <summary>Подсказка пользователю средствами окна персонажа.</summary>
