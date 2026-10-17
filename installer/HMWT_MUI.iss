@@ -252,6 +252,32 @@ begin
   DeleteUserDataOnUninstall := False;
 end;
 
+{ ═══════════════════════════════════════════════════════════════════════════
+  Компонент WebView2
+
+  Вкладка «Заметки» работает на движке Microsoft Edge WebView2. В Windows 11
+  и в свежих обновлениях Windows 10 он уже стоит. Если его нет, заметки
+  открываются, но текст в них не правится. Проверяем сразу после установки
+  и говорим об этом прямо, чтобы человек не искал причину сам.
+  ═══════════════════════════════════════════════════════════════════════════ }
+
+const
+  WebView2ClientKey = 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  WebView2DownloadUrl = 'https://go.microsoft.com/fwlink/p/?LinkId=2124703';
+
+function WebView2RuntimePresent(): Boolean;
+var
+  Version: String;
+begin
+  Result :=
+    (RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version)
+      and (Version <> '') and (Version <> '0.0.0.0'))
+    or (RegQueryStringValue(HKLM, WebView2ClientKey, 'pv', Version)
+      and (Version <> '') and (Version <> '0.0.0.0'))
+    or (RegQueryStringValue(HKCU, WebView2ClientKey, 'pv', Version)
+      and (Version <> '') and (Version <> '0.0.0.0'));
+end;
+
 { После распаковки файлов: делаем копию базы, ничего не удаляя }
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
@@ -259,6 +285,14 @@ begin
   begin
     if UserDataDirExists() then
       BackupDatabase();
+
+    if not WebView2RuntimePresent() then
+      SuppressibleMsgBox(
+        'Для вкладки «Заметки» нужен компонент Microsoft Edge WebView2 Runtime.' + #13#10 +
+        'Без него заметки открываются, но править текст в них нельзя.' + #13#10 + #13#10 +
+        'В Windows 11 он уже установлен. Если его нет, поставьте по ссылке:' + #13#10 +
+        WebView2DownloadUrl,
+        mbInformation, MB_OK, IDOK);
   end;
 end;
 
