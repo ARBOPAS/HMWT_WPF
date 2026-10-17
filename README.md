@@ -3,6 +3,18 @@
 Редактор персонажа и инструменты ведущего для настольных ролевых игр.
 Windows, WPF, .NET Framework 4.8.
 
+## Скриншоты
+
+Лист персонажа: характеристики и навыки, хиты, отдых, состояния.
+
+![Лист персонажа](docs/screenshots/sheet.jpg)
+
+| | |
+|---|---|
+| ![Инвентарь](docs/screenshots/inventory.jpg) | ![Атаки](docs/screenshots/attacks.jpg) |
+| ![Заклинания](docs/screenshots/spells.jpg) | ![Заметки](docs/screenshots/notes.jpg) |
+| ![Трекер инициативы](docs/screenshots/initiative.jpg) | ![Отряд](docs/screenshots/room.jpg) |
+
 ## Возможности
 
 - **Лист персонажа** — характеристики, навыки, спасброски, владения, предыстории,

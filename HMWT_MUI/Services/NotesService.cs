@@ -235,6 +235,44 @@ namespace HMWT_MUI.Services
             return result == null || result == DBNull.Value ? (long?)null : Convert.ToInt64(result);
         }
 
+        /// <summary>
+        /// Названия заметок, похожих на указанное: начинаются с него
+        /// и отделены пробелом, точкой или скобкой.
+        ///
+        /// Нужно для вики-ссылок: в тексте удобно писать короткое [[Правила]],
+        /// а заметка называется длиннее, «Правила стола». Без такого поиска
+        /// ссылка «не находилась» и программа предлагала создать пустую
+        /// заметку с коротким названием.
+        /// </summary>
+        public List<string> FindNoteTitlesByLooseTitle(string title)
+        {
+            var found = new List<string>();
+            if (string.IsNullOrWhiteSpace(title)) return found;
+
+            string needle = title.Trim();
+
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            using var cmd = new SqliteCommand(
+                "SELECT title FROM CharacterNotes WHERE id_character = @charId ORDER BY sort_order, title", conn);
+            cmd.Parameters.AddWithValue("@charId", _characterId);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                string stored = (reader["title"] as string ?? "").Trim();
+                if (stored.Length < needle.Length) continue;
+
+                if (!stored.StartsWith(needle, StringComparison.OrdinalIgnoreCase)) continue;
+
+                // Дальше должен идти разделитель, иначе «1» прицепится к «11»
+                if (stored.Length > needle.Length && char.IsLetterOrDigit(stored[needle.Length])) continue;
+
+                found.Add(stored);
+            }
+
+            return found;
+        }
         public List<string> GetAllNoteTitles()
         {
             var titles = new List<string>();

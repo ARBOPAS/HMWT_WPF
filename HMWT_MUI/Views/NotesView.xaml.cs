@@ -1288,15 +1288,61 @@ namespace HMWT_MUI.Views
             SetStatus("ссылка вставлена", "B.Ok");
         }
 
+        /// <summary>
+        /// Открывает заметку по идентификатору и подсвечивает её в дереве.
+        /// Если дерево устарело (заметку только что создали), перестраивает его.
+        /// </summary>
+        private void OpenNoteById(long id)
+        {
+            var target = FindById(NotesTree.Items.OfType<NoteTreeItem>(), id, false);
+            if (target == null)
+            {
+                LoadTree(id);
+                return;
+            }
+
+            ExpandParentsOf(target);
+            OpenNote(target);
+
+            // Подсветка в списке: без неё непонятно, куда перешли
+            target.IsSelected = true;
+        }
         private void Editor_WikiLinkClicked(string title)
         {
             var noteId = _notesService.FindNoteIdByTitle(title);
             if (noteId.HasValue)
             {
-                var target = FindById(NotesTree.Items.OfType<NoteTreeItem>(), noteId.Value, false);
-                if (target != null) OpenNote(target);
-                LoadTree(noteId.Value);
+                OpenNoteById(noteId.Value);
                 SetStatus("переход по ссылке: " + title, "B.Ok");
+                return;
+            }
+
+            // Точно такого названия нет — ищем похожие. В заметках удобно писать
+            // короткую ссылку, а сама заметка называется длиннее: раньше такая
+            // ссылка «не находилась» и программа создавала пустую заметку.
+            var similar = _notesService.FindNoteTitlesByLooseTitle(title);
+            if (similar.Count == 1)
+            {
+                var onlyId = _notesService.FindNoteIdByTitle(similar[0]);
+                if (onlyId.HasValue)
+                {
+                    OpenNoteById(onlyId.Value);
+                    SetStatus("переход по ссылке: " + title + " → " + similar[0], "B.Ok");
+                    return;
+                }
+            }
+
+            if (similar.Count > 1)
+            {
+                string chosen = WikiPickerWindow.Pick(Window.GetWindow(this), similar, null);
+                if (string.IsNullOrWhiteSpace(chosen)) return;
+
+                var chosenId = _notesService.FindNoteIdByTitle(chosen);
+                if (chosenId.HasValue)
+                {
+                    OpenNoteById(chosenId.Value);
+                    SetStatus("переход по ссылке: " + title + " → " + chosen, "B.Ok");
+                }
                 return;
             }
 

@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -53,6 +56,10 @@ namespace HMWT_MUI.Views
         {
             InitializeComponent();
             _ui = Dispatcher;
+
+            // Вставка целой строки от ведущего раскладывается по полям
+            DataObject.AddPastingHandler(txtJoinHost, JoinField_Paste);
+            DataObject.AddPastingHandler(txtJoinKey, JoinField_Paste);
 
             _session.StateChanged += OnSessionStateChanged;
             _session.FeedReceived += OnFeedReceived;
@@ -1210,20 +1217,37 @@ namespace HMWT_MUI.Views
             txtChatInput.Focus();
         }
 
-        private void BtnCopyKey_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Копирует готовое приглашение: ключ и ОБА адреса — внешний и локальный.
+        ///
+        /// Одного локального адреса другу из интернета мало, а одного внешнего
+        /// мало тому, кто сидит в той же сети (NAT не всегда пускает обратно).
+        /// Поэтому в сообщении есть оба, с подписями — и его можно переслать целиком:
+        /// вкладка «Отряд» разберёт такую строку при вставке.
+        /// </summary>
+        private async void BtnCopyKey_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Копируем ключ и адрес вместе: игроку нужно и то, и другое.
-                // Если известен внешний адрес — даём его: он подходит и для
-                // интернета, а локальный в этом случае бесполезен.
-                string address = string.IsNullOrEmpty(_session.PublicAddress)
-                    ? _session.HostAddress
-                    : _session.PublicAddress;
+                await EnsurePublicAddressAsync();
 
-                string payload = RoomKey.Pretty(_session.Key) + "  " + address + ":" + _session.Port;
-                Clipboard.SetText(payload);
-                txtFeedHint.Text = "ключ и адрес скопированы";
+                string local = $"{_session.HostAddress}:{_session.Port}";
+                bool hasPublic = !string.IsNullOrEmpty(_session.PublicAddress);
+                string remote = hasPublic ? $"{_session.PublicAddress}:{_session.Port}" : "";
+
+                var text = new StringBuilder();
+                text.AppendLine("Ключ: " + RoomKey.Pretty(_session.Key));
+                if (hasPublic) text.AppendLine("Адрес для интернета: " + remote);
+                text.AppendLine("Адрес в одной сети: " + local);
+
+                Clipboard.SetText(text.ToString().TrimEnd());
+
+                txtFeedHint.Text = hasPublic
+                    ? "скопированы ключ, внешний и локальный адрес"
+                    : "скопированы ключ и локальный адрес: внешний не определился";
+                ShowWindowToast(hasPublic
+                    ? "Скопировано: ключ и оба адреса — можно отправлять другу"
+                    : "Скопировано: ключ и локальный адрес (внешний не определился)");
             }
             catch (Exception ex)
             {
@@ -1235,10 +1259,14 @@ namespace HMWT_MUI.Views
         /// Копирует только адрес и порт одной строкой: игрок вставляет её
         /// в поле подключения целиком — форма умеет разбирать такой вид.
         /// </summary>
-        private void BtnCopyAddress_Click(object sender, RoutedEventArgs e)
+        private async void BtnCopyAddress_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                // Сначала пробуем узнать внешний адрес: именно он нужен другу
+                // из интернета, локальный работает только в своей сети
+                await EnsurePublicAddressAsync();
+
                 string address = string.IsNullOrEmpty(_session.PublicAddress)
                     ? _session.HostAddress
                     : _session.PublicAddress;
@@ -1280,8 +1308,10 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>
-        /// Подключение к чужой комнате прямо из вкладки: открываем панель отряда
-        /// в главном окне, где есть поля адреса, порта и ключа.
+        /// Показывает поля подключения прямо во вкладке.
+        ///
+        /// Раньше кнопка открывала панель в главном окне, но при открытом листе
+        /// персонажа главное окно скрыто — нажатие выглядело как «не работает».
         /// </summary>
         private void BtnJoinRoomTab_Click(object sender, RoutedEventArgs e)
         {
@@ -1291,22 +1321,184 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            // Окно главное ищем по имени метода: тестовый проект собирает этот
-            // файл без ссылки на приложение, и прямое обращение к типу MainWindow
-            // там не компилируется
-            var main = Application.Current?.MainWindow;
-            if (main != null)
+            brJoinPanel.Visibility = Visibility.Visible;
+            SetJoinHint("Можно вставить всю строку от ведущего — ключ и адрес разберутся сами", false);
+            txtJoinHost.Focus();
+        }
+
+        private void BtnJoinCancel_Click(object sender, RoutedEventArgs e) =>
+            brJoinPanel.Visibility = Visibility.Collapsed;
+
+        private void JoinField_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
             {
-                var openPanel = main.GetType().GetMethod("OpenRoomPanel");
-                if (openPanel != null)
-                {
-                    openPanel.Invoke(main, null);
-                    return;
-                }
+                e.Handled = true;
+                BtnJoinConnect_Click(sender, e);
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                brJoinPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void SetJoinHint(string text, bool isProblem)
+        {
+            txtJoinHint.Text = text;
+            txtJoinHint.Foreground = isProblem
+                ? BrushRes("B.Danger", Color.FromRgb(0xC0, 0x56, 0x4F))
+                : BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4));
+        }
+
+        // Адрес вида «192.168.1.5:47777» или «my-host.example:47777»
+        private static readonly Regex InviteAddress = new Regex(
+            @"(\d{1,3}(?:\.\d{1,3}){3}|[A-Za-z0-9][A-Za-z0-9.-]*):(\d{1,5})",
+            RegexOptions.Compiled);
+
+        // Ключ комнаты: три группы по четыре символа; букв I и O в ключе не бывает
+        private static readonly Regex InviteKey = new Regex(
+            @"[A-HJ-NP-Z2-9]{4}-?[A-HJ-NP-Z2-9]{4}-?[A-HJ-NP-Z2-9]{4}",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// Достаёт адрес, порт и ключ из того, что ввели или вставили.
+        ///
+        /// Ведущий присылает всё одной строкой («Ключ: … Адрес для интернета: …»),
+        /// поэтому разбираем текст целиком, а поля только подсказывают, где искать.
+        /// </summary>
+        private static bool TryReadInvite(string allText, string hostField, string keyField,
+            out string host, out int port, out string key, out string problem)
+        {
+            host = "";
+            port = NetVersions.DefaultPort;
+            key = "";
+            problem = "";
+
+            string address = (hostField ?? "").Trim();
+            var addressMatch = InviteAddress.Match(address);
+            if (!addressMatch.Success) addressMatch = InviteAddress.Match(allText ?? "");
+
+            if (addressMatch.Success)
+            {
+                host = addressMatch.Groups[1].Value;
+                if (int.TryParse(addressMatch.Groups[2].Value, out int parsed) && parsed > 0 && parsed <= 65535)
+                    port = parsed;
+            }
+            else if (address.Length > 0 && !address.Contains(":") && !address.Contains(" "))
+            {
+                // Ввели один адрес без порта — берём порт по умолчанию
+                host = address;
             }
 
-            ShowWindowToast("Откройте главное окно программы и подключитесь там", true);
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                problem = "Не вижу адрес. Нужен вид 192.168.1.5:47777 — можно вставить всю строку от ведущего.";
+                return false;
+            }
+
+            var keyMatch = InviteKey.Match(keyField ?? "");
+            if (!keyMatch.Success) keyMatch = InviteKey.Match(allText ?? "");
+
+            if (keyMatch.Success) key = RoomKey.Normalize(keyMatch.Value);
+            else if (RoomKey.LooksValid(keyField)) key = RoomKey.Normalize(keyField);
+
+            if (!RoomKey.LooksValid(key))
+            {
+                problem = "Не вижу ключ. Он выглядит так: K7M2-XP9Q-RT4W";
+                return false;
+            }
+
+            return true;
         }
+
+        /// <summary>Подключение по адресу и ключу — то же, что делает главное окно.</summary>
+        private void BtnJoinConnect_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string allText = (txtJoinHost.Text ?? "") + " " + (txtJoinKey.Text ?? "");
+
+                if (!TryReadInvite(allText, txtJoinHost.Text, txtJoinKey.Text,
+                        out string host, out int port, out string key, out string problem))
+                {
+                    SetJoinHint(problem, true);
+                    return;
+                }
+
+                var me = DmProfileService.BuildPlayer(Environment.UserName);
+
+                if (!_session.JoinRoom(host, port, key, me, out string error))
+                {
+                    SetJoinHint("Не удалось подключиться", true);
+                    MessageDialog.Error(Window.GetWindow(this), error, "Не удалось подключиться");
+                    return;
+                }
+
+                brJoinPanel.Visibility = Visibility.Collapsed;
+                txtJoinHost.Clear();
+                txtJoinKey.Clear();
+                RefreshAll();
+                ShowWindowToast("Подключено: " + _session.StatusText);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] подключение из вкладки: {ex}");
+                SetJoinHint("Ошибка: " + ex.Message, true);
+            }
+        }
+
+        /// <summary>
+        /// Вставка целой строки от ведущего: раскладываем её по полям.
+        /// Если в тексте нет ключа или адреса, вставка работает как обычно.
+        /// </summary>
+        private void JoinField_Paste(object sender, DataObjectPastingEventArgs e)
+        {
+            try
+            {
+                if (!e.SourceDataObject.GetDataPresent(DataFormats.UnicodeText)) return;
+
+                string text = e.SourceDataObject.GetData(DataFormats.UnicodeText) as string;
+                if (string.IsNullOrWhiteSpace(text)) return;
+
+                var keyMatch = InviteKey.Match(text);
+                var addressMatch = InviteAddress.Match(text);
+                if (!keyMatch.Success || !addressMatch.Success) return;
+
+                e.CancelCommand();
+
+                txtJoinKey.Text = RoomKey.Pretty(keyMatch.Value);
+                txtJoinHost.Text = addressMatch.Groups[1].Value + ":" + addressMatch.Groups[2].Value;
+                SetJoinHint("Разобрал: адрес " + txtJoinHost.Text + ", ключ " + txtJoinKey.Text, false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] вставка строки подключения: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Узнаёт внешний адрес, если он ещё не известен: без него другу
+        /// из интернета нечего вписывать, а копировать нужно сразу готовое.
+        /// </summary>
+        private async Task EnsurePublicAddressAsync()
+        {
+            if (!_session.IsHost) return;
+            if (!string.IsNullOrEmpty(_session.PublicAddress)) return;
+
+            txtFeedHint.Text = "узнаём внешний адрес…";
+            try
+            {
+                await _session.RequestPublicAddressAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] внешний адрес: {ex.Message}");
+            }
+
+            UpdateHeader();
+        }
+
         private void BtnLeaveRoom_Click(object sender, RoutedEventArgs e)
         {
             if (!_session.IsActive) return;

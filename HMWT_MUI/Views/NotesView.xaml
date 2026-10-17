@@ -28,6 +28,9 @@
             <Setter Property="FontFamily" Value="{StaticResource F.Body}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            <!-- Выбор строки связан с моделью: тогда после перехода по ссылке
+                 и после создания заметки видно, какая из них открыта -->
+            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
             <Setter Property="Margin" Value="{Binding Converter={StaticResource TreeIndent}}"/>
             <Setter Property="Template">
                 <Setter.Value>

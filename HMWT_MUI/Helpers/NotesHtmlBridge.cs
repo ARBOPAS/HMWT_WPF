@@ -243,8 +243,25 @@ namespace HMWT_MUI.Helpers
 
             string s = WebUtility.HtmlEncode(text);
 
-            s = Regex.Replace(s, @"\[\[([^\]]+)\]\]",
-                m => "<a class=\"wiki\" data-wiki=\"" + m.Groups[1].Value + "\">" + m.Groups[1].Value + "</a>");
+            // Вики-ссылка: [[заметка]] или [[заметка|подпись]]. Цель и подпись
+            // пишем отдельно — так ссылка с подписью не «ломается» на полпути
+            // и ссылка без неё остаётся прежней.
+            s = Regex.Replace(s, @"\[\[([^\]]+)\]\]", m =>
+            {
+                string target = m.Groups[1].Value;
+                string label = target;
+
+                int bar = target.IndexOf('|');
+                if (bar >= 0)
+                {
+                    label = target.Substring(bar + 1).Trim();
+                    target = target.Substring(0, bar).Trim();
+                    if (label.Length == 0) label = target;
+                }
+
+                return "<a class=\"wiki\" data-wiki=\"" + target + "\" data-label=\"" + label + "\">"
+                       + label + "</a>";
+            });
 
             // Картинка с необязательной шириной: ![](путь) или ![подпись|400](путь).
             // Ширину пишем отдельным атрибутом — так её видит страница редактора,
@@ -605,8 +622,17 @@ namespace HMWT_MUI.Helpers
 
             string s = html;
 
-            s = Regex.Replace(s, @"<a[^>]*data-wiki=""([^""]*)""[^>]*>.*?</a>", "[[$1]]",
-                RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            // Обратно: [[заметка]] или [[заметка|подпись]]
+            s = Regex.Replace(s, @"<a\b[^>]*data-wiki=""([^""]*)""[^>]*>(?<label>.*?)</a>", m =>
+            {
+                string target = WebUtility.HtmlDecode(m.Groups[1].Value);
+                string label = Regex.Replace(m.Groups["label"].Value, "<[^>]+>", "");
+                label = WebUtility.HtmlDecode(label).Trim();
+
+                return string.Equals(label, target, StringComparison.Ordinal)
+                    ? "[[" + target + "]]"
+                    : "[[" + target + "|" + label + "]]";
+            }, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
             // Картинка: путь и ширина, если она задана перетаскиванием за уголок
             s = Regex.Replace(s, @"<img\b[^>]*>", m =>
