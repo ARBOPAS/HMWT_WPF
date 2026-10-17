@@ -126,12 +126,12 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Адрес и порт:" FontSize="11" Foreground="{StaticResource B.Mute}"
                                    VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBox x:Name="txtJoinHost" Style="{StaticResource RoomField}" Width="200" Height="30"
+                        <TextBox x:Name="txtJoinHost" Style="{StaticResource RoomField}" Width="200" MinHeight="34"
                                  KeyDown="JoinField_KeyDown"
                                  ToolTip="Например 192.168.1.5:47777"/>
                         <TextBlock Text="Ключ:" FontSize="11" Foreground="{StaticResource B.Mute}"
                                    VerticalAlignment="Center" Margin="14,0,6,0"/>
-                        <TextBox x:Name="txtJoinKey" Style="{StaticResource RoomField}" Width="170" Height="30"
+                        <TextBox x:Name="txtJoinKey" Style="{StaticResource RoomField}" Width="170" MinHeight="34"
                                  KeyDown="JoinField_KeyDown"
                                  ToolTip="Например K7M2-XP9Q-RT4W"/>
                     </StackPanel>

@@ -2120,11 +2120,140 @@ namespace HMWT_MUI.Views
                 SbList.ItemsSource = _allRefRows;
                 if (SbStatus != null)
                     SbStatus.Text = _allRefRows.Count == 0
-                        ? "Справочник пуст — положи spells.json в Data/srd"
+                        ? "Справочник пуст — импортируйте файл заклинаний (кнопка «Импорт»)"
                         : $"Найдено: {_allRefRows.Count}";
                 SbSearch?.Focus();
             }
             catch (Exception ex) { Log("OpenSpellbook", ex); }
+        }
+        /// <summary>
+        /// Импорт справочника заклинаний из файла (JSON или .dtn).
+        /// Раньше для этого нужно было класть spells.json в папку Data/srd.
+        /// </summary>
+        /// <summary>
+        /// Выгружает весь справочник заклинаний в .hmwtpack: и свои строки,
+        /// и строки из книг. Спрашиваем название и источник — по ним видно,
+        /// откуда данные.
+        /// </summary>
+        private void SbExportPack_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                (int total, int custom) = SpellPackService.CountSpells();
+                if (total == 0)
+                {
+                    MessageDialog.Info(this, "Справочник пуст — выгружать нечего.", "Экспорт пака");
+                    return;
+                }
+
+                string name = NotePromptWindow.AskText(Window.GetWindow(this), "Пак заклинаний",
+                    "Название пака (это имя файла, кириллицей лучше не надо)", "Spells", "Далее");
+                if (string.IsNullOrWhiteSpace(name)) return;
+
+                string automatic = string.Join(", ", SpellService.LoadDistinctSources()
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase));
+
+                string sourceNote = NotePromptWindow.AskText(Window.GetWindow(this), "Пак заклинаний",
+                    "Откуда данные (книги, перевод, ссылка)", automatic, "Сохранить");
+                if (sourceNote == null) return;
+
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Сохранить пак заклинаний",
+                    Filter = "Пак заклинаний (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*",
+                    FileName = name.Trim() + SpellPackService.FileExtension,
+                    DefaultExt = SpellPackService.FileExtension
+                };
+                if (dialog.ShowDialog() != true) return;
+
+                if (SpellPackService.Export(dialog.FileName, false, name, sourceNote,
+                        out int count, out int customCount, out string error))
+                {
+                    MessageDialog.Info(this,
+                        $"Пак сохранён.\n\nФайл: {IOPath.GetFileName(dialog.FileName)}\n" +
+                        $"Заклинаний: {count} (своих: {customCount})\n\n" +
+                        "Внутри manifest.json — название, список источников и место под лицензию. " +
+                        "Перед передачей другим проверьте право распространять текст: содержимое SRD " +
+                        "идёт под CC-BY-4.0, строки из книг — нет.",
+                        "Экспорт пака");
+                }
+                else
+                {
+                    MessageDialog.Error(this, error, "Не удалось сохранить пак");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("SbExportPack", ex);
+                MessageDialog.Error(this, ex.Message, "Не удалось сохранить пак");
+            }
+        }
+
+        /// <summary>Добавляет заклинания из пака; совпадающие по названию и источнику пропускает.</summary>
+        private void SbImportPack_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Title = "Открыть пак заклинаний",
+                    Filter = "Пак заклинаний (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*"
+                };
+                if (dialog.ShowDialog() != true) return;
+
+                if (!SpellPackService.Import(dialog.FileName, out int added, out int skipped, out string error))
+                {
+                    MessageDialog.Error(this, error, "Не удалось прочитать пак");
+                    return;
+                }
+
+                OpenSpellbook();
+                if (SbStatus != null)
+                {
+                    SbStatus.Text = added == 0
+                        ? $"Новых заклинаний нет — все {skipped} уже в справочнике"
+                        : $"Из пака добавлено: {added}, пропущено: {skipped}";
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("SbImportPack", ex);
+                MessageDialog.Error(this, ex.Message, "Не удалось прочитать пак");
+            }
+        }
+        private void SbImportFile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Title = "Файл заклинаний",
+                    Filter = "Файл заклинаний (*.dtn;*.json)|*.dtn;*.json|Все файлы (*.*)|*.*"
+                };
+                if (dialog.ShowDialog() != true) return;
+
+                int added = SpellFileImporter.Import(dialog.FileName, out int skipped, out string error);
+
+                if (added == 0 && !string.IsNullOrWhiteSpace(error))
+                {
+                    MessageDialog.Error(this, error, "Не удалось прочитать файл");
+                    return;
+                }
+
+                OpenSpellbook();
+                if (SbStatus != null)
+                {
+                    SbStatus.Text = added == 0
+                        ? $"Новых заклинаний нет — все {skipped} уже в справочнике"
+                        : $"Импортировано: {added}, уже было: {skipped}";
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("SbImportFile", ex);
+                MessageDialog.Error(this, ex.Message, "Не удалось прочитать файл");
+            }
         }
         private void SbAddSelected_Click(object sender, RoutedEventArgs e)
         {
@@ -2543,7 +2672,7 @@ namespace HMWT_MUI.Views
                 var counts = ShareService.CountCustom();
                 if (counts.Spells == 0)
                 {
-                    ShowToast("Своих заклинаний пока нет — выгружать нечего", "!", B("B.Danger"));
+                    ShowToast("Своих заклинаний нет. Весь справочник выгружается в «Справочник» → «Экспорт пака»", "!", B("B.Danger"));
                     return;
                 }
 
@@ -2597,6 +2726,23 @@ namespace HMWT_MUI.Views
                 if (!string.IsNullOrEmpty(result.Error))
                 {
                     ShowToast("Не удалось загрузить: " + result.Error, "!", B("B.Danger"));
+                    return;
+                }
+
+                // Кнопка «обмен своими» часто получает файл пака справочника.
+                // Если в файле не оказалось ни предметов, ни своих заклинаний —
+                // пробуем прочитать его как пак справочника, чтобы не гонять
+                // человека по разным кнопкам.
+                if (result.Total == 0 && SpellPackService.Import(dialog.FileName, out int packAdded, out int packSkipped, out string packError))
+                {
+                    OpenSpellbook();
+                    if (SbStatus != null)
+                    {
+                        SbStatus.Text = packAdded == 0
+                            ? $"Новых заклинаний нет — все {packSkipped} уже в справочнике"
+                            : $"Из пака добавлено: {packAdded}, пропущено: {packSkipped}";
+                    }
+                    ShowToast($"Справочник обновлён: добавлено {packAdded}", "✓", B("B.Ok"));
                     return;
                 }
 

@@ -142,6 +142,53 @@ namespace HMWT_MUI.Services
             return list;
         }
 
+        /// <summary>
+        /// Список для левой колонки: только то, что видно в строке.
+        ///
+        /// Черты и действия не разбираются: на пятистах существах разбор JSON
+        /// занимает заметную часть времени открытия вкладки, а в списке они
+        /// не нужны. Полная карточка читается через Load(id).
+        /// </summary>
+        public static List<MonsterData> LoadAllBrief()
+        {
+            var list = new List<MonsterData>();
+            EnsureTables();
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "SELECT id_monster, name, size, creature_type, subtype, alignment, armor_class, " +
+                    "hit_points, challenge_rating, source, is_custom, photo_path " +
+                    "FROM Bestiary ORDER BY name COLLATE NOCASE", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new MonsterData
+                    {
+                        Id = reader["id_monster"] == DBNull.Value ? 0 : Convert.ToInt32(reader["id_monster"]),
+                        Name = reader["name"] as string ?? "",
+                        Size = reader["size"] as string ?? "",
+                        CreatureType = reader["creature_type"] as string ?? "",
+                        Subtype = reader["subtype"] as string ?? "",
+                        Alignment = reader["alignment"] as string ?? "",
+                        ArmorClass = reader["armor_class"] == DBNull.Value ? 10 : Convert.ToInt32(reader["armor_class"]),
+                        HitPoints = reader["hit_points"] == DBNull.Value ? 1 : Convert.ToInt32(reader["hit_points"]),
+                        ChallengeRating = reader["challenge_rating"] as string ?? "",
+                        Source = reader["source"] as string ?? "",
+                        IsCustom = reader["is_custom"] != DBNull.Value && Convert.ToInt32(reader["is_custom"]) == 1,
+                        PhotoPath = reader["photo_path"] as string ?? ""
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[BestiaryService] LoadAllBrief error: {ex.Message}");
+            }
+
+            return list;
+        }
         /// <summary>Одно существо по идентификатору или null.</summary>
         public static MonsterData Load(int id)
         {

@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Win32;
 
 namespace HMWT_MUI.Views
 {
@@ -37,6 +38,9 @@ namespace HMWT_MUI.Views
         private List<MonsterData> _all = new List<MonsterData>();
         private List<MonsterData> _shown = new List<MonsterData>();
         private MonsterData _selected;
+        // Список рисуем порциями: 550 карточек сразу — это несколько секунд ожидания
+        private const int PageSize = 60;
+        private int _renderLimit = PageSize;
 
         /// <summary>Мастер нажал «в бой»: трекер должен добавить это существо.</summary>
         public event Action<MonsterData> AddToEncounterRequested;
@@ -77,6 +81,10 @@ namespace HMWT_MUI.Views
             buttons.Children.Add(DmUiKit.Action("Примеры", (s, e) => AddSamples(), DmUiKit.ButtonKind.Ghost,
                 "Добавить гоблина и волка как образцы заполнения", 100, 30));
             buttons.Children.Add(DmUiKit.Action("Обновить", (s, e) => Refresh(), DmUiKit.ButtonKind.Ghost, null, 100, 30));
+            buttons.Children.Add(DmUiKit.Action("Экспорт пака", (s, e) => ExportPack(), DmUiKit.ButtonKind.Ghost,
+                "Сохранить бестиарий в файл .hmwtpack — его можно отдать другим", 130, 30));
+            buttons.Children.Add(DmUiKit.Action("Импорт пака", (s, e) => ImportPack(), DmUiKit.ButtonKind.Ghost,
+                "Добавить существ из файла .hmwtpack", 130, 30));
             Grid.SetColumn(buttons, 1);
             topRow.Children.Add(buttons);
 
@@ -160,7 +168,7 @@ namespace HMWT_MUI.Views
         {
             try
             {
-                _all = BestiaryService.LoadAll();
+                _all = BestiaryService.LoadAllBrief();
             }
             catch (Exception ex)
             {
@@ -215,6 +223,7 @@ namespace HMWT_MUI.Views
                 size == "Все размеры" ? "" : size,
                 _onlyCustom.IsChecked == true);
 
+            _renderLimit = PageSize;
             _countText.Text = _all.Count == 0
                 ? "пусто"
                 : $"{_shown.Count} из {_all.Count}";
@@ -240,7 +249,7 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            foreach (var monster in _shown)
+            foreach (var monster in _shown.Take(_renderLimit))
             {
                 bool isSelected = _selected != null && _selected.Id == monster.Id;
                 var row = new StackPanel();
@@ -278,6 +287,12 @@ namespace HMWT_MUI.Views
                 meta.Children.Add(DmUiKit.Chip($"ПО {monster.ChallengeRating}", DmUiKit.B("Arcane")));
                 meta.Children.Add(DmUiKit.Chip($"КД {monster.ArmorClass}", DmUiKit.B("Frost")));
                 meta.Children.Add(DmUiKit.Chip($"ХИТЫ {monster.HitPoints}", DmUiKit.B("Danger")));
+                if (!string.IsNullOrWhiteSpace(monster.Source))
+                {
+                    var sourceChip = DmUiKit.Chip(monster.Source.ToUpperInvariant(), DmUiKit.B("Mute"));
+                    sourceChip.ToolTip = MonsterCardRenderer.SourceTitle(monster.Source);
+                    meta.Children.Add(sourceChip);
+                }
                 row.Children.Add(meta);
 
                 var border = DmUiKit.Panel(row, new Thickness(10, 7, 10, 7),
@@ -288,7 +303,8 @@ namespace HMWT_MUI.Views
                 border.Cursor = Cursors.Hand;
                 border.MouseLeftButtonUp += (s, e) =>
                 {
-                    _selected = monster;
+                    // в списке лежит краткая запись — карточке нужны черты и действия
+                    _selected = BestiaryService.Load(monster.Id) ?? monster;
                     RenderList();
                     RenderCard();
                 };
@@ -296,12 +312,25 @@ namespace HMWT_MUI.Views
 
                 _listHost.Children.Add(border);
             }
+
+            int left = _shown.Count - _renderLimit;
+            if (left > 0)
+            {
+                var more = DmUiKit.Action($"Показать ещё ({left})", (s, e) =>
+                {
+                    _renderLimit += PageSize * 2;
+                    RenderList();
+                }, DmUiKit.ButtonKind.Ghost, "Догрузить остальных из бестиария", 200, 30);
+                more.HorizontalAlignment = HorizontalAlignment.Center;
+                more.Margin = new Thickness(0, 4, 0, 4);
+                _listHost.Children.Add(more);
+            }
         }
 
         /// <summary>Выбирает существо по идентификатору (переход из трекера инициативы).</summary>
         public void SelectMonster(int id)
         {
-            var monster = _all.FirstOrDefault(m => m.Id == id) ?? BestiaryService.Load(id);
+            var monster = BestiaryService.Load(id) ?? _all.FirstOrDefault(m => m.Id == id);
             if (monster == null)
             {
                 Refresh();
@@ -353,6 +382,102 @@ namespace HMWT_MUI.Views
 
         // ══════════════════════ ДЕЙСТВИЯ ══════════════════════
 
+        // ══════════════════════ ПАКИ ══════════════════════
+
+        /// <summary>
+        /// Выгружает бестиарий в .hmwtpack. Перед сохранением спрашиваем
+        /// название и источник — по ним потом видно, откуда данные.
+        /// </summary>
+        private void ExportPack()
+        {
+            try
+            {
+                var all = BestiaryService.LoadAll();
+                if (all.Count == 0)
+                {
+                    Windows.MessageDialog.Info(this, "Бестиарий пуст — выгружать нечего.", "Экспорт пака");
+                    return;
+                }
+
+                string name = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                    "Пак бестиария", "Название пака (кириллицей лучше не надо — это имя файла)", "Monster", "Далее");
+                if (string.IsNullOrWhiteSpace(name)) return;
+
+                string automatic = string.Join(", ", all
+                    .Select(m => (m.Source ?? "").Trim())
+                    .Where(s => s.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(s => s, StringComparer.OrdinalIgnoreCase));
+
+                string sourceNote = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                    "Пак бестиария", "Откуда данные (книги, перевод, ссылка)", automatic, "Сохранить");
+                if (sourceNote == null) return;
+
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Сохранить пак бестиария",
+                    Filter = "Пак бестиария (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*",
+                    FileName = name.Trim() + BestiaryPackService.FileExtension,
+                    DefaultExt = BestiaryPackService.FileExtension
+                };
+                if (dialog.ShowDialog() != true) return;
+
+                if (BestiaryPackService.Export(dialog.FileName, all, name, sourceNote, out int images, out string error))
+                {
+                    DmRolls.Toast(this, $"Пак сохранён: существ {all.Count}, картинок {images}");
+                    Windows.MessageDialog.Info(this,
+                        $"Пак сохранён.\n\nФайл: {System.IO.Path.GetFileName(dialog.FileName)}\n" +
+                        $"Существ: {all.Count}\nКартинок: {images}\n\n" +
+                        "Внутри manifest.json — название, список источников и место под лицензию. " +
+                        "Перед публикацией проверьте, что у вас есть право распространять текст и картинки: " +
+                        "содержимое SRD идёт под CC-BY-4.0, всё остальное — нет.",
+                        "Экспорт пака");
+                }
+                else
+                {
+                    Windows.MessageDialog.Error(this, error, "Не удалось сохранить пак");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BestiaryView] экспорт пака: {ex}");
+                Windows.MessageDialog.Error(this, ex.Message, "Не удалось сохранить пак");
+            }
+        }
+
+        /// <summary>Добавляет существ из пака; совпадающие по имени пропускает.</summary>
+        private void ImportPack()
+        {
+            try
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Title = "Открыть пак бестиария",
+                    Filter = "Пак бестиария (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*"
+                };
+                if (dialog.ShowDialog() != true) return;
+
+                if (!BestiaryPackService.Import(dialog.FileName, out int added, out int skipped, out string error))
+                {
+                    Windows.MessageDialog.Error(this, error, "Не удалось прочитать пак");
+                    return;
+                }
+
+                Refresh();
+                DmRolls.Toast(this, $"Из пака добавлено: {added}, пропущено: {skipped}");
+                if (added == 0 && skipped > 0)
+                {
+                    Windows.MessageDialog.Info(this,
+                        "Все существа из пака уже есть в бестиарии — добавлять нечего.",
+                        "Импорт пака");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BestiaryView] импорт пака: {ex}");
+                Windows.MessageDialog.Error(this, ex.Message, "Не удалось прочитать пак");
+            }
+        }
         private void OpenEditor(MonsterData monster, bool isNew)
         {
             _editor.LoadMonster(monster, isNew);

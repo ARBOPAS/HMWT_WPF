@@ -198,6 +198,8 @@
     <Compile Include="Services\MoneyService.cs" />
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
+    <Compile Include="Services\SpellFileImporter.cs" />
+    <Compile Include="Services\SpellPackService.cs" />
     <Compile Include="Services\SrdItemImporter.cs" />
     <Compile Include="Services\SrdDatabaseImporter.cs" />
     <Compile Include="Services\ShareService.cs" />
@@ -245,6 +247,7 @@
     <Compile Include="Services\UiPreferences.cs" />
     <Compile Include="Services\AttackService.cs" />
     <Compile Include="Services\BestiaryService.cs" />
+    <Compile Include="Services\BestiaryPackService.cs" />
     <Compile Include="Services\InitiativeService.cs" />
     <Compile Include="Services\DmRights.cs" />
     <Compile Include="Helpers\RollTextRenderer.cs" />

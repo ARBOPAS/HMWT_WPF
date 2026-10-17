@@ -814,14 +814,34 @@
                     </Grid>
                     <Grid Grid.Row="1" Margin="0,0,0,16">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*" MinWidth="220"/>
                             <ColumnDefinition Width="12"/>
-                            <ColumnDefinition Width="260"/>
+                            <ColumnDefinition Width="240"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="SbSearch" Style="{StaticResource SearchBox}" TextChanged="SbSearch_TextChanged" Tag="поиск по названию…" />
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBox x:Name="SbSearch" Style="{StaticResource SearchBox}" TextChanged="SbSearch_TextChanged" Tag="поиск по названию…" MinWidth="220" />
                         <ComboBox Grid.Column="2" x:Name="SbSourceFilter" Style="{StaticResource SourceBox}"
               SelectionChanged="SbSourceFilter_SelectionChanged"
               Panel.ZIndex="5"/>
+                        <!-- Кнопки отдельной строкой: в одну строку с поиском они его сжимали в ноль -->
+                        <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                    Margin="0,8,0,0">
+                            <Button x:Name="SbImportFile" Style="{StaticResource GhostBtn}" Margin="0,0,6,0"
+                                    Click="SbImportFile_Click" ToolTip="Добавить заклинания из файла (JSON, .dtn)">
+                                <TextBlock Text="Импорт из файла" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button x:Name="SbExportPack" Style="{StaticResource GhostBtn}" Margin="0,0,6,0"
+                                    Click="SbExportPack_Click" ToolTip="Сохранить весь справочник в файл .hmwtpack">
+                                <TextBlock Text="Экспорт пака" VerticalAlignment="Center"/>
+                            </Button>
+                            <Button x:Name="SbImportPack" Style="{StaticResource GhostBtn}"
+                                    Click="SbImportPack_Click" ToolTip="Добавить заклинания из файла .hmwtpack">
+                                <TextBlock Text="Импорт пака" VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                     <ListBox x:Name="SbList" Grid.Row="2" Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1"
                              Foreground="{StaticResource B.Ink}" ScrollViewer.VerticalScrollBarVisibility="Auto">

@@ -24,6 +24,19 @@ namespace HMWT_MUI.Views
     public static class MonsterCardRenderer
     {
         /// <summary>Собирает карточку существа. source нужен, чтобы найти окно персонажа с DiceRoller.</summary>
+        /// <summary>Расшифровка кода источника из бестиария.</summary>
+        public static string SourceTitle(string code)
+        {
+            switch ((code ?? "").Trim().ToUpperInvariant())
+            {
+                case "MM": return "Monster Manual";
+                case "VGTM": return "Volo's Guide to Monsters";
+                case "XGTE": return "Xanathar's Guide to Everything";
+                case "MTOF": return "Mordenkainen's Tome of Foes";
+                case "SRD": return "SRD (CC-BY-4.0)";
+                default: return code ?? "";
+            }
+        }
         public static StackPanel Build(MonsterData monster, FrameworkElement source, bool showDescription = true)
         {
             var root = new StackPanel { Margin = new Thickness(0) };
@@ -44,7 +57,15 @@ namespace HMWT_MUI.Views
                 FontSize = 12
             };
 
-            root.Children.Add(BuildHeader(monster));
+            // Слева — имя, плашки и характеристики, справа — картинка на всю высоту блока.
+            // Раньше фото было 150×150 рядом с заголовком, а плитки характеристик
+            // занимали полосу ниже: получалось много пустого места и мелкая картинка.
+            var top = new Grid();
+            top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var left = new StackPanel();
+            left.Children.Add(BuildHeader(monster));
 
             var chips = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
             chips.Children.Add(DmUiKit.Chip($"КД {monster.ArmorClass}", DmUiKit.B("Frost")));
@@ -52,11 +73,29 @@ namespace HMWT_MUI.Views
             chips.Children.Add(DmUiKit.Chip($"СКОРОСТЬ {monster.SpeedLine()}", DmUiKit.B("Arcane")));
             chips.Children.Add(DmUiKit.Chip($"ПО {monster.ChallengeLine()}", DmUiKit.B("Gold")));
             chips.Children.Add(DmUiKit.Chip($"ИНИЦИАТИВА {(monster.InitiativeModifier >= 0 ? "+" : "")}{monster.InitiativeModifier}", DmUiKit.B("Ok")));
-            if (!string.IsNullOrWhiteSpace(monster.Source)) chips.Children.Add(DmUiKit.Chip(monster.Source.ToUpperInvariant(), DmUiKit.B("Mute")));
+            if (!string.IsNullOrWhiteSpace(monster.Source))
+            {
+                // Источник показываем подписью, а не голым кодом: иначе непонятно,
+                // откуда существо. Полное название — в подсказке.
+                var sourceChip = DmUiKit.Chip("ИСТОЧНИК " + monster.Source.ToUpperInvariant(), DmUiKit.B("Mute"));
+                sourceChip.ToolTip = SourceTitle(monster.Source);
+                chips.Children.Add(sourceChip);
+            }
             if (!string.IsNullOrWhiteSpace(monster.Tags)) chips.Children.Add(DmUiKit.Chip(monster.Tags.ToUpperInvariant(), DmUiKit.B("Enchant")));
-            root.Children.Add(chips);
+            left.Children.Add(chips);
 
-            root.Children.Add(BuildAbilities(monster));
+            left.Children.Add(BuildAbilities(monster));
+
+            Grid.SetColumn(left, 0);
+            top.Children.Add(left);
+
+            var photo = BuildPhoto(monster.PhotoPath);
+            if (photo != null)
+            {
+                Grid.SetColumn(photo, 1);
+                top.Children.Add(photo);
+            }
+            root.Children.Add(top);
 
             var stats = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             AddStat(stats, "Спасброски", monster.SavingThrows);
@@ -70,7 +109,7 @@ namespace HMWT_MUI.Views
             AddStat(stats, "Бонус мастерства", monster.ProficiencyBonus > 0 ? $"+{monster.ProficiencyBonus}" : "");
             AddStat(stats, "Среда обитания", monster.Habitat);
             AddStat(stats, "Сокровища", monster.Treasure);
-            root.Children.Add(stats);
+            left.Children.Add(stats);
 
             // ── черты ──
             foreach (var trait in monster.Traits.Where(t => t != null))
@@ -143,10 +182,6 @@ namespace HMWT_MUI.Views
 
         private static UIElement BuildHeader(MonsterData monster)
         {
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             text.Children.Add(new TextBlock
             {
@@ -183,17 +218,7 @@ namespace HMWT_MUI.Views
                 });
             }
 
-            Grid.SetColumn(text, 0);
-            grid.Children.Add(text);
-
-            var photo = BuildPhoto(monster.PhotoPath);
-            if (photo != null)
-            {
-                Grid.SetColumn(photo, 1);
-                grid.Children.Add(photo);
-            }
-
-            return grid;
+            return text;
         }
 
         private static UIElement BuildPhoto(string relativePath)
@@ -211,14 +236,15 @@ namespace HMWT_MUI.Views
 
                 return new Border
                 {
-                    Width = 150,
-                    Height = 150,
-                    Margin = new Thickness(12, 0, 0, 0),
-                    CornerRadius = new CornerRadius(8),
+                    Width = 300,
+                    Height = 380,
+                    Margin = new Thickness(18, 0, 0, 0),
+                    CornerRadius = new CornerRadius(10),
                     BorderBrush = DmUiKit.B("Line"),
                     BorderThickness = new Thickness(1),
                     ClipToBounds = true,
-                    Child = new Image { Source = bitmap, Stretch = Stretch.UniformToFill }
+                    // Uniform, а не UniformToFill: картинка вписывается целиком и не обрезается
+                    Child = new Image { Source = bitmap, Stretch = Stretch.Uniform }
                 };
             }
             catch (Exception ex)
@@ -230,35 +256,47 @@ namespace HMWT_MUI.Views
 
         private static UIElement BuildAbilities(MonsterData monster)
         {
-            var grid = new UniformGrid { Columns = 6, Margin = new Thickness(0, 10, 0, 0) };
+            // WrapPanel, а не UniformGrid: плитка по ширине содержимого, 
+            // а не растянутая на пол-экрана.
+            var grid = new WrapPanel { Margin = new Thickness(0, 10, 0, 0), ItemHeight = double.NaN };
 
             void Add(string label, int score)
             {
                 int mod = MonsterData.ModifierOf(score);
-                var panel = new StackPanel();
+
+                // Всё в одну строку: «СИЛ 17 +3». Раньше три строки в плитке давали
+                // много пустого места и растягивали карточку на пол-экрана.
+                var panel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
                 panel.Children.Add(new TextBlock
                 {
                     Text = label,
-                    FontSize = 9.5,
+                    FontSize = 9,
                     FontWeight = FontWeights.Bold,
                     Foreground = DmUiKit.B("Mute"),
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 7, 0)
                 });
                 panel.Children.Add(new TextBlock
                 {
                     Text = score.ToString(),
-                    FontSize = 17,
+                    FontSize = 15,
                     FontWeight = FontWeights.Bold,
                     FontFamily = DmUiKit.Display,
                     Foreground = DmUiKit.B("Ink"),
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center
                 });
                 panel.Children.Add(new TextBlock
                 {
                     Text = mod >= 0 ? "+" + mod : mod.ToString(),
-                    FontSize = 11.5,
+                    FontSize = 10.5,
                     Foreground = DmUiKit.B("Arcane"),
-                    HorizontalAlignment = HorizontalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(6, 1, 0, 0)
                 });
 
                 grid.Children.Add(new Border
@@ -267,8 +305,9 @@ namespace HMWT_MUI.Views
                     BorderBrush = DmUiKit.B("Line"),
                     BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(4, 6, 4, 6),
-                    Margin = new Thickness(3, 0, 3, 0),
+                    Padding = new Thickness(10, 3, 10, 3),
+                    Margin = new Thickness(0, 0, 6, 0),
+                    MinWidth = 86,
                     Child = panel
                 });
             }
