@@ -57,10 +57,15 @@ namespace HMWT_MUI.Services
                         hp INTEGER DEFAULT 0,
                         max_hp INTEGER DEFAULT 0,
                         note TEXT DEFAULT '',
-                        is_current INTEGER DEFAULT 0
+                        is_current INTEGER DEFAULT 0,
+                        conditions TEXT DEFAULT ''
                     );
                     CREATE INDEX IF NOT EXISTS idx_combatant_encounter ON EncounterCombatant(id_encounter);", conn, tx);
                 cmd.ExecuteNonQuery();
+
+                // Базы, созданные до 1.1.1.0, колонку не получат: CREATE TABLE
+                // IF NOT EXISTS к готовой таблице колонки не добавляет.
+                DatabaseHelper.EnsureColumn(conn, tx, "EncounterCombatant", "conditions TEXT DEFAULT ''");
 
                 tx.Commit();
                 _tablesChecked = true;

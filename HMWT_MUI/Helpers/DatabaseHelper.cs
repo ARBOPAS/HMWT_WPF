@@ -486,14 +486,26 @@ namespace HMWT_MUI
             cmd.CommandText = $"PRAGMA table_info({tableName})";
 
             bool columnExists = false;
+            bool tableExists = false;
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
+                tableExists = true;
                 if (reader.GetString(1).Equals(columnName, StringComparison.OrdinalIgnoreCase))
                 {
                     columnExists = true;
                     break;
                 }
+            }
+
+            // Таблицы может ещё не быть: миграция вызывается из общего прохода,
+            // а часть таблиц создаётся своими сервисами позже. Раньше ALTER по
+            // несуществующей таблице бросал исключение и программа не стартовала
+            // на чистой базе.
+            if (!tableExists)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DB] таблицы {tableName} ещё нет — колонку {columnName} не добавляю");
+                return;
             }
 
             if (!columnExists)
@@ -604,8 +616,7 @@ namespace HMWT_MUI
             // Ключ записи в исходной базе. Сам текст переведён не весь: index
             // одинаков в английских и русских файлах, поэтому по нему видно,
             // что запись уже есть, и вторая база только дополняет первую
-            // Состояния участника боя: хранятся ключами через запятую
-            EnsureColumns(conn, transaction, "EncounterCombatant", "conditions TEXT DEFAULT ''");
+
             EnsureColumns(conn, transaction, "SpellReference", SrdIndexColumn);
             EnsureColumns(conn, transaction, "SrdReference", SrdIndexColumn);
 
