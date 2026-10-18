@@ -2276,4 +2276,30 @@
             </Setter>
         </Style>
 
+    <!--
+      ТЁМНАЯ ПОДСКАЗКА
+      Системная подсказка светлая: на тёмной карточке она выглядела как чужой
+      элемент. Стиль без ключа — применяется ко всем подсказкам программы.
+    -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Ink}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Line}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="HasDropShadow" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

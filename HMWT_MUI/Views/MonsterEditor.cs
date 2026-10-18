@@ -268,7 +268,8 @@ namespace HMWT_MUI.Views
             _hitPoints = DmUiKit.Field(_monster.HitPoints.ToString(), 80);
             _hpFormula = DmUiKit.Field(_monster.HitPointsFormula, 110, "Формула хитов: 2к6, 18к8+54");
 
-            var hpRoll = DmUiKit.Action("🎲", (s, e) => RollHitPoints(), DmUiKit.ButtonKind.Ghost, "Бросить хиты по формуле", 34, 28);
+            // Кнопка-иконка: у неё нет подписи и отступов, значок вписывается целиком
+            var hpRoll = DmUiKit.Icon("🎲", (s, e) => RollHitPoints(), "Бросить хиты по формуле", 30);
 
             var hpBlock = new StackPanel { Margin = new Thickness(0, 0, 10, 10) };
             hpBlock.Children.Add(DmUiKit.Label("ХИТЫ"));
@@ -400,7 +401,8 @@ namespace HMWT_MUI.Views
                 "попадание вида «+11» бросает d20+11, а урон — свои кубики"));
             _form.Children.Add(_actionsHost);
 
-            var actionButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            // WrapPanel: кнопок пять, и «ДЕЙСТВИЯ ЛОГОВА» раньше вылезала за блок
+            var actionButtons = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
             foreach (var section in ActionSections.All)
             {
                 string key = section.Key;
@@ -885,7 +887,8 @@ namespace HMWT_MUI.Views
             {
                 CollectFields();
                 _preview.Children.Clear();
-                _preview.Children.Add(MonsterCardRenderer.Build(_monster, this));
+                // Компактный режим: в узком предпросмотре фото идёт сверху, а не рядом с текстом
+            _preview.Children.Add(MonsterCardRenderer.Build(_monster, this, compact: true));
             }
             catch (Exception ex)
             {

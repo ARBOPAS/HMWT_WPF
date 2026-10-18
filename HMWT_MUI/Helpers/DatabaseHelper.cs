@@ -604,6 +604,8 @@ namespace HMWT_MUI
             // Ключ записи в исходной базе. Сам текст переведён не весь: index
             // одинаков в английских и русских файлах, поэтому по нему видно,
             // что запись уже есть, и вторая база только дополняет первую
+            // Состояния участника боя: хранятся ключами через запятую
+            EnsureColumns(conn, transaction, "EncounterCombatant", "conditions TEXT DEFAULT ''");
             EnsureColumns(conn, transaction, "SpellReference", SrdIndexColumn);
             EnsureColumns(conn, transaction, "SrdReference", SrdIndexColumn);
 

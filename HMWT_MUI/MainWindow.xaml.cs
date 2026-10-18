@@ -189,12 +189,45 @@ namespace HMWT_MUI
 
         #region === СОЗДАНИЕ / УДАЛЕНИЕ / ОТКРЫТИЕ ЛИСТА ===
 
+        /// <summary>
+        /// Свободное имя для нового персонажа: «Персонаж 1», «Персонаж 2»…
+        ///
+        /// Раньше имя собиралось из времени (ЧЧммсс), и два персонажа, созданные
+        /// в одну секунду, получали одинаковое имя. Номер ищется по факту:
+        /// удалили всех — следующий снова «Персонаж 1».
+        /// </summary>
+        private string NextCharacterName()
+        {
+            try
+            {
+                var taken = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new Microsoft.Data.Sqlite.SqliteCommand("SELECT name FROM CharacterInfo", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read()) taken.Add((reader[0] as string ?? "").Trim());
+                reader.Close();
+
+                for (int i = 1; i < 100000; i++)
+                {
+                    string candidate = "Персонаж " + i;
+                    if (!taken.Contains(candidate)) return candidate;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MainWindow] имя персонажа: {ex.Message}");
+            }
+
+            return "Персонаж " + DateTime.Now.ToString("HHmmss");
+        }
         private void AddCharacterBtn_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 DatabaseHelper.CreateCharacter(
-                    name: $"Персонаж {DateTime.Now:HHmmss}",
+                    name: NextCharacterName(),
                     charClass: "Воин",
                     race: "Человек",
                     hp: 10,
@@ -295,6 +328,25 @@ namespace HMWT_MUI
 
         #region === КАРТОЧКА ПЕРСОНАЖА ===
 
+        /// <summary>
+        /// Пустой шаблон кнопки: прозрачный фон и содержимое по центру.
+        /// Нужен там, где системная кнопка показывает светлую подложку.
+        /// </summary>
+        private static ControlTemplate BuildFlatButtonTemplate()
+        {
+            var template = new ControlTemplate(typeof(Button));
+            var border = new FrameworkElementFactory(typeof(Border), "bd");
+            border.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(13));
+
+            var presenter = new FrameworkElementFactory(typeof(ContentPresenter), "content");
+            presenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            presenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            border.AppendChild(presenter);
+
+            template.VisualTree = border;
+            return template;
+        }
         private void CreateCharacterCard(int id, string name, string charClass, string race, int level, int hp, string photoPath)
         {
             var card = new Border { Tag = id, Cursor = Cursors.Hand };
@@ -314,8 +366,27 @@ namespace HMWT_MUI
                 ToolTip = "Удалить персонажа",
                 Visibility = Visibility.Collapsed
             };
+            // Свой шаблон кнопки: у системной на наведении появлялся светлый
+            // прямоугольник, который на тёмной карточке выглядел чужеродно
+            delBtn.Template = BuildFlatButtonTemplate();
+
             var delBox = new Border { Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Background = (Brush)FindResource("B.Danger") };
-            delBox.Child = new Helpers.IconView { Kind = "close", IconSize = 12, IconBrush = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+
+            // Крестик рисуем Path с Stretch=Uniform: IconView оставлял рисунок
+            // в единицах сетки 24×24 со сдвигом, и значок уезжал влево-вверх
+            delBox.Child = new System.Windows.Shapes.Path
+            {
+                Data = Helpers.IconLibrary.Get("close"),
+                Stroke = Brushes.White,
+                StrokeThickness = 2.4,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                Stretch = Stretch.Uniform,
+                Width = 10,
+                Height = 10,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
             delBtn.Content = delBox;
             delBtn.Click += (s, e) => { e.Handled = true; DeleteCharacter(id, name, card); };
             delBtn.MouseLeftButtonUp += (s, e) => e.Handled = true;

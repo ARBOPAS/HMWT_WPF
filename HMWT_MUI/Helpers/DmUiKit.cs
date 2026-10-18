@@ -340,7 +340,7 @@ namespace HMWT_MUI.Helpers
 
         public static CheckBox Check(string text, bool isChecked)
         {
-            return new CheckBox
+            var check = new CheckBox
             {
                 Content = text,
                 IsChecked = isChecked,
@@ -349,6 +349,20 @@ namespace HMWT_MUI.Helpers
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 4, 12, 4)
             };
+
+            // Свой вид галочки, как в остальном приложении: на системной
+            // чекбокс выбивался из тёмной темы
+            try
+            {
+                if (Application.Current != null)
+                {
+                    var style = Application.Current.TryFindResource("CustomCheckBox") as Style;
+                    if (style != null) check.Style = style;
+                }
+            }
+            catch { }
+
+            return check;
         }
 
         // ══════════════════════ КНОПКИ ══════════════════════

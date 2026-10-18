@@ -310,6 +310,14 @@ namespace HMWT_MUI.Views
                 });
             }
             info.Children.Add(meta);
+
+            // ── хиты: бросок по формуле существа и правка в бою ──
+            info.Children.Add(BuildHitPointRow(combatant, canManage));
+
+            // ── состояния: плашки + добавление ──
+            var conditions = BuildConditionRow(combatant, canManage);
+            if (conditions != null) info.Children.Add(conditions);
+
             Grid.SetColumn(info, 1);
             card.Children.Add(info);
 
@@ -342,6 +350,199 @@ namespace HMWT_MUI.Views
                 new Thickness(0, 0, 0, 6));
         }
 
+        /// <summary>
+        /// Строка хитов: «ХИТЫ 13 / 13», кубик (бросает формулу существа),
+        /// минус и плюс для правки в бою.
+        /// </summary>
+        private UIElement BuildHitPointRow(CombatantData combatant, bool canManage)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+
+            bool hasHp = combatant.MaxHitPoints > 0;
+            string text;
+            Brush color;
+
+            if (!hasHp)
+            {
+                text = "хиты не заданы";
+                color = DmUiKit.B("Mute");
+            }
+            else
+            {
+                text = $"ХИТЫ {combatant.HitPoints} / {combatant.MaxHitPoints}";
+                color = combatant.HitPoints <= 0
+                    ? DmUiKit.B("Danger")
+                    : combatant.HitPoints * 3 <= combatant.MaxHitPoints
+                        ? DmUiKit.B("Danger")
+                        : combatant.HitPoints < combatant.MaxHitPoints
+                            ? DmUiKit.B("Gold")
+                            : DmUiKit.B("Ok");
+            }
+
+            row.Children.Add(new TextBlock
+            {
+                Text = text,
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = color,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+
+            if (canManage)
+            {
+                row.Children.Add(DmUiKit.Icon("🎲", (s, e) => RollHitPoints(combatant),
+                    "Бросить хиты по формуле существа", 26));
+                row.Children.Add(DmUiKit.Icon("−", (s, e) => ShiftHitPoints(combatant, -1),
+                    "Убрать 1 хит", 24, DmUiKit.ButtonKind.Soft));
+                row.Children.Add(DmUiKit.Icon("+", (s, e) => ShiftHitPoints(combatant, 1),
+                    "Добавить 1 хит", 24, DmUiKit.ButtonKind.Soft));
+            }
+
+            return row;
+        }
+
+        /// <summary>Плашки состояний и кнопка «+» с меню выбора.</summary>
+        private UIElement BuildConditionRow(CombatantData combatant, bool canManage)
+        {
+            var keys = ParseConditions(combatant.Conditions);
+            if (keys.Count == 0 && !canManage) return null;
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+
+            foreach (string key in keys)
+            {
+                var chip = DmUiKit.Chip(ConditionName(key), DmUiKit.B("Danger"));
+                chip.Margin = new Thickness(0, 0, 5, 0);
+                chip.ToolTip = "Состояние: " + ConditionName(key);
+                if (canManage)
+                {
+                    chip.Cursor = Cursors.Hand;
+                    string captured = key;
+                    chip.MouseLeftButtonUp += (s, e) => ToggleCondition(combatant, captured);
+                }
+                row.Children.Add(chip);
+            }
+
+            if (canManage)
+            {
+                var add = DmUiKit.Icon("+", null, "Добавить состояние", 24, DmUiKit.ButtonKind.Soft);
+                var menu = new ContextMenu();
+                var all = CharacterStateService.LoadConditions();
+                foreach (var option in all)
+                {
+                    string key = option.Key;
+                    bool active = keys.Contains(key);
+                    var item = new MenuItem
+                    {
+                        Header = (active ? "✓ " : "") + option.Name,
+                        IsCheckable = false
+                    };
+                    item.Click += (s, e) => ToggleCondition(combatant, key);
+                    menu.Items.Add(item);
+                }
+                add.Click += (s, e) =>
+                {
+                    menu.PlacementTarget = add;
+                    menu.IsOpen = true;
+                };
+                row.Children.Add(add);
+            }
+
+            return row;
+        }
+
+        private static List<string> ParseConditions(string text)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrWhiteSpace(text)) return list;
+
+            foreach (string part in text.Split(','))
+            {
+                string key = (part ?? "").Trim();
+                if (key.Length > 0 && !list.Contains(key)) list.Add(key);
+            }
+            return list;
+        }
+
+        private static string ConditionName(string key)
+        {
+            try
+            {
+                var match = CharacterStateService.LoadConditions()
+                    .FirstOrDefault(o => string.Equals(o.Key, key, StringComparison.OrdinalIgnoreCase));
+                if (match != null && !string.IsNullOrWhiteSpace(match.Name)) return match.Name;
+            }
+            catch { }
+            return key;
+        }
+
+        /// <summary>Включает или снимает состояние у участника боя.</summary>
+        private void ToggleCondition(CombatantData combatant, string key)
+        {
+            if (combatant == null || _encounter == null || string.IsNullOrWhiteSpace(key)) return;
+
+            var keys = ParseConditions(combatant.Conditions);
+            if (keys.Remove(key)) { }
+            else keys.Add(key);
+
+            combatant.Conditions = string.Join(",", keys);
+            InitiativeService.SaveCombatant(_encounter, combatant);
+            Publish();
+            Render();
+            Changed?.Invoke();
+        }
+
+        /// <summary>Бросает хиты по формуле существа из бестиария.</summary>
+        private void RollHitPoints(CombatantData combatant)
+        {
+            if (combatant == null || _encounter == null || !DmRights.CanUseDmTools()) return;
+
+            var monster = combatant.MonsterId > 0 ? BestiaryService.Load(combatant.MonsterId) : null;
+            string formula = monster?.HitPointsFormula;
+            if (string.IsNullOrWhiteSpace(formula))
+            {
+                DmRolls.Toast(this, "У существа не задана формула хитов", true);
+                return;
+            }
+
+            if (!DiceFormulaParser.TryParseWholeFormula(formula, out string normalized, out _, out _, out _))
+            {
+                DmRolls.Toast(this, "Формула хитов не разобралась: " + formula, true);
+                return;
+            }
+
+            var result = DmRolls.Roll(this, normalized, "Хиты", combatant.Name,
+                $"Хиты · {combatant.Name}", showPanel: true, publish: true);
+            if (result == null) return;
+
+            int hp = Math.Max(1, result.Total);
+            combatant.MaxHitPoints = hp;
+            combatant.HitPoints = hp;
+
+            InitiativeService.SaveCombatant(_encounter, combatant);
+            Publish();
+            Render();
+            Changed?.Invoke();
+        }
+
+        /// <summary>Правка хитов в бою: не ниже нуля и не выше максимума.</summary>
+        private void ShiftHitPoints(CombatantData combatant, int delta)
+        {
+            if (combatant == null || _encounter == null || !DmRights.CanUseDmTools()) return;
+
+            if (combatant.MaxHitPoints <= 0)
+            {
+                DmRolls.Toast(this, "Сначала бросьте хиты (🎲) или задайте максимум", true);
+                return;
+            }
+
+            combatant.HitPoints = Math.Max(0, Math.Min(combatant.MaxHitPoints, combatant.HitPoints + delta));
+            InitiativeService.SaveCombatant(_encounter, combatant);
+            Publish();
+            Render();
+            Changed?.Invoke();
+        }
         // ══════════════════════ ДЕЙСТВИЯ ══════════════════════
 
         private void RollSingle(CombatantData combatant)

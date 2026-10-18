@@ -37,7 +37,7 @@ namespace HMWT_MUI.Views
                 default: return code ?? "";
             }
         }
-        public static StackPanel Build(MonsterData monster, FrameworkElement source, bool showDescription = true)
+        public static StackPanel Build(MonsterData monster, FrameworkElement source, bool showDescription = true, bool compact = false)
         {
             var root = new StackPanel { Margin = new Thickness(0) };
             if (monster == null)
@@ -54,15 +54,18 @@ namespace HMWT_MUI.Views
                 Damage = DmUiKit.B("Mute"),
                 Hint = DmUiKit.B("Mute"),
                 Font = DmUiKit.Body,
-                FontSize = 12
+                FontSize = 13
             };
 
             // Слева — имя, плашки и характеристики, справа — картинка на всю высоту блока.
             // Раньше фото было 150×150 рядом с заголовком, а плитки характеристик
             // занимали полосу ниже: получалось много пустого места и мелкая картинка.
             var top = new Grid();
+            // Пропорции 2:1 — текст всегда получает две трети ширины, фото подстраивается.
+            // С фиксированной шириной фото (300) в узком предпросмотре текст сжимался
+            // до одной буквы в строку.
+            top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 200 });
             top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var left = new StackPanel();
             left.Children.Add(BuildHeader(monster));
@@ -86,16 +89,36 @@ namespace HMWT_MUI.Views
 
             left.Children.Add(BuildAbilities(monster));
 
-            Grid.SetColumn(left, 0);
-            top.Children.Add(left);
-
-            var photo = BuildPhoto(monster.PhotoPath);
-            if (photo != null)
+            if (compact)
             {
-                Grid.SetColumn(photo, 1);
-                top.Children.Add(photo);
+                // Узкая колонка (предпросмотр в редакторе): фото сверху на всю ширину,
+                // текст под ним. Иначе фото отжимало текст в одну букву на строку.
+                var stacked = new StackPanel();
+                var small = BuildPhoto(monster.PhotoPath);
+                if (small != null)
+                {
+                    small.MaxWidth = 280;
+                    small.MaxHeight = 220;
+                    small.HorizontalAlignment = HorizontalAlignment.Left;
+                    small.Margin = new Thickness(0, 0, 0, 10);
+                    stacked.Children.Add(small);
+                }
+                stacked.Children.Add(left);
+                root.Children.Add(stacked);
             }
-            root.Children.Add(top);
+            else
+            {
+                Grid.SetColumn(left, 0);
+                top.Children.Add(left);
+
+                var photo = BuildPhoto(monster.PhotoPath);
+                if (photo != null)
+                {
+                    Grid.SetColumn(photo, 1);
+                    top.Children.Add(photo);
+                }
+                root.Children.Add(top);
+            }
 
             var stats = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             AddStat(stats, "Спасброски", monster.SavingThrows);
@@ -124,7 +147,7 @@ namespace HMWT_MUI.Views
                     block.Children.Add(new TextBlock
                     {
                         Text = name.EndsWith(".") ? name : name + ".",
-                        FontSize = 12.5,
+                        FontSize = 13.5,
                         FontWeight = FontWeights.Bold,
                         FontStyle = FontStyles.Italic,
                         Foreground = DmUiKit.B("Ink"),
@@ -149,7 +172,7 @@ namespace HMWT_MUI.Views
                     root.Children.Add(new TextBlock
                     {
                         Text = monster.LegendaryIntro.Trim(),
-                        FontSize = 11.5,
+                        FontSize = 12,
                         FontStyle = FontStyles.Italic,
                         Foreground = DmUiKit.B("Mute"),
                         TextWrapping = TextWrapping.Wrap,
@@ -187,7 +210,7 @@ namespace HMWT_MUI.Views
             {
                 Text = string.IsNullOrWhiteSpace(monster.Name) ? "Без имени" : monster.Name,
                 FontFamily = DmUiKit.Display,
-                FontSize = 21,
+                FontSize = 22,
                 FontWeight = FontWeights.Bold,
                 Foreground = DmUiKit.B("Gold"),
                 TextWrapping = TextWrapping.Wrap
@@ -198,7 +221,7 @@ namespace HMWT_MUI.Views
                 text.Children.Add(new TextBlock
                 {
                     Text = monster.NameEn.Trim(),
-                    FontSize = 11,
+                    FontSize = 11.5,
                     FontStyle = FontStyles.Italic,
                     Foreground = DmUiKit.B("Mute")
                 });
@@ -210,7 +233,7 @@ namespace HMWT_MUI.Views
                 text.Children.Add(new TextBlock
                 {
                     Text = typeLine,
-                    FontSize = 12.5,
+                    FontSize = 13.5,
                     FontStyle = FontStyles.Italic,
                     Foreground = DmUiKit.B("Ink"),
                     TextWrapping = TextWrapping.Wrap,
@@ -221,7 +244,7 @@ namespace HMWT_MUI.Views
             return text;
         }
 
-        private static UIElement BuildPhoto(string relativePath)
+        private static Border BuildPhoto(string relativePath)
         {
             try
             {
@@ -236,15 +259,25 @@ namespace HMWT_MUI.Views
 
                 return new Border
                 {
-                    Width = 300,
-                    Height = 380,
-                    Margin = new Thickness(18, 0, 0, 0),
+                    MaxWidth = 340,
+                    MaxHeight = 380,
+                    Margin = new Thickness(16, 0, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Top,
                     CornerRadius = new CornerRadius(10),
                     BorderBrush = DmUiKit.B("Line"),
                     BorderThickness = new Thickness(1),
                     ClipToBounds = true,
-                    // Uniform, а не UniformToFill: картинка вписывается целиком и не обрезается
-                    Child = new Image { Source = bitmap, Stretch = Stretch.Uniform }
+                    // Uniform: картинка вписывается целиком и не обрезается;
+                    // DownOnly — маленькие картинки не растягиваем
+                    Child = new Image
+                    {
+                        Source = bitmap,
+                        Stretch = Stretch.Uniform,
+                        StretchDirection = StretchDirection.DownOnly,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Top
+                    }
                 };
             }
             catch (Exception ex)
@@ -332,7 +365,7 @@ namespace HMWT_MUI.Views
             var caption = new TextBlock
             {
                 Text = label,
-                FontSize = 11.5,
+                FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = DmUiKit.B("Mute"),
                 TextWrapping = TextWrapping.Wrap
@@ -343,7 +376,7 @@ namespace HMWT_MUI.Views
             var text = new TextBlock
             {
                 Text = value.Trim(),
-                FontSize = 11.5,
+                FontSize = 12,
                 Foreground = DmUiKit.B("Ink"),
                 TextWrapping = TextWrapping.Wrap
             };
@@ -367,7 +400,7 @@ namespace HMWT_MUI.Views
             titleLine.Children.Add(new TextBlock
             {
                 Text = string.IsNullOrWhiteSpace(action.Name) ? "Действие" : action.Name.Trim(),
-                FontSize = 12.5,
+                FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
                 FontStyle = FontStyles.Italic,
                 Foreground = DmUiKit.B("Ink"),
@@ -440,7 +473,7 @@ namespace HMWT_MUI.Views
                 panel.Children.Add(new TextBlock
                 {
                     Text = distances,
-                    FontSize = 11,
+                    FontSize = 11.5,
                     Foreground = DmUiKit.B("Mute"),
                     Margin = new Thickness(0, 2, 0, 0),
                     TextWrapping = TextWrapping.Wrap
@@ -453,7 +486,7 @@ namespace HMWT_MUI.Views
                 damagePanel.Children.Add(new TextBlock
                 {
                     Text = "Урон: ",
-                    FontSize = 11.5,
+                    FontSize = 12,
                     Foreground = DmUiKit.B("Mute"),
                     VerticalAlignment = VerticalAlignment.Top
                 });
@@ -467,7 +500,7 @@ namespace HMWT_MUI.Views
                 panel.Children.Add(new TextBlock
                 {
                     Text = action.SaveDc.Trim(),
-                    FontSize = 11,
+                    FontSize = 11.5,
                     Foreground = DmUiKit.B("Frost"),
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 2, 0, 0)

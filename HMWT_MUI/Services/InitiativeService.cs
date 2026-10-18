@@ -177,6 +177,7 @@ namespace HMWT_MUI.Services
                         HitPoints = ReadInt(reader, "hp"),
                         MaxHitPoints = ReadInt(reader, "max_hp"),
                         Note = ReadText(reader, "note"),
+                        Conditions = ReadConditionText(reader),
                         IsCurrent = ReadInt(reader, "is_current") != 0
                     });
                 }
@@ -189,6 +190,16 @@ namespace HMWT_MUI.Services
             return list;
         }
 
+        /// <summary>Читает состояния участника; в старой базе колонки может не быть.</summary>
+        private static string ReadConditionText(SqliteDataReader reader)
+        {
+            try
+            {
+                int index = reader.GetOrdinal("conditions");
+                return reader.IsDBNull(index) ? "" : (reader.GetString(index) ?? "");
+            }
+            catch { return ""; }
+        }
         private static EncounterData ReadEncounter(SqliteDataReader reader)
         {
             return new EncounterData
@@ -331,11 +342,11 @@ namespace HMWT_MUI.Services
                     ? @"UPDATE EncounterCombatant SET name = @name, initiative_mod = @mod,
                               initiative_roll = @roll, initiative_total = @total, has_rolled = @rolled,
                               id_monster = @monster, kind = @kind, hp = @hp, max_hp = @maxhp,
-                              note = @note, is_current = @current
+                              note = @note, is_current = @current, conditions = @conditions
                         WHERE id_combatant = @id"
                     : @"INSERT INTO EncounterCombatant (id_encounter, name, initiative_mod, initiative_roll,
-                              initiative_total, has_rolled, id_monster, kind, hp, max_hp, note, is_current)
-                        VALUES (@enc, @name, @mod, @roll, @total, @rolled, @monster, @kind, @hp, @maxhp, @note, @current)";
+                              initiative_total, has_rolled, id_monster, kind, hp, max_hp, note, is_current, conditions)
+                        VALUES (@enc, @name, @mod, @roll, @total, @rolled, @monster, @kind, @hp, @maxhp, @note, @current, @conditions)";
 
                 using var cmd = new SqliteCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@enc", encounter.Id);
@@ -350,6 +361,7 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@maxhp", combatant.MaxHitPoints);
                 cmd.Parameters.AddWithValue("@note", combatant.Note ?? "");
                 cmd.Parameters.AddWithValue("@current", combatant.IsCurrent ? 1 : 0);
+                cmd.Parameters.AddWithValue("@conditions", combatant.Conditions ?? "");
                 if (combatant.Id > 0) cmd.Parameters.AddWithValue("@id", combatant.Id);
                 cmd.ExecuteNonQuery();
 

@@ -80,8 +80,11 @@
 
              Прокрутка снаружи: если при крупном масштабе содержимое всё же не
              влезет, его можно будет пролистать, а не остаться без части окна. -->
+        <!-- Горизонтальную прокрутку держим выключенной: с ней содержимое
+             получало бесконечную ширину, сетка карточек не переносилась и
+             уезжала вправо. Прокрутка только вертикальная, справа. -->
         <ScrollViewer x:Name="UiScaleScroll"
-                      HorizontalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
                       VerticalScrollBarVisibility="Auto"
                       Background="Transparent">
             <Grid x:Name="UiScaleHost">
@@ -192,7 +195,7 @@
 
         <!-- ПЛАВАЮЩАЯ КНОПКА «+» (x:Name + Click СОХРАНЕНЫ; прижата к низу) -->
         <Button x:Name="AddCharacterButton" ToolTip="Создать персонажа"
-                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,32"
                 Panel.ZIndex="50" Click="AddCharacterBtn_Click" Background="Transparent" BorderThickness="0">
             <Button.Template>
                 <ControlTemplate TargetType="Button">

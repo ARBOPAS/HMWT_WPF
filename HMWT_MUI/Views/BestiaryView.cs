@@ -28,6 +28,8 @@ namespace HMWT_MUI.Views
         private readonly ComboBox _typeFilter = DmUiKit.Combo(new[] { "Все типы" }, "Все типы", false, 160);
         private readonly ComboBox _sizeFilter = DmUiKit.Combo(new[] { "Все размеры" }, "Все размеры", false, 150);
         private readonly CheckBox _onlyCustom = DmUiKit.Check("Только свои", false);
+        private readonly ComboBox _sourceFilter = DmUiKit.Combo(new[] { "Все источники" }, "Все источники", false, 170);
+        private readonly ComboBox _ratingFilter = DmUiKit.Combo(new[] { "Любой ПО" }, "Любой ПО", false, 150);
         private readonly TextBlock _countText = DmUiKit.Value("", 10.5, DmUiKit.B("Mute"));
         private readonly TextBlock _statusText = DmUiKit.Value("", 11, DmUiKit.B("Mute"));
 
@@ -90,7 +92,7 @@ namespace HMWT_MUI.Views
 
             toolbar.Children.Add(topRow);
 
-            var filters = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            var filters = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
             _search.Margin = new Thickness(0, 0, 8, 0);
             _search.TextChanged += (s, e) => ApplyFilter();
             filters.Children.Add(_search);
@@ -106,6 +108,14 @@ namespace HMWT_MUI.Views
             _onlyCustom.Checked += (s, e) => ApplyFilter();
             _onlyCustom.Unchecked += (s, e) => ApplyFilter();
             filters.Children.Add(_onlyCustom);
+
+            _sourceFilter.SelectionChanged += (s, e) => ApplyFilter();
+            _sourceFilter.Margin = new Thickness(0, 0, 8, 0);
+            filters.Children.Add(_sourceFilter);
+
+            _ratingFilter.SelectionChanged += (s, e) => ApplyFilter();
+            _ratingFilter.Margin = new Thickness(0, 0, 8, 0);
+            filters.Children.Add(_ratingFilter);
 
             _statusText.VerticalAlignment = VerticalAlignment.Center;
             _statusText.Margin = new Thickness(12, 0, 0, 0);
@@ -211,6 +221,26 @@ namespace HMWT_MUI.Views
                                         .OrderBy(v => v, StringComparer.CurrentCultureIgnoreCase))
                 _sizeFilter.Items.Add(value);
             _sizeFilter.SelectedItem = _sizeFilter.Items.Contains(size) ? size : "Все размеры";
+
+            // Источники: MM, VGtM, SRD и прочие, что реально есть в бестиарии
+            string source = _sourceFilter.SelectedItem as string ?? "Все источники";
+            _sourceFilter.Items.Clear();
+            _sourceFilter.Items.Add("Все источники");
+            foreach (string value in _all.Select(m => (m.Source ?? "").Trim())
+                                        .Where(v => v.Length > 0).Distinct()
+                                        .OrderBy(v => v, StringComparer.CurrentCultureIgnoreCase))
+                _sourceFilter.Items.Add(value);
+            _sourceFilter.SelectedItem = _sourceFilter.Items.Contains(source) ? source : "Все источники";
+
+            // Уровень опасности: значения как в книге, по возрастанию
+            string rating = _ratingFilter.SelectedItem as string ?? "Любой ПО";
+            _ratingFilter.Items.Clear();
+            _ratingFilter.Items.Add("Любой ПО");
+            foreach (string value in _all.Select(m => (m.ChallengeRating ?? "").Trim())
+                                        .Where(v => v.Length > 0).Distinct()
+                                        .OrderBy(v => { DiceFormulaParser.TryParseChallenge(v, out double r, out _); return r; }))
+                _ratingFilter.Items.Add(value);
+            _ratingFilter.SelectedItem = _ratingFilter.Items.Contains(rating) ? rating : "Любой ПО";
         }
 
         private void ApplyFilter()
@@ -218,10 +248,16 @@ namespace HMWT_MUI.Views
             string type = _typeFilter.SelectedItem as string ?? "Все типы";
             string size = _sizeFilter.SelectedItem as string ?? "Все размеры";
 
+            string source = _sourceFilter.SelectedItem as string ?? "Все источники";
+            string rating = _ratingFilter.SelectedItem as string ?? "Любой ПО";
+
             _shown = BestiaryService.Filter(_all, _search.Text,
                 type == "Все типы" ? "" : type,
                 size == "Все размеры" ? "" : size,
-                _onlyCustom.IsChecked == true);
+                _onlyCustom.IsChecked == true,
+                rating == "Любой ПО" ? "" : rating,
+                rating == "Любой ПО" ? "" : rating,
+                source == "Все источники" ? "" : source);
 
             _renderLimit = PageSize;
             _countText.Text = _all.Count == 0
@@ -258,7 +294,9 @@ namespace HMWT_MUI.Views
                 head.Children.Add(new TextBlock
                 {
                     Text = monster.Name,
-                    FontSize = 12.5,
+                    // Книжный шрифт и крупнее: при 100% масштабе список читался мелко
+                    FontFamily = DmUiKit.Display,
+                    FontSize = 14,
                     FontWeight = FontWeights.Bold,
                     Foreground = isSelected ? DmUiKit.B("Gold") : DmUiKit.B("Ink"),
                     TextTrimming = TextTrimming.CharacterEllipsis,
@@ -278,7 +316,7 @@ namespace HMWT_MUI.Views
                 row.Children.Add(new TextBlock
                 {
                     Text = typeLine.Length > 0 ? typeLine : "тип не указан",
-                    FontSize = 10,
+                    FontSize = 11,
                     Foreground = DmUiKit.B("Mute"),
                     TextWrapping = TextWrapping.Wrap
                 });

@@ -259,11 +259,15 @@ namespace HMWT_MUI.Services
         /// </summary>
         public static List<MonsterData> Filter(List<MonsterData> source, string search,
             string creatureType = "", string size = "", bool onlyCustom = false,
-            string challengeFrom = "", string challengeTo = "")
+            string challengeFrom = "", string challengeTo = "", string bookSource = "")
         {
             IEnumerable<MonsterData> query = source ?? new List<MonsterData>();
 
             if (onlyCustom) query = query.Where(m => m.IsCustom);
+
+            // Фильтр по источнику: MM, VGtM, SRD…  (в базе код хранится как есть)
+            if (!string.IsNullOrWhiteSpace(bookSource))
+                query = query.Where(m => string.Equals((m.Source ?? "").Trim(), bookSource.Trim(), StringComparison.OrdinalIgnoreCase));
 
             if (!string.IsNullOrWhiteSpace(creatureType))
                 query = query.Where(m => string.Equals(m.CreatureType?.Trim(), creatureType.Trim(), StringComparison.OrdinalIgnoreCase));

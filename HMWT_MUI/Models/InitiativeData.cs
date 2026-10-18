@@ -49,6 +49,12 @@ namespace HMWT_MUI.Models
 
         public string Note { get; set; } = "";
 
+        /// <summary>
+        /// Состояния участника боя: ключи через запятую (blinded, prone…).
+        /// Подписи берутся из того же списка, что и у персонажа.
+        /// </summary>
+        public string Conditions { get; set; } = "";
+
         /// <summary>Чей сейчас ход.</summary>
         public bool IsCurrent { get; set; }
 

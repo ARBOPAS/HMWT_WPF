@@ -2710,7 +2710,27 @@ namespace HMWT_MUI
             }
         }
 
-        private void BtnBack_Click(object sender, RoutedEventArgs e) => this.Close();
+        /// <summary>Кнопка «К списку» возвращает в главное окно, а не закрывает программу.</summary>
+        private bool _backToMain;
+
+        private void BtnBack_Click(object sender, RoutedEventArgs e)
+        {
+            _backToMain = true;
+            this.Close();
+        }
+
+        /// <summary>
+        /// Крестик в заголовке закрывает программу целиком. Вернуться к списку
+        /// персонажей можно кнопкой «К списку» на полосе вкладок.
+        /// </summary>
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            if (!_backToMain)
+            {
+                Application.Current?.Shutdown();
+            }
+        }
 
         private void OverlayBackground_Click(object sender, MouseButtonEventArgs e)
         {
