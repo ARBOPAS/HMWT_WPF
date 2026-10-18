@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.IO;
 using System.Text.Json.Serialization;
 
 namespace HMWT_MUI.Net
@@ -277,6 +278,50 @@ namespace HMWT_MUI.Net
     }
 
     /// <summary>Одна запись в общей ленте: чат, бросок или системное событие.</summary>
+    /// <summary>
+    /// Сборщик картинки карты из частей. Пока пришли не все — держит их у себя,
+    /// как только пришла последняя — отдаёт целый массив.
+    /// </summary>
+    public sealed class MapImageAssembler
+    {
+        private readonly int _total;
+        private readonly string[] _parts;
+        private int _received;
+
+        public MapImageAssembler(int total, string extension)
+        {
+            _total = Math.Max(1, total);
+            _parts = new string[_total];
+            Extension = extension ?? ".png";
+        }
+
+        public string Extension { get; }
+
+        public byte[] Add(int index, string base64)
+        {
+            if (index < 0 || index >= _total || string.IsNullOrEmpty(base64)) return null;
+
+            lock (_parts)
+            {
+                if (_parts[index] == null)
+                {
+                    _parts[index] = base64;
+                    _received++;
+                }
+
+                if (_received < _total) return null;
+
+                using var output = new MemoryStream();
+                foreach (string part in _parts)
+                {
+                    if (string.IsNullOrEmpty(part)) return null;
+                    byte[] bytes = Convert.FromBase64String(part);
+                    output.Write(bytes, 0, bytes.Length);
+                }
+                return output.ToArray();
+            }
+        }
+    }
     public sealed class FeedEntry
     {
         [JsonPropertyName("kind")] public FeedKind Kind { get; set; }
@@ -349,6 +394,71 @@ namespace HMWT_MUI.Net
         public string RoundLine() => $"РАУНД {Math.Max(1, Round)}";
     }
 
+    // ══════════════════════ КАРТА БОЯ ══════════════════════
+
+    /// <summary>Игрок подвинул своего жетона: хост проверит права и разошлёт всем.</summary>
+    public sealed class MapMoveRequest
+    {
+        [JsonPropertyName("id")] public int TokenId { get; set; }
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+        [JsonPropertyName("f")] public double Facing { get; set; }
+
+        /// <summary>Новый угол обзора, если игрок менял его из меню жетона (-1 — не менять).</summary>
+        [JsonPropertyName("angle")] public double ViewAngle { get; set; } = -1;
+
+        /// <summary>Новый размер жетона в клетках (-1 — не менять).</summary>
+        [JsonPropertyName("size")] public int SizeCells { get; set; } = -1;
+
+        /// <summary>
+        /// Промежуточное движение при перетаскивании: хост двигает жетон и
+        /// рассылает всем, но не пишет в базу на каждом шаге. Итог сохраняется
+        /// отдельным сообщением при отпускании.
+        /// </summary>
+        [JsonPropertyName("live")] public bool Live { get; set; }
+    }
+
+    /// <summary>Запрос картинки карты по хэшу: файл у игрока ещё не скачан.</summary>
+    public sealed class MapImageRequest
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+    }
+
+    /// <summary>Игрок нарисовал штрих: хост сохраняет и рассылает всем.</summary>
+    public sealed class MapStrokeRequest
+    {
+        [JsonPropertyName("color")] public string Color { get; set; } = "#FFE06A63";
+        [JsonPropertyName("thickness")] public double Thickness { get; set; } = 4;
+        [JsonPropertyName("points")] public string Points { get; set; } = "";
+    }
+
+    /// <summary>Игрок стёр штрихи ластиком: какие именно удалить.</summary>
+    public sealed class MapStrokeEraseRequest
+    {
+        [JsonPropertyName("ids")] public List<int> Ids { get; set; } = new List<int>();
+    }
+
+    /// <summary>Промежуточное положение жетона при перетаскивании.</summary>
+    public sealed class MapTokenLive
+    {
+        [JsonPropertyName("id")] public int TokenId { get; set; }
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+        [JsonPropertyName("f")] public double Facing { get; set; } = -1;
+    }
+
+    /// <summary>
+    /// Часть картинки карты. Данные сжаты gzip и закодированы base64: PNG уже
+    /// сжатый, но JSON-обёртка добавляет свою долю, а так её съедает gzip.
+    /// </summary>
+    public sealed class MapImageChunk
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+        [JsonPropertyName("ext")] public string Extension { get; set; } = ".png";
+        [JsonPropertyName("i")] public int Index { get; set; }
+        [JsonPropertyName("n")] public int Total { get; set; }
+        [JsonPropertyName("d")] public string Data { get; set; } = "";
+    }
     /// <summary>Полный снимок состояния комнаты (до 8 человек это проще и надёжнее диффов).</summary>
     public sealed class RoomSnapshot
     {

@@ -41,16 +41,25 @@ namespace HMWT_MUI.Views
         /// </summary>
         private string _renderedPlayersSignature = null;
 
+        /// <summary>Персонаж этого окна: два окна на одном ПК должны брать разных.</summary>
+        public int CharacterId { get; set; }
+
         /// <summary>
-        /// Периодическая сверка своих данных с комнатой.
-        ///
-        /// Имя, аватар и здоровье меняются уже после входа, и без сверки остальные
-        /// видели первоначальные значения. Событие об изменении здесь не подходит:
-        /// правки идут прямо в базе, а не через наш код, поэтому проверяем по времени.
-        /// Отправка происходит только при реальном изменении, так что трафик мизерный.
+        /// Раз в две секунды доспрашиваем недостающие аватары. Если ответ потерялся
+        /// (а такое бывало: «фото через раз»), запрос повторяется, пока файл не
+        /// придёт. Рядом с заголовком участников видно «ждём фото…».
         /// </summary>
-        private DispatcherTimer _selfSyncTimer;
-        private static readonly TimeSpan SelfSyncInterval = TimeSpan.FromSeconds(10);
+        private readonly DispatcherTimer _photoRetryTimer =
+            new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+
+        /// <summary>Подписки на события комнаты уже висят.</summary>
+        private bool _subscribed;
+
+        /// <summary>Обработчик таймера фото уже подписан.</summary>
+        private bool _photoRetryHooked;
+
+        /// <summary>Список истории комнат заполняется программой, а не игроком.</summary>
+        private bool _recentRoomsLoading;
 
         public RoomView()
         {
@@ -61,30 +70,63 @@ namespace HMWT_MUI.Views
             DataObject.AddPastingHandler(txtJoinHost, JoinField_Paste);
             DataObject.AddPastingHandler(txtJoinKey, JoinField_Paste);
 
-            _session.StateChanged += OnSessionStateChanged;
-            _session.FeedReceived += OnFeedReceived;
-            _session.SnapshotReceived += OnSnapshotReceived;
-            _session.PeerDeparted += OnPeerDeparted;
-
             Loaded += (s, e) =>
             {
+                // Вкладку пересоздают при каждом возврате: подписки живут ровно
+                // столько, сколько вкладка на экране. Раньше они вешались один
+                // раз в конструкторе и снимались при уходе — после первого
+                // переключения вкладка переставала получать события, и чат
+                // обновлялся только при повторном открытии.
+                SubscribeSession();
                 RefreshAll();
-                StartSelfSync();
+
+                // Повторные запросы фото: пока файла нет, карточка остаётся
+                // с буквой, а «ждём фото…» объясняет, что происходит
+                if (!_photoRetryHooked)
+                {
+                    _photoRetryTimer.Tick += OnPhotoRetryTick;
+                    _photoRetryHooked = true;
+                }
+                _photoRetryTimer.Start();
+                OnPhotoRetryTick(null, EventArgs.Empty);
                 // Обновляемся ещё раз, когда WPF закончит раскладку: комната могла
                 // измениться, пока вкладка была не открыта
                 Dispatcher.BeginInvoke(new Action(RefreshAll), DispatcherPriority.Loaded);
             };
             Unloaded += (s, e) =>
             {
-                _session.StateChanged -= OnSessionStateChanged;
-                _session.FeedReceived -= OnFeedReceived;
-                _session.SnapshotReceived -= OnSnapshotReceived;
-                _session.PeerDeparted -= OnPeerDeparted;
-                StopSelfSync();
+                UnsubscribeSession();
+                _photoRetryTimer.Stop();
             };
 
             // Обработчики кнопок объявлены в разметке (Click="...") — так их видно
             // в XAML и проверяет тест. Здесь ничего дополнительно вешать не нужно.
+        }
+
+        /// <summary>Подписка на события комнаты, пока вкладка на экране.</summary>
+        private void SubscribeSession()
+        {
+            if (_subscribed) return;
+            _subscribed = true;
+
+            _session.StateChanged += OnSessionStateChanged;
+            _session.FeedReceived += OnFeedReceived;
+            _session.SnapshotReceived += OnSnapshotReceived;
+            _session.PeerDeparted += OnPeerDeparted;
+            _session.PhotoUpdated += OnPhotoUpdated;
+        }
+
+        /// <summary>Отписка при уходе с вкладки. Подписки не должны копиться.</summary>
+        private void UnsubscribeSession()
+        {
+            if (!_subscribed) return;
+            _subscribed = false;
+
+            _session.StateChanged -= OnSessionStateChanged;
+            _session.FeedReceived -= OnFeedReceived;
+            _session.SnapshotReceived -= OnSnapshotReceived;
+            _session.PeerDeparted -= OnPeerDeparted;
+            _session.PhotoUpdated -= OnPhotoUpdated;
         }
 
         #region === ПОИСК РЕСУРСОВ ===
@@ -219,64 +261,6 @@ namespace HMWT_MUI.Views
             catch (Exception ex)
             {
                 Debug.WriteLine($"[RoomView] уведомление об уходе: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Запускает периодическую сверку с комнатой.
-        ///
-        /// Работает не только по событиям: если другой игрок сменил аватар или
-        /// здоровье, событие об этом может не прийти, поэтому состояние
-        /// запрашивается само. Интервал настраивается во вкладке настроек.
-        /// </summary>
-        private void StartSelfSync()
-        {
-            if (_selfSyncTimer != null) return;
-
-            var interval = TimeSpan.FromSeconds(SettingsView.RefreshSeconds);
-
-            _selfSyncTimer = new DispatcherTimer(DispatcherPriority.Background)
-            {
-                Interval = interval
-            };
-            _selfSyncTimer.Tick += OnSelfSyncTick;
-            _selfSyncTimer.Start();
-
-            // Сверяемся сразу: аватар и имя могли появиться до открытия вкладки
-            OnSelfSyncTick(null, EventArgs.Empty);
-        }
-
-        private void StopSelfSync()
-        {
-            if (_selfSyncTimer == null) return;
-            _selfSyncTimer.Stop();
-            _selfSyncTimer.Tick -= OnSelfSyncTick;
-            _selfSyncTimer = null;
-        }
-
-        /// <summary>
-        /// Периодическая сверка: отправляем свои данные, если они изменились,
-        /// и перечитываем чужие — так изменения видны без событий.
-        /// </summary>
-        private void OnSelfSyncTick(object sender, EventArgs e)
-        {
-            try
-            {
-                var interval = _selfSyncTimer?.Interval ?? TimeSpan.FromSeconds(10);
-
-                // Свои данные наверх: если аватар или имя поменялись — уйдут другим
-                _session.RefreshMyCharacterIfStale(interval);
-
-                // Чужие данные заново: снимок мог не прийти после чужого изменения
-                _session.RequestRefresh();
-
-                // Лента и участники перечитываются целиком, поэтому новые записи
-                // появятся даже если событие о них потерялось
-                RefreshAll();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[RoomView] сверка данных: {ex.Message}");
             }
         }
 
@@ -487,6 +471,8 @@ namespace HMWT_MUI.Views
 
         private void UpdatePlayers()
         {
+            UpdatePhotoHint();
+
             var players = _session.GetPlayers();
             txtPlayersHeader.Text = players.Count > 0
                 ? $"УЧАСТНИКИ · {players.Count}/{NetLimits.MaxPlayers}"
@@ -522,6 +508,74 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>
+        /// Пришёл чужой аватар. Путь в снимке не изменился, поэтому подпись
+        /// участников прежняя — сбрасываем её и перерисовываем карточки сами,
+        /// иначе фото появлялось только после перезахода на вкладку.
+        /// </summary>
+        private void OnPhotoUpdated(string ownerId)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnPhotoUpdated(ownerId)));
+                return;
+            }
+
+            _renderedPlayersSignature = null;
+            UpdatePlayers();
+            UpdatePhotoHint();
+        }
+
+        /// <summary>Строка «ждём фото…» у заголовка участников.</summary>
+        private void UpdatePhotoHint()
+        {
+            if (txtPlayersHint == null) return;
+
+            int waiting = 0;
+            if (_session.IsActive)
+            {
+                foreach (var p in _session.GetPlayers())
+                {
+                    if (p == null || string.IsNullOrWhiteSpace(p.AvatarPath)) continue;
+                    if (string.Equals(p.Id, _session.MyPlayerId, StringComparison.Ordinal)) continue;
+                    if (_session.IsPhotoMissing(p.Id)) continue;
+
+                    string full = PhotoHelper.ResolvePhotoPath(p.AvatarPath);
+                    if (string.IsNullOrEmpty(full) || !System.IO.File.Exists(full)) waiting++;
+                }
+            }
+
+            bool show = waiting > 0;
+            txtPlayersHint.Text = show
+                ? (waiting == 1 ? "ждём фото…" : $"ждём фото ({waiting})…")
+                : "";
+            txtPlayersHint.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Повторный запрос недостающих аватаров раз в две секунды.
+        ///
+        /// Просить может только гость: у ведущего файлы уже на месте.
+        /// </summary>
+        private void OnPhotoRetryTick(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!_session.IsActive || _session.IsHost)
+                {
+                    if (txtPlayersHint != null) txtPlayersHint.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                _session.RequestMissingPhotos(force: true);
+                UpdatePhotoHint();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] повторный запрос фото: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Подпись данных участников: имя, персонаж, класс, здоровье и аватар.
         /// По ней понимаем, нужно ли перерисовывать карточки.
         /// </summary>
@@ -550,24 +604,18 @@ namespace HMWT_MUI.Views
 
         /// <summary>Карточка участника: аватар, персонаж, класс, полоса здоровья.</summary>
         /// <summary>
-        /// Как показать участника: именем персонажа или учётной записью.
+        /// Как показать участника: всегда имя персонажа.
         ///
-        /// По умолчанию — имя персонажа из листа (настройка «Показывать имя
-        /// учётной записи Windows» только переключает этот способ). Если персонаж
-        /// не открыт и имени нет, показываем учётную запись, а не «Без имени».
+        /// Личного профиля для отряда больше нет — и броски, и трекер, и карта
+        /// называют игрока персонажем, поэтому и в отряде то же имя.
         /// </summary>
         private static string DisplayName(PlayerInfo p)
         {
             string character = (p?.CharacterName ?? "").Trim();
-            string account = (p?.Name ?? "").Trim();
+            if (character.Length > 0) return character;
 
-            bool preferAccount = false;
-            try { preferAccount = Views.SettingsView.ShowWindowsName; } catch { }
-
-            if (preferAccount || character.Length == 0)
-                return account.Length > 0 ? account : "Без имени";
-
-            return character;
+            string name = (p?.Name ?? "").Trim();
+            return name.Length > 0 ? name : "Игрок";
         }
 
         private Border BuildPlayerCard(PlayerInfo p)
@@ -703,83 +751,8 @@ namespace HMWT_MUI.Views
             Grid.SetColumn(info, 1);
             grid.Children.Add(info);
 
-            // ПКМ по своей карточке — редактирование профиля.
-            // Ведущему это нужно, потому что у него может не быть персонажа,
-            // а имя и аватар в отряде всё равно должны быть.
-            if (isMe)
-            {
-                card.ToolTip = "Правый клик — изменить профиль";
-                card.MouseRightButtonUp += (s, e) =>
-                {
-                    e.Handled = true;
-                    OpenProfileEditor();
-                };
-            }
-
             card.Child = grid;
             return card;
-        }
-
-        /// <summary>
-        /// Показывает редактор профиля поверх ВСЕГО окна персонажа.
-        ///
-        /// Раньше редактор клался в корневой Grid вкладки «Отряд», а сама вкладка
-        /// занимает лишь одну строку окна — под шапкой персонажа. Из-за этого
-        /// окно профиля всплывало где-то сверху, а вкладка делилась пополам.
-        ///
-        /// Теперь редактор ставится в корневой Grid окна и растягивается на все
-        /// его строки и столбцы, то есть перекрывает окно целиком — так же,
-        /// как это делает окно подтверждения.
-        /// </summary>
-        private void OpenProfileEditor()
-        {
-            try
-            {
-                var window = Window.GetWindow(this);
-                if (window == null)
-                {
-                    Debug.WriteLine("[RoomView] окно не найдено для редактора профиля");
-                    return;
-                }
-
-                // Корневая панель окна: редактор должен перекрыть и шапку тоже
-                var host = window.Content as System.Windows.Controls.Panel;
-                if (host == null)
-                {
-                    Debug.WriteLine("[RoomView] у окна нет корневой панели");
-                    return;
-                }
-
-                var editor = new Controls.DmProfileEditor();
-                System.Windows.Controls.Panel.SetZIndex(editor, 400);
-                editor.Saved = () =>
-                {
-                    // Профиль изменился: сразу отправляем его в комнату
-                    var me = Services.DmProfileService.BuildPlayer(Environment.UserName);
-                    _session.UpdateMyCharacter(me);
-                    _renderedPlayerCount = -1;
-                    RefreshAll();
-                };
-
-                // Растягиваем на всё окно: у корневого Grid окна персонажа
-                // две колонки (рейка вкладок + содержимое) и три строки
-                if (host is Grid grid)
-                {
-                    if (grid.RowDefinitions.Count > 0) Grid.SetRowSpan(editor, grid.RowDefinitions.Count);
-                    if (grid.ColumnDefinitions.Count > 0)
-                    {
-                        Grid.SetColumn(editor, 0);
-                        Grid.SetColumnSpan(editor, grid.ColumnDefinitions.Count);
-                    }
-                }
-
-                host.Children.Add(editor);
-                editor.Focus();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[RoomView] редактор профиля: {ex.Message}");
-            }
         }
 
         private UIElement BuildHealthRow(PlayerInfo p)
@@ -840,7 +813,22 @@ namespace HMWT_MUI.Views
             var feed = _session.GetFeed(300);
 
             if (feed.Count == _renderedFeedCount) return;
+
+            // Дописываем только новые записи: пересборка всей ленты на каждое
+            // сообщение тормозила чат и обновление хитов.
+            int previousCount = _renderedFeedCount;
             _renderedFeedCount = feed.Count;
+
+            if (previousCount > 0 && feed.Count > previousCount)
+            {
+                for (int i = previousCount; i < feed.Count; i++)
+                    spFeed.Children.Add(BuildFeedRow(feed[i]));
+
+                txtFeedHint.Text = $"записей: {feed.Count}";
+                feedScroll.UpdateLayout();
+                feedScroll.ScrollToEnd();
+                return;
+            }
 
             spFeed.Children.Clear();
 
@@ -1322,8 +1310,68 @@ namespace HMWT_MUI.Views
             }
 
             brJoinPanel.Visibility = Visibility.Visible;
+            LoadRecentRooms();
             SetJoinHint("Можно вставить всю строку от ведущего — ключ и адрес разберутся сами", false);
             txtJoinHost.Focus();
+        }
+
+        /// <summary>
+        /// Заполняет список комнат, к которым уже подключались.
+        ///
+        /// У гостя нет сохранённой комнаты на диске, поэтому запоминаем адрес
+        /// и ключ отдельно: иначе каждый раз приходится вписывать их заново.
+        /// </summary>
+        private void LoadRecentRooms()
+        {
+            if (cmbRecentRooms == null) return;
+
+            _recentRoomsLoading = true;
+            try
+            {
+                var items = ClientRoomHistory.Load();
+                cmbRecentRooms.Items.Clear();
+                foreach (var entry in items) cmbRecentRooms.Items.Add(entry);
+                cmbRecentRooms.SelectedIndex = -1;
+
+                bool any = items.Count > 0;
+                if (spRecentRooms != null) spRecentRooms.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] история комнат: {ex.Message}");
+            }
+            finally
+            {
+                _recentRoomsLoading = false;
+            }
+        }
+
+        private void CmbRecentRooms_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_recentRoomsLoading) return;
+            if (!(cmbRecentRooms.SelectedItem is ClientRoomEntry entry)) return;
+
+            txtJoinHost.Text = entry.Address;
+            string key = ClientRoomHistory.GetKey(entry);
+            txtJoinKey.Text = string.IsNullOrEmpty(key) ? "" : RoomKey.Pretty(key);
+
+            SetJoinHint(string.IsNullOrEmpty(key)
+                ? "Ключ этой комнаты не читается — введите его заново"
+                : "Комната выбрана — нажмите «Подключиться»", string.IsNullOrEmpty(key));
+            txtJoinKey.Focus();
+        }
+
+        private void BtnForgetRoom_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(cmbRecentRooms.SelectedItem is ClientRoomEntry entry))
+            {
+                SetJoinHint("Сначала выберите комнату в списке «Недавние»", true);
+                return;
+            }
+
+            ClientRoomHistory.Forget(entry.Id);
+            LoadRecentRooms();
+            SetJoinHint("Комната убрана из истории", false);
         }
 
         private void BtnJoinCancel_Click(object sender, RoutedEventArgs e) =>
@@ -1426,7 +1474,7 @@ namespace HMWT_MUI.Views
                     return;
                 }
 
-                var me = DmProfileService.BuildPlayer(Environment.UserName);
+                var me = DmProfileService.BuildPartyPlayer(CharacterId);
 
                 if (!_session.JoinRoom(host, port, key, me, out string error))
                 {

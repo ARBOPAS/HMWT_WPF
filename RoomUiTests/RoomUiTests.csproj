@@ -102,6 +102,7 @@
     <Compile Include="..\HMWT_MUI\Net\NetworkHelper.cs"><Link>App\NetworkHelper.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Net\RoomSession.cs"><Link>App\RoomSession.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\PhotoHelper.cs"><Link>App\PhotoHelper.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\NameMatch.cs"><Link>App\NameMatch.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Windows\MessageDialog.cs"><Link>App\MessageDialog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\GifAnimator.cs"><Link>App\GifAnimator.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\GifDecoder.cs"><Link>App\GifDecoder.cs</Link></Compile>
@@ -109,6 +110,7 @@
     <Compile Include="..\HMWT_MUI\Services\GifQualityService.cs"><Link>App\GifQualityService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\UiScaleManager.cs"><Link>App\UiScaleManager.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\DmProfileService.cs"><Link>App\DmProfileService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\ClientRoomHistory.cs"><Link>App\ClientRoomHistory.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\EquipmentService.cs"><Link>App\EquipmentService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\AbilityService.cs"><Link>App\AbilityService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SkillCatalog.cs"><Link>App\SkillCatalog.cs</Link></Compile>
@@ -131,6 +133,9 @@
     </Compile>
     <Compile Include="..\HMWT_MUI\Models\SpellData.cs"><Link>App\Models\SpellData.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Models\NoteTreeItem.cs"><Link>App\Models\NoteTreeItem.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Models\MapData.cs"><Link>App\Models\MapData.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Models\InitiativeData.cs"><Link>App\Models\InitiativeData.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\MapService.cs"><Link>App\MapService.cs</Link></Compile>
 
     <!-- Проверяемый интерфейс -->
     <Compile Include="..\HMWT_MUI\Controls\DmProfileEditor.xaml.cs">

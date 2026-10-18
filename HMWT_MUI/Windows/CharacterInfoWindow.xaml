@@ -111,6 +111,10 @@
                         ToolTip="Отряд" Click="btnRoomTab_Click">
                     <helpers:IconView x:Name="icoRoomTab" Kind="room" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
                 </Button>
+                <Button x:Name="btnMapTab" Style="{StaticResource RailBtn}" Tag="Карта"
+                        ToolTip="Карта боя: сцены, сетка и жетоны" Click="btnMapTab_Click">
+                    <helpers:IconView x:Name="icoMapTab" Kind="map" IconSize="20" IconBrush="{StaticResource B.Mute}"/>
+                </Button>
                 <Button x:Name="btnDmToolsTab" Style="{StaticResource RailBtn}" Tag="ДМ"
                         ToolTip="Инструменты ДМа: трекер инициативы и бестиарий" Click="btnDmToolsTab_Click">
                     <!-- Корона: вкладка ведущего. Лапа бестиария стояла и здесь, и на
@@ -268,15 +272,17 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
-                        <Border Style="{StaticResource HeaderTile}"
+                    <Border Style="{StaticResource HeaderTile}"
                                 ToolTip="Бонус мастерства — прибавляется к проверкам и броскам атаки">
+                        <Grid>
                             <StackPanel>
                                 <TextBlock Text="МАСТЕРСТВО" Foreground="{StaticResource B.Mute}" 
                                            FontSize="{DynamicResource FS.StatLabel}" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <TextBlock x:Name="txtHeaderProfBonus" Text="+2" Foreground="{StaticResource B.Arcane}" 
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </StackPanel>
-                        </Border>
+                        </Grid>
+                    </Border>
                         <Border Style="{StaticResource HeaderTile}" MinWidth="150" MaxWidth="232">
                             <StackPanel>
                                 <TextBlock Text="СОСТОЯНИЯ" Foreground="{StaticResource B.Mute}"

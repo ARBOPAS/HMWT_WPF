@@ -179,6 +179,7 @@
     </Page>
     <Compile Include="Helpers\NotesHtmlBridge.cs" />
     <Compile Include="Helpers\NoteLinks.cs" />
+    <Compile Include="Helpers\NameMatch.cs" />
     <Compile Include="Helpers\WebView2Host.cs" />
     <Compile Include="Helpers\MarkdownParser.cs" />
     <Compile Include="Helpers\NotePaths.cs" />
@@ -194,8 +195,10 @@
     <Compile Include="Services\GifQualityService.cs" />
     <Compile Include="Services\UiScaleManager.cs" />
     <Compile Include="Services\DmProfileService.cs" />
+    <Compile Include="Services\ClientRoomHistory.cs" />
     <Compile Include="Services\InventoryService.cs" />
     <Compile Include="Services\MoneyService.cs" />
+    <Compile Include="Services\MapService.cs" />
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
     <Compile Include="Services\SpellFileImporter.cs" />
@@ -238,6 +241,7 @@
     <!-- Инструменты ДМа: бестиарий и трекер инициативы -->
     <Compile Include="Models\DamagePartData.cs" />
     <Compile Include="Models\AttackData.cs" />
+    <Compile Include="Models\MapData.cs" />
     <Compile Include="Models\MonsterData.cs" />
     <Compile Include="Models\InitiativeData.cs" />
     <Compile Include="Services\DiceFormulaParser.cs" />
@@ -258,6 +262,7 @@
     <Compile Include="Helpers\UpnpProbe.cs" />
     <Compile Include="Helpers\DmRolls.cs" />
     <Compile Include="Views\MonsterCardRenderer.cs" />
+    <Compile Include="Views\MapView.cs" />
     <Compile Include="Views\MonsterEditor.cs" />
     <Compile Include="Views\BestiaryView.cs" />
     <Compile Include="Views\InitiativePanel.cs" />

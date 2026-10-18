@@ -667,12 +667,8 @@ namespace HMWT_MUI
         /// </summary>
         private PlayerInfo BuildPlayerFromFirstCharacter()
         {
-            int id = GetAnyCharacterId();
-            if (id > 0) return BuildPlayerFromCharacter(id);
-
-            // Персонажа нет — используем профиль ведущего
-            var dm = Services.DmProfileService.BuildPlayer(Environment.UserName);
-            return dm;
+            // Имя участника — имя персонажа, а не профиль и не учётка Windows
+            return Services.DmProfileService.BuildPartyPlayer();
         }
 
         private int GetAnyCharacterId()
@@ -680,6 +676,23 @@ namespace HMWT_MUI
             try
             {
                 using var conn = DatabaseHelper.GetConnection();
+
+                // Сначала тот персонаж, которого пользователь открывал последним:
+                // раньше в отряд уходил первый по списку, и игрок видел чужое имя.
+                using (var last = conn.CreateCommand())
+                {
+                    last.CommandText = "SELECT Value FROM Settings WHERE Key = 'LastCharacterId' LIMIT 1";
+                    var stored = last.ExecuteScalar();
+                    if (stored != null && stored != DBNull.Value &&
+                        int.TryParse(Convert.ToString(stored), out int lastId) && lastId > 0)
+                    {
+                        using var check = conn.CreateCommand();
+                        check.CommandText = "SELECT COUNT(*) FROM CharacterInfo WHERE id_character = @id";
+                        check.Parameters.AddWithValue("@id", lastId);
+                        if (Convert.ToInt32(check.ExecuteScalar()) > 0) return lastId;
+                    }
+                }
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT id_character FROM CharacterInfo ORDER BY id_character LIMIT 1";
                 var value = cmd.ExecuteScalar();
@@ -704,27 +717,39 @@ namespace HMWT_MUI
                 cmd.Parameters.AddWithValue("@id", characterId);
 
                 using var r = cmd.ExecuteReader();
-                if (!r.Read()) return new PlayerInfo { Name = Environment.UserName, CharacterId = characterId };
+                if (!r.Read()) return new PlayerInfo { Name = "Игрок", CharacterId = characterId };
 
                 int hp = r.IsDBNull(3) ? 0 : r.GetInt32(3);
+                string characterName = r.IsDBNull(0) ? "" : r.GetString(0);
+                if (string.IsNullOrWhiteSpace(characterName)) characterName = "Игрок";
+
+                // В отряде у всех имя персонажа: личного профиля больше нет
+                string display = characterName;
+
+                // Максимум HP — из настроек персонажа, а не из колонки HP:
+                // иначе в отряд уходит «185/185» вместо «185/210»
+                r.Close();
+                int maxHp = Services.RestService.LoadMaxHp(characterId);
+                if (maxHp <= 0) maxHp = hp;
+
                 return new PlayerInfo
                 {
                     CharacterId = characterId,
-                    CharacterName = r.IsDBNull(0) ? "" : r.GetString(0),
+                    CharacterName = characterName,
                     CharacterClass = r.IsDBNull(1) ? "" : r.GetString(1),
                     CharacterRace = r.IsDBNull(2) ? "" : r.GetString(2),
                     Hp = hp,
-                    MaxHp = hp,
+                    MaxHp = maxHp,
                     ArmorClass = r.IsDBNull(4) ? 0 : r.GetInt32(4),
                     Level = r.IsDBNull(6) ? 1 : r.GetInt32(6),
                     AvatarPath = r.IsDBNull(5) ? "" : r.GetString(5),
-                    Name = Environment.UserName
+                    Name = display
                 };
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[MainWindow] BuildPlayerFromCharacter: {ex.Message}");
-                return new PlayerInfo { Name = Environment.UserName, CharacterId = characterId };
+                return new PlayerInfo { Name = "Игрок", CharacterId = characterId };
             }
         }
 

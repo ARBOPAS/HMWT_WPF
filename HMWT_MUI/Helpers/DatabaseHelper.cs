@@ -35,7 +35,8 @@ namespace HMWT_MUI
         ///
         /// Нужна, чтобы проверки и разбор проблем запускали программу на КОПИИ
         /// базы и не трогали рабочие заметки: достаточно задать
-        /// HMWT_DB=HMWT_selftest.db перед запуском.
+        /// HMWT_DB=HMWT_selftest.db перед запуском. Принимается и полный путь —
+        /// так проверка на «второй машине» держит базу отдельно от рабочей.
         /// </summary>
         public const string DatabaseOverrideVariable = "HMWT_DB";
 
@@ -70,7 +71,9 @@ namespace HMWT_MUI
                 Directory.CreateDirectory(appDir);
             }
 
-            _databasePath = Path.Combine(appDir, dbFileName);
+            _databasePath = Path.IsPathRooted(dbFileName)
+                ? dbFileName
+                : Path.Combine(appDir, dbFileName);
             Debug.WriteLine($"[DB] Путь к БД: {_databasePath}");
 
             // 2. Копируем БД из ресурсов если её нет в AppData
@@ -977,6 +980,38 @@ namespace HMWT_MUI
             cmd.Parameters.AddWithValue("@key", key);
             cmd.Parameters.AddWithValue("@value", value);
             cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Максимум здоровья персонажа из настроек (0 — не задавали).
+        ///
+        /// В таблице CharacterInfo этого числа нет: оно хранится в настройках
+        /// под ключом Character_{id}_MaxHP, и оттуда же его берёт шапка листа.
+        /// Отряд обязан брать его здесь, иначе в отряде видно «185/185» вместо
+        /// «185/210»: текущее здоровье выдавалось за максимум.
+        /// </summary>
+        public static int GetCharacterMaxHp(int characterId)
+        {
+            try
+            {
+                using var conn = GetConnection();
+                conn.Open();
+
+                using var cmd = new SqliteCommand(
+                    "SELECT Value FROM Settings WHERE Key = @key", conn);
+                cmd.Parameters.AddWithValue("@key", $"Character_{characterId}_MaxHP");
+
+                var stored = cmd.ExecuteScalar();
+                if (stored != null && stored != DBNull.Value &&
+                    int.TryParse(stored.ToString(), out int max) && max > 0)
+                    return max;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DB] максимум здоровья {characterId}: {ex.Message}");
+            }
+
+            return 0;
         }
 
         #endregion

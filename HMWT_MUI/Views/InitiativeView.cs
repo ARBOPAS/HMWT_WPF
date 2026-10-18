@@ -369,7 +369,8 @@ namespace HMWT_MUI.Views
             }
 
             var players = session.GetPlayers()
-                .Where(p => p != null && p.Role == RoomRole.Player && !string.IsNullOrWhiteSpace(p.CharacterName))
+                .Where(p => p != null && p.Role == RoomRole.Player &&
+                            (!string.IsNullOrWhiteSpace(p.CharacterName) || !string.IsNullOrWhiteSpace(p.Name)))
                 .ToList();
 
             if (players.Count == 0)
@@ -381,13 +382,29 @@ namespace HMWT_MUI.Views
             int added = 0;
             foreach (var player in players)
             {
-                string name = player.CharacterName.Trim();
+                string name = (!string.IsNullOrWhiteSpace(player.CharacterName)
+                    ? player.CharacterName
+                    : player.Name ?? "").Trim();
+                if (name.Length == 0) continue;
                 bool exists = encounter.Combatants.Any(c => c != null &&
                     string.Equals(c.Name, name, StringComparison.CurrentCultureIgnoreCase));
                 if (exists) continue;
 
-                if (InitiativeService.AddByName(encounter, name, player.Initiative, CombatantKind.Player) != null)
+                var combatant = InitiativeService.AddByName(encounter, name, player.Initiative, CombatantKind.Player);
+                if (combatant != null)
+                {
+                    // хиты и броня берутся у персонажа игрока: без этого в трекере
+                    // появлялся участник с нулями, хотя в отряде видно его ХП
+                    if (player.MaxHp > 0) combatant.MaxHitPoints = player.MaxHp;
+                    else if (player.Hp > 0) combatant.MaxHitPoints = player.Hp;
+
+                    if (player.Hp > 0) combatant.HitPoints = player.Hp;
+                    else if (combatant.MaxHitPoints > 0) combatant.HitPoints = combatant.MaxHitPoints;
+
+
+                    InitiativeService.SaveCombatant(encounter, combatant);
                     added++;
+                }
             }
 
             if (added == 0)

@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using HMWT_MUI.Helpers;
 using HMWT_MUI.Services;
 
 namespace HMWT_MUI.Views
@@ -18,14 +17,8 @@ namespace HMWT_MUI.Views
     /// </summary>
     public partial class SettingsView : UserControl
     {
-        private const string ShowWindowsNameKey = "Room_ShowWindowsName";
-        private const string RefreshIntervalKey = "Room_RefreshSeconds";
-
         /// <summary>Чтобы начальная установка значений не срабатывала как правка.</summary>
         private bool _ready;
-
-        /// <summary>Интервалы обновления данных отряда, секунды.</summary>
-        private static readonly int[] RefreshSteps = { 5, 10, 15, 30, 60 };
 
         public SettingsView()
         {
@@ -51,19 +44,12 @@ namespace HMWT_MUI.Views
             txtGifHint.Text = $"Сейчас: {GifQualityService.Describe(GifQualityService.Current)}. " +
                               $"Кадров на анимацию: до {GifQualityService.MaxFrames}.";
 
-            chkShowWindowsName.IsChecked = ShowWindowsName;
-
             chkLightTheme.IsChecked = LightTheme;
             chkTopTabs.IsChecked = TopTabs;
 
             txtSrdHint.Text = $"Сейчас в базе: предметов {SrdItemImporter.GetCount()}, " +
                               $"заклинаний {SpellJsonImporter.GetCount()}, " +
                               $"разделов справочника {SrdImportService.GetCategories().Count}.";
-
-            foreach (int seconds in RefreshSteps)
-                cmbRefreshInterval.Items.Add(new ComboBoxItem { Content = seconds + " секунд" });
-
-            cmbRefreshInterval.SelectedIndex = NearestRefreshIndex(RefreshSeconds);
         }
 
         /// <summary>
@@ -116,62 +102,6 @@ namespace HMWT_MUI.Views
             }
         }
 
-        /// <summary>
-        /// Показывать в отряде имя учётной записи Windows вместо имени персонажа.
-        ///
-        /// По умолчанию выключено: в отряде видно имя персонажа из листа. Имя
-        /// учётной записи показывается, если у игрока персонаж не открыт.
-        /// Раньше значение по умолчанию было «включено», и в отряде вместо
-        /// персонажей мелькали имена учётных записей.
-        /// </summary>
-        public static bool ShowWindowsName
-        {
-            get
-            {
-                try { return DatabaseHelper.GetSetting(ShowWindowsNameKey, "0") == "1"; }
-                catch { return false; }
-            }
-            set
-            {
-                try { DatabaseHelper.SaveSetting(ShowWindowsNameKey, value ? "1" : "0"); }
-                catch (Exception ex) { Debug.WriteLine($"[Settings] имя Windows: {ex.Message}"); }
-            }
-        }
-
-        /// <summary>
-        /// Как часто сверяются данные других игроков (аватары, имена, здоровье).
-        /// </summary>
-        public static int RefreshSeconds
-        {
-            get
-            {
-                try
-                {
-                    string raw = DatabaseHelper.GetSetting(RefreshIntervalKey, "10");
-                    if (int.TryParse(raw, out int value) && value >= 3 && value <= 120) return value;
-                }
-                catch { }
-                return 10;
-            }
-            set
-            {
-                try { DatabaseHelper.SaveSetting(RefreshIntervalKey, value.ToString()); }
-                catch (Exception ex) { Debug.WriteLine($"[Settings] интервал: {ex.Message}"); }
-            }
-        }
-
-        private static int NearestRefreshIndex(int seconds)
-        {
-            int best = 1;
-            int bestDiff = int.MaxValue;
-            for (int i = 0; i < RefreshSteps.Length; i++)
-            {
-                int diff = Math.Abs(RefreshSteps[i] - seconds);
-                if (diff < bestDiff) { bestDiff = diff; best = i; }
-            }
-            return best;
-        }
-
         #region === ДЕЙСТВИЯ ===
 
         private void SldScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -222,23 +152,6 @@ namespace HMWT_MUI.Views
                               "Кэш сброшен, картинки перечитаются при следующем наведении.";
 
             Note("Режим анимации сохранён");
-        }
-
-        private void ChkShowWindowsName_Changed(object sender, RoutedEventArgs e)
-        {
-            if (!_ready) return;
-
-            ShowWindowsName = chkShowWindowsName.IsChecked == true;
-            Note("Сохранено");
-        }
-
-        private void CmbRefreshInterval_Changed(object sender, SelectionChangedEventArgs e)
-        {
-            if (!_ready) return;
-
-            int index = Math.Max(0, Math.Min(RefreshSteps.Length - 1, cmbRefreshInterval.SelectedIndex));
-            RefreshSeconds = RefreshSteps[index];
-            Note($"Обновление отряда: раз в {RefreshSeconds} секунд");
         }
 
         /// <summary>

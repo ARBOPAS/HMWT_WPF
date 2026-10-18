@@ -193,29 +193,6 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ОТРЯД -->
-                <Border Style="{StaticResource SetCard}">
-                    <StackPanel>
-                        <TextBlock Text="Отряд" Style="{StaticResource SetHeader}"/>
-
-                        <CheckBox x:Name="chkShowWindowsName" Margin="0,12,0,0"
-                                  FontSize="13"
-                                  Content="Показывать имя учётной записи Windows вместо персонажа"
-                                  Checked="ChkShowWindowsName_Changed"
-                                  Unchecked="ChkShowWindowsName_Changed"/>
-                        <TextBlock Text="По умолчанию в отряде видно имя персонажа из листа. Имя учётной записи показывается, если персонаж не открыт."
-                                   Style="{StaticResource SetNote}" Margin="24,2,0,0" TextWrapping="Wrap"/>
-
-                        <TextBlock Text="Обновление данных отряда" Style="{StaticResource SetHeader}" Margin="0,20,0,0"/>
-                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,10"
-                                   Text="Насколько часто проверяются изменения у других игроков: аватары, имя и здоровье. Влияет на то, как быстро вы увидите чужое изменение."/>
-
-                        <ComboBox x:Name="cmbRefreshInterval" Width="200" HorizontalAlignment="Left"
-                                  Style="{StaticResource SetCombo}"
-                                  SelectionChanged="CmbRefreshInterval_Changed"/>
-                    </StackPanel>
-                </Border>
-
                 <!-- РЕСУРСЫ -->
                 <Border Style="{StaticResource SetCard}">
                     <StackPanel>

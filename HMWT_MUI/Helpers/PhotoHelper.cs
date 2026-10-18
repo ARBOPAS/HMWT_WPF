@@ -358,6 +358,21 @@ namespace HMWT_MUI
         }
         public static string GetWritableRoot()
         {
+            // Проверки на двух «машинах» в одном ПК подменяют корень данных:
+            // иначе обе копии программы делят одну папку фотографий, и передачу
+            // файлов по сети невозможно проверить честно. Обычная работа
+            // переменную не задаёт и идёт в %APPDATA%\HMWT, как раньше.
+            string overrideRoot = Environment.GetEnvironmentVariable("HMWT_DATA_ROOT");
+            if (!string.IsNullOrWhiteSpace(overrideRoot))
+            {
+                try
+                {
+                    Directory.CreateDirectory(overrideRoot);
+                    return overrideRoot;
+                }
+                catch { }
+            }
+
             var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
             try { Directory.CreateDirectory(root); }
             catch

@@ -71,9 +71,23 @@ namespace HMWT_MUI.Views
             root.Children.Add(_actionsRow);
 
             root.Children.Add(_emptyHint);
-            root.Children.Add(DmUiKit.Scroll(_orderHost));
 
-            Content = root;
+            // Список участников должен прокручиваться: в окне видно 7 карточек,
+            // а при большем составе без прокрутки последние просто обрезались.
+            var scroll = DmUiKit.Scroll(_orderHost);
+            scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            scroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            scroll.Margin = new Thickness(0, 0, 0, 0);
+
+            var layout = new Grid();
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            Grid.SetRow(root, 0);
+            Grid.SetRow(scroll, 1);
+            layout.Children.Add(root);
+            layout.Children.Add(scroll);
+
+            Content = layout;
             BuildButtons();
         }
 
@@ -427,20 +441,7 @@ namespace HMWT_MUI.Views
             if (canManage)
             {
                 var add = DmUiKit.Icon("+", null, "Добавить состояние", 24, DmUiKit.ButtonKind.Soft);
-                var menu = new ContextMenu();
-                var all = CharacterStateService.LoadConditions();
-                foreach (var option in all)
-                {
-                    string key = option.Key;
-                    bool active = keys.Contains(key);
-                    var item = new MenuItem
-                    {
-                        Header = (active ? "✓ " : "") + option.Name,
-                        IsCheckable = false
-                    };
-                    item.Click += (s, e) => ToggleCondition(combatant, key);
-                    menu.Items.Add(item);
-                }
+                var menu = BuildConditionMenu(combatant, keys);
                 add.Click += (s, e) =>
                 {
                     menu.PlacementTarget = add;
@@ -452,6 +453,84 @@ namespace HMWT_MUI.Views
             return row;
         }
 
+        /// <summary>
+        /// Список состояний в оформлении программы: тёмная панель, галочки у
+        /// отмеченных, меню не закрывается после нажатия — можно отметить
+        /// несколько состояний подряд.
+        /// </summary>
+        private ContextMenu BuildConditionMenu(CombatantData combatant, List<string> activeKeys)
+        {
+            var menu = new ContextMenu();
+
+            try
+            {
+                if (Application.Current != null)
+                {
+                    if (Application.Current.TryFindResource("DarkMenu") is Style menuStyle) menu.Style = menuStyle;
+                }
+            }
+            catch { }
+
+            var style = GetMenuStyle();
+
+            foreach (var option in CharacterStateService.LoadConditions())
+            {
+                string key = option.Key;
+                var item = new MenuItem
+                {
+                    Header = option.Name,
+                    IsCheckable = false,
+                    IsChecked = activeKeys.Contains(key),
+                    StaysOpenOnClick = true
+                };
+                if (style != null) item.Style = style;
+                item.Click += (s, e) => ToggleCondition(combatant, key);
+                menu.Items.Add(item);
+            }
+
+            if (activeKeys.Count > 0)
+            {
+                var separator = new Separator();
+                try
+                {
+                    if (Application.Current != null && Application.Current.TryFindResource("DarkMenuSeparator") is Style sepStyle)
+                        separator.Style = sepStyle;
+                }
+                catch { }
+                menu.Items.Add(separator);
+
+                var clear = new MenuItem { Header = "Снять все состояния" };
+                if (style != null) clear.Style = style;
+                clear.Click += (s, e) => ClearConditions(combatant);
+                menu.Items.Add(clear);
+            }
+
+            return menu;
+        }
+
+        private static Style GetMenuStyle()
+        {
+            try
+            {
+                if (Application.Current != null)
+                    return Application.Current.TryFindResource("DarkMenuItem") as Style;
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>Снимает все состояния с участника боя.</summary>
+        private void ClearConditions(CombatantData combatant)
+        {
+            if (combatant == null || _encounter == null) return;
+
+            combatant.Conditions = "";
+            InitiativeService.SaveCombatant(_encounter, combatant);
+            PublishIfRoom();
+            Publish();
+            Render();
+            Changed?.Invoke();
+        }
         private static List<string> ParseConditions(string text)
         {
             var list = new List<string>();
@@ -478,6 +557,25 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>Включает или снимает состояние у участника боя.</summary>
+        /// <summary>
+        /// Отдаёт трекер комнате: без этого у игроков оставались старые хиты и
+        /// состояния до следующего действия ведущего.
+        /// </summary>
+        private void PublishIfRoom()
+        {
+            try
+            {
+                var session = RoomSession.Instance;
+                if (session == null || !session.IsActive || !session.IsHost || _encounter == null) return;
+
+                session.PublishInitiative(InitiativeService.BuildState(_encounter));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[InitiativePanel] публикация трекера: {ex.Message}");
+            }
+        }
+
         private void ToggleCondition(CombatantData combatant, string key)
         {
             if (combatant == null || _encounter == null || string.IsNullOrWhiteSpace(key)) return;
@@ -488,6 +586,7 @@ namespace HMWT_MUI.Views
 
             combatant.Conditions = string.Join(",", keys);
             InitiativeService.SaveCombatant(_encounter, combatant);
+            PublishIfRoom();
             Publish();
             Render();
             Changed?.Invoke();
@@ -521,6 +620,7 @@ namespace HMWT_MUI.Views
             combatant.HitPoints = hp;
 
             InitiativeService.SaveCombatant(_encounter, combatant);
+            PublishIfRoom();
             Publish();
             Render();
             Changed?.Invoke();
@@ -539,6 +639,7 @@ namespace HMWT_MUI.Views
 
             combatant.HitPoints = Math.Max(0, Math.Min(combatant.MaxHitPoints, combatant.HitPoints + delta));
             InitiativeService.SaveCombatant(_encounter, combatant);
+            PublishIfRoom();
             Publish();
             Render();
             Changed?.Invoke();
@@ -619,6 +720,7 @@ namespace HMWT_MUI.Views
                 combatant.InitiativeTotal = combatant.InitiativeRoll + combatant.InitiativeModifier;
 
             InitiativeService.SaveCombatant(_encounter, combatant);
+            PublishIfRoom();
             Publish();
             Render();
             Changed?.Invoke();

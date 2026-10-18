@@ -123,6 +123,17 @@
                            VerticalAlignment="Center" Margin="0,0,16,0"/>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel x:Name="spRecentRooms" Orientation="Horizontal" Margin="0,0,0,7">
+                        <TextBlock Text="Недавние:" FontSize="11" Foreground="{StaticResource B.Mute}"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="cmbRecentRooms" Style="{StaticResource SetCombo}"
+                                  Width="300" Height="28"
+                                  SelectionChanged="CmbRecentRooms_Changed"
+                                  ToolTip="Комнаты, к которым уже подключались: выбор заполнит адрес и ключ"/>
+                        <Button x:Name="btnForgetRoom" Content="Забыть" Style="{StaticResource RoomGhostBtn}"
+                                Margin="8,0,0,0" Click="BtnForgetRoom_Click"
+                                ToolTip="Убрать выбранную комнату из истории"/>
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Адрес и порт:" FontSize="11" Foreground="{StaticResource B.Mute}"
                                    VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -167,8 +178,17 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" x:Name="txtPlayersHeader" Text="УЧАСТНИКИ" FontFamily="{StaticResource F.Display}"
-                               FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,12"/>
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" x:Name="txtPlayersHeader" Text="УЧАСТНИКИ" FontFamily="{StaticResource F.Display}"
+                                   FontSize="13" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
+                        <TextBlock Grid.Column="1" x:Name="txtPlayersHint" Text="" Foreground="{StaticResource B.Mute}"
+                                   FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                   Visibility="Collapsed"/>
+                    </Grid>
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="spPlayers"/>
                     </ScrollViewer>

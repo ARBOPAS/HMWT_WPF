@@ -8,6 +8,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using HMWT_MUI.Helpers;
+using HMWT_MUI.Models;
+using HMWT_MUI.Services;
 
 namespace HMWT_MUI.Net
 {
@@ -91,6 +94,15 @@ namespace HMWT_MUI.Net
         /// </summary>
         private InitiativeState _initiative = new InitiativeState();
 
+        /// <summary>Карта боя, которую видит комната. Снимок делается на хосте.</summary>
+        private MapSceneData _map;
+
+        /// <summary>Хост изменил карту (например, игрок подвинул своего жетона).</summary>
+        public event Action MapChanged;
+
+        /// <summary>Жетон сдвинулся во время перетаскивания (лёгкое обновление).</summary>
+        public event Action<int, double, double, double> TokenMovedLive;
+
         private int _playerCounter;
 
         public RoomServerEvents Events { get; set; } = new RoomServerEvents();
@@ -98,6 +110,12 @@ namespace HMWT_MUI.Net
         public string KeySecret => _keySecret;
         public int Port => _port;
         public bool IsRunning => _listener != null;
+
+        /// <summary>
+        /// Человеческое имя комнаты. Задаёт ведущий при создании/продолжении;
+        /// уходит гостю в приветствии и снимке, чтобы он видел не только id.
+        /// </summary>
+        public string RoomName { get; set; } = "";
 
         /// <summary>Интервал heartbeat: по нему определяем отвалившихся.</summary>
         public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(5);
@@ -218,7 +236,7 @@ namespace HMWT_MUI.Net
                 var challenge = new HelloChallenge
                 {
                     RoomId = _roomId,
-                    RoomName = _roomId,
+                    RoomName = string.IsNullOrWhiteSpace(RoomName) ? _roomId : RoomName,
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,
@@ -443,6 +461,26 @@ namespace HMWT_MUI.Net
                         HandlePhotoChunk(conn, msg);
                         break;
 
+                    case MsgType.MapRequest:
+                        _ = SendMapStateToAsync(conn);
+                        break;
+
+                    case MsgType.MapMove:
+                        ApplyMapMove(conn, msg.As<MapMoveRequest>());
+                        break;
+
+                    case MsgType.MapImageRequest:
+                        _ = SendMapImageToAsync(conn, msg.As<MapImageRequest>());
+                        break;
+
+                    case MsgType.MapStroke:
+                        ApplyMapStroke(conn, msg.As<MapStrokeRequest>());
+                        break;
+
+                    case MsgType.MapStrokeErase:
+                        ApplyMapStrokeErase(conn, msg.As<MapStrokeEraseRequest>());
+                        break;
+
                     case MsgType.PhotoRequest:
                         // Новый игрок вошёл и просит чужой аватар: в снимке есть
                         // только путь, а самого файла у него нет
@@ -473,6 +511,14 @@ namespace HMWT_MUI.Net
             {
                 var index = _players.FindIndex(p => p.Id == conn.PlayerId);
                 if (index < 0) return;
+
+                // Аватар уже лежит в папке комнаты (пришёл файлом). Локальный
+                // путь из карточки клиента не должен затирать его: иначе у всех
+                // пропадает картинка, пока файл не пришлют заново.
+                string previous = _players[index].AvatarPath ?? "";
+                if (InRoomPhotos(previous) && !InRoomPhotos(incoming.AvatarPath))
+                    incoming.AvatarPath = previous;
+
                 _players[index] = incoming;
                 updated = incoming;
             }
@@ -531,11 +577,13 @@ namespace HMWT_MUI.Net
             if (string.IsNullOrEmpty(relative)) return;
 
             PlayerInfo updated = null;
+            string previousPath = "";
             lock (_stateLock)
             {
                 var index = _players.FindIndex(p => p.Id == chunk.OwnerId);
                 if (index >= 0)
                 {
+                    previousPath = _players[index].AvatarPath ?? "";
                     _players[index].AvatarPath = relative;
                     updated = _players[index];
                 }
@@ -543,7 +591,16 @@ namespace HMWT_MUI.Net
 
             if (updated != null)
             {
+                // Тот же файл уже был — не рассылаем снимок и не дёргаем всех:
+                // повторные запросы не должны «мигать» аватаром
+                if (string.Equals(previousPath, relative, StringComparison.OrdinalIgnoreCase))
+                {
+                    LogPhoto($"аватар {chunk.OwnerId} уже был: {relative}");
+                    return;
+                }
+
                 Log($"{Describe(updated)}: получен аватар ({complete.Length} байт)");
+                LogPhoto($"получен аватар {chunk.OwnerId}: {complete.Length} байт → {relative}");
                 Events?.PlayerChanged?.Invoke(updated);
                 _ = BroadcastSnapshotAsync();
             }
@@ -572,6 +629,7 @@ namespace HMWT_MUI.Net
                             .ConfigureAwait(false);
 
                 Debug.WriteLine($"[RoomServer] аватар ведущего разослан: {relativePath} ({targets.Count} участникам)");
+                LogPhoto($"разослан аватар ведущего {ownerId}: {targets.Count} участникам");
             }
             catch (Exception ex)
             {
@@ -614,26 +672,35 @@ namespace HMWT_MUI.Net
                 string relative = conn.Player?.AvatarPath ?? "";
                 if (string.IsNullOrWhiteSpace(relative)) return;
 
-                // Файл уже есть у хоста — рассылаем его остальным
-                string full = HMWT_MUI.PhotoHelper.ResolvePhotoPath(relative);
-                if (!string.IsNullOrEmpty(full) && System.IO.File.Exists(full))
-                {
-                    var parts = PhotoTransferService.Split(full, conn.PlayerId, _roomId);
-                    foreach (var c in _clients.Values.Where(c => c.HandshakeDone && c.PlayerId != conn.PlayerId))
-                    {
-                        foreach (var part in parts)
-                            await SendSafeAsync(c, new NetMessage(MsgType.PhotoChunk, part)).ConfigureAwait(false);
-                    }
+                // Путь в снимке — это путь НА МАШИНЕ ИГРОКА. Проверять его на
+                // диске ведущего нельзя: у обоих персонажи могут быть с одним
+                // номером, и тогда хост отправлял свою картинку как чужую.
+                // Своим считаем только файл, уже лежащий в папке комнаты.
+                bool alreadyInRoom = InRoomPhotos(relative);
 
-                    Log($"аватар {conn.PlayerId} разослан остальным: частей {parts.Count}");
-                    return;
+                if (alreadyInRoom)
+                {
+                    string full = HMWT_MUI.PhotoHelper.ResolvePhotoPath(relative);
+                    if (!string.IsNullOrEmpty(full) && System.IO.File.Exists(full))
+                    {
+                        var parts = PhotoTransferService.Split(full, conn.PlayerId, _roomId);
+                        foreach (var c in _clients.Values.Where(c => c.HandshakeDone && c.PlayerId != conn.PlayerId))
+                        {
+                            foreach (var part in parts)
+                                await SendSafeAsync(c, new NetMessage(MsgType.PhotoChunk, part)).ConfigureAwait(false);
+                        }
+
+                        Log($"аватар {conn.PlayerId} разослан остальным: частей {parts.Count}");
+                        return;
+                    }
                 }
 
-                // Файла нет — просим прислать
+                // Файла у ведущего нет — просим прислать
                 await SendSafeAsync(conn, new NetMessage(MsgType.PhotoRequest,
                     new PhotoRequest { OwnerId = conn.PlayerId })).ConfigureAwait(false);
 
                 Log($"запрошен аватар у {conn.PlayerId}");
+                LogPhoto($"запрошен у игрока {conn.PlayerId} (путь «{relative}»)");
             }
             catch (Exception ex)
             {
@@ -692,6 +759,7 @@ namespace HMWT_MUI.Net
                 }
 
                 Log($"аватар {request.OwnerId} отправлен по запросу: частей {parts.Count}");
+                LogPhoto($"отправлен по запросу {request.OwnerId}: частей {parts.Count}");
             }
             catch (Exception ex)
             {
@@ -787,7 +855,7 @@ namespace HMWT_MUI.Net
                 return new RoomSnapshot
                 {
                     RoomId = _roomId,
-                    RoomName = _roomId,
+                    RoomName = string.IsNullOrWhiteSpace(RoomName) ? _roomId : RoomName,
                     Players = _players.Select(Clone).ToList(),
                     Feed = _feed.ToList(),
                     AppVersion = NetVersions.AppVersion,
@@ -798,6 +866,376 @@ namespace HMWT_MUI.Net
             }
         }
 
+        // ══════════════════════ КАРТА БОЯ ══════════════════════
+
+        /// <summary>Ведущий обновил карту — раскладываем её всем игрокам.</summary>
+        public void SetMap(MapSceneData scene)
+        {
+            lock (_stateLock)
+            {
+                _map = CloneMap(scene);
+            }
+            _ = BroadcastMapStateAsync();
+        }
+
+        /// <summary>Текущая карта (копия: наружу отдаём снимок, а не рабочий объект).</summary>
+        public MapSceneData GetMap()
+        {
+            lock (_stateLock)
+            {
+                return CloneMap(_map);
+            }
+        }
+
+        private static MapSceneData CloneMap(MapSceneData source)
+            => source == null ? null : NetJson.FromElement<MapSceneData>(NetJson.ToElement(source));
+
+        private async Task BroadcastMapStateAsync()
+        {
+            var scene = GetMap();
+            if (scene == null) return;
+
+            var message = new NetMessage(MsgType.MapState, scene);
+            foreach (var c in _clients.Values.Where(x => x.HandshakeDone).ToList())
+            {
+                try { await SendSafeAsync(c, message).ConfigureAwait(false); }
+                catch (Exception ex) { Debug.WriteLine($"[RoomServer] карта не ушла: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Ведущий начал разведку заново: у каждого игрока «разведанное»
+        /// хранится локально, поэтому его нужно попросить очистить.
+        /// </summary>
+        public void BroadcastSeenReset()
+        {
+            var message = new NetMessage(MsgType.MapSeenReset, new { });
+            foreach (var c in _clients.Values.Where(x => x.HandshakeDone).ToList())
+                _ = SendSafeAsync(c, message);
+        }
+
+        private async Task SendMapStateToAsync(ClientConnection conn)
+        {
+            var scene = GetMap();
+            if (scene == null || conn == null) return;
+            try { await SendSafeAsync(conn, new NetMessage(MsgType.MapState, scene)).ConfigureAwait(false); }
+            catch (Exception ex) { Debug.WriteLine($"[RoomServer] карта игроку не ушла: {ex.Message}"); }
+        }
+
+        /// <summary>Путь указывает на файл, уже сохранённый в папке комнаты.</summary>
+        private static bool InRoomPhotos(string relativePath)
+            => !string.IsNullOrWhiteSpace(relativePath) &&
+               relativePath.Replace('\\', '/').StartsWith("Rooms/", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Игрок двигает жетон: принимаем только своего персонажа. Проверка на
+        /// стороне хоста — клиенту нельзя доверять выбор чужого жетона.
+        /// </summary>
+        private void ApplyMapMove(ClientConnection conn, MapMoveRequest request)
+        {
+            if (request == null || conn?.Player == null) return;
+
+            bool applied = false;
+            MapTokenData changedToken = null;
+            string rejectLabel = "", rejectCharacter = "", rejectNickname = "";
+
+            lock (_stateLock)
+            {
+                if (_map?.Tokens != null)
+                {
+                    var token = _map.Tokens.FirstOrDefault(t => t.Id == request.TokenId);
+                    if (token != null)
+                    {
+                        // чей это жетон: имя участника боя совпадает с именем игрока
+                        // Имя персонажа у игрока может быть пустым (тогда в отряде
+                        // виден ник), поэтому сверяем с обоими: иначе ход игрока
+                        // молча отбрасывался и ведущий его не видел.
+                        string character = (conn.Player.CharacterName ?? "").Trim();
+                        string nickname = (conn.Player.Name ?? "").Trim();
+                        string label = (token.Label ?? "").Trim();
+
+                        bool mine = NameMatch.SamePerson(label, character) ||
+                                    NameMatch.SamePerson(label, nickname);
+                        if (mine)
+                        {
+                            token.X = request.X;
+                            token.Y = request.Y;
+                            if (request.Facing >= 0) token.Facing = request.Facing;
+
+                            // Свой обзор и размер жетона игрок тоже может менять:
+                            // раньше такие правки оставались только у него на экране
+                            if (request.ViewAngle >= 0 && request.ViewAngle <= 360)
+                                token.ViewAngle = request.ViewAngle;
+                            if (request.SizeCells >= 1 && request.SizeCells <= 4)
+                                token.SizeCells = request.SizeCells;
+
+                            changedToken = token;
+                            applied = true;
+                        }
+                        else
+                        {
+                            rejectLabel = label;
+                            rejectCharacter = character;
+                            rejectNickname = nickname;
+                        }
+                    }
+                    else
+                    {
+                        LogRoomLine($"ход: жетон {request.TokenId} не найден у ведущего");
+                    }
+                }
+            }
+
+            if (changedToken != null && !request.Live)
+            {
+                // Итоговый ход сохраняем: промежуточные (live) не пишем, иначе
+                // перетаскивание било бы по базе десятки раз в секунду
+                try { MapService.SaveToken(changedToken); } catch { }
+            }
+
+            if (!applied)
+            {
+                // Отказ пишем всегда: без этого «двигал, а у ведущего ничего»
+                // остаётся гадать, чей это жетон на самом деле
+                LogRoomLine($"ход жетона {request.TokenId} отклонён: жетон «{rejectLabel}», " +
+                            $"игрок «{rejectCharacter}»/«{rejectNickname}»");
+            }
+
+            try
+            {
+                if (Environment.GetEnvironmentVariable("HMWT_MAP_LOG") == "1")
+                {
+                    string dir = HMWT_MUI.PhotoHelper.GetWritableRoot();
+                    Directory.CreateDirectory(dir);
+                    File.AppendAllText(Path.Combine(dir, "map-log.txt"),
+                        $"{DateTime.Now:HH:mm:ss.fff} ход жетона {request.TokenId} → ({request.X:0},{request.Y:0}), " +
+                        $"игрок «{conn.Player?.CharacterName}»/«{conn.Player?.Name}», принят={applied}\r\n");
+                }
+            }
+            catch { }
+
+            if (!applied) return;
+
+            if (request.Live)
+            {
+                // Промежуточный шаг: лёгкое сообщение всем, кроме отправителя,
+                // и событие ведущему. Полную карту шлём только в конце.
+                _ = BroadcastTokenLiveAsync(changedToken.Id, changedToken.X, changedToken.Y,
+                    changedToken.Facing, conn.PlayerId);
+                TokenMovedLive?.Invoke(changedToken.Id, changedToken.X, changedToken.Y, changedToken.Facing);
+                return;
+            }
+
+            _ = BroadcastMapStateAsync();
+            MapChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Промежуточное движение ведущего: двигаем жетон и рассылаем всем,
+        /// но не пишем в базу — итог сохранится при отпускании.
+        /// </summary>
+        public void UpdateTokenLive(int tokenId, double x, double y, double facing)
+        {
+            bool changed = false;
+
+            lock (_stateLock)
+            {
+                var token = _map?.Tokens?.FirstOrDefault(t => t.Id == tokenId);
+                if (token != null)
+                {
+                    token.X = x;
+                    token.Y = y;
+                    if (facing >= 0) token.Facing = facing;
+                    changed = true;
+                }
+            }
+
+            if (!changed) return;
+
+            _ = BroadcastTokenLiveAsync(tokenId, x, y, facing, null);
+        }
+
+        /// <summary>
+        /// Лёгкое обновление положения жетона: без полной карты. Полная карта
+        /// на каждом шаге перетаскивания перегружала и канал, и интерфейс.
+        /// </summary>
+        private async Task BroadcastTokenLiveAsync(int tokenId, double x, double y,
+            double facing, string exceptPlayerId)
+        {
+            var message = new NetMessage(MsgType.MapTokenLive, new MapTokenLive
+            {
+                TokenId = tokenId,
+                X = x,
+                Y = y,
+                Facing = facing
+            });
+
+            foreach (var c in _clients.Values.Where(c => c.HandshakeDone &&
+                         !string.Equals(c.PlayerId, exceptPlayerId, StringComparison.Ordinal)).ToList())
+            {
+                try { await SendSafeAsync(c, message).ConfigureAwait(false); }
+                catch (Exception ex) { Debug.WriteLine($"[RoomServer] live-ход: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>
+        /// Игрок нарисовал штрих. Проверяем размер и координаты, сохраняем
+        /// у ведущего и рассылаем карту всем — рисунки общие для отряда.
+        /// </summary>
+        private void ApplyMapStroke(ClientConnection conn, MapStrokeRequest request)
+        {
+            if (request == null) return;
+
+            string points = request.Points ?? "";
+            if (points.Length < 5 || points.Length > 40000)
+            {
+                LogRoomLine($"рисунок отклонён: длина данных {points.Length}");
+                return;
+            }
+
+            int count = points.Count(c => c == ';') + 1;
+            if (count > 4000) return;
+
+            double thickness = Math.Max(1, Math.Min(40, request.Thickness));
+            string color = string.IsNullOrWhiteSpace(request.Color) ? "#FFE06A63" : request.Color.Trim();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9A-Fa-f]{6,8}$"))
+                color = "#FFE06A63";
+
+            MapSceneData scene;
+            lock (_stateLock) scene = _map;
+            if (scene == null) return;
+
+            var stroke = new MapStrokeData
+            {
+                SceneId = scene.Id,
+                Color = color,
+                Thickness = thickness,
+                Points = points
+            };
+
+            int id = MapService.SaveStroke(stroke);
+            if (id <= 0) return;
+            stroke.Id = id;
+
+            lock (_stateLock) { _map?.Strokes.Add(stroke); }
+
+            _ = BroadcastMapStateAsync();
+
+            // Ведущий тоже должен увидеть чужой рисунок: без этого его сцена
+            // оставалась без штриха, и следующая публикация карты стирала его
+            // у всех игроков
+            MapChanged?.Invoke();
+            LogRoomLine($"рисунок от {conn?.Player?.CharacterName}: штрих {id}, точек {count}");
+        }
+
+        /// <summary>Игрок стёр штрихи ластиком — удаляем у ведущего и у всех.</summary>
+        private void ApplyMapStrokeErase(ClientConnection conn, MapStrokeEraseRequest request)
+        {
+            if (request?.Ids == null || request.Ids.Count == 0) return;
+
+            var ids = request.Ids.Where(i => i > 0).Distinct().Take(500).ToList();
+            if (ids.Count == 0) return;
+
+            var removed = new List<int>();
+            lock (_stateLock)
+            {
+                if (_map?.Strokes == null) return;
+
+                foreach (int id in ids)
+                {
+                    var stroke = _map.Strokes.FirstOrDefault(s => s.Id == id);
+                    if (stroke == null) continue;
+                    _map.Strokes.Remove(stroke);
+                    removed.Add(id);
+                }
+            }
+
+            foreach (int id in removed)
+            {
+                try { MapService.DeleteStroke(id); } catch { }
+            }
+
+            if (removed.Count == 0) return;
+
+            _ = BroadcastMapStateAsync();
+            MapChanged?.Invoke();
+            LogRoomLine($"стёрты штрихи: {string.Join(",", removed)} (игрок {conn?.Player?.CharacterName})");
+        }
+
+        /// <summary>
+        /// Отправляет картинку карты частями: gzip + base64, куски по 128 КБ.
+        /// Игрок соберёт файл у себя и больше не качает.
+        /// </summary>
+        private async Task SendMapImageToAsync(ClientConnection conn, MapImageRequest request)
+        {
+            if (conn == null) return;
+
+            string path;
+            string hash;
+            string wanted = request?.Hash ?? "";
+            lock (_stateLock)
+            {
+                path = _map == null ? null : MapService.ResolveImagePath(_map);
+                hash = _map?.ImageHash ?? "";
+
+                // фото жетона запрашивается по своему хэшу: ищем владельца
+                if (_map?.Tokens != null &&
+                    !string.Equals(wanted, hash, StringComparison.OrdinalIgnoreCase))
+                {
+                    var owner = _map.Tokens.FirstOrDefault(x =>
+                        !string.IsNullOrWhiteSpace(x.PhotoHash) &&
+                        string.Equals(x.PhotoHash, wanted, StringComparison.OrdinalIgnoreCase));
+                    if (owner != null && !string.IsNullOrWhiteSpace(owner.PhotoPath))
+                    {
+                        path = owner.PhotoPath;
+                        hash = owner.PhotoHash;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(hash)) return;
+            if (!string.IsNullOrWhiteSpace(wanted) &&
+                !string.Equals(wanted, hash, StringComparison.OrdinalIgnoreCase)) return;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+
+            try
+            {
+                byte[] raw = File.ReadAllBytes(path);
+                byte[] packed = Gzip(raw);
+                const int chunkSize = 128 * 1024;
+                int total = Math.Max(1, (packed.Length + chunkSize - 1) / chunkSize);
+
+                for (int i = 0; i < total; i++)
+                {
+                    int offset = i * chunkSize;
+                    int length = Math.Min(chunkSize, packed.Length - offset);
+                    var chunk = new MapImageChunk
+                    {
+                        Hash = hash,
+                        Extension = Path.GetExtension(path),
+                        Index = i,
+                        Total = total,
+                        Data = Convert.ToBase64String(packed, offset, length)
+                    };
+                    await SendSafeAsync(conn, new NetMessage(MsgType.MapImageChunk, chunk)).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] картинка карты не ушла: {ex.Message}");
+            }
+        }
+
+        private static byte[] Gzip(byte[] data)
+        {
+            using var output = new MemoryStream();
+            using (var gzip = new System.IO.Compression.GZipStream(
+                output, System.IO.Compression.CompressionLevel.Fastest, true))
+            {
+                gzip.Write(data, 0, data.Length);
+            }
+            return output.ToArray();
+        }
         /// <summary>Ведущий обновил трекер инициативы — раскладываем его игрокам.</summary>
         public void SetInitiative(InitiativeState state)
         {
@@ -1189,6 +1627,13 @@ namespace HMWT_MUI.Net
                     data.Id = existing.Id;
                     data.Role = existing.Role;
                     data.State = existing.State;
+
+                    // Уже принятый файл аватара важнее локального пути из
+                    // карточки: иначе каждое сохранение профиля сбрасывало
+                    // картинку у всех остальных
+                    if (InRoomPhotos(existing.AvatarPath) && !InRoomPhotos(data.AvatarPath))
+                        data.AvatarPath = existing.AvatarPath;
+
                     int idx = _players.IndexOf(existing);
                     _players[idx] = data;
                     found = true;
@@ -1266,6 +1711,26 @@ namespace HMWT_MUI.Net
         {
             Debug.WriteLine("[RoomServer] " + text);
             Events?.Log?.Invoke(text);
+        }
+
+        /// <summary>
+        /// Строка о передаче аватара в room-log. По ней видно, попросили файл,
+        /// получили его или отправили — без этого «аватар не виден» приходилось
+        /// разбирать догадками.
+        /// </summary>
+        private static void LogPhoto(string text) => LogRoomLine("фото: " + text);
+
+        /// <summary>Короткая строка в room-log: отказы и важные события комнаты.</summary>
+        private static void LogRoomLine(string text)
+        {
+            try
+            {
+                string dir = HMWT_MUI.PhotoHelper.GetWritableRoot();
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "room-log.txt"),
+                    $"{DateTime.Now:HH:mm:ss.fff} {text}\r\n");
+            }
+            catch { }
         }
 
         #endregion

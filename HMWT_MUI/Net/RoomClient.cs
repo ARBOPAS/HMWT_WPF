@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using HMWT_MUI.Models;
+using HMWT_MUI.Services;
 
 namespace HMWT_MUI.Net
 {
@@ -11,6 +14,18 @@ namespace HMWT_MUI.Net
     public sealed class RoomClientEvents
     {
         public Action<RoomSnapshot> SnapshotReceived { get; set; }
+
+        /// <summary>Хост прислал карту боя.</summary>
+        public Action<MapSceneData> MapStateReceived { get; set; }
+
+        /// <summary>Картинка карты собрана из частей: (хэш, путь к файлу).</summary>
+        public Action<string, string> MapImageReceived { get; set; }
+
+        /// <summary>Ведущий начал разведку заново: очистить локальное «разведанное».</summary>
+        public Action MapSeenResetReceived { get; set; }
+
+        /// <summary>Жетон сдвинулся во время чужого перетаскивания: (id, x, y, поворот).</summary>
+        public Action<int, double, double, double> TokenLiveReceived { get; set; }
         public Action<FeedEntry> FeedReceived { get; set; }
         public Action<string, string, bool> ConnectionChanged { get; set; }  // (состояние, текст, подключён)
         public Action<string, string> Failed { get; set; }                   // (код ошибки, текст)
@@ -56,6 +71,13 @@ namespace HMWT_MUI.Net
         private PlayerInfo _me;
 
         /// <summary>Сборщики частей фото по каждому отправителю.</summary>
+        /// <summary>Сборщики частей картинки карты: хэш -> части.</summary>
+        private readonly Dictionary<string, MapImageAssembler> _mapImages =
+            new Dictionary<string, MapImageAssembler>(StringComparer.Ordinal);
+
+        /// <summary>Последняя полученная карта боя.</summary>
+        public MapSceneData LastMap { get; private set; }
+
         private readonly Dictionary<string, PhotoAssembler> _photoAssemblers =
             new Dictionary<string, PhotoAssembler>(StringComparer.Ordinal);
 
@@ -130,6 +152,17 @@ namespace HMWT_MUI.Net
 
         /// <summary>Идентификатор, который присвоил хост. Пусто, пока не подключены.</summary>
         public string PlayerId { get; private set; } = "";
+
+        /// <summary>
+        /// Идентификатор комнаты, названный хостом в приветствии.
+        /// Нужен для папки фотографий: у гостя своей комнаты на диске нет,
+        /// и раньше RoomId оставался пустым — полученные аватары сохранялись
+        /// в одну папку, а искались в другой.
+        /// </summary>
+        public string RoomId { get; private set; } = "";
+
+        /// <summary>Имя комнаты из приветствия хоста.</summary>
+        public string RoomName { get; private set; } = "";
 
         public RoomRole Role { get; private set; } = RoomRole.Player;
         public bool IsConnected { get; private set; }
@@ -212,12 +245,15 @@ namespace HMWT_MUI.Net
                 }
 
                 // ── 2. Отвечаем: версии + доказательство ключа ──
+                RoomId = string.IsNullOrEmpty(_roomId) ? challenge.RoomId : _roomId;
+                RoomName = challenge.RoomName ?? "";
+
                 var hello = new HelloRequest
                 {
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,
-                    RoomId = string.IsNullOrEmpty(_roomId) ? challenge.RoomId : _roomId,
+                    RoomId = RoomId,
                     Nonce = challenge.Nonce,
                     Proof = RoomKey.ComputeProof(_roomKey, challenge.Nonce),
                     Player = _me ?? new PlayerInfo()
@@ -371,6 +407,33 @@ namespace HMWT_MUI.Net
                         }
                         break;
 
+                    case MsgType.MapState:
+                        // Хост разослал карту: запоминаем и показываем
+                        var scene = msg.As<MapSceneData>();
+                        if (scene != null)
+                        {
+                            LastMap = scene;
+                            Events?.MapStateReceived?.Invoke(scene);
+                        }
+                        break;
+
+                    case MsgType.MapImageChunk:
+                        var mapChunk = msg.As<MapImageChunk>();
+                        string saved = AddMapImageChunk(mapChunk);
+                        if (!string.IsNullOrEmpty(saved) && mapChunk != null)
+                            Events?.MapImageReceived?.Invoke(mapChunk.Hash, saved);
+                        break;
+
+                    case MsgType.MapSeenReset:
+                        Events?.MapSeenResetReceived?.Invoke();
+                        break;
+
+                    case MsgType.MapTokenLive:
+                        var live = msg.As<MapTokenLive>();
+                        if (live != null)
+                            Events?.TokenLiveReceived?.Invoke(live.TokenId, live.X, live.Y, live.Facing);
+                        break;
+
                     case MsgType.ChatMessage:
                     case MsgType.RollMessage:
                     case MsgType.SystemNotice:
@@ -461,6 +524,106 @@ namespace HMWT_MUI.Net
         /// Нужно для периодического обновления: изменение чужого аватара или
         /// здоровья могло не дойти событием, поэтому состояние запрашивается само.
         /// </summary>
+        /// <summary>Просит у хоста текущую карту боя.</summary>
+        public Task SendMapRequestAsync()
+            => SendAsync(new NetMessage(MsgType.MapRequest, new { }));
+
+        /// <summary>Сообщает хосту, что игрок подвинул своего жетона.</summary>
+        public Task SendMapMoveAsync(int tokenId, double x, double y, double facing = double.NaN)
+            => SendAsync(new NetMessage(MsgType.MapMove, new MapMoveRequest
+            {
+                TokenId = tokenId,
+                X = x,
+                Y = y,
+                Facing = double.IsNaN(facing) ? -1 : facing
+            }));
+
+        /// <summary>
+        /// Ход жетона вместе со сменой обзора/размера. Отдельное имя, а не
+        /// перегрузка: проверки и старые вызовы ищут SendMapMoveAsync, и две
+        /// перегрузки ломали поиск метода через reflection.
+        /// </summary>
+        public Task SendMapMoveEditAsync(int tokenId, double x, double y, double facing,
+            double viewAngle, int sizeCells)
+            => SendAsync(new NetMessage(MsgType.MapMove, new MapMoveRequest
+            {
+                TokenId = tokenId,
+                X = x,
+                Y = y,
+                Facing = double.IsNaN(facing) ? -1 : facing,
+                ViewAngle = viewAngle,
+                SizeCells = sizeCells
+            }));
+
+        /// <summary>Просит картинку карты по хэшу (если файла ещё нет).</summary>
+        public Task SendMapImageRequestAsync(string hash)
+            => SendAsync(new NetMessage(MsgType.MapImageRequest, new MapImageRequest { Hash = hash ?? "" }));
+
+        /// <summary>
+        /// Промежуточное движение при перетаскивании: без записи в базу на
+        /// каждом шаге, только чтобы остальные видели жетон в реальном времени.
+        /// </summary>
+        public Task SendMapMoveLiveAsync(int tokenId, double x, double y, double facing)
+            => SendAsync(new NetMessage(MsgType.MapMove, new MapMoveRequest
+            {
+                TokenId = tokenId,
+                X = x,
+                Y = y,
+                Facing = double.IsNaN(facing) ? -1 : facing,
+                Live = true
+            }));
+
+        /// <summary>Отправляет нарисованный штрих ведущему.</summary>
+        public Task SendMapStrokeAsync(MapStrokeRequest stroke)
+            => SendAsync(new NetMessage(MsgType.MapStroke, stroke));
+
+        /// <summary>Сообщает ведущему, какие штрихи стёрты ластиком.</summary>
+        public Task SendMapStrokeEraseAsync(List<int> ids)
+            => SendAsync(new NetMessage(MsgType.MapStrokeErase,
+                new MapStrokeEraseRequest { Ids = ids ?? new List<int>() }));
+
+        /// <summary>
+        /// Складывает часть картинки карты. Когда пришли все части — распаковывает
+        /// gzip и кладёт файл в папку данных, чтобы он там и остался.
+        /// </summary>
+        private string AddMapImageChunk(MapImageChunk chunk)
+        {
+            if (chunk == null || string.IsNullOrWhiteSpace(chunk.Hash) || chunk.Total <= 0) return null;
+
+            if (!_mapImages.TryGetValue(chunk.Hash, out var assembler))
+            {
+                assembler = new MapImageAssembler(chunk.Total, chunk.Extension);
+                _mapImages[chunk.Hash] = assembler;
+            }
+
+            byte[] ready = assembler.Add(chunk.Index, chunk.Data);
+            if (ready == null) return null;
+
+            _mapImages.Remove(chunk.Hash);
+
+            try
+            {
+                string dir = Path.Combine(PhotoHelper.GetWritableRoot(), "Maps");
+                Directory.CreateDirectory(dir);
+
+                string ext = string.IsNullOrWhiteSpace(chunk.Extension) ? ".png" : chunk.Extension;
+                string path = Path.Combine(dir, "remote_" + chunk.Hash + ext);
+
+                using (var output = File.Create(path))
+                using (var gzip = new System.IO.Compression.GZipStream(
+                    new MemoryStream(ready), System.IO.Compression.CompressionMode.Decompress))
+                {
+                    gzip.CopyTo(output);
+                }
+
+                return path;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Карта] картинка не распаковалась: {ex.Message}");
+                return null;
+            }
+        }
         public Task SendSnapshotRequestAsync()
             => SendAsync(new NetMessage(MsgType.SnapshotRequest, new { }));
 

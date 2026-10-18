@@ -196,6 +196,15 @@ namespace HMWT_MUI
         /// в одну секунду, получали одинаковое имя. Номер ищется по факту:
         /// удалили всех — следующий снова «Персонаж 1».
         /// </summary>
+#if DEBUG
+        /// <summary>Отладка: открыть лист персонажа сразу после загрузки списка.</summary>
+        private void CallDebugOpenOnce()
+        {
+            if (_debugCharacterOpened) return;
+            _debugCharacterOpened = true;
+            TryOpenDebugCharacter();
+        }
+#endif
         private string NextCharacterName()
         {
             try
@@ -222,6 +231,27 @@ namespace HMWT_MUI
 
             return "Персонаж " + DateTime.Now.ToString("HHmmss");
         }
+#if DEBUG
+        /// <summary>
+        /// Отладка: HMWT_DEBUG_CHARACTER=1 открывает лист персонажа сразу при
+        /// запуске. Нужно для проверок интерфейса, когда окно не в фокусе
+        /// и настоящий клик мышью до него не доходит. В релизной сборке кода нет.
+        /// </summary>
+        private void TryOpenDebugCharacter()
+        {
+            try
+            {
+                string value = Environment.GetEnvironmentVariable("HMWT_DEBUG_CHARACTER");
+                if (string.IsNullOrWhiteSpace(value)) return;
+                if (!int.TryParse(value.Trim(), out int id) || id <= 0) return;
+                Dispatcher.BeginInvoke(new Action(() => OpenCharacterForm(id)));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MainWindow] отладочное открытие: {ex.Message}");
+            }
+        }
+#endif
         private void AddCharacterBtn_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -272,8 +302,29 @@ namespace HMWT_MUI
         /// Открывает лист персонажа. MainWindow прячется на время листа
         /// и возвращается + обновляется после закрытия (правило дизайн-доки).
         /// </summary>
+        /// <summary>Запоминает, какого персонажа открывали последним (для отряда).</summary>
+        private static void RememberLastCharacter(int id)
+        {
+            if (id <= 0) return;
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "INSERT INTO Settings (Key, Value) VALUES ('LastCharacterId', @v) " +
+                                  "ON CONFLICT(Key) DO UPDATE SET Value = @v";
+                cmd.Parameters.AddWithValue("@v", id.ToString());
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MainWindow] последний персонаж: {ex.Message}");
+            }
+        }
+
         private void OpenCharacterForm(int id)
         {
+            RememberLastCharacter(id);
             if (_isCharacterFormOpen) return;
             _isCharacterFormOpen = true;
             try
@@ -401,8 +452,16 @@ namespace HMWT_MUI
 
             _cardSearchKeys[card] = ((name ?? "") + " " + (charClass ?? "") + " " + (race ?? "")).ToLowerInvariant();
             CharacterPanel.Children.Add(card);
+
+#if DEBUG
+            CallDebugOpenOnce();
+#endif
+
         }
 
+#if DEBUG
+        private bool _debugCharacterOpened;
+#endif
         private void ApplyCharacterCardVisuals(Border card, string name, string cls, string race, int level, int hp, string photoPath)
         {
             card.SetResourceReference(StyleProperty, "CharacterCardStyle");

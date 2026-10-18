@@ -100,6 +100,11 @@ namespace HMWT_MUI.Net
         /// <summary>
         /// Сохраняет собранное фото в папке комнаты и возвращает относительный
         /// путь для показа (относительно корня фотографий приложения).
+        ///
+        /// Имя файла — владелец и хэш содержимого. Так повторная отправка того
+        /// же аватара возвращает ТОТ ЖЕ путь: раньше каждый повтор создавал новый
+        /// файл, старый удалялся, и у игроков картинка «мигала» — то есть, то нет
+        /// до перезахода. Одинаковый хэш — тот же файл, ничего не перезаписываем.
         /// </summary>
         public static string SaveReceived(string roomId, string ownerId, byte[] bytes, string extension)
         {
@@ -107,27 +112,41 @@ namespace HMWT_MUI.Net
 
             try
             {
-                string dir = PhotoHelper.GetRoomPhotoFolder(roomId);
-                string safeOwner = MakeSafeName(ownerId);
-                string safeExt = string.IsNullOrWhiteSpace(extension) ? ".png" : extension.ToLowerInvariant();
-
-                // Прежние аватары этого игрока убираем: иначе копятся файлы,
-                // а расширение могло измениться
-                foreach (var old in Directory.GetFiles(dir, safeOwner + "_*"))
+                lock (SaveLock)
                 {
-                    try { File.Delete(old); } catch { }
+                    string dir = PhotoHelper.GetRoomPhotoFolder(roomId);
+                    string safeOwner = MakeSafeName(ownerId);
+                    string safeExt = string.IsNullOrWhiteSpace(extension) ? ".png" : extension.ToLowerInvariant();
+
+                    string hash;
+                    using (var sha = System.Security.Cryptography.SHA1.Create())
+                        hash = BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").Substring(0, 12).ToLowerInvariant();
+
+                    string fileName = $"{safeOwner}_{hash}{safeExt}";
+                    string full = Path.Combine(dir, fileName);
+                    string roomFolder = MakeSafeName(roomId);
+                    string relative = $"Rooms/{roomFolder}/photos/{fileName}";
+
+                    // Такой файл уже есть — путь не меняется, ничего не трогаем
+                    if (File.Exists(full))
+                    {
+                        Debug.WriteLine($"[Фото] уже сохранено: {relative}");
+                        return relative;
+                    }
+
+                    File.WriteAllBytes(full, bytes);
+
+                    // Прежние версии этого аватара убираем, кроме нового файла
+                    foreach (var old in Directory.GetFiles(dir, safeOwner + "_*"))
+                    {
+                        if (string.Equals(Path.GetFullPath(old), Path.GetFullPath(full),
+                                StringComparison.OrdinalIgnoreCase)) continue;
+                        try { File.Delete(old); } catch { }
+                    }
+
+                    Debug.WriteLine($"[Фото] сохранено: {relative} ({bytes.Length} байт)");
+                    return relative;
                 }
-
-                string fileName = $"{safeOwner}_{DateTime.Now:yyyyMMddHHmmss}{safeExt}";
-                string full = Path.Combine(dir, fileName);
-                File.WriteAllBytes(full, bytes);
-
-                // Относительный путь от корня фотографий: так его поймёт ResolvePhotoPath
-                string roomFolder = MakeSafeName(roomId);
-                string relative = $"Rooms/{roomFolder}/photos/{fileName}";
-
-                Debug.WriteLine($"[Фото] сохранено: {relative} ({bytes.Length} байт)");
-                return relative;
             }
             catch (Exception ex)
             {
@@ -135,6 +154,9 @@ namespace HMWT_MUI.Net
                 return "";
             }
         }
+
+        /// <summary>Один поток пишет фото за раз: одинаковые имена не должны пересекаться.</summary>
+        private static readonly object SaveLock = new object();
 
         private static string MakeSafeName(string name)
         {

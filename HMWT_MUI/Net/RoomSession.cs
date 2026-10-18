@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using HMWT_MUI.Models;
 
 namespace HMWT_MUI.Net
 {
@@ -49,14 +50,6 @@ namespace HMWT_MUI.Net
         private readonly object _clientFeedLock = new object();
         private bool _clientFeedLoaded;
 
-        /// <summary>Момент последней отправки своих данных в комнату (для периодической сверки).</summary>
-        private DateTime _lastSelfPublishUtc = DateTime.MinValue;
-
-        /// <summary>
-        /// Фоновая сверка своих данных. Раньше она жила в таймере вкладки «Отряд»:
-        /// закрыл вкладку — и правки (аватар, здоровье) до друзей не доходили.
-        /// </summary>
-        private System.Threading.Timer _selfSyncTimer;
         private string _lastSelfSignature = "";
 
         public SessionMode Mode { get; private set; } = SessionMode.Offline;
@@ -152,6 +145,21 @@ namespace HMWT_MUI.Net
         public event Action<FeedEntry> FeedReceived;
         public event Action<RoomSnapshot> SnapshotReceived;
 
+        /// <summary>Карта боя изменилась: у хоста — своя, у игрока — пришла от хоста.</summary>
+        public event Action MapChanged;
+
+        /// <summary>Картинка карты собрана у игрока: (хэш, путь к файлу).</summary>
+        public event Action<string, string> MapImageReady;
+
+        /// <summary>Ведущий начал разведку заново: игроку нужно очистить «разведанное».</summary>
+        public event Action MapSeenReset;
+
+        /// <summary>Жетон сдвинулся во время перетаскивания: (id, x, y, поворот).</summary>
+        public event Action<int, double, double, double> TokenMovedLive;
+
+        /// <summary>Получен чужой аватар: файл появился, карточку нужно перерисовать.</summary>
+        public event Action<string> PhotoUpdated;
+
         /// <summary>
         /// Участник ушёл из отряда: (участник, причина).
         /// Приходит из сетевых потоков — интерфейс обязан сам перейти в UI-поток.
@@ -200,6 +208,7 @@ namespace HMWT_MUI.Net
                 Key = key;
 
                 _server = new RoomServer(_manifest.Id, key, Port, fingerprint);
+                _server.RoomName = _manifest.Name ?? "";
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
                 _server.Events.FeedAdded = e => FeedReceived?.Invoke(e);
@@ -212,6 +221,8 @@ namespace HMWT_MUI.Net
 
                 // Уход участника: лента пополняется сама, а интерфейсу нужен
                 // отдельный сигнал — иначе заметить уход напарника легко
+                _server.MapChanged += () => MapChanged?.Invoke();
+                _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
                 {
@@ -233,6 +244,10 @@ namespace HMWT_MUI.Net
                 // Хост становится первым участником и ведущим: иначе он не видел бы
                 // себя в собственном отряде, ведь он ни к чему не подключается
                 _hostPlayer = _server.RegisterHost(me);
+
+                // Свой аватар сразу кладём в папку комнаты и рассылаем как файл:
+                // гости просят его по снимку, а снимок указывает уже на эту папку
+                TrySendMyPhoto(me);
 
                 Mode = SessionMode.Host;
                 HostAddress = NetworkHelper.GetLocalAddress();
@@ -304,6 +319,11 @@ namespace HMWT_MUI.Net
                 //
                 // Фото передаётся через хоста — у остальных порт закрыт. Здесь
                 // оно уже собрано из частей, остаётся записать файл и показать.
+                _client.Events.MapStateReceived = scene => MapChanged?.Invoke();
+                _client.Events.MapImageReceived = (hash, path) => MapImageReady?.Invoke(hash, path);
+                _client.Events.MapSeenResetReceived = () => MapSeenReset?.Invoke();
+                _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
                 {
                     try
@@ -313,6 +333,7 @@ namespace HMWT_MUI.Net
 
                         ApplyReceivedPhoto(ownerId, relative);
                         Debug.WriteLine($"[Фото] получен аватар игрока {ownerId}: {relative}");
+                        LogPhotoDiag($"получен аватар {ownerId}: {relative} ({bytes.Length} байт)");
                         StateChanged?.Invoke();
                     }
                     catch (Exception ex)
@@ -336,6 +357,7 @@ namespace HMWT_MUI.Net
 
                         Debug.WriteLine($"[Фото] отвечаю на запрос аватара: {relative}");
                         _lastSentAvatarPath = relative;
+                        LogPhotoDiag($"отправляю свой аватар по запросу: {relative}");
                         _ = _client.SendPhotoAsync(full, MyPlayerId, RoomId);
                     }
                     catch (Exception ex)
@@ -368,6 +390,7 @@ namespace HMWT_MUI.Net
                 _client.Events.PhotoMissing = ownerId =>
                 {
                     Debug.WriteLine($"[Фото] у хоста нет аватара {ownerId}");
+                    MarkPhotoMissing(ownerId);
                 };
                 _client.Events.ConnectionChanged = (state, err, connected) =>
                 {
@@ -395,9 +418,29 @@ namespace HMWT_MUI.Net
                 // клиент получает её снимком. Так нет двух расходящихся копий.
                 Mode = SessionMode.Client;
 
-            // Данные сверяем фоном: вкладку «Отряд» игрок может и не открывать,
-            // а аватар и здоровье у друзей должны обновляться
-            StartSelfSync();
+                // У гостя нет манифеста комнаты, но RoomId нужен для папки
+                // фотографий: без него полученные аватары сохранялись в одну
+                // папку («Rooms/room»), а разыскивались в другой («Rooms/player»)
+                // и не показывались никогда.
+                _manifest = new RoomManifest
+                {
+                    Id = _client.RoomId,
+                    Name = _client.RoomName,
+                    AppVersion = NetVersions.AppVersion,
+                    ProtocolVersion = NetVersions.ProtocolVersion,
+                    DataFingerprint = DataFingerprint
+                };
+
+                // Свой аватар отправляем сразу, не ожидая запроса: ответ мог
+                // потеряться, и тогда остальные видели букву вместо фото
+                TrySendMyPhoto(me);
+
+                // Комната попадает в историю игрока: в следующий раз достаточно
+                // выбрать её в списке, а не вписывать адрес и ключ заново
+                HMWT_MUI.Services.ClientRoomHistory.Remember(host, Port, Key, _client.RoomName);
+
+                // Никаких интервалов синхронизации: свои данные уходят сразу при
+                // сохранении карточки, чужие — снимком на каждое изменение.
 
                 // Ждём первый снимок от хоста.
                 //
@@ -423,37 +466,9 @@ namespace HMWT_MUI.Net
         /// <summary>
         /// Просит хост прислать свежее состояние комнаты.
         ///
-        /// Нужно для периодического обновления: если другой игрок сменил аватар
-        /// или здоровье, событие об этом могло не дойти, и тогда снимок
-        /// запрашивается сам — раз в несколько секунд.
+        /// Нужно, когда снимок мог потеряться (например, после переподключения).
+        /// Периодической сверки по таймеру больше нет: любое изменение уходит сразу.
         /// </summary>
-        /// <summary>
-        /// Запускает фоновую сверку: раз в десять секунд проверяем, не изменились
-        /// ли наши данные, и если да — отправляем их хосту, а тот раздаёт всем.
-        /// </summary>
-        private void StartSelfSync()
-        {
-            StopSelfSync();
-            try
-            {
-                _selfSyncTimer = new System.Threading.Timer(_ =>
-                {
-                    try { RefreshMyCharacterIfStale(TimeSpan.FromSeconds(10)); }
-                    catch (Exception ex) { Debug.WriteLine($"[Отряд] фоновая сверка: {ex.Message}"); }
-                }, null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Отряд] таймер сверки: {ex.Message}");
-            }
-        }
-
-        private void StopSelfSync()
-        {
-            try { _selfSyncTimer?.Dispose(); } catch { }
-            _selfSyncTimer = null;
-        }
-
         public void RequestRefresh()
         {
             try
@@ -508,8 +523,6 @@ namespace HMWT_MUI.Net
                 try { _client.SendLeaveAsync().Wait(400); } catch { }
             }
 
-            StopSelfSync();
-
             try { _client?.Disconnect(); } catch { }
             try { _server?.Stop(); } catch { }
 
@@ -530,7 +543,17 @@ namespace HMWT_MUI.Net
                 _clientFeedLoaded = false;
             }
             _lastSelfSignature = "";
-            _lastSelfPublishUtc = DateTime.MinValue;
+
+            // Аватары и фото относятся к прежней комнате: в новой их нужно
+            // отправить и запросить заново
+            _lastSentAvatarPath = "";
+            _lastHostSourceAvatar = "";
+            lock (_receivedPhotos) { _receivedPhotos.Clear(); }
+            lock (_requestedLock)
+            {
+                _requestedPhotos.Clear();
+                _photosMissing.Clear();
+            }
 
             StateChanged?.Invoke();
         }
@@ -555,6 +578,9 @@ namespace HMWT_MUI.Net
                 Port = NetVersions.DefaultPort;
 
                 _server = new RoomServer(manifest.Id, key, Port, DataFingerprint);
+                _server.RoomName = manifest.Name ?? "";
+                _server.MapChanged += () => MapChanged?.Invoke();
+                _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
                 _server.Events.FeedAdded = e => FeedReceived?.Invoke(e);
@@ -674,6 +700,99 @@ namespace HMWT_MUI.Net
             StateChanged?.Invoke();
         }
 
+        // ══════════════════════ КАРТА БОЯ ══════════════════════
+
+        /// <summary>Текущая карта боя: у хоста — своя, у игрока — присланная.</summary>
+        public MapSceneData GetMapScene()
+        {
+            if (!IsActive) return null;
+            if (IsHost) return _server?.GetMap();
+            return _client?.LastMap;
+        }
+
+        /// <summary>Ведущий изменил карту — раскладываем игрокам.</summary>
+        public void PublishMapScene(MapSceneData scene)
+        {
+            if (!IsActive || !IsHost || scene == null || _server == null) return;
+
+            _server.SetMap(scene);
+        }
+
+        /// <summary>Ведущий начал разведку заново — просим клиентов очистить «разведанное».</summary>
+        public void ResetClientsSeen()
+        {
+            if (!IsActive || !IsHost || _server == null) return;
+
+            _server.BroadcastSeenReset();
+        }
+
+        /// <summary>Игрок подвинул своего жетона: отправляем хосту.</summary>
+        public bool SendMapMove(int tokenId, double x, double y, double facing = double.NaN,
+            double viewAngle = -1, int sizeCells = -1)
+        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected) return false;
+
+            if (viewAngle >= 0 || sizeCells >= 1)
+                _ = _client.SendMapMoveEditAsync(tokenId, x, y, facing, viewAngle, sizeCells);
+            else
+                _ = _client.SendMapMoveAsync(tokenId, x, y, facing);
+            return true;
+        }
+
+        /// <summary>Промежуточное движение игрока: остальные видят жетон сразу.</summary>
+        public void SendMapMoveLive(int tokenId, double x, double y, double facing = double.NaN)
+        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected) return;
+
+            _ = _client.SendMapMoveLiveAsync(tokenId, x, y, facing);
+        }
+
+        /// <summary>Ведущий двигает жетон: рассылаем без записи в базу на каждом шаге.</summary>
+        public void PublishLiveTokenMove(int tokenId, double x, double y, double facing = double.NaN)
+        {
+            if (!IsActive || !IsHost || _server == null) return;
+
+            _server.UpdateTokenLive(tokenId, x, y, facing);
+        }
+
+        /// <summary>Игрок просит карту (например, только что открыл вкладку).</summary>
+        public void RequestMap()
+        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected) return;
+
+            _ = _client.SendMapRequestAsync();
+        }
+
+        /// <summary>Игрок просит картинку карты по хэшу.</summary>
+        public void RequestMapImage(string hash)
+        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected) return;
+            if (string.IsNullOrWhiteSpace(hash)) return;
+
+            _ = _client.SendMapImageRequestAsync(hash);
+        }
+
+        /// <summary>Игрок нарисовал штрих — отправляем ведущему.</summary>
+        public void SendMapStroke(MapStrokeData stroke)        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected) return;
+            if (stroke == null || string.IsNullOrWhiteSpace(stroke.Points)) return;
+
+            _ = _client.SendMapStrokeAsync(new MapStrokeRequest
+            {
+                Color = stroke.Color ?? "",
+                Thickness = stroke.Thickness,
+                Points = stroke.Points
+            });
+        }
+
+        /// <summary>Игрок стёр штрихи — просим ведущего удалить их у всех.</summary>
+        public void EraseMapStrokes(List<int> ids)
+        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected) return;
+            if (ids == null || ids.Count == 0) return;
+
+            _ = _client.SendMapStrokeEraseAsync(ids);
+        }
         /// <summary>Состояние трекера инициативы: у хоста — своё, у гостя — из снимка.</summary>
         public InitiativeState GetInitiative()
         {
@@ -715,6 +834,12 @@ namespace HMWT_MUI.Net
         private string _lastSentAvatarPath = "";
 
         /// <summary>
+        /// Исходный (из карточки) путь аватара, который ведущий уже скопировал
+        /// в папку комнаты. Нужен, чтобы не копировать тот же файл повторно.
+        /// </summary>
+        private string _lastHostSourceAvatar = "";
+
+        /// <summary>
         /// Последний известный путь к своему аватару.
         ///
         /// Нужен для ответа на запрос хоста: окно персонажа может быть уже
@@ -731,7 +856,7 @@ namespace HMWT_MUI.Net
         private readonly Dictionary<string, string> _receivedPhotos =
             new Dictionary<string, string>(StringComparer.Ordinal);
 
-        /// <summary>Запоминает путь к полученному чужому аватару.</summary>
+        /// <summary>Файл пришёл — просить его больше не нужно.</summary>
         private void ApplyReceivedPhoto(string ownerId, string relativePath)
         {
             if (string.IsNullOrWhiteSpace(ownerId) || string.IsNullOrWhiteSpace(relativePath)) return;
@@ -745,6 +870,34 @@ namespace HMWT_MUI.Net
             lock (_requestedLock)
             {
                 _requestedPhotos.Remove(ownerId);
+                _photosMissing.Remove(ownerId);
+            }
+
+            // Карточка участника уже нарисована с путём, который был в снимке:
+            // подпись данных не меняется, и без этого сигнала аватар появлялся
+            // только после перезахода на вкладку
+            PhotoUpdated?.Invoke(ownerId);
+        }
+
+        /// <summary>
+        /// Владельцы, у которых хоста нет файла аватара. Их больше не просим:
+        /// иначе «ждём фото» горело бы вечно, хотя картинки не существует.
+        /// </summary>
+        private readonly HashSet<string> _photosMissing = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>Аватар этого участника запросить невозможно: у хоста его нет.</summary>
+        public bool IsPhotoMissing(string ownerId)
+            => !string.IsNullOrEmpty(ownerId) && _photosMissing.Contains(ownerId);
+
+        /// <summary>Запоминает, что у хоста нет аватара участника.</summary>
+        public void MarkPhotoMissing(string ownerId)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId)) return;
+
+            lock (_requestedLock)
+            {
+                _requestedPhotos.Remove(ownerId);
+                if (_photosMissing.Count < 64) _photosMissing.Add(ownerId);
             }
         }
 
@@ -770,7 +923,7 @@ namespace HMWT_MUI.Net
         /// игрока нет: фотографии передаются отдельно. Без этого запроса чужие
         /// аватары не появлялись до смены фото их владельцем.
         /// </summary>
-        public void RequestMissingPhotos()
+        public void RequestMissingPhotos(bool force = false)
         {
             try
             {
@@ -782,14 +935,19 @@ namespace HMWT_MUI.Net
                     if (string.IsNullOrWhiteSpace(player.AvatarPath)) continue;
                     if (string.Equals(player.Id, MyPlayerId, StringComparison.Ordinal)) continue;
 
+                    // У хоста этого файла нет — повторные просьбы бессмысленны
+                    if (IsPhotoMissing(player.Id)) continue;
+
                     // Файл уже есть на диске — просить не нужно
                     string full = HMWT_MUI.PhotoHelper.ResolvePhotoPath(player.AvatarPath);
                     if (!string.IsNullOrEmpty(full) && System.IO.File.Exists(full)) continue;
 
                     lock (_requestedLock)
                     {
-                        // Просим заново, если путь изменился: значит, у игрока новое фото
-                        if (_requestedPhotos.TryGetValue(player.Id, out string asked) &&
+                        // Обычно просим только при смене пути: значит, у игрока новое
+                        // фото. Повтор (force) нужен таймеру: ответ мог потеряться.
+                        if (!force &&
+                            _requestedPhotos.TryGetValue(player.Id, out string asked) &&
                             string.Equals(asked, player.AvatarPath, StringComparison.Ordinal))
                             continue;
 
@@ -848,7 +1006,8 @@ namespace HMWT_MUI.Net
             if (signature == _lastSelfSignature) return;
 
             _lastSelfSignature = signature;
-            _lastSelfPublishUtc = DateTime.UtcNow;
+
+            LogPartySend(me);
 
             if (IsHost)
             {
@@ -866,6 +1025,39 @@ namespace HMWT_MUI.Net
             TrySendMyPhoto(me);
 
             StateChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Пишет в room-log, какие данные участника ушли в отряд.
+        ///
+        /// Без этого «у меня 210 максимума, а в отряде 185» приходилось
+        /// разбирать догадками: в журнале видно и текущее, и максимум.
+        /// </summary>
+        private static void LogPartySend(PlayerInfo me)
+        {
+            try
+            {
+                string dir = HMWT_MUI.PhotoHelper.GetWritableRoot();
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "room-log.txt"),
+                    $"{DateTime.Now:HH:mm:ss.fff} отправка участника: персонаж {me.CharacterId} " +
+                    $"«{me.CharacterName}», хиты {me.Hp}/{me.MaxHp}, класс «{me.CharacterClass}», " +
+                    $"аватар «{me.AvatarPath}», в отряде «{me.Name}»\r\n");
+            }
+            catch { }
+        }
+
+        /// <summary>Строка о передаче аватара в room-log (отправка/получение).</summary>
+        private static void LogPhotoDiag(string text)
+        {
+            try
+            {
+                string dir = HMWT_MUI.PhotoHelper.GetWritableRoot();
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "room-log.txt"),
+                    $"{DateTime.Now:HH:mm:ss.fff} фото: {text}\r\n");
+            }
+            catch { }
         }
 
         /// <summary>
@@ -901,6 +1093,11 @@ namespace HMWT_MUI.Net
                 // Ведущий кладёт файл себе сам, гости отправляют его по сети
                 if (IsHost)
                 {
+                    // Исходный путь из карточки не меняется, а копия в папке
+                    // комнаты каждый раз получает новое имя — сравниваем исходник,
+                    // иначе аватар копировался бы при каждом сохранении профиля
+                    if (string.Equals(relative, _lastHostSourceAvatar, StringComparison.OrdinalIgnoreCase)) return;
+
                     string saved = PhotoTransferService.SaveReceived(
                         RoomId, MyPlayerId, System.IO.File.ReadAllBytes(full),
                         System.IO.Path.GetExtension(full));
@@ -909,7 +1106,13 @@ namespace HMWT_MUI.Net
                     {
                         me.AvatarPath = saved;
                         _server.UpdatePlayer(MyPlayerId, me);
-                        _lastSentAvatarPath = relative;
+                        _lastHostSourceAvatar = relative;
+
+                        // Сравнивать в следующий раз нужно с ПУТЁМ В ПАПКЕ КОМНАТЫ:
+                        // иначе профиль с уже скопированным путём копировался бы
+                        // заново при каждом сохранении карточки
+                        _lastSentAvatarPath = saved;
+                        _lastSelfAvatarPath = saved;
                         _ = _server.BroadcastSnapshotAsync();
 
                         // И сразу шлём сам файл: иначе игроки видят только путь
@@ -917,6 +1120,7 @@ namespace HMWT_MUI.Net
                         _ = _server.SendPhotoToAllAsync(saved, MyPlayerId);
 
                         Debug.WriteLine($"[Фото] аватар ведущего сохранён и разослан: {saved}");
+                        LogPhotoDiag($"ведущий сохранил свой аватар: {saved}");
                     }
                     return;
                 }
@@ -924,6 +1128,7 @@ namespace HMWT_MUI.Net
                 if (_client == null || !_client.IsConnected) return;
 
                 _lastSentAvatarPath = relative;
+                LogPhotoDiag($"отправляю свой аватар: {relative} → комната {RoomId}");
                 _ = _client.SendPhotoAsync(full, MyPlayerId, RoomId);
             }
             catch (Exception ex)
@@ -932,35 +1137,33 @@ namespace HMWT_MUI.Net
             }
         }
 
+        /// <summary>Короткая подпись значимых полей: по ней видно, менялись ли данные.</summary>
+        private static string SignatureOf(PlayerInfo p)
+            => $"{p.CharacterName}|{p.Name}|{p.CharacterClass}|{p.CharacterRace}|{p.Level}|{p.Hp}|{p.MaxHp}|{p.ArmorClass}|{p.AvatarPath}";
+
         /// <summary>
-        /// Просит обновить мои данные, но не чаще раза в <paramref name="minInterval"/>.
+        /// Отправляет свои данные заново (например, включили имя из профиля).
         ///
-        /// Данные берутся у окна персонажа через <see cref="MyCharacterProvider"/>:
-        /// имя, аватар и здоровье меняются уже после входа в комнату, и без такой
-        /// сверки остальные продолжали видеть первоначальные значения.
+        /// Сравнение подписей не даст пропустить изменение: имя участника
+        /// входит в подпись, поэтому новый вариант уходит в комнату сразу.
         /// </summary>
-        public void RefreshMyCharacterIfStale(TimeSpan minInterval)
+        public void RepublishMyProfile()
         {
             if (!IsActive) return;
-            if (DateTime.UtcNow - _lastSelfPublishUtc < minInterval) return;
 
             var provider = MyCharacterProvider;
             if (provider == null) return;
 
-            PlayerInfo me;
-            try { me = provider(); }
+            try
+            {
+                var me = provider();
+                if (me != null) UpdateMyCharacter(me);
+            }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[RoomSession] поставщик данных персонажа: {ex.Message}");
-                return;
+                Debug.WriteLine($"[Отряд] повторная отправка профиля: {ex.Message}");
             }
-
-            if (me != null) UpdateMyCharacter(me);
         }
-
-        /// <summary>Короткая подпись значимых полей: по ней видно, менялись ли данные.</summary>
-        private static string SignatureOf(PlayerInfo p)
-            => $"{p.CharacterName}|{p.CharacterClass}|{p.CharacterRace}|{p.Level}|{p.Hp}|{p.MaxHp}|{p.ArmorClass}|{p.AvatarPath}";
 
         #endregion
 

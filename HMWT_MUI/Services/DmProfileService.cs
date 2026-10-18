@@ -25,6 +25,7 @@ namespace HMWT_MUI.Services
             => !string.IsNullOrWhiteSpace(DisplayName) || !string.IsNullOrWhiteSpace(PhotoPath);
 
         public static string DisplayName => SafeGet(NameKey);
+
         public static string Subtitle => SafeGet(ClassKey);
         public static string PhotoPath => SafeGet(PhotoKey);
 
@@ -117,6 +118,134 @@ namespace HMWT_MUI.Services
         /// Если профиль ведущего задан, он имеет приоритет: ведущий может играть
         /// без своего персонажа и всё равно показываться в отряде с именем и аватаром.
         /// </summary>
+        /// <summary>
+        /// Участник отряда от этого приложения: имя — ИМЯ ПЕРСОНАЖА, а не профиль
+        /// и не учётная запись Windows. Своё имя подставляется только если его
+        /// включили в настройках; без персонажа показывается «Игрок».
+        /// </summary>
+        public static PlayerInfo BuildPartyPlayer(int characterId = 0)
+        {
+            string characterName = "";
+            int foundId = 0;
+            int hp = 0, armor = 0, level = 1;
+            string charClass = "", race = "", avatar = "";
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+
+                // Конкретный персонаж важнее «последнего открытого»: два окна на
+                // одном компьютере иначе берут одного и того же персонажа.
+                int id = characterId > 0 ? characterId : LastCharacterId(conn);
+                if (id <= 0) return new PlayerInfo { Name = "Игрок" };
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT name, class, race, HP, ArmorClass, PhotoPath FROM CharacterInfo WHERE id_character = @id";
+                cmd.Parameters.AddWithValue("@id", id);
+
+                using var r = cmd.ExecuteReader();
+                if (!r.Read()) return new PlayerInfo { Name = "Игрок" };
+
+                foundId = id;
+                characterName = r.IsDBNull(0) ? "" : r.GetString(0).Trim();
+                charClass = r.IsDBNull(1) ? "" : r.GetString(1);
+                race = r.IsDBNull(2) ? "" : r.GetString(2);
+                hp = r.IsDBNull(3) ? 0 : r.GetInt32(3);
+                armor = r.IsDBNull(4) ? 0 : r.GetInt32(4);
+                avatar = r.IsDBNull(5) ? "" : r.GetString(5);
+
+                r.Close();
+                using var levelCmd = conn.CreateCommand();
+                levelCmd.CommandText = "SELECT Level FROM LevelTable WHERE id_character = @id LIMIT 1";
+                levelCmd.Parameters.AddWithValue("@id", foundId);
+                var levelValue = levelCmd.ExecuteScalar();
+                if (levelValue != null && levelValue != DBNull.Value) level = Convert.ToInt32(levelValue);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DmProfile] участник отряда: {ex.Message}");
+                try
+                {
+                    string dir = PhotoHelper.GetWritableRoot();
+                    Directory.CreateDirectory(dir);
+                    File.AppendAllText(Path.Combine(dir, "party.log"),
+                        DateTime.Now.ToString("HH:mm:ss") + " участник отряда: " + ex + "\r\n");
+                }
+                catch { }
+            }
+
+            // Максимум HP хранится не в CharacterInfo, а в настройках персонажа:
+            // оттуда же его берёт шапка листа. Без этого в отряд уходило
+            // «185/185» вместо «185/210».
+            int maxHp = 0;
+            try
+            {
+                if (foundId > 0)
+                {
+                    maxHp = DatabaseHelper.GetCharacterMaxHp(foundId);
+                    if (maxHp <= 0) maxHp = hp;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DmProfile] максимум здоровья: {ex.Message}");
+                maxHp = hp;
+            }
+
+            try
+            {
+                string dir = PhotoHelper.GetWritableRoot();
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "room-log.txt"),
+                    $"{DateTime.Now:HH:mm:ss.fff} участник: персонаж {characterId} «{characterName}», " +
+                    $"хиты {hp}/{maxHp}, класс «{charClass}», аватар «{avatar}», в отряде «{characterName}»\r\n");
+            }
+            catch { }
+
+            if (string.IsNullOrWhiteSpace(characterName)) return new PlayerInfo { Name = "Игрок", CharacterId = foundId };
+
+            // В отряде у всех одно имя — имя персонажа. Личного профиля для
+            // отряда больше нет: броски и трекер и так показывают персонажа.
+            return new PlayerInfo
+            {
+                CharacterId = foundId,
+                CharacterName = characterName,
+                CharacterClass = charClass,
+                CharacterRace = race,
+                Hp = hp,
+                MaxHp = maxHp,
+                ArmorClass = armor,
+                Level = level,
+                AvatarPath = avatar,
+                Name = characterName
+            };
+        }
+
+        /// <summary>Персонаж, которого открывали последним, иначе первый по списку.</summary>
+        private static int LastCharacterId(Microsoft.Data.Sqlite.SqliteConnection conn)
+        {
+            try
+            {
+                using var last = conn.CreateCommand();
+                last.CommandText = "SELECT Value FROM Settings WHERE Key = 'LastCharacterId' LIMIT 1";
+                var stored = last.ExecuteScalar();
+                if (stored != null && stored != DBNull.Value &&
+                    int.TryParse(Convert.ToString(stored), out int lastId) && lastId > 0)
+                {
+                    using var check = conn.CreateCommand();
+                    check.CommandText = "SELECT COUNT(*) FROM CharacterInfo WHERE id_character = @id";
+                    check.Parameters.AddWithValue("@id", lastId);
+                    if (Convert.ToInt32(check.ExecuteScalar()) > 0) return lastId;
+                }
+
+                using var first = conn.CreateCommand();
+                first.CommandText = "SELECT id_character FROM CharacterInfo ORDER BY id_character LIMIT 1";
+                var value = first.ExecuteScalar();
+                return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            }
+            catch { return 0; }
+        }
         public static PlayerInfo BuildPlayer(string fallbackName)
         {
             string photo = PhotoPath;

@@ -112,6 +112,69 @@ namespace HMWT_MUI.RoomUiTests
             Say($"  [{(ok ? "OK  " : "ПРОВАЛ")}] {label}{(string.IsNullOrEmpty(detail) ? "" : " — " + detail)}");
         }
 
+        /// <summary>
+        /// Максимум HP участника отряда берётся из настроек персонажа
+        /// (Character_{id}_MaxHP), а не из колонки HP.
+        ///
+        /// Раньше в отряд уходило «185/185» вместо «185/210»: текущее здоровье
+        /// выдавалось за максимум, и полоса здоровья у всех была полной.
+        /// </summary>
+        private static void CheckMaxHpFromSettings()
+        {
+            int id = 0;
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+
+                using (var cmd = new SqliteCommand(
+                    "INSERT INTO CharacterInfo (name, class, race, HP, ArmorClass) " +
+                    "VALUES ('Тест Максимум', 'Воин', 'Человек', 11, 12)", conn))
+                    cmd.ExecuteNonQuery();
+
+                using (var cmd = new SqliteCommand("SELECT last_insert_rowid()", conn))
+                    id = Convert.ToInt32(cmd.ExecuteScalar());
+
+                using (var cmd = new SqliteCommand(
+                    "INSERT OR REPLACE INTO Settings (Key, Value) VALUES (@k, '17')", conn))
+                {
+                    cmd.Parameters.AddWithValue("@k", $"Character_{id}_MaxHP");
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Check("персонаж для проверки максимума HP создан", false, ex.Message);
+                return;
+            }
+
+            try
+            {
+                var me = DmProfileService.BuildPartyPlayer(id);
+                Check("максимум HP берётся из настроек персонажа",
+                    me != null && me.Hp == 11 && me.MaxHp == 17,
+                    me == null ? "участник не собран" : $"hp={me.Hp}/{me.MaxHp}");
+                Check("текущее здоровье не выдаётся за максимум",
+                    me != null && me.MaxHp > me.Hp,
+                    me == null ? "" : $"{me.Hp}/{me.MaxHp}");
+            }
+            finally
+            {
+                try
+                {
+                    using var conn = DatabaseHelper.GetConnection();
+                    conn.Open();
+                    using var cmd = new SqliteCommand(
+                        "DELETE FROM CharacterInfo WHERE id_character = @id; " +
+                        "DELETE FROM Settings WHERE Key = @k", conn);
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@k", $"Character_{id}_MaxHP");
+                    cmd.ExecuteNonQuery();
+                }
+                catch { }
+            }
+        }
+
         private static void RunAll()
         {
             // ── Проверка связки кнопок с кодом ──
@@ -163,6 +226,10 @@ namespace HMWT_MUI.RoomUiTests
             Check("словарь токенов загружен", tokenCount > 0, $"ключей: {tokenCount}");
             foreach (var key in new[] { "B.Panel", "B.Backdrop", "B.Accent", "B.Ok", "B.Frost", "F.Display" })
                 Check($"токен {key} доступен", Application.Current.TryFindResource(key) != null);
+
+            Say("");
+            Say("═══ МАКСИМУМ HP В ОТРЯДЕ ═══");
+            CheckMaxHpFromSettings();
 
             Say("═══ СВЯЗКА КНОПОК С КОДОМ ═══");
             CheckButtonWiring("MainWindow.xaml",
@@ -1165,8 +1232,9 @@ namespace HMWT_MUI.RoomUiTests
                 Check("на вкладке есть ползунок масштаба", FindByName(view, "sldScale") != null);
                 Check("на вкладке есть выбор режима гифок",
                     FindByName(view, "rbGifLow") != null && FindByName(view, "rbGifHigh") != null);
-                Check("на вкладке есть выбор интервала обновления",
-                    FindByName(view, "cmbRefreshInterval") != null);
+                // Интервала синхронизации больше нет: любое изменение уходит сразу
+                Check("выбора интервала обновления нет",
+                    FindByName(view, "cmbRefreshInterval") == null);
 
                 // Масштаб применяется ко всем окнам: проверяем, что менеджер отвечает
                 int before = UiScaleManager.CurrentPercent;

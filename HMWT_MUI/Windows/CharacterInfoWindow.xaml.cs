@@ -18,6 +18,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Path = System.IO.Path;
 
 namespace HMWT_MUI
@@ -110,6 +111,17 @@ namespace HMWT_MUI
             ApplyTabPlacement();
 
             SwitchView("Info");
+
+#if DEBUG
+            // Отладка: HMWT_DEBUG_VIEW=Map открывает нужную вкладку сразу.
+            // Нужно для проверок интерфейса без кликов; в релизе кода нет.
+            try
+            {
+                string debugView = Environment.GetEnvironmentVariable("HMWT_DEBUG_VIEW");
+                if (!string.IsNullOrWhiteSpace(debugView)) SwitchView(debugView.Trim());
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[CharacterInfoWindow] отладка вкладки: {ex.Message}"); }
+#endif
 
             _diceRoller = new Services.DiceRoller();
             _diceRoller.OnDiceRolled += DiceRoller_OnDiceRolled;
@@ -302,6 +314,7 @@ namespace HMWT_MUI
                     ShowAvatar(relativePath);
                     _currentPhotoPath = relativePath;
                     ShowToast("Аватар обновлён");
+                    NotifyRoomProfileChanged();
                 }
                 catch (Exception ex) { ShowToast($"Ошибка: {ex.Message}", true); }
             }
@@ -512,6 +525,8 @@ namespace HMWT_MUI
 
             if (newHp == 0) ShowStabilizationOverlay();
             else if (newHp > 0 && (_stabSuccesses > 0 || _stabFailures > 0)) ResetStabilization();
+
+            NotifyRoomProfileChanged();
         }
 
         private void UpdateHPDisplayWithTempHP()
@@ -574,6 +589,7 @@ namespace HMWT_MUI
                     UpdateHPDisplayWithTempHP();
                     LoadCharacterHeader();
                     ShowToast($"Максимум HP: {maxHP}");
+                    NotifyRoomProfileChanged();
                 }
                 catch (Exception ex)
                 {
@@ -826,6 +842,7 @@ namespace HMWT_MUI
 
                 if (levelsGained > 0) ShowToast($"Новый уровень: {level}! Бонус мастерства +{prof}");
                 else ShowToast($"Опыт: {exp}");
+                NotifyRoomProfileChanged();
             }
             catch (Exception ex)
             {
@@ -889,6 +906,7 @@ namespace HMWT_MUI
                 ShowToast($"Новый уровень: {newLevel}! Бонус мастерства: +{newProficiency}");
                 LoadCharacterHeader();
                 UpdateProgressBarFromDB();
+                NotifyRoomProfileChanged();
             }
             catch (Exception ex)
             {
@@ -1052,6 +1070,7 @@ namespace HMWT_MUI
                 LoadCharacterHeader();
                 UpdateProgressBarFromDB();
                 ShowToast("Сохранено");
+                NotifyRoomProfileChanged();
             }
             catch (Exception ex)
             {
@@ -2603,7 +2622,21 @@ namespace HMWT_MUI
                 case "Notes":
                     return new NotesView(_characterId);
                 case "Room":
-                    return new RoomView();
+                    {
+                        var room = new RoomView { CharacterId = _characterId };
+                        return room;
+                    }
+                case "Map":
+                    {
+                        var map = new Views.MapView(_characterId);
+                        map.OpenMonsterRequested += id =>
+                        {
+                            SwitchView("DmTools");
+                            if (_viewCache.TryGetValue("DmTools", out var dmView) && dmView is Views.DmToolsView tools)
+                                tools.OpenBestiary(id);
+                        };
+                        return map;
+                    }
                 case "DmTools":
                     return new Views.DmToolsView(_characterId);
                 case "Settings":
@@ -2694,6 +2727,7 @@ namespace HMWT_MUI
                 (btnNotesTab, "Notes", icoNotesTab, false),
                 (btnSpellsTab, "Spells", icoSpellsTab, true),
                 (btnRoomTab, "Room", icoRoomTab, false),
+                (btnMapTab, "Map", icoMapTab, false),
                 (btnDmToolsTab, "DmTools", icoDmToolsTab, true),
                 (btnDbTab, "DatabaseEditor", icoDbTab, false),                (btnReferenceTab, "Reference", icoReferenceTab, false),
                 (btnSettingsTab, "Settings", icoSettingsTab, false)
@@ -2801,6 +2835,8 @@ namespace HMWT_MUI
 
         private void btnDbTab_Click(object sender, RoutedEventArgs e) => SwitchView("DatabaseEditor");
         private void btnReferenceTab_Click(object sender, RoutedEventArgs e) => SwitchView("Reference");
+
+        private void btnMapTab_Click(object sender, RoutedEventArgs e) => SwitchView("Map");
 
         private void btnDmToolsTab_Click(object sender, RoutedEventArgs e)
         {
@@ -2986,6 +3022,42 @@ namespace HMWT_MUI
         #region === КОМНАТА: СОСТОЯНИЕ В ПОДВАЛЕ ===
 
         /// <summary>
+        /// Сообщает отряду, что карточка сохранилась (имя, класс, здоровье,
+        /// максимум, аватар).
+        ///
+        /// Раньше данные уходили только при входе в комнату, поэтому смену
+        /// аватара или имени остальные видели лишь после перезапуска вкладки.
+        /// Теперь любое сохранение карточки сразу уходит в комнату.
+        /// </summary>
+        private void NotifyRoomProfileChanged()
+        {
+            try
+            {
+                var session = RoomSession.Instance;
+                if (!session.IsActive) return;
+                PublishCharacterToRoom();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Room] NotifyProfile: {ex.Message}");
+                LogRoom("профиль: ошибка — " + ex.Message);
+            }
+        }
+
+        /// <summary>Строка диагностики в room-log: по ней видно, что ушло в отряд.</summary>
+        private static void LogRoom(string text)
+        {
+            try
+            {
+                string dir = PhotoHelper.GetWritableRoot();
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "room-log.txt"),
+                    $"{DateTime.Now:HH:mm:ss.fff} {text}\r\n");
+            }
+            catch { }
+        }
+
+        /// <summary>
         /// Отправляет данные моего персонажа в комнату, если мы в ней состоим.
         /// Вызывается при открытии окна: чтобы отряд сразу видел актуальные ХП и класс.
         /// </summary>
@@ -3008,9 +3080,10 @@ namespace HMWT_MUI
         /// <summary>
         /// Отдаёт комнате мои актуальные данные по запросу.
         ///
-        /// Вкладка «Отряд» раз в 10 секунд просит их заново: имя, аватар и здоровье
-        /// меняются прямо в базе, событий об этом нет, поэтому без такой сверки
-        /// остальные видели устаревшие значения — «безымянных и без аватарок».
+        /// Нужен, когда хост просит профиль заново (вход, переподключение):
+        /// имя, аватар и здоровье берутся из базы в момент запроса, поэтому
+        /// ответ всегда свежий. Обычные сохранения отправляются сразу —
+        /// см. <see cref="NotifyRoomProfileChanged"/>.
         /// </summary>
         private PlayerInfo ProvideMyRoomPlayer()
         {
@@ -3031,6 +3104,7 @@ namespace HMWT_MUI
             try
             {
                 using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"SELECT name, class, race, HP, ArmorClass, PhotoPath,
                                            COALESCE((SELECT Level FROM LevelTable WHERE id_character = CharacterInfo.id_character), 1)
@@ -3042,24 +3116,41 @@ namespace HMWT_MUI
 
                 string name = r.IsDBNull(0) ? "" : r.GetString(0);
                 int hp = r.IsDBNull(3) ? 0 : r.GetInt32(3);
+                string charClass = r.IsDBNull(1) ? "" : r.GetString(1);
+                string race = r.IsDBNull(2) ? "" : r.GetString(2);
+                int armor = r.IsDBNull(4) ? 0 : r.GetInt32(4);
+                string avatar = r.IsDBNull(5) ? "" : r.GetString(5);
+                int level = r.IsDBNull(6) ? 1 : r.GetInt32(6);
+
+                // В отряде у всех одно имя — имя персонажа. Личного профиля
+                // для отряда нет: броски и трекер и так показывают персонажа.
+                string display = string.IsNullOrWhiteSpace(name) ? "Игрок" : name.Trim();
+
+                // Максимум HP в таблице CharacterInfo не хранится: он лежит в
+                // настройках персонажа (там же, откуда его берёт шапка листа).
+                // Без этого в отряд уходило «185/185» вместо «185/210».
+                r.Close();
+                int maxHp = GetMaxHpFromSettings();
+                if (maxHp <= 0) maxHp = hp;
 
                 return new PlayerInfo
                 {
                     CharacterId = _characterId,
                     CharacterName = name,
-                    CharacterClass = r.IsDBNull(1) ? "" : r.GetString(1),
-                    CharacterRace = r.IsDBNull(2) ? "" : r.GetString(2),
+                    CharacterClass = charClass,
+                    CharacterRace = race,
                     Hp = hp,
-                    MaxHp = hp,                      // максимум отдельно не хранится: берём текущее
-                    ArmorClass = r.IsDBNull(4) ? 0 : r.GetInt32(4),
-                    Level = r.IsDBNull(6) ? 1 : r.GetInt32(6),
-                    AvatarPath = r.IsDBNull(5) ? "" : r.GetString(5),
-                    Name = Environment.UserName
+                    MaxHp = maxHp,
+                    ArmorClass = armor,
+                    Level = level,
+                    AvatarPath = avatar,
+                    Name = display
                 };
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[Room] BuildMyRoomPlayer: {ex.Message}");
+                LogRoom("профиль: не удалось собрать — " + ex.Message);
                 return null;
             }
         }
@@ -3161,6 +3252,7 @@ namespace HMWT_MUI
             cmd.ExecuteNonQuery();
             header.Text = v.ToString();
             ShowToast($"{label}: {v}");
+            NotifyRoomProfileChanged();
         }
         #endregion
 
@@ -3176,6 +3268,7 @@ namespace HMWT_MUI
                 cmd.Parameters.AddWithValue("@id", _characterId);
                 cmd.ExecuteNonQuery();
                 ShowToast("Сохранено");
+                NotifyRoomProfileChanged();
             }
         }
         #endregion
@@ -3211,6 +3304,9 @@ namespace HMWT_MUI
             txtHP.Text = $"{newHP} / {_maxHp}";
             if (newHP <= 0) ShowStabilizationOverlay();
             else if (_stabSuccesses > 0 || _stabFailures > 0) ResetStabilization();
+
+            // Здоровье изменилось (урон, лечение, отдых) — сразу сообщаем отряду
+            NotifyRoomProfileChanged();
         }
 
         /// <summary>
