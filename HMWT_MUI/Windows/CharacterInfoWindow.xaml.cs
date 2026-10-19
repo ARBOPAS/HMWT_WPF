@@ -1851,6 +1851,14 @@ namespace HMWT_MUI
 
             if (isCritSuccess || isCritFail) ApplyCritHighlight(resultPanel, isCritSuccess);
 
+            AddResultPanel(resultPanel);
+        }
+
+        /// <summary>Добавляет готовую панель в стопку и вешает таймер закрытия.</summary>
+        private void AddResultPanel(Border resultPanel)
+        {
+            if (resultPanel == null) return;
+
             spDiceResults.Children.Add(resultPanel);
             while (spDiceResults.Children.Count > MAX_VISIBLE_RESULTS)
                 spDiceResults.Children.RemoveAt(0);
@@ -1863,13 +1871,225 @@ namespace HMWT_MUI
         }
 
         /// <summary>
-        /// Собирает панель результата броска.
-        ///
-        /// Показывает всё, из чего сложился итог: тип броска, за кого брошено,
-        /// каждый кубик отдельной плашкой (максимум на кости — золотом, единица —
-        /// приглушённо), добавку, сумму и средний результат для формулы.
-        /// Раньше был просто серый список цифр, по которому нельзя было понять расчёт.
+        /// Урон по частям: одна панель, но внутри — отдельный блок на каждую
+        /// часть (свои кубики, формула и итог). В ленту отряда уходит одна
+        /// сводка, чтобы не засорять её пятью записями за один выстрел.
         /// </summary>
+        public void ShowDamageParts(string what, IReadOnlyList<Services.DiceRollResult> parts, bool publish = true)
+        {
+            if (parts == null || parts.Count == 0) return;
+
+            if (publish)
+            {
+                var summary = new Services.DiceRollResult
+                {
+                    Timestamp = DateTime.Now,
+                    RollType = "Урон",
+                    Description = what ?? "",
+                    Dice = new List<Services.RolledDie>(),
+                    IndividualRolls = new List<int>(),
+                    Total = 0,
+                    Modifier = 0
+                };
+
+                foreach (var part in parts)
+                {
+                    summary.Total += part.Total;
+                    summary.Modifier += part.Modifier;
+                    if (part.Dice != null) summary.Dice.AddRange(part.Dice);
+                    if (part.IndividualRolls != null) summary.IndividualRolls.AddRange(part.IndividualRolls);
+                    if ((summary.Formula ?? "").Length > 0) summary.Formula += " + ";
+                    summary.Formula += part.Formula ?? "";
+                }
+
+                PublishRollToRoom(summary);
+            }
+
+            AddResultPanel(BuildDamagePartsPanel(what, parts));
+        }
+
+        /// <summary>
+        /// Панель составного урона: каждая часть — своим блоком с кубиками,
+        /// формулой и итогом. Раньше всё сливалось в одну сумму, и части без
+        /// кубика («1», «ЛОВ») вообще не были видны.
+        /// </summary>
+        /// <summary>
+        /// Панель составного урона: компактные строки, по одной на часть.
+        /// Раньше каждая часть была отдельной высокой карточкой, и панель
+        /// занимала пол-экрана; теперь блоки идут строками с общей шапкой.
+        /// </summary>
+        private Border BuildDamagePartsPanel(string what, IReadOnlyList<Services.DiceRollResult> parts)
+        {
+            var accent = (Brush)FindResource("B.Arcane");
+            var gold = (Brush)FindResource("B.Accent");
+            var ink = (Brush)FindResource("B.Ink");
+            var mute = (Brush)FindResource("B.Mute");
+            var frost = (Brush)FindResource("B.Frost");
+            var slate = (Brush)FindResource("B.Slate");
+            var line = (Brush)FindResource("B.Line");
+            var display = (FontFamily)FindResource("F.Display");
+
+            var panel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x15, 0x1B, 0x2E)),
+                CornerRadius = new CornerRadius(8),
+                BorderBrush = accent,
+                BorderThickness = new Thickness(1.5),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(10, 8, 10, 8),
+                MaxWidth = 430,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+
+            var root = new StackPanel();
+            int sum = parts.Sum(p => p.Total);
+
+            // ── шапка: что за урон, общий итог, закрыть ──
+            var head = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            title.Children.Add(new TextBlock
+            {
+                Text = "УРОН",
+                FontFamily = display,
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = accent
+            });
+            if (!string.IsNullOrWhiteSpace(what))
+                title.Children.Add(new TextBlock
+                {
+                    Text = what,
+                    Foreground = ink,
+                    FontSize = 11,
+                    Margin = new Thickness(8, 0, 0, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            Grid.SetColumn(title, 0);
+            head.Children.Add(title);
+
+            var sumText = new TextBlock
+            {
+                Text = sum.ToString(),
+                FontFamily = display,
+                FontSize = 20,
+                FontWeight = FontWeights.Bold,
+                Foreground = gold,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 6, 0)
+            };
+            Grid.SetColumn(sumText, 1);
+            head.Children.Add(sumText);
+
+            var btnClose = new Button
+            {
+                Content = new Helpers.IconView
+                {
+                    Kind = "close", IconSize = 12, IconBrush = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                },
+                Width = 20,
+                Height = 20,
+                Background = Brushes.Transparent,
+                Foreground = mute,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+                Cursor = Cursors.Hand
+            };
+            btnClose.Click += (s, e) => RemoveResultPanel(panel);
+            Grid.SetColumn(btnClose, 2);
+            head.Children.Add(btnClose);
+            root.Children.Add(head);
+
+            // ── по строке на часть: подпись, кубики, итог ──
+            int index = 0;
+            foreach (var part in parts)
+            {
+                var rowBorder = new Border
+                {
+                    BorderBrush = line,
+                    BorderThickness = new Thickness(0, index == 0 ? 0 : 1, 0, 0),
+                    Padding = new Thickness(0, 4, 0, 4)
+                };
+                index++;
+
+                var row = new Grid();
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
+
+                var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                var label = new TextBlock
+                {
+                    Text = part.Description ?? "Урон",
+                    Foreground = frost,
+                    FontSize = 10.5,
+                    FontWeight = FontWeights.SemiBold,
+                    TextWrapping = TextWrapping.Wrap
+                };
+                System.Windows.Automation.AutomationProperties.SetName(label, "Урон: " + (part.Description ?? ""));
+                left.Children.Add(label);
+                left.Children.Add(new TextBlock
+                {
+                    Text = part.Formula ?? "",
+                    Foreground = mute,
+                    FontSize = 9,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+                Grid.SetColumn(left, 0);
+                row.Children.Add(left);
+
+                var diceRow = new WrapPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 4, 0) };
+                var dice = part.Dice ?? new List<Services.RolledDie>();
+                foreach (var die in dice.Take(4))
+                    diceRow.Children.Add(BuildDieChip(die, gold, mute, slate, line));
+                if (dice.Count > 4)
+                    diceRow.Children.Add(new TextBlock
+                    {
+                        Text = "+" + (dice.Count - 4),
+                        Foreground = mute,
+                        FontSize = 9,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                if (part.Modifier != 0 && dice.Count == 0)
+                    diceRow.Children.Add(new TextBlock
+                    {
+                        Text = part.Modifier > 0 ? "+" + part.Modifier : part.Modifier.ToString(),
+                        Foreground = frost,
+                        FontSize = 11,
+                        FontWeight = FontWeights.Bold,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                Grid.SetColumn(diceRow, 1);
+                row.Children.Add(diceRow);
+
+                var total = new TextBlock
+                {
+                    Text = part.Total.ToString(),
+                    FontFamily = display,
+                    FontSize = 19,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = gold,
+                    TextAlignment = TextAlignment.Right,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(total, 2);
+                row.Children.Add(total);
+
+                rowBorder.Child = row;
+                root.Children.Add(rowBorder);
+            }
+
+            panel.Child = root;
+            return panel;
+        }
+
         private Border BuildRollPanel(Services.DiceRollResult result, bool isCritSuccess, bool isCritFail)
         {
             var accent = (Brush)FindResource("B.Arcane");

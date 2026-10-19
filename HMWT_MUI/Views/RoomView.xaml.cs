@@ -416,6 +416,16 @@ namespace HMWT_MUI.Views
             }
         }
 
+        private bool _suppressHiddenToggle;
+
+        private void ChkHiddenRolls_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_suppressHiddenToggle || _session == null) return;
+            if (!_session.IsActive || !_session.IsHost) return;
+
+            _session.HiddenDmRolls = chkHiddenRolls.IsChecked == true;
+        }
+
         private void UpdateHeader()
         {
             bool active = _session.IsActive;
@@ -462,6 +472,16 @@ namespace HMWT_MUI.Views
             btnCopyKey.Visibility = host ? Visibility.Visible : Visibility.Collapsed;
             btnLeaveRoom.IsEnabled = active;
             btnLeaveRoom.Opacity = active ? 1.0 : 0.45;
+
+            // Скрытые броски — только у ведущего: это его инструмент, игрокам
+            // переключатель не нужен и только путал бы
+            chkHiddenRolls.Visibility = active && host ? Visibility.Visible : Visibility.Collapsed;
+            if (active && host)
+            {
+                _suppressHiddenToggle = true;
+                chkHiddenRolls.IsChecked = _session.HiddenDmRolls;
+                _suppressHiddenToggle = false;
+            }
 
             txtChatInput.IsEnabled = active;
             btnSendChat.IsEnabled = active;

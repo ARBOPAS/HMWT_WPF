@@ -51,6 +51,11 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <CheckBox x:Name="chkHiddenRolls" Content="Скрытые броски" Margin="0,0,14,0"
+                              VerticalAlignment="Center" FontSize="12"
+                              Foreground="{StaticResource B.Mute}" Visibility="Collapsed"
+                              ToolTip="Броски ведущего и его неписей останутся только у него: игроки их не увидят"
+                              Checked="ChkHiddenRolls_Changed" Unchecked="ChkHiddenRolls_Changed"/>
                     <Button x:Name="btnCopyKey" Content="Скопировать ключ" Style="{StaticResource RoomGhostBtn}"
                             Margin="0,0,8,0" ToolTip="Передайте ключ игрокам вместе с адресом"
                             Click="BtnCopyKey_Click"/>

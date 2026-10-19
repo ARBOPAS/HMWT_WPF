@@ -516,6 +516,13 @@ namespace HMWT_MUI.Services
             }
 
             string text = (formula ?? "").Replace(" ", "").Replace("\u00A0", "");
+
+            // Числа и характеристики в формулах урона пишут и без знака:
+            // «1», «ЛОВ», «1+ИНТ». Раньше регулярки требовали «+»/«-» и такие
+            // части уходили в запасной d20. Добавляем знак первой части.
+            if (text.Length > 0 && text[0] != '+' && text[0] != '-')
+                text = "+" + text;
+
             int position = 0;
 
             while (position < text.Length)

@@ -828,18 +828,18 @@ namespace HMWT_MUI.Net
                 IndividualRolls = req.IndividualRolls ?? new List<int>(),
                 Hidden = hidden
             };
-            AddFeed(entry);
 
             if (hidden)
             {
-                // Отправляем только мастеру
+                // В общую ленту не кладём вообще: иначе скрытый бросок уехал бы
+                // игрокам следующим снимком комнаты. Отправляем только мастеру.
                 _ = SendToAsync(conn.PlayerId, new NetMessage(MsgType.RollMessage, entry));
                 Log($"скрытый бросок мастера: {entry.Formula} = {entry.Total}");
+                return;
             }
-            else
-            {
-                _ = BroadcastAsync(new NetMessage(MsgType.RollMessage, entry));
-            }
+
+            AddFeed(entry);
+            _ = BroadcastAsync(new NetMessage(MsgType.RollMessage, entry));
         }
 
         #endregion
@@ -857,7 +857,7 @@ namespace HMWT_MUI.Net
                     RoomId = _roomId,
                     RoomName = string.IsNullOrWhiteSpace(RoomName) ? _roomId : RoomName,
                     Players = _players.Select(Clone).ToList(),
-                    Feed = _feed.ToList(),
+                    Feed = _feed.Where(e => !e.Hidden).ToList(),
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,

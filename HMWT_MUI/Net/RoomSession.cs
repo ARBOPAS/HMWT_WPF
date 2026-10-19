@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
 
 namespace HMWT_MUI.Net
@@ -41,6 +42,38 @@ namespace HMWT_MUI.Net
         private RoomClient _client;
         private RoomManifest _manifest;
         private PlayerInfo _hostPlayer;
+
+        /// <summary>Скрытые броски ведущего: в общую ленту и по сети не попадают.</summary>
+        private readonly List<FeedEntry> _hiddenFeed = new List<FeedEntry>();
+        private readonly object _hiddenFeedLock = new object();
+
+        private const string HiddenRollsSettingKey = "RoomHiddenDmRolls";
+        private bool _hiddenDmRolls;
+
+        /// <summary>
+        /// Показывать ли броски ведущего только ему. Настройка общая для
+        /// приложения: мастер включает её один раз и не думает о ней в бою.
+        /// </summary>
+        public bool HiddenDmRolls
+        {
+            get => _hiddenDmRolls;
+            set
+            {
+                if (_hiddenDmRolls == value) return;
+                _hiddenDmRolls = value;
+
+                try { DatabaseHelper.SaveSetting(HiddenRollsSettingKey, value ? "1" : "0"); }
+                catch (Exception ex) { Debug.WriteLine($"[RoomSession] скрытые броски: {ex.Message}"); }
+
+                StateChanged?.Invoke();
+            }
+        }
+
+        private RoomSession()
+        {
+            try { _hiddenDmRolls = DatabaseHelper.GetSetting(HiddenRollsSettingKey, "0") == "1"; }
+            catch { }
+        }
 
         /// <summary>
         /// Лента гостя. Собирается из снимка (история на момент входа) и из событий,
@@ -536,6 +569,10 @@ namespace HMWT_MUI.Net
             LastError = "";
             StatusText = "Не подключено";
 
+            // Скрытые броски относятся к прежней комнате: в новой ленте
+            // они были бы чужими и мешали бы мастеру
+            lock (_hiddenFeedLock) { _hiddenFeed.Clear(); }
+
             // Лента гостя относится к прежней комнате: в новой она была бы чужой
             lock (_clientFeedLock)
             {
@@ -631,8 +668,9 @@ namespace HMWT_MUI.Net
         #region === ИГРОВЫЕ ДЕЙСТВИЯ ===
 
         /// <summary>
-        /// Отправляет бросок в комнату. Если мы не в комнате или бросок не должен
-        /// быть виден (например, скрытый у игрока), вызов тихо игнорируется.
+        /// Отправляет бросок в комнату. Скрытый бросок ведущего остаётся
+        /// только у него: в общую ленту и в снимок он не попадает вообще,
+        /// поэтому игроки не узнают даже, что мастер что-то бросал.
         /// </summary>
         public void PublishRoll(string formula, string rollType, int total,
             List<int> rolls, bool hidden = false)
@@ -641,8 +679,9 @@ namespace HMWT_MUI.Net
 
             if (IsHost)
             {
-                // Хост ведёт ленту сам; скрытый бросок остаётся только у мастера
-                bool mayHide = hidden && AmIGameMaster;
+                // Глобальный переключатель мастера + явный флаг отдельного броска
+                bool hide = AmIGameMaster && (hidden || HiddenDmRolls);
+
                 var entry = new FeedEntry
                 {
                     Kind = FeedKind.Roll,
@@ -652,8 +691,23 @@ namespace HMWT_MUI.Net
                     Formula = formula ?? "",
                     Total = total,
                     IndividualRolls = rolls ?? new List<int>(),
-                    Hidden = mayHide
+                    Hidden = hide
                 };
+
+                if (hide)
+                {
+                    // Только локальная лента ведущего. Сервер об этом броске
+                    // не знает и разослать его не может.
+                    lock (_hiddenFeedLock)
+                    {
+                        _hiddenFeed.Add(entry);
+                        if (_hiddenFeed.Count > 200) _hiddenFeed.RemoveRange(0, _hiddenFeed.Count - 200);
+                    }
+
+                    FeedReceived?.Invoke(entry);
+                    return;
+                }
+
                 _server.AddFeed(entry);
                 _ = _server.BroadcastSnapshotAsync();
             }
@@ -1270,7 +1324,17 @@ namespace HMWT_MUI.Net
 
         public List<FeedEntry> GetFeed(int max = 200)
         {
-            if (IsHost) return _server?.GetFeed(max) ?? new List<FeedEntry>();
+            if (IsHost)
+            {
+                var feed = _server?.GetFeed(max) ?? new List<FeedEntry>();
+
+                // Скрытые броски лежат только в памяти ведущего: в снимке
+                // и на диске комнаты их нет, поэтому игроки их не получат
+                lock (_hiddenFeedLock)
+                    feed.AddRange(_hiddenFeed);
+
+                return feed;
+            }
 
             // У гостя лента своя: снимок приходит редко (при входе и смене состава),
             // а сообщения и броски — отдельными событиями. Раньше здесь читался

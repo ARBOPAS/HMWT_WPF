@@ -385,6 +385,39 @@ namespace HMWT_MUI.RoomUiTests
                                   && f.IndividualRolls != null && f.IndividualRolls.Contains(17)));
                 Check("есть системные события", feed.Any(f => f.Kind == FeedKind.System));
 
+                // ── Скрытые броски ведущего ──
+                // Игроки не должны получить их ни событием, ни снимком: иначе
+                // мастер не сможет незаметно подкрутить бросок.
+                Say("");
+                Say("═══ СКРЫТЫЕ БРОСКИ ВЕДУЩЕГО ═══");
+                session.HiddenDmRolls = true;
+                session.PublishRoll("1d20+3", "Скрытая проверка", 17, new List<int> { 14 });
+
+                var hiddenEntry = session.GetFeed(300)
+                    .LastOrDefault(f => f.Text == "Скрытая проверка");
+                Check("скрытый бросок виден ведущему",
+                    hiddenEntry != null && hiddenEntry.Hidden,
+                    hiddenEntry == null ? "записи нет" : $"итог {hiddenEntry.Total}");
+
+                var serverField = typeof(RoomSession).GetField("_server",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var server = (RoomServer)serverField.GetValue(session);
+
+                Check("скрытый бросок не попал в общую ленту",
+                    !server.GetFeed(300).Any(f => f.Text == "Скрытая проверка"));
+
+                var snapshotMethod = typeof(RoomServer).GetMethod("BuildSnapshot",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var snapshot = (RoomSnapshot)snapshotMethod.Invoke(server, null);
+                Check("скрытый бросок не попал в снимок для игроков",
+                    !snapshot.Feed.Any(f => f.Text == "Скрытая проверка"));
+
+                // Выключаем и проверяем, что обычный бросок снова уходит всем
+                session.HiddenDmRolls = false;
+                session.PublishRoll("1d20", "Открытая проверка", 11, new List<int> { 11 });
+                Check("после выключения бросок снова общий",
+                    server.GetFeed(300).Any(f => f.Text == "Открытая проверка"));
+
                 // ── Лента ГОСТЯ пополняется каждым событием ──
                 //
                 // Раньше гость читал ленту только из снимка, который приходит редко:

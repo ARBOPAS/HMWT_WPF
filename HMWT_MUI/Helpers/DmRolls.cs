@@ -31,6 +31,12 @@ namespace HMWT_MUI.Helpers
         /// (например, составной урон атаки): панель должна быть одна.
         /// </summary>
         void ShowCombinedRoll(DiceRollResult result, bool publish = true);
+
+        /// <summary>
+        /// Показать урон по частям: отдельный блок на каждую часть, а не одну
+        /// общую сумму. В ленту отряда уходит одна сводка.
+        /// </summary>
+        void ShowDamageParts(string what, IReadOnlyList<DiceRollResult> parts, bool publish = true);
     }
 
     /// <summary>
@@ -99,45 +105,77 @@ namespace HMWT_MUI.Helpers
         public static DiceRollResult RollDamageParts(FrameworkElement source,
             IEnumerable<(string Formula, DamageKind Kind)> parts, string who, string what)
         {
+            var detailed = new List<(string Formula, DamageKind Kind, string Label)>();
+            foreach (var part in parts ?? Enumerable.Empty<(string Formula, DamageKind Kind)>())
+                detailed.Add((part.Formula, part.Kind, DiceFormulaParser.DamageWord(part.Kind)));
+
+            return RollDamageParts(source, detailed, who, what);
+        }
+
+        /// <summary>
+        /// Бросает каждую часть урона отдельно и показывает её своим блоком.
+        ///
+        /// Раньше части склеивались в один результат, а всё, что не содержало
+        /// кубика («1», «ЛОВ», «1+ИНТ»), вообще терялось: ParseDamages ищет
+        /// только «к8». Теперь формула части идёт в RollExpression как есть,
+        /// поэтому плоские числа и характеристики тоже считаются.
+        /// </summary>
+        public static DiceRollResult RollDamageParts(FrameworkElement source,
+            IEnumerable<(string Formula, DamageKind Kind, string Label)> parts, string who, string what)
+        {
             var host = Host(source);
             if (host == null) return null;
 
             var list = parts?.Where(p => !string.IsNullOrWhiteSpace(p.Formula)).ToList()
-                       ?? new List<(string Formula, DamageKind Kind)>();
+                       ?? new List<(string Formula, DamageKind Kind, string Label)>();
             if (list.Count == 0) return null;
 
-            var combined = new DiceRollResult
-            {
-                Timestamp = DateTime.Now,
-                RollType = "Урон",
-                Dice = new List<RolledDie>(),
-                IndividualRolls = new List<int>()
-            };
-            var labels = new List<string>();
+            var results = new List<DiceRollResult>();
 
             foreach (var part in list)
             {
-                // showPanel: false — панель покажем одну, общую; publish: false —
-                // в отряд и историю запись уйдёт тоже один раз
+                // showPanel/publish = false: каждая часть не должна попадать
+                // в ленту отдельной записью и открывать свою карточку
                 var one = host.RollExternal(part.Formula, "Урон", who, what, false, false);
                 if (one == null) continue;
 
-                combined.Total += one.Total;
-                combined.Modifier += one.Modifier;
-                if (one.Dice != null) combined.Dice.AddRange(one.Dice);
-                if (one.IndividualRolls != null) combined.IndividualRolls.AddRange(one.IndividualRolls);
-                if ((combined.Formula ?? "").Length > 0) combined.Formula += " + ";
-                combined.Formula += one.Formula ?? part.Formula;
+                one.RollType = "Урон";
+                string label = string.IsNullOrWhiteSpace(part.Label)
+                    ? DiceFormulaParser.DamageWord(part.Kind)
+                    : part.Label.Trim();
+                if (string.IsNullOrWhiteSpace(label)) label = "Урон";
 
-                string word = DiceFormulaParser.DamageWord(part.Kind);
-                if (!string.IsNullOrEmpty(word) && !labels.Contains(word)) labels.Add(word);
+                one.Description = label;
+                results.Add(one);
             }
 
-            if (combined.Dice.Count == 0 && combined.IndividualRolls.Count == 0) return null;
+            if (results.Count == 0) return null;
 
-            combined.Description = labels.Count == 0 ? what : $"{what} — {string.Join(" и ", labels)}";
-            host.ShowCombinedRoll(combined);
-            return combined;
+            host.ShowDamageParts(what, results, true);
+
+            // Сводка для истории и возврата: одна запись на всё действие
+            var summary = new DiceRollResult
+            {
+                Timestamp = DateTime.Now,
+                RollType = "Урон",
+                Description = what ?? "",
+                Dice = new List<RolledDie>(),
+                IndividualRolls = new List<int>(),
+                Total = 0,
+                Modifier = 0
+            };
+
+            foreach (var one in results)
+            {
+                summary.Total += one.Total;
+                summary.Modifier += one.Modifier;
+                if (one.Dice != null) summary.Dice.AddRange(one.Dice);
+                if (one.IndividualRolls != null) summary.IndividualRolls.AddRange(one.IndividualRolls);
+                if ((summary.Formula ?? "").Length > 0) summary.Formula += " + ";
+                summary.Formula += one.Formula ?? "";
+            }
+
+            return summary;
         }
 
         /// <summary>Подсказка пользователю средствами окна персонажа.</summary>

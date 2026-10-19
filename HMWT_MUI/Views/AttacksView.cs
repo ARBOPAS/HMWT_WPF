@@ -25,7 +25,7 @@ namespace HMWT_MUI.Views
         private readonly int _characterId;
         private readonly string _characterName;
 
-        private readonly StackPanel _listHost = new StackPanel();
+        private readonly WrapPanel _listHost = new WrapPanel { Orientation = Orientation.Horizontal };
         private readonly TextBlock _status = DmUiKit.Value("", 11, DmUiKit.B("Mute"));
 
         private Grid _root;
@@ -62,6 +62,7 @@ namespace HMWT_MUI.Views
             _characterName = ReadCharacterName();
             BuildShell();
             Loaded += (s, e) => Refresh();
+            SizeChanged += (s, e) => UpdateListColumns();
         }
 
         private string ReadCharacterName()
@@ -198,6 +199,88 @@ namespace HMWT_MUI.Views
 
             foreach (var attack in _attacks)
                 _listHost.Children.Add(attack.IsMulti ? BuildSeriesCard(attack) : BuildAttackCard(attack));
+
+            // Сводка заполняет вторую колонку, когда атак мало, и даёт
+            // быструю картину: сколько атак, где больше средний урон
+            _listHost.Children.Add(BuildSummaryCard());
+            UpdateListColumns();
+        }
+
+        /// <summary>
+        /// Две колонки на широком окне: карточки атак не растягиваются на всю
+        /// вкладку и не оставляют пустую правую половину.
+        /// </summary>
+        private void UpdateListColumns()
+        {
+            double width = ActualWidth - 18;
+            if (width <= 0) return;
+
+            _listHost.ItemWidth = width < 980 ? width : (width - 12) / 2;
+        }
+
+        /// <summary>Короткая сводка по атакам — чтобы не было пустого места.</summary>
+        private UIElement BuildSummaryCard()
+        {
+            var content = new StackPanel();
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "СВОДКА",
+                FontFamily = DmUiKit.Display,
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = DmUiKit.B("Accent"),
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            var singles = _attacks.Where(a => !a.IsMulti).ToList();
+            int series = _attacks.Count(a => a.IsMulti);
+
+            int bestAverage = 0;
+            string bestName = "";
+            foreach (var attack in singles)
+            {
+                int average = SeriesAverage(new List<AttackData> { attack });
+                if (average > bestAverage) { bestAverage = average; bestName = attack.Name; }
+            }
+
+            int averageAll = singles.Count == 0
+                ? 0
+                : (int)Math.Round(singles.Average(a => (double)SeriesAverage(new List<AttackData> { a })));
+
+            void Line(string text, Brush color)
+                => content.Children.Add(new TextBlock
+                {
+                    Text = text,
+                    Foreground = color,
+                    FontSize = 11.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 5)
+                });
+
+            Line($"Всего атак: {_attacks.Count}" + (series > 0 ? $" · серий: {series}" : ""), DmUiKit.B("Ink"));
+            Line($"Обычных атак: {singles.Count} · средний урон: {averageAll}", DmUiKit.B("Mute"));
+
+            if (bestAverage > 0)
+                Line($"Сильнейшая: {bestName} — в среднем {bestAverage}", DmUiKit.B("Gold"));
+
+            int actions = _attacks.Count(a => a.Section == AttackSections.Action);
+            int bonus = _attacks.Count(a => a.Section == AttackSections.Bonus);
+            int reactions = _attacks.Count(a => a.Section == AttackSections.Reaction);
+            if (actions + bonus + reactions > 0)
+                Line($"Действия: {actions} · бонусные: {bonus} · реакции: {reactions}", DmUiKit.B("Mute"));
+
+            content.Children.Add(new TextBlock
+            {
+                Text = "Нажмите на число попадания, чтобы бросить d20. «Урон» бросает все включённые части сразу — каждая показывается своим блоком.",
+                Foreground = DmUiKit.B("Mute"),
+                FontSize = 10.5,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 6, 0, 0)
+            });
+
+            return DmUiKit.Panel(content, new Thickness(14, 12, 14, 12),
+                DmUiKit.B("Panel"), DmUiKit.B("Line"), 8, new Thickness(0, 0, 10, 8));
         }
 
         /// <summary>
@@ -217,6 +300,8 @@ namespace HMWT_MUI.Views
                 if (byId.TryGetValue(id, out var child)) children.Add(child);
 
             var card = new Grid();
+            card.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            card.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             card.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             card.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -317,6 +402,8 @@ namespace HMWT_MUI.Views
             }
 
             Grid.SetColumn(info, 0);
+            Grid.SetColumnSpan(info, 2);
+            Grid.SetRow(info, 0);
             card.Children.Add(info);
 
             // ── кнопки серии ──
@@ -333,11 +420,14 @@ namespace HMWT_MUI.Views
 
             controls.Children.Add(DmUiKit.Icon("✕", (s, e) => DeleteAttack(series), "Удалить серию", 28, DmUiKit.ButtonKind.Soft));
 
-            Grid.SetColumn(controls, 1);
+            Grid.SetColumn(controls, 0);
+            Grid.SetColumnSpan(controls, 2);
+            Grid.SetRow(controls, 1);
+            controls.Margin = new Thickness(0, 8, 0, 0);
             card.Children.Add(controls);
 
             return DmUiKit.Panel(card, new Thickness(12, 10, 12, 10), DmUiKit.B("Panel"), DmUiKit.B("Enchant"), 8,
-                new Thickness(0, 0, 0, 8));
+                new Thickness(0, 0, 10, 8));
         }
 
         /// <summary>Средний урон серии: сумма средних по атакам (добавка от характеристики — у каждой своя).</summary>
@@ -347,7 +437,7 @@ namespace HMWT_MUI.Views
             foreach (var child in children)
             {
                 int bonus = AttackService.DamageBonus(child);
-                var parts = child.CleanParts();
+                var parts = child.CleanParts().Where(p => p.Enabled).ToList();
                 for (int i = 0; i < parts.Count; i++)
                 {
                     string formula = parts[i].Formula;
@@ -379,6 +469,8 @@ namespace HMWT_MUI.Views
         private UIElement BuildAttackCard(AttackData attack)
         {
             var card = new Grid();
+            card.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            card.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             card.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             card.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -530,6 +622,8 @@ namespace HMWT_MUI.Views
             }
 
             Grid.SetColumn(info, 0);
+            Grid.SetColumnSpan(info, 2);
+            Grid.SetRow(info, 0);
             card.Children.Add(info);
 
             // ── кнопки ──
@@ -554,21 +648,26 @@ namespace HMWT_MUI.Views
 
                 var damageButton = DmUiKit.Action("🎲 Урон", (s, e) => RollAllDamage(attack),
                     DmUiKit.ButtonKind.Ghost, "Бросить весь урон этой атаки", 96, 28);
+                System.Windows.Automation.AutomationProperties.SetAutomationId(damageButton, "attackDamage_" + attack.Id);
                 damageButton.Margin = new Thickness(0, 0, 6, 0);
                 controls.Children.Add(damageButton);
             }
 
             var editButton = DmUiKit.Icon("✎", (s, e) => OpenEditor(attack, false), "Править атаку", 28);
+            System.Windows.Automation.AutomationProperties.SetAutomationId(editButton, "attackEdit_" + attack.Id);
             editButton.Margin = new Thickness(0, 0, 6, 0);
             controls.Children.Add(editButton);
 
             controls.Children.Add(DmUiKit.Icon("✕", (s, e) => DeleteAttack(attack), "Удалить атаку", 28, DmUiKit.ButtonKind.Soft));
 
-            Grid.SetColumn(controls, 1);
+            Grid.SetColumn(controls, 0);
+            Grid.SetColumnSpan(controls, 2);
+            Grid.SetRow(controls, 1);
+            controls.Margin = new Thickness(0, 8, 0, 0);
             card.Children.Add(controls);
 
             return DmUiKit.Panel(card, new Thickness(12, 10, 12, 10), DmUiKit.B("Panel"), DmUiKit.B("Line"), 8,
-                new Thickness(0, 0, 0, 8));
+                new Thickness(0, 0, 10, 8));
         }
 
         private static Brush SourceAccent(string source)
@@ -664,23 +763,32 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            // Собираем части и бросаем их ОДНИМ действием: одна панель результата
-            var list = new List<(string Formula, DamageKind Kind)>();
-
-            var first = DiceFormulaParser.ParseFirstDamage(parts[0].Formula);
-            string firstFormula = first != null ? first.Formula : parts[0].Formula;
-            DamageKind firstKind = first != null ? first.Damage : DamageKind.None;
-
-            // Добавка от характеристики — только к первой части, как в правилах
+            // Формулы частей идут как есть: «1», «ЛОВ», «1+ИНТ» — такие части
+            // раньше молча терялись, потому что ParseDamages ищет только «к8»
+            var list = new List<(string Formula, DamageKind Kind, string Label)>();
             int damageBonus = AttackService.DamageBonus(attack);
-            if (damageBonus != 0) firstFormula += damageBonus > 0 ? "+" + damageBonus : damageBonus.ToString();
-            list.Add((firstFormula, firstKind));
 
-            for (int i = 1; i < parts.Count; i++)
+            for (int i = 0; i < parts.Count; i++)
             {
-                var parsed = DiceFormulaParser.ParseDamages(parts[i].Formula);
-                if (parsed.Count == 0) continue;
-                list.Add((parsed[0].Formula, parsed[0].Damage));
+                string formula = (parts[i].Formula ?? "").Trim();
+                if (formula.Length == 0) continue;
+
+                // Добавка от характеристики — только к первой части, как в правилах
+                if (i == 0 && damageBonus != 0)
+                    formula += damageBonus > 0 ? "+" + damageBonus : damageBonus.ToString();
+
+                string type = SpellService.DamageTypeLabel(parts[i].DamageType);
+                string note = (parts[i].Note ?? "").Trim();
+                string label = note.Length > 0 ? note : type;
+                if (note.Length > 0 && type.Length > 0) label += " · " + type;
+
+                list.Add((formula, DamageKind.None, label));
+            }
+
+            if (list.Count == 0)
+            {
+                DmRolls.Toast(this, "У этой атаки не указан урон", true);
+                return;
             }
 
             DmRolls.RollDamageParts(this, list, _characterName, attack.Name);
@@ -981,7 +1089,9 @@ namespace HMWT_MUI.Views
             _editorForm.Children.Add(_editorError);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
-            actions.Children.Add(DmUiKit.Action("💾 Сохранить", (s, e) => SaveDraft(), DmUiKit.ButtonKind.Primary, null, 140, 32));
+            var saveButton = DmUiKit.Action("💾 Сохранить", (s, e) => SaveDraft(), DmUiKit.ButtonKind.Primary, null, 140, 32);
+            System.Windows.Automation.AutomationProperties.SetAutomationId(saveButton, "attackSave");
+            actions.Children.Add(saveButton);
             var cancel = DmUiKit.Action("Отмена", (s, e) => CloseEditor(), DmUiKit.ButtonKind.Ghost, null, 110, 32);
             cancel.Margin = new Thickness(8, 0, 0, 0);
             actions.Children.Add(cancel);
@@ -1277,15 +1387,13 @@ namespace HMWT_MUI.Views
 
             // Галочка «учитывать»: выключенная часть остаётся в записи, но в бросок
             // урона не идёт — удобно, когда атака бьёт по-разному
-            var enabled = new CheckBox
-            {
-                IsChecked = part.Enabled,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                ToolTip = "Учитывать эту часть при броске урона",
-                Foreground = DmUiKit.B("Mute"),
-                Margin = new Thickness(0, 0, 6, 0)
-            };
+            var enabled = DmUiKit.Check("", part.Enabled);
+            enabled.Content = "";
+            enabled.HorizontalAlignment = HorizontalAlignment.Left;
+            enabled.Margin = new Thickness(0, 0, 6, 0);
+            enabled.ToolTip = "Учитывать эту часть при броске урона";
+            System.Windows.Automation.AutomationProperties.SetName(enabled,
+                "Учитывать часть урона " + (index + 1));
             enabled.Checked += (s, e) => { part.Enabled = true; RefreshEditorPreview(); };
             enabled.Unchecked += (s, e) => { part.Enabled = false; RefreshEditorPreview(); };
             var enabledHost = new StackPanel { Orientation = Orientation.Horizontal };
@@ -1377,7 +1485,8 @@ namespace HMWT_MUI.Views
                 : AttackService.AbilityModifier(AttackService.AbilityScore(_characterId, _draft.DamageAbility));
 
             var lines = new List<string>();
-            var parts = _draftParts.Where(p => p != null && !p.IsEmpty).ToList();
+            var allParts = _draftParts.Where(p => p != null && !p.IsEmpty).ToList();
+            var parts = allParts.Where(p => p.Enabled).ToList();
 
             for (int i = 0; i < parts.Count; i++)
             {
@@ -1385,17 +1494,25 @@ namespace HMWT_MUI.Views
                 if (i == 0 && damageBonus != 0) formula += damageBonus > 0 ? "+" + damageBonus : damageBonus.ToString();
 
                 string type = SpellService.DamageTypeLabel(parts[i].DamageType);
-                string line = formula + (string.IsNullOrWhiteSpace(type) ? "" : " " + type);
+                string note = (parts[i].Note ?? "").Trim();
+                string label = note.Length > 0 ? note : type;
+                if (note.Length > 0 && type.Length > 0) label += " · " + type;
+
+                string line = formula + (label.Length == 0 ? "" : " " + label);
 
                 int average = DiceFormulaParser.AverageExpression(formula);
                 if (average > 0) line += $" (в среднем {average})";
                 lines.Add(line);
             }
 
+            string disabled = allParts.Count > parts.Count
+                ? $" · выключено частей: {allParts.Count - parts.Count}"
+                : "";
+
             string bonusText = (bonus >= 0 ? "+" : "") + bonus;
             _editorPreview.Text = lines.Count == 0
-                ? $"{draftName}: {(bonusText)} к попаданию, урон не указан"
-                : $"{draftName}: {bonusText} к попаданию · " + string.Join(" + ", lines);
+                ? $"{draftName}: {(bonusText)} к попаданию, урон не указан" + disabled
+                : $"{draftName}: {bonusText} к попаданию · " + string.Join(" + ", lines) + disabled;
         }
 
         private void SaveDraft()
