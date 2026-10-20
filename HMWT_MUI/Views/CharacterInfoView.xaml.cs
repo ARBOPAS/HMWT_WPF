@@ -598,7 +598,14 @@ namespace HMWT_MUI.Views
         }
 
         private void AbilityBonusOverlay_Close(object sender, MouseButtonEventArgs e)
-        { if (e.OriginalSource == sender) abilityBonusOverlay.Visibility = Visibility.Collapsed; }
+        {
+            if (!ReferenceEquals(e.OriginalSource, sender)) return;
+
+            // Закрываем на отпускании и гасим событие: иначе клик по тёмному
+            // фону успевал «провалиться» в кнопку под ним и открыть второй оверлей
+            e.Handled = true;
+            abilityBonusOverlay.Visibility = Visibility.Collapsed;
+        }
 
         private void AbilityBonusOverlay_Close_Click(object sender, RoutedEventArgs e)
             => abilityBonusOverlay.Visibility = Visibility.Collapsed;
@@ -667,19 +674,30 @@ namespace HMWT_MUI.Views
         private UIElement MakeBonusRow(AbilityBonus bonus)
         {
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
 
-            // Поле значения
-            var tbValue = new TextBox { Text = bonus.Value.ToString(), TextAlignment = TextAlignment.Center };
+            // Поле значения: число или формула с характеристикой.
+            // Ширины 56 px хватало только на «+2», а «1+ИНТ» уже обрезалось.
+            var tbValue = new TextBox
+            {
+                Text = bonus.Formula ?? "0",
+                TextAlignment = TextAlignment.Center,
+                ToolTip = "Число или модификатор характеристики: ХАР, ИНТ, 1+МДР, -ЛОВ…"
+            };
             tbValue.SetResourceReference(StyleProperty, "TextField");
-            int capturedValue = bonus.Value;
+            string capturedFormula = bonus.Formula ?? "0";
             tbValue.LostFocus += (s, e) =>
             {
-                if (int.TryParse(tbValue.Text, out int v)) UpdateBonus(bonus.Id, null, v, null);
-                else tbValue.Text = capturedValue.ToString();
+                string text = (tbValue.Text ?? "").Trim();
+                if (text.Length == 0) text = "0";
+                if (text != capturedFormula)
+                {
+                    capturedFormula = text;
+                    UpdateBonus(bonus.Id, null, text, null);
+                }
             };
             Grid.SetColumn(tbValue, 0);
 
@@ -711,9 +729,9 @@ namespace HMWT_MUI.Views
             return grid;
         }
 
-        private void UpdateBonus(int id, string name, int? value, bool? active)
+        private void UpdateBonus(int id, string name, string formula, bool? active)
         {
-            AbilityService.UpdateBonus(id, name, value, active);
+            AbilityService.UpdateBonus(id, name, formula, active);
             AfterBonusChange();
         }
 

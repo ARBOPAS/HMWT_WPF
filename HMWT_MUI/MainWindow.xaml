@@ -122,6 +122,12 @@
                         <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Width="300" Tag="поиск по имени или классу…" />
                         <TextBlock x:Name="TxtCharCount" Text="" FontFamily="{StaticResource F.Body}" FontSize="12"
                                    Foreground="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button x:Name="ImportCharacterButton" Style="{StaticResource ActionBtn}" Height="30"
+                                Margin="16,0,0,0" VerticalAlignment="Center"
+                                ToolTip="Добавить персонажа из файла .hmwtpack"
+                                Click="ImportCharacterButton_Click">
+                            <TextBlock Text="Импорт персонажа" FontSize="12"/>
+                        </Button>
                     </StackPanel>
 
                     <!-- отряд + шестерня (x:Name + Click СОХРАНЕНЫ) -->

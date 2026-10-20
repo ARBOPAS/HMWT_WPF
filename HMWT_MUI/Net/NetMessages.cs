@@ -410,6 +410,9 @@ namespace HMWT_MUI.Net
         /// <summary>Новый размер жетона в клетках (-1 — не менять).</summary>
         [JsonPropertyName("size")] public int SizeCells { get; set; } = -1;
 
+        /// <summary>Новая дальность обзора в клетках (-1 — не менять).</summary>
+        [JsonPropertyName("reveal")] public double RevealCells { get; set; } = -1;
+
         /// <summary>
         /// Промежуточное движение при перетаскивании: хост двигает жетон и
         /// рассылает всем, но не пишет в базу на каждом шаге. Итог сохраняется
@@ -436,6 +439,18 @@ namespace HMWT_MUI.Net
     public sealed class MapStrokeEraseRequest
     {
         [JsonPropertyName("ids")] public List<int> Ids { get; set; } = new List<int>();
+    }
+
+    /// <summary>Игрок нашёл новый разведанный сектор — отдаём его хосту.</summary>
+    public sealed class MapSeenAddRequest
+    {
+        [JsonPropertyName("points")] public string Points { get; set; } = "";
+    }
+
+    /// <summary>Хост присылает всё разведанное по сцене при входе/открытии карты.</summary>
+    public sealed class MapSeenSync
+    {
+        [JsonPropertyName("seen")] public List<string> Seen { get; set; } = new List<string>();
     }
 
     /// <summary>Промежуточное положение жетона при перетаскивании.</summary>

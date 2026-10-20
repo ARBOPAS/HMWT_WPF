@@ -886,7 +886,7 @@
 
         <!-- ОВЕРЛЕЙ: ХАРАКТЕРИСТИКА И БОНУСЫ -->
         <Grid x:Name="abilityBonusOverlay" Grid.RowSpan="2" Visibility="Collapsed" Panel.ZIndex="180">
-            <Border Background="{StaticResource B.Scrim}" MouseLeftButtonDown="AbilityBonusOverlay_Close"/>
+            <Border Background="{StaticResource B.Scrim}" MouseLeftButtonUp="AbilityBonusOverlay_Close"/>
             <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
             CornerRadius="12" Padding="24" Width="520" MaxHeight="660"
             HorizontalAlignment="Center" VerticalAlignment="Center">

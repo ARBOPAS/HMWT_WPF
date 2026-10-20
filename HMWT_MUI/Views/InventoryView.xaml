@@ -73,8 +73,8 @@
                      упирались в MaxWidth, а почти пустой силуэт забирал больше
                      половины ширины, и на Full HD содержимое обрезалось -->
                 <ColumnDefinition Width="0.26*" MinWidth="260" MaxWidth="470"/>
-                <ColumnDefinition Width="0.30*" MinWidth="280" MaxWidth="560"/>
-                <ColumnDefinition Width="0.44*" MinWidth="360"/>
+                <ColumnDefinition Width="0.285*" MinWidth="280" MaxWidth="560"/>
+                <ColumnDefinition Width="0.455*" MinWidth="360"/>
             </Grid.ColumnDefinitions>
 
             <!-- ========== ЛЕВАЯ ПАНЕЛЬ: ИНВЕНТАРЬ + СОКРОВИЩА ========== -->
@@ -139,7 +139,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,-13,0">
                     <StackPanel x:Name="spItemDetails">
                         <TextBlock Text="ИНСПЕКТОР ПРЕДМЕТА" FontFamily="{StaticResource F.Display}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Height="140" Margin="0,0,0,12" ClipToBounds="True">
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Height="220" Margin="0,0,0,12" ClipToBounds="True">
                             <!-- HoverGif вместо Image: обычный Image не умеет
                                  анимироваться, поэтому в инспекторе гифка
                                  не крутилась. DisplayWidth — размер показа:

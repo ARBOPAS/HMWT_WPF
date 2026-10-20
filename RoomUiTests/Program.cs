@@ -175,6 +175,97 @@ namespace HMWT_MUI.RoomUiTests
             }
         }
 
+        /// <summary>
+        /// Бонусы к спасброскам и проверкам понимают не только число, но и
+        /// характеристику: «ЛОВ», «1+ИНТ». Раньше поле принимало только int.
+        /// </summary>
+        private static void CheckAbilityBonusFormulas()
+        {
+            int id = 0;
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+
+                using (var cmd = new SqliteCommand(
+                    "INSERT INTO CharacterInfo (name, class, race, HP, ArmorClass, " +
+                    "Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma) " +
+                    "VALUES ('Тест Формул', 'Воин', 'Человек', 10, 10, 10, 15, 10, 15, 10, 10)", conn))
+                    cmd.ExecuteNonQuery();
+
+                using (var cmd = new SqliteCommand("SELECT last_insert_rowid()", conn))
+                    id = Convert.ToInt32(cmd.ExecuteScalar());
+
+                using (var cmd = new SqliteCommand(
+                    "INSERT INTO CharacterAbilityBonuses(id_character, ability, scope, name, bonus, is_active) " +
+                    "VALUES(@id, 'ИНТЕЛЛЕКТ', 'Check', 'ТЕСТ 1+ИНТ', '1+ИНТ', 1)", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+
+                using (var cmd = new SqliteCommand(
+                    "INSERT INTO CharacterAbilityBonuses(id_character, ability, scope, name, bonus, is_active) " +
+                    "VALUES(@id, 'СИЛА', 'Check', 'ТЕСТ 3', '3', 1)", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+
+                using (var cmd = new SqliteCommand(
+                    "INSERT INTO CharacterAbilityBonuses(id_character, ability, scope, name, bonus, is_active) " +
+                    "VALUES(@id, 'ХАРИЗМА', 'Save', 'ТЕСТ ВЫКЛ', 'ХАР', 0)", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Check("персонаж для проверки формул бонусов создан", false, ex.Message);
+                return;
+            }
+
+            try
+            {
+                // Бонус, добавленный через сервис, потом правим формулой — как в редакторе
+                AbilityService.AddBonus(id, "ЛОВКОСТЬ", "Save");
+                var rows = AbilityService.GetBonuses(id, "ЛОВКОСТЬ", "Save");
+                if (rows.Count > 0)
+                    AbilityService.UpdateBonus(rows[0].Id, null, "ЛОВ", null);
+
+                Check("бонус «ЛОВ» даёт модификатор ЛОВКОСТИ",
+                    AbilityService.GetBonusSum(id, "ЛОВКОСТЬ", "Save") == 2,
+                    "ожидаем +2 при ЛОВ 15");
+                Check("бонус «1+ИНТ» складывает число и модификатор",
+                    AbilityService.GetBonusSum(id, "ИНТЕЛЛЕКТ", "Check") == 3,
+                    "ожидаем 1+2 при ИНТ 15");
+                Check("числовой бонус остался числом",
+                    AbilityService.GetBonusSum(id, "СИЛА", "Check") == 3);
+                Check("выключенный бонус с формулой не считается",
+                    AbilityService.GetBonusSum(id, "ХАРИЗМА", "Save") == 0);
+
+                var list = AbilityService.GetBonuses(id, "ИНТЕЛЛЕКТ", "Check");
+                Check("формула бонуса читается из базы как текст",
+                    list.Count == 1 && list[0].Formula == "1+ИНТ",
+                    list.Count == 0 ? "записи нет" : list[0].Formula);
+            }
+            finally
+            {
+                try
+                {
+                    using var conn = DatabaseHelper.GetConnection();
+                    conn.Open();
+                    using var cmd = new SqliteCommand(
+                        "DELETE FROM CharacterAbilityBonuses WHERE id_character=@id; " +
+                        "DELETE FROM CharacterInfo WHERE id_character=@id", conn);
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+                catch { }
+            }
+        }
+
         private static void RunAll()
         {
             // ── Проверка связки кнопок с кодом ──
@@ -230,6 +321,7 @@ namespace HMWT_MUI.RoomUiTests
             Say("");
             Say("═══ МАКСИМУМ HP В ОТРЯДЕ ═══");
             CheckMaxHpFromSettings();
+            CheckAbilityBonusFormulas();
 
             Say("═══ СВЯЗКА КНОПОК С КОДОМ ═══");
             CheckButtonWiring("MainWindow.xaml",

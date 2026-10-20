@@ -244,6 +244,14 @@ namespace HMWT_MUI.Windows
         {
             if (host == null) return null;
 
+            // ── 0. Корень окна важнее «самой большой панели» ──
+            // Иначе у карты выбирался огромный Canvas/Grid внутри прокрутки,
+            // и подтверждение «Очистить» появлялось в левом верхнем углу карты,
+            // а не по центру окна.
+            var window = Window.GetWindow(host);
+            var contentPanel = FirstPanel(window?.Content as DependencyObject, 0);
+            if (contentPanel != null) return contentPanel;
+
             // ── 1. Поднимаемся до корня окна ──
             DependencyObject root = host;
             var up = new Stack<DependencyObject>();
@@ -286,6 +294,21 @@ namespace HMWT_MUI.Windows
             }
 
             return best ?? host as Panel;
+        }
+
+        /// <summary>Корневая панель содержимого окна: Grid/Border/ContentControl.</summary>
+        private static Panel FirstPanel(DependencyObject node, int depth)
+        {
+            if (node == null || depth > 8) return null;
+            if (node is Panel panel) return panel;
+            if (node is Decorator decorator) return FirstPanel(decorator.Child, depth + 1);
+            if (node is ContentControl content) return FirstPanel(content.Content as DependencyObject, depth + 1);
+            if (node is ContentPresenter presenter)
+            {
+                int count = VisualTreeHelper.GetChildrenCount(presenter);
+                return count > 0 ? FirstPanel(VisualTreeHelper.GetChild(presenter, 0), depth + 1) : null;
+            }
+            return null;
         }
 
         /// <summary>Площадь окна, которому принадлежит элемент. 0 — если окно не найдено.</summary>

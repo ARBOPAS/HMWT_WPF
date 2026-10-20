@@ -650,30 +650,50 @@ namespace HMWT_MUI.Services
         }
 
         public static void AddSeen(int sceneId, string points)
+            => AddSeenBatch(sceneId, new[] { points });
+
+        /// <summary>Добавляет несколько секторов одной транзакцией (синхронизация с хостом).</summary>
+        public static void AddSeenBatch(int sceneId, IEnumerable<string> points)
         {
-            if (sceneId <= 0 || string.IsNullOrWhiteSpace(points)) return;
+            if (sceneId <= 0 || points == null) return;
+
+            var list = points.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+            if (list.Count == 0) return;
 
             try
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
-                using var cmd = new SqliteCommand(
-                    "INSERT INTO MapSeen (id_scene, points, created_at) VALUES (@id, @points, @now)", conn);
-                cmd.Parameters.AddWithValue("@id", sceneId);
-                cmd.Parameters.AddWithValue("@points", points);
-                cmd.Parameters.AddWithValue("@now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                cmd.ExecuteNonQuery();
+                using var tx = conn.BeginTransaction();
 
-                // слишком старые записи не нужны: держим последние 400
-                using var trim = new SqliteCommand(
+                using (var cmd = new SqliteCommand(
+                    "INSERT INTO MapSeen (id_scene, points, created_at) VALUES (@id, @points, @now)", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id", sceneId);
+                    cmd.Parameters.AddWithValue("@points", "");
+                    cmd.Parameters.AddWithValue("@now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                    foreach (string pointsText in list)
+                    {
+                        cmd.Parameters["@points"].Value = pointsText;
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Держим последние 240: больше только раздувает туман.
+                using (var trim = new SqliteCommand(
                     "DELETE FROM MapSeen WHERE id_scene = @id AND id_seen NOT IN " +
-                    "(SELECT id_seen FROM MapSeen WHERE id_scene = @id ORDER BY id_seen DESC LIMIT 400)", conn);
-                trim.Parameters.AddWithValue("@id", sceneId);
-                trim.ExecuteNonQuery();
+                    "(SELECT id_seen FROM MapSeen WHERE id_scene = @id ORDER BY id_seen DESC LIMIT 240)", conn, tx))
+                {
+                    trim.Parameters.AddWithValue("@id", sceneId);
+                    trim.ExecuteNonQuery();
+                }
+
+                tx.Commit();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[MapService] AddSeen: {ex.Message}");
+                Debug.WriteLine($"[MapService] AddSeenBatch: {ex.Message}");
             }
         }
 

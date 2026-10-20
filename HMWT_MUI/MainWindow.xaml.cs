@@ -14,6 +14,8 @@ using HMWT_MUI.Services;
 using HMWT_MUI.Windows;
 using HMWT_MUI.Net;
 using HMWT_MUI.Helpers;
+using Drawing = System.Drawing;
+using Forms = System.Windows.Forms;
 
 namespace HMWT_MUI
 {
@@ -32,6 +34,11 @@ namespace HMWT_MUI
         private bool _windowClosed = false;
         private ContextMenu _settingsContextMenu;
         private readonly Dictionary<Border, string> _cardSearchKeys = new Dictionary<Border, string>();
+
+        /// <summary>Иконка в трее: приложение остаётся в сети, даже если окно закрыли.</summary>
+        private Forms.NotifyIcon _trayIcon;
+        private bool _reallyExit;
+        private bool _trayHintShown;
 
         public MainWindow()
         {
@@ -58,6 +65,16 @@ namespace HMWT_MUI
             // ── Отряд: состояние в шапке и обновление панели ──
             RoomSession.Instance.StateChanged += Room_StateChanged;
             UpdateRoomIndicator();
+
+            // Уведомления отряда работают, даже когда вкладка «Отряд» закрыта
+            RoomNotificationService.Initialize();
+
+            // Закрытие главного окна прячет приложение в трей: сеть и уведомления
+            // продолжают работать. Полный выход — через меню иконки в трее.
+            CreateTrayIcon();
+            Closing += MainWindow_Closing;
+            Application.Current.SessionEnding += (s, e) => _reallyExit = true;
+
             Closed += (_, __) =>
             {
                 // Выходим из отряда по-человечески: друзья увидят сразу, а не через таймаут
@@ -252,6 +269,37 @@ namespace HMWT_MUI
             }
         }
 #endif
+        private void ImportCharacterButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Импортировать персонажа",
+                Filter = "Персонаж HMWT (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            Mouse.OverrideCursor = Cursors.Wait;
+            try
+            {
+                if (!CharacterPackService.Import(dialog.FileName, out int id, out string name, out string error))
+                {
+                    MessageDialog.Error(this, "Не удалось импортировать персонажа:\n\n" + error,
+                        "Импорт персонажа");
+                    return;
+                }
+
+                LoadCharacters();
+                MessageDialog.Info(this,
+                    $"Персонаж «{name}» добавлен в список.\n\n" +
+                    "Его можно открыть как обычного персонажа. Существующие листы не изменялись.",
+                    "Импорт персонажа");
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
+        }
+
         private void AddCharacterBtn_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -724,6 +772,94 @@ namespace HMWT_MUI
                       "• быстрые таблицы (состояния, DC, сложность)"
                     : DmRights.DenyReason(),
                 character == null ? "Инструменты ДМа" : "Инструменты ДМа — только у ведущего");
+        }
+
+        #endregion
+
+        #region === ТРЕЙ И УВЕДОМЛЕНИЯ ===
+
+        private void CreateTrayIcon()
+        {
+            if (_trayIcon != null) return;
+
+            Drawing.Icon icon = null;
+            try
+            {
+                icon = Drawing.Icon.ExtractAssociatedIcon(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location);
+            }
+            catch { }
+
+            if (icon == null) icon = Drawing.SystemIcons.Application;
+
+            var menu = new Forms.ContextMenuStrip();
+            menu.Items.Add("Открыть HMWT Гримуар", null, (s, e) => RestoreFromTray());
+            menu.Items.Add(new Forms.ToolStripSeparator());
+            menu.Items.Add("Выйти", null, (s, e) => ExitFromTray());
+
+            _trayIcon = new Forms.NotifyIcon
+            {
+                Icon = icon,
+                Text = "HMWT Гримуар — уведомления отряда",
+                Visible = false,
+                ContextMenuStrip = menu
+            };
+
+            _trayIcon.DoubleClick += (s, e) => RestoreFromTray();
+            _trayIcon.BalloonTipClicked += (s, e) => RestoreFromTray();
+        }
+
+        /// <summary>Показать окно из трея (кнопка уведомления или двойной клик).</summary>
+        public void RestoreFromTray()
+        {
+            if (_windowClosed) return;
+
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+
+            if (_trayIcon != null) _trayIcon.Visible = false;
+        }
+
+        private void HideToTray()
+        {
+            CreateTrayIcon();
+            _trayIcon.Visible = true;
+            Hide();
+
+            if (!_trayHintShown)
+            {
+                _trayHintShown = true;
+                try
+                {
+                    _trayIcon.ShowBalloonTip(3500, "HMWT Гримуар",
+                        "Свёрнуто в трей. Уведомления отряда продолжат приходить.", Forms.ToolTipIcon.Info);
+                }
+                catch { }
+            }
+        }
+
+        private void ExitFromTray()
+        {
+            _reallyExit = true;
+
+            try { if (_trayIcon != null) { _trayIcon.Visible = false; _trayIcon.Dispose(); } } catch { }
+            RoomNotificationService.Shutdown();
+
+            try { RoomSession.Instance.Leave(); } catch { }
+
+            Close();
+            Application.Current.Shutdown();
+        }
+
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_reallyExit) return;
+
+            // Крестик не завершает приложение: оно остаётся в сети и показывает
+            // уведомления. Полный выход — «Выйти» в меню иконки в трее.
+            e.Cancel = true;
+            HideToTray();
         }
 
         #endregion

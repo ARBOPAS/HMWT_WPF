@@ -2,6 +2,7 @@ using HMWT_MUI.Net;
 using HMWT_MUI.Helpers;
 using HMWT_MUI.Services;
 using HMWT_MUI.Views;
+using HMWT_MUI.Windows;
 using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 using System;
@@ -425,7 +426,10 @@ namespace HMWT_MUI
         private void PortraitOverlay_Close(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource == sender)
+            {
+                e.Handled = true;
                 PortraitOverlay.Visibility = Visibility.Collapsed;
+            }
         }
         #endregion
 
@@ -2622,7 +2626,10 @@ namespace HMWT_MUI
         private void RollHistoryOverlay_Close(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource == sender)
+            {
+                e.Handled = true;
                 RollHistoryOverlay.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void PopulateRollHistory()
@@ -2716,6 +2723,24 @@ namespace HMWT_MUI
 
         /// <summary>Что показываем сейчас: чтобы не пересобирать ту же вкладку.</summary>
         private string _currentViewName = "";
+
+        /// <summary>
+        /// Открыта ли сейчас именно вкладка «Отряд». Уведомления используют это,
+        /// чтобы не всплывать, когда игрок и так смотрит на ленту.
+        /// </summary>
+        public bool IsRoomViewVisible => _currentViewName == "Room";
+
+        /// <summary>
+        /// Открыть вкладку «Отряд» из уведомления: развернуть окно, поднять его
+        /// и переключить вкладку.
+        /// </summary>
+        public void ShowRoomTab()
+        {
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Show();
+            Activate();
+            SwitchView("Room");
+        }
 
         /// <summary>
         /// Переключает вкладку и замеряет, сколько она открывается.
@@ -2967,6 +2992,77 @@ namespace HMWT_MUI
         /// <summary>Кнопка «К списку» возвращает в главное окно, а не закрывает программу.</summary>
         private bool _backToMain;
 
+        private void BtnExportCharacter_Click(object sender, RoutedEventArgs e)
+        {
+            // Поля листа сохраняются по потере фокуса: снимаем фокус, чтобы
+            // экспорт не поймал старые значения незакрытого текстового поля.
+            Keyboard.ClearFocus();
+            this.Focus();
+
+            string name = (txtName.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(name)) name = "Персонаж";
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+
+            var dialog = new SaveFileDialog
+            {
+                Title = "Сохранить персонажа в файл",
+                Filter = "Персонаж HMWT (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*",
+                FileName = name + CharacterPackService.FileExtension,
+                DefaultExt = CharacterPackService.FileExtension
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            Mouse.OverrideCursor = Cursors.Wait;
+            try
+            {
+                if (!CharacterPackService.Export(dialog.FileName, _characterId, out string error))
+                {
+                    MessageDialog.Error(this, "Не удалось экспортировать персонажа:\n\n" + error,
+                        "Экспорт персонажа");
+                    return;
+                }
+
+                MessageDialog.Info(this,
+                    "Персонаж сохранён вместе с характеристиками, атаками, инвентарём, " +
+                    "заклинаниями, заметками и картинками.\n\n" + dialog.FileName,
+                    "Экспорт персонажа");
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
+        }
+
+        private void BtnImportCharacter_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Импортировать персонажа",
+                Filter = "Персонаж HMWT (*.hmwtpack)|*.hmwtpack|Все файлы (*.*)|*.*"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            Mouse.OverrideCursor = Cursors.Wait;
+            try
+            {
+                if (!CharacterPackService.Import(dialog.FileName, out int id, out string name, out string error))
+                {
+                    MessageDialog.Error(this, "Не удалось импортировать персонажа:\n\n" + error,
+                        "Импорт персонажа");
+                    return;
+                }
+
+                MessageDialog.Info(this,
+                    $"Персонаж «{name}» добавлен в список.\n\n" +
+                    "Текущий лист не изменялся. Нажми «К списку», чтобы увидеть нового персонажа.",
+                    "Импорт персонажа");
+            }
+            finally
+            {
+                Mouse.OverrideCursor = null;
+            }
+        }
+
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
             _backToMain = true;
@@ -2989,6 +3085,10 @@ namespace HMWT_MUI
         private void OverlayBackground_Click(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource != sender) return;
+
+            // Закрываем на отпускании и гасим событие: иначе клик по тёмному
+            // фону успевал «провалиться» в кнопку под ним и открыть второй оверлей
+            e.Handled = true;
 
             // Клик по затемнению закрывает оверлей, но перед этим сохраняем
             // введённое: раньше при клике в тёмный фон правки КД и скорости
@@ -3227,6 +3327,7 @@ namespace HMWT_MUI
         {
             // Клик по затемнению закрывает окошко; клики по содержимому не считаем
             if (!ReferenceEquals(e.OriginalSource, sender)) return;
+            e.Handled = true;
             CloseInitiativeOverlay();
         }
 

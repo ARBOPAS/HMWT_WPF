@@ -113,6 +113,7 @@
     <Compile Include="..\HMWT_MUI\Services\ClientRoomHistory.cs"><Link>App\ClientRoomHistory.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\EquipmentService.cs"><Link>App\EquipmentService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\AbilityService.cs"><Link>App\AbilityService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\DiceFormulaParser.cs"><Link>App\DiceFormulaParser.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SkillCatalog.cs"><Link>App\SkillCatalog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\UiPreferences.cs"><Link>App\UiPreferences.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SrdImportService.cs"><Link>App\SrdImportService.cs</Link></Compile>

@@ -100,6 +100,9 @@ namespace HMWT_MUI.Net
         /// <summary>Хост изменил карту (например, игрок подвинул своего жетона).</summary>
         public event Action MapChanged;
 
+        /// <summary>Пришёл новый разведанный сектор от игрока: ведущий добавляет его себе.</summary>
+        public event Action<string> MapSeenAdded;
+
         /// <summary>Жетон сдвинулся во время перетаскивания (лёгкое обновление).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
 
@@ -463,6 +466,11 @@ namespace HMWT_MUI.Net
 
                     case MsgType.MapRequest:
                         _ = SendMapStateToAsync(conn);
+                        _ = SendMapSeenSyncToAsync(conn);
+                        break;
+
+                    case MsgType.MapSeenAdd:
+                        ApplyMapSeenAdd(conn, msg.As<MapSeenAddRequest>());
                         break;
 
                     case MsgType.MapMove:
@@ -914,6 +922,72 @@ namespace HMWT_MUI.Net
                 _ = SendSafeAsync(c, message);
         }
 
+        /// <summary>
+        /// Разведанное общее: ведущий нашёл новый сектор — отправляем игрокам.
+        /// В режиме «свой туман» разведанное остаётся личным и не рассылается.
+        /// </summary>
+        public void BroadcastMapSeen(string points)
+        {
+            if (!SeenIsShared() || string.IsNullOrWhiteSpace(points)) return;
+
+            var message = new NetMessage(MsgType.MapSeenAdd, new MapSeenAddRequest { Points = points });
+            foreach (var c in _clients.Values.Where(x => x.HandshakeDone).ToList())
+                _ = SendSafeAsync(c, message);
+        }
+
+        private bool SeenIsShared()
+        {
+            lock (_stateLock)
+                return _map != null &&
+                       !string.Equals(_map.FogMode, "own", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ApplyMapSeenAdd(ClientConnection conn, MapSeenAddRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Points)) return;
+            if (!SeenIsShared()) return;
+
+            string points = request.Points.Trim();
+            if (points.Length < 10 || points.Length > 40000) return;
+
+            MapSceneData scene;
+            lock (_stateLock) scene = _map;
+            if (scene == null) return;
+
+            // Ведущий — хранитель общего разведанного
+            MapService.AddSeen(scene.Id, points);
+            MapSeenAdded?.Invoke(points);
+
+            var message = new NetMessage(MsgType.MapSeenAdd, new MapSeenAddRequest { Points = points });
+            foreach (var c in _clients.Values.Where(x => x.HandshakeDone &&
+                         !string.Equals(x.PlayerId, conn.PlayerId, StringComparison.Ordinal)).ToList())
+            {
+                _ = SendSafeAsync(c, message);
+            }
+
+            LogRoomLine($"разведано от {conn.Player?.CharacterName}: сектор {points.Length} байт");
+        }
+
+        /// <summary>Новому игроку отправляем всё, что отряд уже разведал.</summary>
+        private async Task SendMapSeenSyncToAsync(ClientConnection conn)
+        {
+            if (conn == null || !SeenIsShared()) return;
+
+            MapSceneData scene;
+            lock (_stateLock) scene = _map;
+            if (scene == null) return;
+
+            var seen = MapService.LoadSeen(scene.Id);
+            if (seen.Count > 240) seen = seen.Skip(seen.Count - 240).ToList();
+
+            try
+            {
+                await SendSafeAsync(conn, new NetMessage(MsgType.MapSeenSync, new MapSeenSync { Seen = seen }))
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) { Debug.WriteLine($"[RoomServer] разведанное не ушло: {ex.Message}"); }
+        }
+
         private async Task SendMapStateToAsync(ClientConnection conn)
         {
             var scene = GetMap();
@@ -968,6 +1042,8 @@ namespace HMWT_MUI.Net
                                 token.ViewAngle = request.ViewAngle;
                             if (request.SizeCells >= 1 && request.SizeCells <= 4)
                                 token.SizeCells = request.SizeCells;
+                            if (request.RevealCells >= 1 && request.RevealCells <= 40)
+                                token.RevealCells = request.RevealCells;
 
                             changedToken = token;
                             applied = true;

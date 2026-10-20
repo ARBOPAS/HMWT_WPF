@@ -26,6 +26,12 @@ namespace HMWT_MUI.Net
 
         /// <summary>Жетон сдвинулся во время чужого перетаскивания: (id, x, y, поворот).</summary>
         public Action<int, double, double, double> TokenLiveReceived { get; set; }
+
+        /// <summary>Пришёл новый разведанный сектор от другого игрока/хоста.</summary>
+        public Action<string> MapSeenReceived { get; set; }
+
+        /// <summary>Хост прислал всё разведанное по сцене.</summary>
+        public Action<List<string>> MapSeenSynced { get; set; }
         public Action<FeedEntry> FeedReceived { get; set; }
         public Action<string, string, bool> ConnectionChanged { get; set; }  // (состояние, текст, подключён)
         public Action<string, string> Failed { get; set; }                   // (код ошибки, текст)
@@ -434,6 +440,16 @@ namespace HMWT_MUI.Net
                             Events?.TokenLiveReceived?.Invoke(live.TokenId, live.X, live.Y, live.Facing);
                         break;
 
+                    case MsgType.MapSeenAdd:
+                        var seen = msg.As<MapSeenAddRequest>();
+                        if (seen != null) Events?.MapSeenReceived?.Invoke(seen.Points);
+                        break;
+
+                    case MsgType.MapSeenSync:
+                        var seenSync = msg.As<MapSeenSync>();
+                        if (seenSync?.Seen != null) Events?.MapSeenSynced?.Invoke(seenSync.Seen);
+                        break;
+
                     case MsgType.ChatMessage:
                     case MsgType.RollMessage:
                     case MsgType.SystemNotice:
@@ -544,7 +560,7 @@ namespace HMWT_MUI.Net
         /// перегрузки ломали поиск метода через reflection.
         /// </summary>
         public Task SendMapMoveEditAsync(int tokenId, double x, double y, double facing,
-            double viewAngle, int sizeCells)
+            double viewAngle, int sizeCells, double revealCells = -1)
             => SendAsync(new NetMessage(MsgType.MapMove, new MapMoveRequest
             {
                 TokenId = tokenId,
@@ -552,7 +568,8 @@ namespace HMWT_MUI.Net
                 Y = y,
                 Facing = double.IsNaN(facing) ? -1 : facing,
                 ViewAngle = viewAngle,
-                SizeCells = sizeCells
+                SizeCells = sizeCells,
+                RevealCells = revealCells
             }));
 
         /// <summary>Просит картинку карты по хэшу (если файла ещё нет).</summary>
@@ -576,6 +593,10 @@ namespace HMWT_MUI.Net
         /// <summary>Отправляет нарисованный штрих ведущему.</summary>
         public Task SendMapStrokeAsync(MapStrokeRequest stroke)
             => SendAsync(new NetMessage(MsgType.MapStroke, stroke));
+
+        /// <summary>Отправляет новый разведанный сектор ведущему.</summary>
+        public Task SendMapSeenAsync(string points)
+            => SendAsync(new NetMessage(MsgType.MapSeenAdd, new MapSeenAddRequest { Points = points ?? "" }));
 
         /// <summary>Сообщает ведущему, какие штрихи стёрты ластиком.</summary>
         public Task SendMapStrokeEraseAsync(List<int> ids)

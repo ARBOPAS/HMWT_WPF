@@ -187,6 +187,12 @@ namespace HMWT_MUI.Net
         /// <summary>Ведущий начал разведку заново: игроку нужно очистить «разведанное».</summary>
         public event Action MapSeenReset;
 
+        /// <summary>Другой участник нашёл новый разведанный сектор (общий туман).</summary>
+        public event Action<string> MapSeenAdded;
+
+        /// <summary>Хост прислал всё разведанное по сцене при открытии карты.</summary>
+        public event Action<List<string>> MapSeenSynced;
+
         /// <summary>Жетон сдвинулся во время перетаскивания: (id, x, y, поворот).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
 
@@ -255,6 +261,7 @@ namespace HMWT_MUI.Net
                 // Уход участника: лента пополняется сама, а интерфейсу нужен
                 // отдельный сигнал — иначе заметить уход напарника легко
                 _server.MapChanged += () => MapChanged?.Invoke();
+                _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
@@ -355,6 +362,8 @@ namespace HMWT_MUI.Net
                 _client.Events.MapStateReceived = scene => MapChanged?.Invoke();
                 _client.Events.MapImageReceived = (hash, path) => MapImageReady?.Invoke(hash, path);
                 _client.Events.MapSeenResetReceived = () => MapSeenReset?.Invoke();
+                _client.Events.MapSeenReceived = p => MapSeenAdded?.Invoke(p);
+                _client.Events.MapSeenSynced = list => MapSeenSynced?.Invoke(list);
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -617,6 +626,7 @@ namespace HMWT_MUI.Net
                 _server = new RoomServer(manifest.Id, key, Port, DataFingerprint);
                 _server.RoomName = manifest.Name ?? "";
                 _server.MapChanged += () => MapChanged?.Invoke();
+                _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
@@ -782,12 +792,12 @@ namespace HMWT_MUI.Net
 
         /// <summary>Игрок подвинул своего жетона: отправляем хосту.</summary>
         public bool SendMapMove(int tokenId, double x, double y, double facing = double.NaN,
-            double viewAngle = -1, int sizeCells = -1)
+            double viewAngle = -1, int sizeCells = -1, double revealCells = -1)
         {
             if (!IsActive || IsHost || _client == null || !_client.IsConnected) return false;
 
-            if (viewAngle >= 0 || sizeCells >= 1)
-                _ = _client.SendMapMoveEditAsync(tokenId, x, y, facing, viewAngle, sizeCells);
+            if (viewAngle >= 0 || sizeCells >= 1 || revealCells >= 0)
+                _ = _client.SendMapMoveEditAsync(tokenId, x, y, facing, viewAngle, sizeCells, revealCells);
             else
                 _ = _client.SendMapMoveAsync(tokenId, x, y, facing);
             return true;
@@ -846,6 +856,24 @@ namespace HMWT_MUI.Net
             if (ids == null || ids.Count == 0) return;
 
             _ = _client.SendMapStrokeEraseAsync(ids);
+        }
+
+        /// <summary>
+        /// Поделиться новым разведанным сектором: у хоста — сразу всем,
+        /// у игрока — ведущему, а тот разошлёт остальным.
+        /// </summary>
+        public void ShareMapSeen(string points)
+        {
+            if (!IsActive || string.IsNullOrWhiteSpace(points)) return;
+
+            if (IsHost)
+            {
+                _server?.BroadcastMapSeen(points);
+                return;
+            }
+
+            if (_client == null || !_client.IsConnected) return;
+            _ = _client.SendMapSeenAsync(points);
         }
         /// <summary>Состояние трекера инициативы: у хоста — своё, у гостя — из снимка.</summary>
         public InitiativeState GetInitiative()
@@ -1251,6 +1279,8 @@ namespace HMWT_MUI.Net
         {
             if (snapshot?.Feed == null) return;
 
+            var fresh = new List<FeedEntry>();
+
             lock (_clientFeedLock)
             {
                 var snapshotFeed = snapshot.Feed;
@@ -1262,11 +1292,23 @@ namespace HMWT_MUI.Net
                 // Свежие локальные записи, которых в снимке ещё нет
                 var newer = _clientFeed.Where(e => !snapshotKeys.Contains(KeyOf(e))).ToList();
 
+                // Снимок — это ещё и способ хоста принести свой чат и бросок:
+                // отдельного события для них нет. Новые записи после первого
+                // снимка отдаём слушателям, чтобы сработали уведомления.
+                if (_clientFeedLoaded)
+                {
+                    var oldKeys = new HashSet<string>(_clientFeed.Select(KeyOf), StringComparer.Ordinal);
+                    fresh = snapshotFeed.Where(e => !oldKeys.Contains(KeyOf(e))).ToList();
+                }
+
                 _clientFeed.Clear();
                 _clientFeed.AddRange(snapshotFeed);
                 _clientFeed.AddRange(newer);
                 _clientFeedLoaded = true;
             }
+
+            foreach (var entry in fresh)
+                FeedReceived?.Invoke(entry);
         }
 
         /// <summary>Ключ записи для отсечения дублей между снимком и событиями.</summary>
