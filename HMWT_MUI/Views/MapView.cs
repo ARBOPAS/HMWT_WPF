@@ -140,6 +140,13 @@ namespace HMWT_MUI.Views
         private readonly Slider _revealSlider = new Slider { Width = 100, Minimum = 1, Maximum = 20, TickFrequency = 1, IsSnapToTickEnabled = true, Value = 6 };
         private readonly TextBlock _revealLabel = new TextBlock { FontSize = 11 };
         private readonly Slider _shapeSlider = new Slider { Width = 90, Minimum = 1, Maximum = 20, TickFrequency = 1, IsSnapToTickEnabled = true, Value = 4 };
+        private readonly CheckBox _measureCheck = DmUiKit.Check("Линейка", false);
+        private readonly CheckBox _pingCheck = DmUiKit.Check("Пинг", false);
+        private readonly Canvas _measureLayer = new Canvas { IsHitTestVisible = false };
+        private readonly Canvas _pingLayer = new Canvas { IsHitTestVisible = false };
+        private System.Windows.Shapes.Line _measureLine;
+        private Border _measureLabel;
+        private Point? _measureStart;
         private readonly CheckBox _gridCheck = DmUiKit.Check("Сетка", true);
 
         private readonly ScaleTransform _zoom = new ScaleTransform(1, 1);
@@ -183,6 +190,7 @@ namespace HMWT_MUI.Views
                 room.MapSeenReset += OnMapSeenReset;
                 room.MapSeenAdded += OnMapSeenAdded;
                 room.MapSeenSynced += OnMapSeenSynced;
+                room.Pinged += OnMapPing;
                 room.TokenMovedLive += OnTokenMovedLive;
                 room.StateChanged += OnRoomStateChanged;
                 _retryTimer.Start();
@@ -195,6 +203,7 @@ namespace HMWT_MUI.Views
                 room.MapSeenReset -= OnMapSeenReset;
                 room.MapSeenAdded -= OnMapSeenAdded;
                 room.MapSeenSynced -= OnMapSeenSynced;
+                room.Pinged -= OnMapPing;
                 room.TokenMovedLive -= OnTokenMovedLive;
                 room.StateChanged -= OnRoomStateChanged;
                 _retryTimer.Stop();
@@ -391,6 +400,39 @@ namespace HMWT_MUI.Views
             _shapeSlider.IsEnabled = _isDm;
             bar.Children.Add(_shapeSlider);
 
+            // ── линейка: протяните мышью и увидите клетки/футы ──
+            _measureCheck.Margin = new Thickness(0, 0, 10, 0);
+            _measureCheck.ToolTip = "Протяните мышью по карте — покажет расстояние в клетках и футах";
+            _measureCheck.Checked += (s, e) =>
+            {
+                _drawCheck.IsChecked = false;
+                _wallCheck.IsChecked = false;
+                _pingCheck.IsChecked = false;
+                _pendingShape = null;
+                ClearMeasure();
+                _viewport.Cursor = Cursors.Cross;
+            };
+            _measureCheck.Unchecked += (s, e) =>
+            {
+                ClearMeasure();
+                _viewport.Cursor = Cursors.Arrow;
+            };
+            bar.Children.Add(_measureCheck);
+
+            // ── пинг: точка, которую видят все в комнате ──
+            _pingCheck.Margin = new Thickness(0, 0, 10, 0);
+            _pingCheck.ToolTip = "Щёлкните по карте — все увидят пульс в этом месте";
+            _pingCheck.Checked += (s, e) =>
+            {
+                _drawCheck.IsChecked = false;
+                _wallCheck.IsChecked = false;
+                _measureCheck.IsChecked = false;
+                _pendingShape = null;
+                _viewport.Cursor = Cursors.Cross;
+            };
+            _pingCheck.Unchecked += (s, e) => _viewport.Cursor = Cursors.Arrow;
+            bar.Children.Add(_pingCheck);
+
             // ── стены: ломают обзор, за ними туман не рассеивается ──
             // ── дальность обзора выделенного жетона ──
             _revealLabel.Text = "Обзор";
@@ -545,7 +587,13 @@ namespace HMWT_MUI.Views
             _world.Children.Add(_fog);
             _world.Children.Add(_fogDark);
 
-            _viewport.Child = _world;
+            // Линейка — отдельный слой поверх карты и тумана, в координатах
+            // окна: так подпись не масштабируется вместе с картой и всегда видна.
+            var viewportHost = new Grid();
+            viewportHost.Children.Add(_world);
+            viewportHost.Children.Add(_measureLayer);
+            viewportHost.Children.Add(_pingLayer);
+            _viewport.Child = viewportHost;
             _viewport.SizeChanged += (s, e) => { if (!_userZoomed) FitToWindow(); };
             _viewport.MouseWheel += Viewport_MouseWheel;
             _viewport.MouseLeftButtonDown += (s, e) => Focus();
@@ -638,6 +686,7 @@ namespace HMWT_MUI.Views
         /// <summary>Показывает карту, пришедшую от мастера.</summary>
         private void OpenRemoteScene(MapSceneData remote)
         {
+            ClearMeasure();
             _scene = remote;
 
             _gridCheck.IsChecked = _scene.GridOn;
@@ -1159,6 +1208,7 @@ namespace HMWT_MUI.Views
         {
             try
             {
+                ClearMeasure();
                 _scene = MapService.LoadScene(scene.Id) ?? scene;
                 _gridCheck.IsChecked = _scene.GridOn;
                 _cellField.Text = ((int)Math.Round(_scene.GridPx <= 4 ? 70 : _scene.GridPx)).ToString();
@@ -3828,14 +3878,169 @@ namespace HMWT_MUI.Views
 
         private void ApplyTransform()
         {
+            // Линейка нарисована в координатах окна; после сдвига/зума она
+            // перестала бы соответствовать карте, поэтому убираем её.
+            if (_measureStart == null && _measureLayer.Children.Count > 0) ClearMeasure();
+
             _zoom.ScaleX = _scale;
             _zoom.ScaleY = _scale;
             _shift.X = _tx;
             _shift.Y = _ty;
         }
 
+        private void ClearMeasure()
+        {
+            _measureStart = null;
+            _measureLine = null;
+            _measureLabel = null;
+            _measureLayer.Children.Clear();
+        }
+
+        /// <summary>Показывает пульс в точке карты: локально или пришедшую по сети.</summary>
+        private void ShowPing(Point scenePoint)
+        {
+            if (_scene == null || _content == null || _viewport == null) return;
+
+            try
+            {
+                Point screen = _content.TranslatePoint(scenePoint, _viewport);
+                if (double.IsNaN(screen.X) || double.IsNaN(screen.Y)) return;
+
+                var ring = new System.Windows.Shapes.Ellipse
+                {
+                    Width = 36,
+                    Height = 36,
+                    Fill = new SolidColorBrush(Color.FromArgb(0x33, 0x5F, 0xD4, 0xDD)),
+                    Stroke = new SolidColorBrush(Color.FromArgb(0xFF, 0x5F, 0xD4, 0xDD)),
+                    StrokeThickness = 2.4,
+                    IsHitTestVisible = false
+                };
+
+                Canvas.SetLeft(ring, screen.X - 18);
+                Canvas.SetTop(ring, screen.Y - 18);
+                _pingLayer.Children.Add(ring);
+
+                var timer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(1100)
+                };
+                timer.Tick += (s, e) =>
+                {
+                    timer.Stop();
+                    _pingLayer.Children.Remove(ring);
+                };
+                timer.Start();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MapView] пинг: {ex.Message}");
+            }
+        }
+
+        private void OnMapPing(double x, double y)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnMapPing(x, y)));
+                return;
+            }
+
+            ShowPing(new Point(x, y));
+        }
+
+        private void BeginMeasure(Point point)
+        {
+            ClearMeasure();
+
+            if (_scene == null) return;
+            _measureStart = point;
+
+            _measureLine = new System.Windows.Shapes.Line
+            {
+                X1 = point.X,
+                Y1 = point.Y,
+                X2 = point.X,
+                Y2 = point.Y,
+                Stroke = new SolidColorBrush(Color.FromArgb(0xEE, 0x5F, 0xD4, 0xDD)),
+                StrokeThickness = 2.5,
+                StrokeDashArray = new DoubleCollection { 6, 4 },
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                IsHitTestVisible = false
+            };
+            _measureLayer.Children.Add(_measureLine);
+
+            _measureLabel = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x0B, 0x0D, 0x16)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0xAA, 0x5F, 0xD4, 0xDD)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(7, 3, 7, 3),
+                IsHitTestVisible = false,
+                Child = new TextBlock
+                {
+                    Text = "0 кл · 0 фт",
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0xE6, 0xEA, 0xF5))
+                }
+            };
+            _measureLayer.Children.Add(_measureLabel);
+        }
+
+        private void UpdateMeasure(Point point)
+        {
+            if (_measureStart == null || _measureLine == null || _measureLabel == null || _scene == null) return;
+
+            Point start = _measureStart.Value;
+            _measureLine.X2 = point.X;
+            _measureLine.Y2 = point.Y;
+
+            double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
+            double pixels = Math.Sqrt((point.X - start.X) * (point.X - start.X) +
+                                      (point.Y - start.Y) * (point.Y - start.Y));
+            double cells = pixels / Math.Max(1, cell * _scale);
+            double feet = cells * 5;
+
+            if (_measureLabel.Child is TextBlock text)
+                text.Text = $"{cells:0.#} кл · {feet:0} фт";
+
+            Canvas.SetLeft(_measureLabel, (start.X + point.X) / 2 + 10);
+            Canvas.SetTop(_measureLabel, (start.Y + point.Y) / 2 - 14);
+        }
+
+        private void EndMeasure()
+        {
+            _measureStart = null;
+            _viewport.Cursor = _measureCheck.IsChecked == true ? Cursors.Cross : Cursors.Arrow;
+        }
+
         private void Viewport_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            // Пинг: одиночный щелчок, режим после него снимается
+            if (e.ChangedButton == MouseButton.Left && _pingCheck.IsChecked == true && _scene != null)
+            {
+                _userZoomed = true;
+                Point contentPoint = e.GetPosition(_content);
+                ShowPing(contentPoint);
+                RoomSession.Instance.SendMapPing(contentPoint.X, contentPoint.Y);
+                _pingCheck.IsChecked = false;
+                _viewport.Cursor = Cursors.Arrow;
+                e.Handled = true;
+                return;
+            }
+
+            // Линейка важнее жетона: можно измерить и от самого жетона
+            if (e.ChangedButton == MouseButton.Left && _measureCheck.IsChecked == true && _scene != null)
+            {
+                _userZoomed = true;
+                BeginMeasure(e.GetPosition(_viewport));
+                _viewport.CaptureMouse();
+                e.Handled = true;
+                return;
+            }
+
             if (e.OriginalSource is Border b && b.Tag is MapTokenData) return;
 
             // выбран тип фигуры — щелчок ставит её на карту
@@ -3891,6 +4096,12 @@ namespace HMWT_MUI.Views
 
         private void Viewport_MouseMove(object sender, MouseEventArgs e)
         {
+            if (_measureStart != null)
+            {
+                UpdateMeasure(e.GetPosition(_viewport));
+                return;
+            }
+
             if (_wallStart != null)
             {
                 ExtendWall(e.GetPosition(_wallLayer));
@@ -3913,6 +4124,13 @@ namespace HMWT_MUI.Views
 
         private void Viewport_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (_measureStart != null)
+            {
+                _viewport.ReleaseMouseCapture();
+                EndMeasure();
+                return;
+            }
+
             if (_wallStart != null)
             {
                 _viewport.ReleaseMouseCapture();

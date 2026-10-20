@@ -190,6 +190,9 @@ namespace HMWT_MUI.Net
         /// <summary>Другой участник нашёл новый разведанный сектор (общий туман).</summary>
         public event Action<string> MapSeenAdded;
 
+        /// <summary>Кто-то пингнул точку на карте.</summary>
+        public event Action<double, double> Pinged;
+
         /// <summary>Хост прислал всё разведанное по сцене при открытии карты.</summary>
         public event Action<List<string>> MapSeenSynced;
 
@@ -262,6 +265,7 @@ namespace HMWT_MUI.Net
                 // отдельный сигнал — иначе заметить уход напарника легко
                 _server.MapChanged += () => MapChanged?.Invoke();
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
+                _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
@@ -364,6 +368,7 @@ namespace HMWT_MUI.Net
                 _client.Events.MapSeenResetReceived = () => MapSeenReset?.Invoke();
                 _client.Events.MapSeenReceived = p => MapSeenAdded?.Invoke(p);
                 _client.Events.MapSeenSynced = list => MapSeenSynced?.Invoke(list);
+                _client.Events.PingReceived = (x, y) => Pinged?.Invoke(x, y);
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -627,6 +632,7 @@ namespace HMWT_MUI.Net
                 _server.RoomName = manifest.Name ?? "";
                 _server.MapChanged += () => MapChanged?.Invoke();
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
+                _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
@@ -874,6 +880,21 @@ namespace HMWT_MUI.Net
 
             if (_client == null || !_client.IsConnected) return;
             _ = _client.SendMapSeenAsync(points);
+        }
+
+        /// <summary>Пинг по карте: у хоста — сразу всем, у игрока — через ведущего.</summary>
+        public void SendMapPing(double x, double y)
+        {
+            if (!IsActive) return;
+
+            if (IsHost)
+            {
+                _server?.BroadcastPing(x, y);
+                return;
+            }
+
+            if (_client == null || !_client.IsConnected) return;
+            _ = _client.SendMapPingAsync(x, y);
         }
         /// <summary>Состояние трекера инициативы: у хоста — своё, у гостя — из снимка.</summary>
         public InitiativeState GetInitiative()

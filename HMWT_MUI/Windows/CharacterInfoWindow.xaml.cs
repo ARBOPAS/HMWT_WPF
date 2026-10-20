@@ -528,7 +528,7 @@ namespace HMWT_MUI
             txtHP.Text = $"{newHp} / {_maxHp}";
 
             if (newHp == 0) ShowStabilizationOverlay();
-            else if (newHp > 0 && (_stabSuccesses > 0 || _stabFailures > 0)) ResetStabilization();
+            else ResetStabilization();
 
             NotifyRoomProfileChanged();
         }

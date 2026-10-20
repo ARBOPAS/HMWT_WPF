@@ -173,7 +173,14 @@ namespace HMWT_MUI.Views
             }));
         }
 
-        private void OnSnapshotReceived(RoomSnapshot snapshot) => _ui.BeginInvoke(new Action(RefreshAll));
+        private void OnSnapshotReceived(RoomSnapshot snapshot) => _ui.BeginInvoke(new Action(() =>
+        {
+            // Снимок — самый достоверный источник списка участников. Сбрасываем
+            // подпись, иначе карточка ушедшего могла остаться до переоткрытия вкладки.
+            _renderedPlayersSignature = null;
+            _renderedPlayerCount = -1;
+            RefreshAll();
+        }));
 
         /// <summary>
         /// Участник ушёл (приходит у ведущего от сетевого слоя, у гостя — из
@@ -188,16 +195,36 @@ namespace HMWT_MUI.Views
                     : (!string.IsNullOrWhiteSpace(player?.Name) ? player.Name : "Участник");
 
                 string key = name + "|" + reason;
-                if (_departuresAnnounced.Contains(key)) return;
-                _departuresAnnounced.Add(key);
+                bool alreadyAnnounced = _departuresAnnounced.Contains(key);
+                if (!alreadyAnnounced)
+                {
+                    _departuresAnnounced.Add(key);
 
-                string tail = string.IsNullOrWhiteSpace(reason) ? "" : $" ({reason})";
-                string message = $"Участник {name} отключился{tail}";
+                    string tail = string.IsNullOrWhiteSpace(reason) ? "" : $" ({reason})";
+                    string message = $"Участник {name} отключился{tail}";
 
-                ShowWindowToast(message);
-                txtFeedHint.Text = message;
+                    ShowWindowToast(message);
+                    txtFeedHint.Text = message;
+                }
 
+                // Событие может прийти раньше снимка: обновляем сразу и ещё раз
+                // чуть позже, когда список участников точно уже без ушедшего.
+                _renderedPlayersSignature = null;
+                _renderedPlayerCount = -1;
                 RefreshAll();
+
+                var retry = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(600)
+                };
+                retry.Tick += (s, e) =>
+                {
+                    retry.Stop();
+                    _renderedPlayersSignature = null;
+                    UpdatePlayers();
+                    UpdatePhotoHint();
+                };
+                retry.Start();
             }));
         }
 

@@ -134,9 +134,14 @@ namespace HMWT_MUI.Net
         /// импортируется в новую установку как новый персонаж. Формат сети
         /// не менялся.
         ///
+        /// 1.2.8.5 — пинг по карте для всей комнаты; трекер применяет урон/
+        /// лечение указанным числом; линейка с клетками и футами; убран
+        /// оставшийся спасбросок стабилизации после лечения; обновление
+        /// комнаты при выходе участника. Протокол комнаты 8.
+        ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.2.8.0";
+        public const string AppVersion = "1.2.8.5";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -157,7 +162,7 @@ namespace HMWT_MUI.Net
         /// (<see cref="MapTokenLive"/>): полную карту на каждом шаге больше
         /// не шлём.
         /// </summary>
-        public const int ProtocolVersion = 7;
+        public const int ProtocolVersion = 8;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -264,6 +269,9 @@ namespace HMWT_MUI.Net
 
         /// <summary>Хост -> игрок: всё разведанное по сцене при открытии карты/входе.</summary>
         public const string MapSeenSync = "map_seen_sync";
+
+        /// <summary>Пинг по карте: игрок/хост показал точку, её видят все в комнате.</summary>
+        public const string MapPing = "map_ping";
 
         /// <summary>Хост отвечает: такого аватара у него нет.</summary>
         public const string PhotoMissing = "photo_missing";

@@ -453,6 +453,13 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("seen")] public List<string> Seen { get; set; } = new List<string>();
     }
 
+    /// <summary>Пинг по карте: координаты в системе картинки сцены.</summary>
+    public sealed class MapPingRequest
+    {
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+    }
+
     /// <summary>Промежуточное положение жетона при перетаскивании.</summary>
     public sealed class MapTokenLive
     {

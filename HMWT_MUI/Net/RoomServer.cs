@@ -43,6 +43,7 @@ namespace HMWT_MUI.Net
         public PlayerInfo Player;
         public CancellationTokenSource Cts;
         public DateTime LastSeenUtc = DateTime.UtcNow;
+        public DateTime LastPingUtc = DateTime.MinValue;
         public bool HandshakeDone;
 
         /// <summary>
@@ -102,6 +103,9 @@ namespace HMWT_MUI.Net
 
         /// <summary>Пришёл новый разведанный сектор от игрока: ведущий добавляет его себе.</summary>
         public event Action<string> MapSeenAdded;
+
+        /// <summary>Кто-то пингнул точку на карте: показать всем.</summary>
+        public event Action<double, double> Pinged;
 
         /// <summary>Жетон сдвинулся во время перетаскивания (лёгкое обновление).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
@@ -471,6 +475,10 @@ namespace HMWT_MUI.Net
 
                     case MsgType.MapSeenAdd:
                         ApplyMapSeenAdd(conn, msg.As<MapSeenAddRequest>());
+                        break;
+
+                    case MsgType.MapPing:
+                        ApplyMapPing(conn, msg.As<MapPingRequest>());
                         break;
 
                     case MsgType.MapMove:
@@ -933,6 +941,40 @@ namespace HMWT_MUI.Net
             var message = new NetMessage(MsgType.MapSeenAdd, new MapSeenAddRequest { Points = points });
             foreach (var c in _clients.Values.Where(x => x.HandshakeDone).ToList())
                 _ = SendSafeAsync(c, message);
+        }
+
+        /// <summary>Ведущий пингнул карту — отправляем всем игрокам.</summary>
+        public void BroadcastPing(double x, double y)
+        {
+            var message = new NetMessage(MsgType.MapPing, new MapPingRequest { X = x, Y = y });
+            foreach (var c in _clients.Values.Where(x => x.HandshakeDone).ToList())
+                _ = SendSafeAsync(c, message);
+        }
+
+        private void ApplyMapPing(ClientConnection conn, MapPingRequest request)
+        {
+            if (request == null || conn == null) return;
+
+            // Не даём залить канал десятками пингов в секунду
+            if ((DateTime.UtcNow - conn.LastPingUtc).TotalMilliseconds < 250) return;
+            conn.LastPingUtc = DateTime.UtcNow;
+
+            MapSceneData scene;
+            lock (_stateLock) scene = _map;
+            if (scene == null) return;
+
+            double x = Math.Max(0, Math.Min(scene.WidthPx, request.X));
+            double y = Math.Max(0, Math.Min(scene.HeightPx, request.Y));
+            if (double.IsNaN(x) || double.IsNaN(y) || double.IsInfinity(x) || double.IsInfinity(y)) return;
+
+            Pinged?.Invoke(x, y);
+
+            var message = new NetMessage(MsgType.MapPing, new MapPingRequest { X = x, Y = y });
+            foreach (var c in _clients.Values.Where(x2 => x2.HandshakeDone &&
+                         !string.Equals(x2.PlayerId, conn.PlayerId, StringComparison.Ordinal)).ToList())
+            {
+                _ = SendSafeAsync(c, message);
+            }
         }
 
         private bool SeenIsShared()

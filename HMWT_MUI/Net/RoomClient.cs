@@ -32,6 +32,9 @@ namespace HMWT_MUI.Net
 
         /// <summary>Хост прислал всё разведанное по сцене.</summary>
         public Action<List<string>> MapSeenSynced { get; set; }
+
+        /// <summary>Кто-то пингнул точку на карте.</summary>
+        public Action<double, double> PingReceived { get; set; }
         public Action<FeedEntry> FeedReceived { get; set; }
         public Action<string, string, bool> ConnectionChanged { get; set; }  // (состояние, текст, подключён)
         public Action<string, string> Failed { get; set; }                   // (код ошибки, текст)
@@ -450,6 +453,11 @@ namespace HMWT_MUI.Net
                         if (seenSync?.Seen != null) Events?.MapSeenSynced?.Invoke(seenSync.Seen);
                         break;
 
+                    case MsgType.MapPing:
+                        var ping = msg.As<MapPingRequest>();
+                        if (ping != null) Events?.PingReceived?.Invoke(ping.X, ping.Y);
+                        break;
+
                     case MsgType.ChatMessage:
                     case MsgType.RollMessage:
                     case MsgType.SystemNotice:
@@ -597,6 +605,10 @@ namespace HMWT_MUI.Net
         /// <summary>Отправляет новый разведанный сектор ведущему.</summary>
         public Task SendMapSeenAsync(string points)
             => SendAsync(new NetMessage(MsgType.MapSeenAdd, new MapSeenAddRequest { Points = points ?? "" }));
+
+        /// <summary>Пинг по карте: ведущий разошлёт всем.</summary>
+        public Task SendMapPingAsync(double x, double y)
+            => SendAsync(new NetMessage(MsgType.MapPing, new MapPingRequest { X = x, Y = y }));
 
         /// <summary>Сообщает ведущему, какие штрихи стёрты ластиком.</summary>
         public Task SendMapStrokeEraseAsync(List<int> ids)

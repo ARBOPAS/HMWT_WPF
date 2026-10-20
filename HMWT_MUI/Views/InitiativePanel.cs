@@ -407,13 +407,28 @@ namespace HMWT_MUI.Views
             {
                 row.Children.Add(DmUiKit.Icon("🎲", (s, e) => RollHitPoints(combatant),
                     "Бросить хиты по формуле существа", 26));
-                row.Children.Add(DmUiKit.Icon("−", (s, e) => ShiftHitPoints(combatant, -1),
-                    "Убрать 1 хит", 24, DmUiKit.ButtonKind.Soft));
-                row.Children.Add(DmUiKit.Icon("+", (s, e) => ShiftHitPoints(combatant, 1),
-                    "Добавить 1 хит", 24, DmUiKit.ButtonKind.Soft));
+
+                // Сколько применить за раз: мастеру не нужно щёлкать «−1» десять раз
+                var amount = DmUiKit.Field("5", 42, "Сколько хитов применить");
+                amount.VerticalAlignment = VerticalAlignment.Center;
+                amount.Margin = new Thickness(0, 0, 4, 0);
+                row.Children.Add(amount);
+
+                row.Children.Add(DmUiKit.Icon("−", (s, e) => ShiftHitPoints(combatant, -AmountToApply(amount)),
+                    "Урон на указанное число", 24, DmUiKit.ButtonKind.Soft));
+                row.Children.Add(DmUiKit.Icon("+", (s, e) => ShiftHitPoints(combatant, AmountToApply(amount)),
+                    "Лечение на указанное число", 24, DmUiKit.ButtonKind.Soft));
             }
 
             return row;
+        }
+
+        /// <summary>Число из поля «сколько»: пустое или мусор — один хит.</summary>
+        private static int AmountToApply(TextBox box)
+        {
+            if (box == null) return 1;
+            if (!int.TryParse(box.Text?.Trim(), out int value)) return 1;
+            return Math.Max(1, Math.Min(999, value));
         }
 
         /// <summary>Плашки состояний и кнопка «+» с меню выбора.</summary>
