@@ -1,0 +1,13 @@
+HMWT Гримуар — исходный код
+
+Официальный репозиторий:
+https://github.com/ARBOPAS/HMWT_WPF
+
+Исходный код этой версии доступен по тегу релиза и в виде архива исходников
+на странице релиза GitHub. Если ссылка недоступна, напишите автору через
+issue в репозитории.
+
+Лицензия: GNU Affero General Public License v3.0 only (AGPL-3.0-only).
+Полный текст: LICENSE.
+
+Copyright (C) 2026 ARBOPAS.

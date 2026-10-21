@@ -150,11 +150,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer\build-installer.ps
 
 ## Авторы
 
-Проект сделали **Arbopas** и **XERNUSHKIN**.
+Основной автор — **Arbopas**.
+
+**XERNUSHKIN** — поддержка проекта, тестирование и макеты вкладки заклинаний.
+Не является автором кода и правообладателем. Подробнее — в [CREDITS.md](CREDITS.md).
 
 ## Лицензия
 
-MIT — см. [LICENSE](LICENSE).
+Код распространяется по **GNU Affero General Public License v3.0 only**
+(AGPL-3.0-only) — см. [LICENSE](LICENSE).
+
+Версии до 1.2.8.15 остаются под MIT: их уже нельзя отозвать, но новые
+версии идут под AGPL.
+
+Название **HMWT Гримуар**, логотип и обозначение **Help Me With That** не
+входят в лицензию кода. Правила для форков — в [TRADEMARKS.md](TRADEMARKS.md).
+
+Исходники: [github.com/ARBOPAS/HMWT_WPF](https://github.com/ARBOPAS/HMWT_WPF).
+Сторонние компоненты и их лицензии — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Справочные тексты в поставку не включены. Если вы подключаете их у себя, помните
 об источнике: SRD 5.1 и 5.2 выпущены Wizards of the Coast под
@@ -162,3 +175,7 @@ MIT — см. [LICENSE](LICENSE).
 распространять и изменять при указании авторства, — а сама база 5e-database
 распространяется под MIT (Adrian Padua, Christopher Ward). Программа показывает
 источник рядом со статьёй и не выдаёт эти тексты за свои.
+
+Проект не связан с Wizards of the Coast и не одобрен ими. «Dungeons & Dragons»
+и связанные названия принадлежат их правообладателям.
+

@@ -725,8 +725,14 @@ namespace HMWT_MUI
             var aboutItem = new MenuItem { Header = "О программе" };
             aboutItem.Click += (s, e) => MessageDialog.Info(this,
                 "Редактор персонажа и инструменты ведущего для настольных ролевых игр.\n\n" +
-                "Разработчики: Arbopas, XERNUSHKIN\n\n" +
+                "Автор: Arbopas. Благодарности: XERNUSHKIN — поддержка, тестирование и макеты вкладки заклинаний.\n\n" +
+                "Copyright (C) 2026 ARBOPAS.\n" +
+                "Лицензия: GNU Affero General Public License v3.0 only (AGPL-3.0-only).\n" +
+                "Исходный код: https://github.com/ARBOPAS/HMWT_WPF\n\n" +
+                "Программа предоставляется без гарантий, как описано в разделах 15–16 AGPL-3.0.\n\n" +
+                "Название HMWT Гримуар, логотип и Help Me With That не входят в лицензию кода.\n\n" +
                 "Версия: " + Net.NetVersions.AppVersion + "\n\n" +
+                "Проект не связан с Wizards of the Coast и не одобрен ими. " +
                 "Имена, тексты и описания из книг принадлежат их издателям. " +
                 "Свой справочник можно загрузить отдельным файлом.\n\n" +
                 "Настройки масштаба и анимации — во вкладке настроек внутри персонажа.",

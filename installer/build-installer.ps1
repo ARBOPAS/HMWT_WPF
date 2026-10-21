@@ -212,6 +212,20 @@ if (Test-Path $iconLicense) {
     Warn "не найден Resources\ICONS-LICENSE.txt — уведомление о лицензии иконок не попало в сборку"
 }
 
+# AGPL: вместе с программой должны ехать лицензия, уведомление об авторстве
+# и информация, где взять исходники. Это не «на всякий случай», а условие.
+foreach ($legalName in @("LICENSE", "NOTICE", "CREDITS.md", "TRADEMARKS.md",
+                         "THIRD_PARTY_NOTICES.md", "SOURCE.txt")) {
+    $legalPath = Join-Path $repoRoot $legalName
+    if (Test-Path $legalPath) {
+        Copy-Item $legalPath (Join-Path $stageDir $legalName) -Force
+    } else {
+        Warn "не найден $legalName — лицензионный файл не попал в сборку"
+    }
+}
+Ok "лицензионные файлы добавлены в сборку"
+
+
 # Проверка обязательных файлов (с рекурсивным поиском для папки runtimes/)
 $mustHave = @("HMWT_MUI.exe", "e_sqlite3.dll", "Microsoft.Data.Sqlite.dll",
               "SQLitePCLRaw.core.dll", "SQLitePCLRaw.provider.dynamic_cdecl.dll",
