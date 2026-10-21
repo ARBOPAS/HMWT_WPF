@@ -504,7 +504,7 @@ namespace HMWT_MUI
             string dir = GetCharacterPhotoDir(characterId);
             Directory.CreateDirectory(dir);
 
-            string name = "Avatar" + extension.ToLowerInvariant();
+            string name = "Avatar_" + DateTime.Now.ToString("yyyyMMddHHmmssfff") + extension.ToLowerInvariant();
             string dest = Path.Combine(dir, name);
             string temp = Path.Combine(dir, name + ".new");
 
@@ -514,8 +514,9 @@ namespace HMWT_MUI
             {
                 try
                 {
-                    // сначала убираем прежние аватары с другим расширением
-                    foreach (var old in Directory.GetFiles(dir, "Avatar.*"))
+                    // Имя аватара меняется при каждой замене: по одному и тому же
+                    // пути отряд не понимал, что картинка новая, и показывал старую.
+                    foreach (var old in Directory.GetFiles(dir, "Avatar*.*"))
                     {
                         if (string.Equals(old, temp, StringComparison.OrdinalIgnoreCase)) continue;
                         if (string.Equals(old, dest, StringComparison.OrdinalIgnoreCase)) continue;
@@ -525,8 +526,8 @@ namespace HMWT_MUI
                     File.Copy(temp, dest, true);
                     try { File.Delete(temp); } catch { }
 
-                    // Файл заменён по тому же пути — кэш кадров обязан об этом узнать,
-                    // иначе окно персонажа покажет прежнюю картинку
+                    // Новый путь сам по себе сбросит кэш, но старый файл мог
+                    // остаться в памяти — чистим на всякий случай.
                     Services.GifFrameCache.Invalidate(dest);
 
                     return $"Characters/{characterId}/{name}";

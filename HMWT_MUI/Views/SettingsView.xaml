@@ -134,6 +134,40 @@
                     </StackPanel>
                 </Border>
 
+                <!-- УВЕДОМЛЕНИЯ -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Уведомления" Style="{StaticResource SetHeader}"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14" TextWrapping="Wrap"
+                                   Text="Звук при чужом броске или сообщении в отряде. Можно выключить совсем или выбрать свой WAV — он сохранится в данных программы."/>
+
+                        <CheckBox x:Name="chkNotificationSound" Margin="0,4"
+                                  Style="{StaticResource SetCheck}"
+                                  Checked="NotificationSound_Changed"
+                                  Unchecked="NotificationSound_Changed">
+                            <StackPanel>
+                                <TextBlock Text="Звук уведомлений" Style="{StaticResource SetLabel}"/>
+                                <TextBlock Text="Если снять галочку, уведомления будут появляться без звука."
+                                           Style="{StaticResource SetNote}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </CheckBox>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button x:Name="btnNotificationPick" Content="Выбрать WAV…"
+                                    Style="{StaticResource SetBtn}" Click="BtnNotificationPick_Click"/>
+                            <Button x:Name="btnNotificationPreview" Content="Прослушать"
+                                    Style="{StaticResource SetBtn}" Margin="8,0,0,0"
+                                    Click="BtnNotificationPreview_Click"/>
+                            <Button x:Name="btnNotificationReset" Content="Стандартный"
+                                    Style="{StaticResource SetBtn}" Margin="8,0,0,0"
+                                    Click="BtnNotificationReset_Click"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="txtNotificationSound" Style="{StaticResource SetNote}"
+                                   Margin="0,10,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- СПРАВОЧНИКИ SRD -->
                 <Border Style="{StaticResource SetCard}">
                     <StackPanel>

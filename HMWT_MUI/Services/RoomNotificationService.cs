@@ -30,7 +30,6 @@ namespace HMWT_MUI.Services
 
         private static bool _initialized;
         private static NotificationWindow _current;
-        private static SoundPlayer _sound;
 
         public static void Initialize()
         {
@@ -77,7 +76,7 @@ namespace HMWT_MUI.Services
 
             // Скрытые броски ведущего и системные записи — не для всплывашек
             if (entry.Hidden) return;
-            if (entry.Kind != FeedKind.Chat && entry.Kind != FeedKind.Roll) return;
+            if (entry.Kind != FeedKind.Chat && entry.Kind != FeedKind.Roll && entry.Kind != FeedKind.Image) return;
 
             // История, пришедшая при входе, не должна всплывать пачкой
             if (Math.Abs((DateTime.Now - entry.At).TotalMinutes) > 5) return;
@@ -85,21 +84,38 @@ namespace HMWT_MUI.Services
             // Если игрок прямо сейчас смотрит на ленту отряда — не мешаем
             if (IsRoomFeedActive()) return;
 
-            var notice = entry.Kind == FeedKind.Roll
-                ? new Notice
+            Notice notice;
+            if (entry.Kind == FeedKind.Image)
+            {
+                bool gif = string.Equals(entry.ImageExtension, ".gif", StringComparison.OrdinalIgnoreCase);
+                notice = new Notice
+                {
+                    Heading = gif ? "Гифка" : "Картинка",
+                    Author = entry.AuthorName,
+                    Text = gif ? "отправил гифку" : "отправил картинку",
+                    Detail = string.IsNullOrWhiteSpace(entry.Text) ? "" : entry.Text
+                };
+            }
+            else if (entry.Kind == FeedKind.Roll)
+            {
+                notice = new Notice
                 {
                     Heading = "Бросок",
                     Author = entry.AuthorName,
                     Text = string.IsNullOrWhiteSpace(entry.Text) ? "Бросок" : entry.Text,
                     Detail = BuildRollDetail(entry)
-                }
-                : new Notice
+                };
+            }
+            else
+            {
+                notice = new Notice
                 {
                     Heading = "Сообщение",
                     Author = entry.AuthorName,
                     Text = entry.Text ?? "",
                     Detail = ""
                 };
+            }
 
             if (string.IsNullOrWhiteSpace(notice.Text)) return;
 
@@ -152,40 +168,11 @@ namespace HMWT_MUI.Services
             window.Show();
         }
 
-        /// <summary>Короткий «дзынь» из встроенного wav, с запасным системным звуком.</summary>
-        private static void PlaySound()
-        {
-            try
-            {
-                if (_sound == null)
-                {
-                    var assembly = typeof(RoomNotificationService).Assembly;
-                    string name = assembly.GetManifestResourceNames()
-                        .FirstOrDefault(n => n.EndsWith("notify.wav", StringComparison.OrdinalIgnoreCase));
-
-                    if (name != null)
-                    {
-                        using var stream = assembly.GetManifestResourceStream(name);
-                        if (stream != null)
-                        {
-                            var buffer = new MemoryStream();
-                            stream.CopyTo(buffer);
-                            buffer.Position = 0;
-
-                            _sound = new SoundPlayer(buffer);
-                            _sound.Load();
-                        }
-                    }
-                }
-
-                if (_sound != null) _sound.Play();
-                else SystemSounds.Asterisk.Play();
-            }
-            catch
-            {
-                try { SystemSounds.Asterisk.Play(); } catch { }
-            }
-        }
+        /// <summary>
+        /// Звук уведомления: свой WAV из настроек, иначе встроенный,
+        /// с запасным системным звуком. force — прослушивание из настроек.
+        /// </summary>
+        private static void PlaySound() => NotificationSoundService.Play();
 
         private static void OpenRoom()
         {

@@ -40,6 +40,13 @@
     <Reference Include="System.Data.SqlClient" />
     <Reference Include="System.Transactions" />
     <Reference Include="System.Security" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>$(AppBin)\Microsoft.Web.WebView2.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Wpf">
+      <HintPath>$(AppBin)\Microsoft.Web.WebView2.Wpf.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <!-- WPF -->
@@ -102,6 +109,11 @@
     <Compile Include="..\HMWT_MUI\Net\NetworkHelper.cs"><Link>App\NetworkHelper.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Net\RoomSession.cs"><Link>App\RoomSession.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\PhotoHelper.cs"><Link>App\PhotoHelper.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Helpers\WebView2Host.cs"><Link>App\WebView2Host.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Controls\ChatWebView.xaml.cs">
+      <Link>App\Controls\ChatWebView.xaml.cs</Link>
+      <DependentUpon>ChatWebView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="..\HMWT_MUI\Helpers\NameMatch.cs"><Link>App\NameMatch.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Windows\MessageDialog.cs"><Link>App\MessageDialog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\GifAnimator.cs"><Link>App\GifAnimator.cs</Link></Compile>
@@ -116,6 +128,7 @@
     <Compile Include="..\HMWT_MUI\Services\DiceFormulaParser.cs"><Link>App\DiceFormulaParser.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SkillCatalog.cs"><Link>App\SkillCatalog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\UiPreferences.cs"><Link>App\UiPreferences.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\NotificationSoundService.cs"><Link>App\NotificationSoundService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SrdImportService.cs"><Link>App\SrdImportService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SrdDatabaseImporter.cs"><Link>App\SrdDatabaseImporter.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\MoneyService.cs"><Link>App\MoneyService.cs</Link></Compile>
@@ -171,6 +184,11 @@
     </Page>
     <Page Include="..\HMWT_MUI\Controls\HoverGif.xaml">
       <Link>App\Controls\HoverGif.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Controls\ChatWebView.xaml">
+      <Link>App\Controls\ChatWebView.xaml</Link>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

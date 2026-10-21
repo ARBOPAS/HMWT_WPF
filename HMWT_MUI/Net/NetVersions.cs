@@ -139,9 +139,17 @@ namespace HMWT_MUI.Net
         /// оставшийся спасбросок стабилизации после лечения; обновление
         /// комнаты при выходе участника. Протокол комнаты 8.
         ///
+        /// 1.2.8.6 — аватар меняет имя файла, поэтому отряд сразу видит новую
+        /// картинку без пересоздания комнаты; настройки звука уведомлений
+        /// (выключить/свой WAV); автоматические бэкапы базы, последние 3.
+        /// Формат сети не менялся.
+        ///
+        /// 1.2.8.7 — лента чата на WebView2: текст, броски, системные записи,
+        /// картинки и GIF; уведомления о медиа только текстом. Протокол 9.
+        ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.2.8.5";
+        public const string AppVersion = "1.2.8.7";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -162,7 +170,7 @@ namespace HMWT_MUI.Net
         /// (<see cref="MapTokenLive"/>): полную карту на каждом шаге больше
         /// не шлём.
         /// </summary>
-        public const int ProtocolVersion = 8;
+        public const int ProtocolVersion = 9;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -302,7 +310,8 @@ namespace HMWT_MUI.Net
         public const int MaxPlayers = 8;
         public const int MaxChatHistory = 500;
         public const int MaxRollHistory = 500;
-        public const int MaxMessageBytes = 1024 * 512;   // защита от мусора в сокете
+        public const int MaxMessageBytes = 80 * 1024 * 1024;   // картинки в чате
         public const int ChatMaxLength = 2000;
+        public const int ChatImageMaxBytes = 48 * 1024 * 1024; // технический предел, не «3 МБ»
     }
 }

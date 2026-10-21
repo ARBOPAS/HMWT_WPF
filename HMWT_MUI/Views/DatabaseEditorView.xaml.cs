@@ -223,7 +223,12 @@ namespace HMWT_MUI.Views
 
             try
             {
-                File.Copy(DatabaseHelper.GetDatabasePath(), dialog.FileName, true);
+                if (!DatabaseHelper.BackupTo(dialog.FileName, out string error))
+                {
+                    Status("Не удалось сделать копию: " + error);
+                    return;
+                }
+
                 Status("Копия базы сохранена: " + dialog.FileName);
             }
             catch (Exception ex)

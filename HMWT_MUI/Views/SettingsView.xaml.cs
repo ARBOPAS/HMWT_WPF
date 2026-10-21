@@ -1,9 +1,11 @@
-using System;
+﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using HMWT_MUI.Services;
+using Microsoft.Win32;
 
 namespace HMWT_MUI.Views
 {
@@ -46,6 +48,8 @@ namespace HMWT_MUI.Views
 
             chkLightTheme.IsChecked = LightTheme;
             chkTopTabs.IsChecked = TopTabs;
+            chkNotificationSound.IsChecked = UiPreferences.NotificationSoundEnabled;
+            UpdateNotificationSoundHint();
 
             txtSrdHint.Text = $"Сейчас в базе: предметов {SrdItemImporter.GetCount()}, " +
                               $"заклинаний {SpellJsonImporter.GetCount()}, " +
@@ -100,6 +104,81 @@ namespace HMWT_MUI.Views
             {
                 Note("Не удалось перезапустить: " + ex.Message);
             }
+        }
+
+        private void NotificationSound_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!_ready) return;
+
+            UiPreferences.NotificationSoundEnabled = chkNotificationSound.IsChecked == true;
+            NotificationSoundService.Reload();
+            Note(UiPreferences.NotificationSoundEnabled
+                ? "Звук уведомлений включён."
+                : "Звук уведомлений выключен.");
+        }
+
+        private void BtnNotificationPick_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Звук уведомления",
+                Filter = "Звук WAV (*.wav)|*.wav|Все файлы (*.*)|*.*"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                string target = Path.Combine(PhotoHelper.GetWritableRoot(), "notify-custom.wav");
+                if (!string.Equals(dialog.FileName, target, StringComparison.OrdinalIgnoreCase))
+                    File.Copy(dialog.FileName, target, true);
+
+                // Проверяем, что WAV читается, прежде чем сохранять настройку
+                using (var check = new System.Media.SoundPlayer(target)) check.Load();
+
+                UiPreferences.NotificationSoundPath = "notify-custom.wav";
+                UiPreferences.NotificationSoundEnabled = true;
+                chkNotificationSound.IsChecked = true;
+                NotificationSoundService.Reload();
+                UpdateNotificationSoundHint();
+                NotificationSoundService.Preview();
+                Note("Свой звук уведомления сохранён.");
+            }
+            catch (Exception ex)
+            {
+                Note("Не удалось прочитать WAV: " + ex.Message);
+            }
+        }
+
+        private void BtnNotificationPreview_Click(object sender, RoutedEventArgs e)
+        {
+            NotificationSoundService.Preview();
+            Note("Проигрываю звук уведомления.");
+        }
+
+        private void BtnNotificationReset_Click(object sender, RoutedEventArgs e)
+        {
+            UiPreferences.NotificationSoundPath = "";
+            NotificationSoundService.Reload();
+            UpdateNotificationSoundHint();
+            NotificationSoundService.Preview();
+            Note("Возвращён встроенный звук.");
+        }
+
+        private void UpdateNotificationSoundHint()
+        {
+            if (txtNotificationSound == null) return;
+
+            string path = UiPreferences.NotificationSoundPath;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                txtNotificationSound.Text = "Сейчас: встроенный звук «Гримуар».";
+                return;
+            }
+
+            string full = PhotoHelper.ResolvePhotoPath(path) ?? path;
+            txtNotificationSound.Text = File.Exists(full)
+                ? "Сейчас: свой файл " + Path.GetFileName(full)
+                : "Свой файл не найден — будет встроенный звук.";
         }
 
         #region === ДЕЙСТВИЯ ===

@@ -219,6 +219,9 @@
     <Compile Include="Controls\HoverGif.xaml.cs">
       <DependentUpon>HoverGif.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\ChatWebView.xaml.cs">
+      <DependentUpon>ChatWebView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ResourceMonitor.xaml.cs">
       <DependentUpon>ResourceMonitor.xaml</DependentUpon>
     </Compile>
@@ -252,6 +255,7 @@
     <Compile Include="Services\RestService.cs" />
     <Compile Include="Services\UiPreferences.cs" />
     <Compile Include="Services\RoomNotificationService.cs" />
+    <Compile Include="Services\NotificationSoundService.cs" />
     <Compile Include="Services\AttackService.cs" />
     <Compile Include="Services\BestiaryService.cs" />
     <Compile Include="Services\BestiaryPackService.cs" />
@@ -380,6 +384,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\HoverGif.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\ChatWebView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

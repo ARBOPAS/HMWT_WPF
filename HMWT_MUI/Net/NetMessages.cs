@@ -274,7 +274,8 @@ namespace HMWT_MUI.Net
     {
         Chat = 0,
         Roll = 1,
-        System = 2
+        System = 2,
+        Image = 3
     }
 
     /// <summary>Одна запись в общей ленте: чат, бросок или системное событие.</summary>
@@ -336,6 +337,11 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("total")] public int Total { get; set; }
         [JsonPropertyName("rolls")] public List<int> IndividualRolls { get; set; }
         [JsonPropertyName("hidden")] public bool Hidden { get; set; }
+
+        // ── картинка/гифка в чате (Kind = Image) ──
+        [JsonPropertyName("image")] public string ImageBase64 { get; set; } = "";
+        [JsonPropertyName("imageExt")] public string ImageExtension { get; set; } = "";
+        [JsonPropertyName("imageName")] public string ImageName { get; set; } = "";
     }
 
     // ══════════════════════ ИГРОВЫЕ ЗАПРОСЫ ══════════════════════
@@ -344,6 +350,9 @@ namespace HMWT_MUI.Net
     public sealed class ChatSendRequest
     {
         [JsonPropertyName("text")] public string Text { get; set; } = "";
+        [JsonPropertyName("image")] public string ImageBase64 { get; set; } = "";
+        [JsonPropertyName("imageExt")] public string ImageExtension { get; set; } = "";
+        [JsonPropertyName("imageName")] public string ImageName { get; set; } = "";
     }
 
     /// <summary>

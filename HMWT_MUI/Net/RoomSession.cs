@@ -755,6 +755,55 @@ namespace HMWT_MUI.Net
             }
         }
 
+        /// <summary>Отправляет картинку/гифку в общий чат (с необязательной подписью).</summary>
+        public bool PublishChatImage(string caption, byte[] bytes, string extension, string fileName)
+        {
+            if (!IsActive || bytes == null || bytes.Length == 0) return false;
+            if (bytes.Length > NetLimits.ChatImageMaxBytes) return false;
+
+            string ext = (extension ?? "").Trim().ToLowerInvariant();
+            if (!ext.StartsWith(".")) ext = "." + ext;
+            switch (ext)
+            {
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".gif":
+                case ".webp":
+                case ".bmp":
+                    break;
+                default:
+                    return false;
+            }
+
+            string base64 = Convert.ToBase64String(bytes);
+            string text = (caption ?? "").Trim();
+            if (text.Length > NetLimits.ChatMaxLength) text = text.Substring(0, NetLimits.ChatMaxLength);
+
+            if (IsHost)
+            {
+                var entry = new FeedEntry
+                {
+                    Kind = FeedKind.Image,
+                    AuthorId = MyPlayerId,
+                    AuthorName = MyName(),
+                    Text = text,
+                    ImageBase64 = base64,
+                    ImageExtension = ext,
+                    ImageName = fileName ?? ""
+                };
+                _server.AddFeed(entry);
+                _server.BroadcastChat(entry);
+                _ = _server.BroadcastSnapshotAsync();
+            }
+            else
+            {
+                _ = _client.SendChatImageAsync(text, base64, ext, fileName ?? "");
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Публикует состояние трекера инициативы.
         ///
@@ -1306,6 +1355,23 @@ namespace HMWT_MUI.Net
             {
                 var snapshotFeed = snapshot.Feed;
 
+                // Снимок не носит тяжёлые base64-картинки. Если такая запись
+                // уже есть локально — возвращаем ей данные, иначе после любого
+                // снимка картинки в ленте превращались бы в заглушки.
+                var localImages = _clientFeed
+                    .Where(e => e.Kind == FeedKind.Image && !string.IsNullOrEmpty(e.ImageBase64))
+                    .GroupBy(KeyOf)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+                foreach (var entry in snapshotFeed)
+                {
+                    if (entry.Kind != FeedKind.Image || !string.IsNullOrEmpty(entry.ImageBase64)) continue;
+                    if (!localImages.TryGetValue(KeyOf(entry), out var local)) continue;
+                    entry.ImageBase64 = local.ImageBase64;
+                    entry.ImageExtension = local.ImageExtension;
+                    entry.ImageName = local.ImageName;
+                }
+
                 // Что уже есть в снимке — по этим признакам отличаем дубли
                 var snapshotKeys = new HashSet<string>(
                     snapshotFeed.Select(KeyOf), StringComparer.Ordinal);
@@ -1334,7 +1400,7 @@ namespace HMWT_MUI.Net
 
         /// <summary>Ключ записи для отсечения дублей между снимком и событиями.</summary>
         private static string KeyOf(FeedEntry e)
-            => $"{(int)e.Kind}|{e.At.Ticks}|{e.AuthorId}|{e.Text}";
+            => $"{(int)e.Kind}|{e.At.Ticks}|{e.AuthorId}|{e.Text}|{e.ImageName}";
 
         /// <summary>Добавляет событие в ленту гостя.</summary>
         private void AppendClientFeed(FeedEntry entry)

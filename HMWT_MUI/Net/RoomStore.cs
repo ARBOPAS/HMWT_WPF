@@ -219,8 +219,40 @@ namespace HMWT_MUI.Net
                 string file = Path.Combine(dir, entry.Kind == FeedKind.Roll ? RollsFile : ChatFile);
                 var line = JsonSerializer.Serialize(entry) + Environment.NewLine;
                 File.AppendAllText(file, line, Encoding.UTF8);
+
+                // История не должна расти вечно: держим последнюю тысячу записей.
+                // Чистим, когда файл заметно переполнился, иначе перезапись
+                // JSONL с картинками была бы слишком дорогой на каждом сообщении.
+                TrimHistory(dir, 1000, 1100);
             }
             catch (Exception ex) { Debug.WriteLine($"[RoomStore] AppendFeed: {ex.Message}"); }
+        }
+
+        /// <summary>Оставляет в истории последние <paramref name="keep"/> записей.</summary>
+        private static void TrimHistory(string roomDir, int keep, int trimWhenAbove)
+        {
+            try
+            {
+                string chatFile = Path.Combine(roomDir, ChatFile);
+                string rollsFile = Path.Combine(roomDir, RollsFile);
+                int total = CountLines(chatFile) + CountLines(rollsFile);
+                if (total <= trimWhenAbove) return;
+
+                var all = new List<FeedEntry>();
+                all.AddRange(ReadJsonl(chatFile));
+                all.AddRange(ReadJsonl(rollsFile));
+                if (all.Count <= keep) return;
+
+                var latest = all.OrderBy(e => e.At).Skip(all.Count - keep).ToList();
+                File.WriteAllLines(chatFile,
+                    latest.Where(e => e.Kind != FeedKind.Roll).Select(e => JsonSerializer.Serialize(e)),
+                    Encoding.UTF8);
+                File.WriteAllLines(rollsFile,
+                    latest.Where(e => e.Kind == FeedKind.Roll).Select(e => JsonSerializer.Serialize(e)),
+                    Encoding.UTF8);
+                Debug.WriteLine($"[RoomStore] история обрезана до {keep}: было {all.Count}");
+            }
+            catch (Exception ex) { Debug.WriteLine($"[RoomStore] TrimHistory: {ex.Message}"); }
         }
 
         /// <summary>Читает последние записи ленты (для восстановления сессии).</summary>

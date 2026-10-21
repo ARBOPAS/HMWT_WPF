@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,6 +17,7 @@ using HMWT_MUI.Helpers;
 using HMWT_MUI.Net;
 using HMWT_MUI.Services;
 using HMWT_MUI.Windows;
+using Microsoft.Win32;
 
 namespace HMWT_MUI.Views
 {
@@ -65,6 +67,16 @@ namespace HMWT_MUI.Views
         {
             InitializeComponent();
             _ui = Dispatcher;
+
+            // Лента на WebView2: гифки и картинки не грузят поток WPF.
+            // Пока движок не поднялся — остаётся старая нативная лента.
+            ChatWeb.Ready += () =>
+            {
+                ChatWeb.Visibility = Visibility.Visible;
+                feedScroll.Visibility = Visibility.Collapsed;
+                _renderedFeedCount = -1;
+                UpdateFeed();
+            };
 
             // Вставка целой строки от ведущего раскладывается по полям
             DataObject.AddPastingHandler(txtJoinHost, JoinField_Paste);
@@ -859,6 +871,15 @@ namespace HMWT_MUI.Views
         {
             var feed = _session.GetFeed(300);
 
+            // Даже если число записей не изменилось, WebView должен знать
+            // о подписи/картинке; отправка ленты дешёвая.
+            ChatWeb.SetFeed(feed);
+            if (ChatWeb.IsReady)
+            {
+                ChatWeb.Visibility = Visibility.Visible;
+                feedScroll.Visibility = Visibility.Collapsed;
+            }
+
             if (feed.Count == _renderedFeedCount) return;
 
             // Дописываем только новые записи: пересборка всей ленты на каждое
@@ -1172,6 +1193,20 @@ namespace HMWT_MUI.Views
                     });
                     break;
 
+                case FeedKind.Image:
+                    // Запасной нативный вид: если WebView2 не поднялся,
+                    // не пытаемся рисовать гифку в WPF — только подпись.
+                    card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x1E, 0x25, 0x40));
+                    card.Child = new TextBlock
+                    {
+                        Text = $"{entry.AuthorName} · {(string.Equals(entry.ImageExtension, ".gif", StringComparison.OrdinalIgnoreCase) ? "гифка" : "картинка")}" +
+                               (string.IsNullOrWhiteSpace(entry.Text) ? "" : " · " + entry.Text) + $" · {time}",
+                        FontSize = 12,
+                        TextWrapping = TextWrapping.Wrap,
+                        Foreground = BrushRes("B.Muted", Color.FromRgb(0x8B, 0x95, 0xB4))
+                    };
+                    return card;
+
                 default: // чат
                     card.Background = BrushRes("B.PanelHi", Color.FromRgb(0x1E, 0x25, 0x40));
                     var head = new StackPanel { Orientation = Orientation.Horizontal };
@@ -1231,6 +1266,54 @@ namespace HMWT_MUI.Views
         #region === ДЕЙСТВИЯ ===
 
         private void BtnSendChat_Click(object sender, RoutedEventArgs e) => SendChat();
+
+        private void BtnAttachImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_session.IsActive)
+            {
+                ShowWindowToast("Сначала подключитесь к отряду.");
+                return;
+            }
+
+            var dialog = new OpenFileDialog
+            {
+                Title = "Картинка или гифка в чат",
+                Filter = "Картинки (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp)|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp|Все файлы (*.*)|*.*"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                var info = new FileInfo(dialog.FileName);
+                if (!info.Exists || info.Length <= 0)
+                {
+                    ShowWindowToast("Файл пустой.");
+                    return;
+                }
+                if (info.Length > NetLimits.ChatImageMaxBytes)
+                {
+                    ShowWindowToast($"Файл больше {NetLimits.ChatImageMaxBytes / (1024 * 1024)} МБ — уменьшите картинку.");
+                    return;
+                }
+
+                string extension = info.Extension.ToLowerInvariant();
+                byte[] bytes = File.ReadAllBytes(dialog.FileName);
+                string caption = txtChatInput.Text ?? "";
+                if (!_session.PublishChatImage(caption, bytes, extension, info.Name))
+                {
+                    ShowWindowToast("Не удалось отправить картинку.");
+                    return;
+                }
+
+                txtChatInput.Clear();
+                ShowWindowToast("Картинка отправлена.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] картинка в чат: {ex}");
+                ShowWindowToast("Ошибка: " + ex.Message);
+            }
+        }
 
         private void TxtChatInput_KeyDown(object sender, KeyEventArgs e)
         {

@@ -526,6 +526,16 @@ namespace HMWT_MUI.Net
         public Task SendChatAsync(string text)
             => SendAsync(new NetMessage(MsgType.ChatSend, new ChatSendRequest { Text = text ?? "" }));
 
+        /// <summary>Картинка/гифка в чат вместе с подписью.</summary>
+        public Task SendChatImageAsync(string text, string base64, string extension, string fileName)
+            => SendAsync(new NetMessage(MsgType.ChatSend, new ChatSendRequest
+            {
+                Text = text ?? "",
+                ImageBase64 = base64 ?? "",
+                ImageExtension = extension ?? "",
+                ImageName = fileName ?? ""
+            }));
+
         /// <summary>
         /// Сообщает о броске. Кубы считает сам клиент своим DiceRoller —
         /// хост только фиксирует результат в общей ленте.

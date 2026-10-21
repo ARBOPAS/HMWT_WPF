@@ -17,6 +17,12 @@ namespace HMWT_MUI.Services
         /// <summary>Ключ настройки «вкладки сверху» (вместо левой рейки).</summary>
         public const string TopTabsSettingKey = "Ui_TopTabs";
 
+        /// <summary>Звук уведомлений включён.</summary>
+        public const string NotificationSoundKey = "Notify_Sound";
+
+        /// <summary>Путь к своему WAV уведомления (пусто — встроенный).</summary>
+        public const string NotificationSoundPathKey = "Notify_SoundPath";
+
         /// <summary>
         /// Текущая тема: «dark» (по умолчанию) или «light».
         /// Неизвестное значение приводим к тёмной: без палитры интерфейс не соберётся.
@@ -50,6 +56,36 @@ namespace HMWT_MUI.Services
             catch (System.Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[Настройки] тема: {ex.Message}");
+            }
+        }
+
+        /// <summary>Включён ли звук уведомлений.</summary>
+        public static bool NotificationSoundEnabled
+        {
+            get
+            {
+                try { return DatabaseHelper.GetSetting(NotificationSoundKey, "1").Trim() != "0"; }
+                catch { return true; }
+            }
+            set
+            {
+                try { DatabaseHelper.SaveSetting(NotificationSoundKey, value ? "1" : "0"); }
+                catch { }
+            }
+        }
+
+        /// <summary>Свой WAV уведомления: относительный путь или пусто.</summary>
+        public static string NotificationSoundPath
+        {
+            get
+            {
+                try { return DatabaseHelper.GetSetting(NotificationSoundPathKey, "").Trim(); }
+                catch { return ""; }
+            }
+            set
+            {
+                try { DatabaseHelper.SaveSetting(NotificationSoundPathKey, (value ?? "").Trim()); }
+                catch { }
             }
         }
 

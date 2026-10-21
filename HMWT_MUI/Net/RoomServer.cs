@@ -805,23 +805,67 @@ namespace HMWT_MUI.Net
         private void HandleChat(ClientConnection conn, NetMessage msg)
         {
             var req = msg.As<ChatSendRequest>();
-            if (req == null || string.IsNullOrWhiteSpace(req.Text)) return;
+            if (req == null) return;
 
-            string text = req.Text.Trim();
+            bool hasImage = !string.IsNullOrWhiteSpace(req.ImageBase64);
+            if (!hasImage && string.IsNullOrWhiteSpace(req.Text)) return;
+
+            string text = (req.Text ?? "").Trim();
             if (text.Length > NetLimits.ChatMaxLength)
                 text = text.Substring(0, NetLimits.ChatMaxLength);
 
+            string image = "";
+            string extension = "";
+            string imageName = "";
+            if (hasImage)
+            {
+                try
+                {
+                    byte[] bytes = Convert.FromBase64String(req.ImageBase64);
+                    if (bytes.Length == 0 || bytes.Length > NetLimits.ChatImageMaxBytes) return;
+
+                    extension = NormalizeImageExtension(req.ImageExtension);
+                    if (extension.Length == 0) return;
+
+                    image = req.ImageBase64;
+                    imageName = (req.ImageName ?? "").Trim();
+                    if (imageName.Length > 120) imageName = imageName.Substring(0, 120);
+                }
+                catch { return; }
+            }
+
             var entry = new FeedEntry
             {
-                Kind = FeedKind.Chat,
+                Kind = hasImage ? FeedKind.Image : FeedKind.Chat,
                 AuthorId = conn.PlayerId,
                 AuthorName = Describe(conn.Player),
-                Text = text
+                Text = text,
+                ImageBase64 = image,
+                ImageExtension = extension,
+                ImageName = imageName
             };
             AddFeed(entry);
 
             // Рассылаем всем, включая отправителя: так у всех одинаковый порядок
             _ = BroadcastAsync(new NetMessage(MsgType.ChatMessage, entry));
+        }
+
+        private static string NormalizeImageExtension(string extension)
+        {
+            string ext = (extension ?? "").Trim().ToLowerInvariant();
+            if (!ext.StartsWith(".")) ext = "." + ext;
+            switch (ext)
+            {
+                case ".png":
+                case ".jpg":
+                case ".jpeg":
+                case ".gif":
+                case ".webp":
+                case ".bmp":
+                    return ext;
+                default:
+                    return "";
+            }
         }
 
         private void HandleRoll(ClientConnection conn, NetMessage msg)
@@ -873,7 +917,24 @@ namespace HMWT_MUI.Net
                     RoomId = _roomId,
                     RoomName = string.IsNullOrWhiteSpace(RoomName) ? _roomId : RoomName,
                     Players = _players.Select(Clone).ToList(),
-                    Feed = _feed.Where(e => !e.Hidden).ToList(),
+                    Feed = _feed.Where(e => !e.Hidden).Select(e => new FeedEntry
+                    {
+                        Kind = e.Kind,
+                        At = e.At,
+                        AuthorId = e.AuthorId,
+                        AuthorName = e.AuthorName,
+                        Text = e.Text,
+                        Formula = e.Formula,
+                        RollType = e.RollType,
+                        Total = e.Total,
+                        IndividualRolls = e.IndividualRolls,
+                        Hidden = e.Hidden,
+                        // Тяжёлые картинки в снимок не кладём: они уже ушли
+                        // отдельным сообщением; иначе снимок раздувается.
+                        ImageBase64 = "",
+                        ImageExtension = e.ImageExtension,
+                        ImageName = e.ImageName
+                    }).ToList(),
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,
@@ -1647,6 +1708,13 @@ namespace HMWT_MUI.Net
         #region === ЛЕНТА И УЧАСТНИКИ ===
 
         /// <summary>Добавляет запись в общую ленту и в историю комнаты на диске.</summary>
+        /// <summary>Рассылает запись чата всем, включая автора (картинки идут так).</summary>
+        public void BroadcastChat(FeedEntry entry)
+        {
+            if (entry == null) return;
+            _ = BroadcastAsync(new NetMessage(MsgType.ChatMessage, entry));
+        }
+
         public FeedEntry AddFeed(FeedEntry entry)
         {
             if (entry == null) return null;

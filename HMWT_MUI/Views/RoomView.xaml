@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:HMWT_MUI.Controls"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="1100">
 
@@ -240,9 +241,12 @@
                         <TextBlock Grid.Column="1" x:Name="txtFeedHint" Text="" Foreground="{StaticResource B.Mute}"
                                    FontSize="11" VerticalAlignment="Center"/>
                     </Grid>
-                    <ScrollViewer x:Name="feedScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                        <StackPanel x:Name="spFeed"/>
-                    </ScrollViewer>
+                    <Grid Grid.Row="2">
+                        <ScrollViewer x:Name="feedScroll" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="spFeed"/>
+                        </ScrollViewer>
+                        <controls:ChatWebView x:Name="ChatWeb" Visibility="Collapsed"/>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>
@@ -254,6 +258,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <!-- Достаточная высота для текста: 36 пикселей не хватало, и вводимое
                      сообщение не отображалось. MinWidth у кнопки не даёт ей сжаться
@@ -261,8 +266,11 @@
                 <TextBox Grid.Column="0" x:Name="txtChatInput" Style="{StaticResource RoomField}"
                          MinHeight="46" MaxHeight="120" AcceptsReturn="False" TextWrapping="NoWrap"
                          ToolTip="Enter — отправить" KeyDown="TxtChatInput_KeyDown"/>
-                <Button Grid.Column="1" x:Name="btnSendChat" Content="Отправить" Style="{StaticResource RoomActionBtn}"
-                        Margin="10,0,0,0" MinWidth="130" MinHeight="46" Click="BtnSendChat_Click"/>
+                <Button Grid.Column="1" x:Name="btnAttachImage" Content="Картинка" Style="{StaticResource RoomGhostBtn}"
+                        Margin="10,0,0,0" MinWidth="96" MinHeight="46" Click="BtnAttachImage_Click"
+                        ToolTip="Отправить картинку или гифку в чат"/>
+                <Button Grid.Column="2" x:Name="btnSendChat" Content="Отправить" Style="{StaticResource RoomActionBtn}"
+                        Margin="8,0,0,0" MinWidth="120" MinHeight="46" Click="BtnSendChat_Click"/>
             </Grid>
         </Border>
     </Grid>

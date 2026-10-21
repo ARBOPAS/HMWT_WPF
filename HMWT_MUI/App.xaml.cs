@@ -86,6 +86,10 @@ namespace HMWT_MUI
             {
                 DatabaseHelper.Initialize();
 
+                // Страховка при каждом запуске: три последних снимка базы.
+                try { DatabaseHelper.CreateAutoBackup(3); }
+                catch (Exception backupEx) { System.Diagnostics.Debug.WriteLine($"[App] автобэкап: {backupEx.Message}"); }
+
                 // Тему выбираем до создания окон: окна и вложенные виды разбирают
                 // разметку позже и должны получить уже нужную палитру
                 ApplyTheme();

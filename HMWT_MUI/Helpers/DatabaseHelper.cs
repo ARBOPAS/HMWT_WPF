@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Transactions;
@@ -164,6 +165,98 @@ namespace HMWT_MUI
         }
 
         public static string GetDatabasePath() => _databasePath;
+
+        /// <summary>
+        /// Консистентная копия базы через SQLite Backup API. Обычный File.Copy
+        /// при включённом WAL может не содержать последних записей.
+        /// </summary>
+        public static bool BackupTo(string targetPath, out string error)
+        {
+            error = "";
+            if (string.IsNullOrWhiteSpace(targetPath))
+            {
+                error = "Не указан файл копии.";
+                return false;
+            }
+
+            try
+            {
+                string sourcePath = GetDatabasePath();
+                if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+                {
+                    error = "База данных ещё не создана.";
+                    return false;
+                }
+
+                string fullTarget = Path.GetFullPath(targetPath);
+                string dir = Path.GetDirectoryName(fullTarget);
+                if (!string.IsNullOrWhiteSpace(dir)) Directory.CreateDirectory(dir);
+                if (string.Equals(fullTarget, Path.GetFullPath(sourcePath), StringComparison.OrdinalIgnoreCase))
+                {
+                    error = "Нельзя перезаписать текущую базу.";
+                    return false;
+                }
+
+                if (File.Exists(fullTarget)) File.Delete(fullTarget);
+
+                using var source = GetConnection();
+                source.Open();
+                using var destination = new SqliteConnection(
+                    new SqliteConnectionStringBuilder { DataSource = fullTarget }.ToString());
+                destination.Open();
+                source.BackupDatabase(destination);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DB] BackupTo: {ex}");
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Автоматическая копия при запуске. Храним последние три — больше
+        /// места занимают, а старые всё равно не нужны.
+        /// </summary>
+        public static string CreateAutoBackup(int keep = 3)
+        {
+            try
+            {
+                string source = GetDatabasePath();
+                if (string.IsNullOrWhiteSpace(source) || !File.Exists(source)) return null;
+
+                string dir = Path.Combine(Path.GetDirectoryName(source) ?? "", "Backups");
+                Directory.CreateDirectory(dir);
+
+                string target = Path.Combine(dir,
+                    "HMWT_auto_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".db");
+
+                if (!BackupTo(target, out string error))
+                {
+                    Debug.WriteLine($"[DB] автобэкап: {error}");
+                    return null;
+                }
+
+                var old = new DirectoryInfo(dir).GetFiles("HMWT_auto_*.db")
+                    .AsEnumerable()
+                    .OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Skip(Math.Max(1, keep))
+                    .ToList();
+
+                foreach (var file in old)
+                {
+                    try { file.Delete(); } catch { }
+                }
+
+                return target;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DB] автобэкап: {ex.Message}");
+                return null;
+            }
+        }
 
         public static string GetPhotoBasePath()
         {
