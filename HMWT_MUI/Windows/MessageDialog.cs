@@ -161,6 +161,7 @@ namespace HMWT_MUI.Windows
                 answered = true;
                 result = answer;
                 try { hostRoot.Children.Remove(overlay); } catch { }
+                Controls.ChatWebView.DialogClosed();
                 if (frame != null) frame.Continue = false;
             };
 
@@ -191,6 +192,7 @@ namespace HMWT_MUI.Windows
             overlay.PreviewKeyDown += (s, e) => { if (e.Key == Key.Escape) finish(false); };
 
             hostRoot.Children.Add(overlay);
+            Controls.ChatWebView.DialogOpened();
 
             // Корневой Grid окон разбит на строки и колонки: слева узкая рейка вкладок,
             // ниже шапка и содержимое. Без явного охвата оверлей попадает в ПЕРВУЮ

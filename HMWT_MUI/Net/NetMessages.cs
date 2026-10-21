@@ -342,6 +342,21 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("image")] public string ImageBase64 { get; set; } = "";
         [JsonPropertyName("imageExt")] public string ImageExtension { get; set; } = "";
         [JsonPropertyName("imageName")] public string ImageName { get; set; } = "";
+        [JsonPropertyName("imageId")] public string ImageId { get; set; } = "";
+    }
+
+    /// <summary>Клиент просит у хоста картинку из истории, которой нет в памяти.</summary>
+    public sealed class ChatImageRequest
+    {
+        [JsonPropertyName("id")] public string ImageId { get; set; } = "";
+    }
+
+    /// <summary>Хост отдаёт картинку по id.</summary>
+    public sealed class ChatImageResponse
+    {
+        [JsonPropertyName("id")] public string ImageId { get; set; } = "";
+        [JsonPropertyName("image")] public string ImageBase64 { get; set; } = "";
+        [JsonPropertyName("imageExt")] public string ImageExtension { get; set; } = "";
     }
 
     // ══════════════════════ ИГРОВЫЕ ЗАПРОСЫ ══════════════════════

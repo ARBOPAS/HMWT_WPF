@@ -193,6 +193,9 @@ namespace HMWT_MUI.Net
         /// <summary>Кто-то пингнул точку на карте.</summary>
         public event Action<double, double> Pinged;
 
+        /// <summary>Пришла картинка из истории чата: (id, base64, ext).</summary>
+        public event Action<string, string, string> ChatImageReceived;
+
         /// <summary>Хост прислал всё разведанное по сцене при открытии карты.</summary>
         public event Action<List<string>> MapSeenSynced;
 
@@ -369,6 +372,20 @@ namespace HMWT_MUI.Net
                 _client.Events.MapSeenReceived = p => MapSeenAdded?.Invoke(p);
                 _client.Events.MapSeenSynced = list => MapSeenSynced?.Invoke(list);
                 _client.Events.PingReceived = (x, y) => Pinged?.Invoke(x, y);
+                _client.Events.ChatImageReceived = (id, b64, ext) =>
+                {
+                    lock (_clientFeedLock)
+                    {
+                        var imageEntry = _clientFeed.FirstOrDefault(e =>
+                            e.Kind == FeedKind.Image && string.Equals(e.ImageId, id, StringComparison.Ordinal));
+                        if (imageEntry != null)
+                        {
+                            imageEntry.ImageBase64 = b64;
+                            imageEntry.ImageExtension = ext;
+                        }
+                    }
+                    ChatImageReceived?.Invoke(id, b64, ext);
+                };
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -790,7 +807,8 @@ namespace HMWT_MUI.Net
                     Text = text,
                     ImageBase64 = base64,
                     ImageExtension = ext,
-                    ImageName = fileName ?? ""
+                    ImageName = fileName ?? "",
+                    ImageId = Guid.NewGuid().ToString("N")
                 };
                 _server.AddFeed(entry);
                 _server.BroadcastChat(entry);
@@ -944,6 +962,14 @@ namespace HMWT_MUI.Net
 
             if (_client == null || !_client.IsConnected) return;
             _ = _client.SendMapPingAsync(x, y);
+        }
+
+        /// <summary>Просит у ведущего картинку из истории, которой нет у клиента.</summary>
+        public void RequestChatImage(string imageId)
+        {
+            if (!IsActive || IsHost || string.IsNullOrWhiteSpace(imageId)) return;
+            if (_client == null || !_client.IsConnected) return;
+            _ = _client.RequestChatImageAsync(imageId);
         }
         /// <summary>Состояние трекера инициативы: у хоста — своё, у гостя — из снимка.</summary>
         public InitiativeState GetInitiative()

@@ -3,25 +3,29 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Media;
+using System.Windows.Media;
 
 namespace HMWT_MUI.Services
 {
     /// <summary>
-    /// Звук уведомлений: свой WAV из настроек или встроенный.
+    /// Звук уведомлений: свой WAV/MP3/WMA/M4A/AAC из настроек или встроенный.
     ///
-    /// Отдельный сервис, потому что им пользуется и комната, и вкладка
-    /// настроек; держать SoundPlayer внутри RoomNotificationService значило
-    /// тянуть в проверки интерфейса всё окно уведомлений.
+    /// WAV играет SoundPlayer — это быстро и без запуска медиаплеера.
+    /// Остальные форматы — через MediaPlayer, который умеет MP3 и то, что
+    /// установлено в Windows. Если файл битый — откат на системный звук.
     /// </summary>
     public static class NotificationSoundService
     {
         private static SoundPlayer _sound;
+        private static MediaPlayer _media;
         private static string _loadedPath = "";
 
         public static void Reload()
         {
             try { _sound?.Dispose(); } catch { }
+            try { _media?.Close(); } catch { }
             _sound = null;
+            _media = null;
             _loadedPath = "";
         }
 
@@ -40,14 +44,28 @@ namespace HMWT_MUI.Services
                        (File.Exists(custom) ? custom : null));
 
                 string wantedPath = customFull ?? "<embedded>";
-                if (_sound == null || !string.Equals(_loadedPath, wantedPath, StringComparison.OrdinalIgnoreCase))
+                if (_sound == null && _media == null ||
+                    !string.Equals(_loadedPath, wantedPath, StringComparison.OrdinalIgnoreCase))
                 {
                     Reload();
 
                     if (customFull != null)
                     {
-                        _sound = new SoundPlayer(customFull);
-                        _sound.Load();
+                        string ext = Path.GetExtension(customFull).ToLowerInvariant();
+                        if (ext == ".wav")
+                        {
+                            _sound = new SoundPlayer(customFull);
+                            _sound.Load();
+                        }
+                        else
+                        {
+                            _media = new MediaPlayer();
+                            _media.MediaFailed += (s, e) =>
+                            {
+                                try { SystemSounds.Asterisk.Play(); } catch { }
+                            };
+                            _media.Open(new Uri(customFull, UriKind.Absolute));
+                        }
                         _loadedPath = wantedPath;
                     }
                     else
@@ -73,8 +91,19 @@ namespace HMWT_MUI.Services
                     }
                 }
 
-                if (_sound != null) _sound.Play();
-                else SystemSounds.Asterisk.Play();
+                if (_sound != null)
+                {
+                    _sound.Play();
+                }
+                else if (_media != null)
+                {
+                    try { _media.Position = TimeSpan.Zero; } catch { }
+                    _media.Play();
+                }
+                else
+                {
+                    SystemSounds.Asterisk.Play();
+                }
             }
             catch (Exception ex)
             {

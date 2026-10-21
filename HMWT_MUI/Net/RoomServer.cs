@@ -44,6 +44,7 @@ namespace HMWT_MUI.Net
         public CancellationTokenSource Cts;
         public DateTime LastSeenUtc = DateTime.UtcNow;
         public DateTime LastPingUtc = DateTime.MinValue;
+        public DateTime LastChatImageUtc = DateTime.MinValue;
         public bool HandshakeDone;
 
         /// <summary>
@@ -481,6 +482,10 @@ namespace HMWT_MUI.Net
                         ApplyMapPing(conn, msg.As<MapPingRequest>());
                         break;
 
+                    case MsgType.ChatImageRequest:
+                        HandleChatImageRequest(conn, msg.As<ChatImageRequest>());
+                        break;
+
                     case MsgType.MapMove:
                         ApplyMapMove(conn, msg.As<MapMoveRequest>());
                         break;
@@ -842,7 +847,8 @@ namespace HMWT_MUI.Net
                 Text = text,
                 ImageBase64 = image,
                 ImageExtension = extension,
-                ImageName = imageName
+                ImageName = imageName,
+                ImageId = hasImage ? Guid.NewGuid().ToString("N") : ""
             };
             AddFeed(entry);
 
@@ -866,6 +872,29 @@ namespace HMWT_MUI.Net
                 default:
                     return "";
             }
+        }
+
+        private void HandleChatImageRequest(ClientConnection conn, ChatImageRequest request)
+        {
+            if (conn == null || request == null || string.IsNullOrWhiteSpace(request.ImageId)) return;
+            if ((DateTime.UtcNow - conn.LastChatImageUtc).TotalMilliseconds < 300) return;
+            conn.LastChatImageUtc = DateTime.UtcNow;
+
+            FeedEntry entry;
+            lock (_stateLock)
+            {
+                entry = _feed.FirstOrDefault(e => e.Kind == FeedKind.Image &&
+                                                  string.Equals(e.ImageId, request.ImageId, StringComparison.Ordinal));
+            }
+
+            if (entry == null || string.IsNullOrEmpty(entry.ImageBase64)) return;
+
+            _ = SendSafeAsync(conn, new NetMessage(MsgType.ChatImageResponse, new ChatImageResponse
+            {
+                ImageId = entry.ImageId,
+                ImageBase64 = entry.ImageBase64,
+                ImageExtension = entry.ImageExtension
+            }));
         }
 
         private void HandleRoll(ClientConnection conn, NetMessage msg)
@@ -933,7 +962,8 @@ namespace HMWT_MUI.Net
                         // отдельным сообщением; иначе снимок раздувается.
                         ImageBase64 = "",
                         ImageExtension = e.ImageExtension,
-                        ImageName = e.ImageName
+                        ImageName = e.ImageName,
+                        ImageId = e.ImageId
                     }).ToList(),
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,

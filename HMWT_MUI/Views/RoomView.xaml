@@ -245,7 +245,12 @@
                         <ScrollViewer x:Name="feedScroll" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="spFeed"/>
                         </ScrollViewer>
-                        <controls:ChatWebView x:Name="ChatWeb" Visibility="Collapsed"/>
+                        <!-- WebView2 должен получить настоящее окно ещё до первой
+                             навигации: держим его видимым 1×1, а после ready
+                             растягиваем на всю ленту. -->
+                        <controls:ChatWebView x:Name="ChatWeb" Width="1" Height="1"
+                                              HorizontalAlignment="Left" VerticalAlignment="Top"
+                                              Opacity="0"/>
                     </Grid>
                 </Grid>
             </Border>

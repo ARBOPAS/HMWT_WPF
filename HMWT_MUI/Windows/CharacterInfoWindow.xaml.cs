@@ -107,6 +107,10 @@ namespace HMWT_MUI
             btnHPDamage.Click += BtnHPDamage_Click;
             btnHPRoll.Click += BtnHPRoll_Click;
 
+            // Веб-вью чата — отдельное HWND-окно и всегда рисуется поверх WPF.
+            // Пока открыт любой оверлей, прячем его, иначе он торчит над затемнением.
+            HookChatOcclusion();
+
             // Размещение вкладок выставляем ДО первого SwitchView: он красит
             // активную вкладку, и стиль должен быть уже выбран под нужный вариант
             ApplyTabPlacement();
@@ -3010,6 +3014,35 @@ namespace HMWT_MUI
         /// открытие заняло больше четверти секунды, в
         /// %APPDATA%\HMWT\tab-trace.log появляется строка с разбивкой по этапам.
         /// </summary>
+        /// <summary>Прячет WebView чата, пока открыт любой WPF-оверлей.</summary>
+        private void HookChatOcclusion()
+        {
+            foreach (var overlay in new FrameworkElement[]
+            {
+                HPCalcOverlay, ACSpeedOverlay, GoldCalcOverlay, LevelManagerOverlay,
+                DiceMenuOverlay, RestOverlay, RollHistoryOverlay, InitiativeOverlay, PortraitOverlay
+            })
+            {
+                if (overlay == null) continue;
+                overlay.IsVisibleChanged += (s, e) => UpdateChatOcclusion();
+            }
+        }
+
+        private void UpdateChatOcclusion()
+        {
+            bool hidden = HPCalcOverlay.IsVisible || ACSpeedOverlay.IsVisible ||
+                          GoldCalcOverlay.IsVisible || LevelManagerOverlay.IsVisible ||
+                          DiceMenuOverlay.IsVisible || RestOverlay.IsVisible ||
+                          RollHistoryOverlay.IsVisible || InitiativeOverlay.IsVisible ||
+                          PortraitOverlay.IsVisible;
+
+            if (_viewCache != null && _viewCache.TryGetValue("Room", out var view) &&
+                view is Views.RoomView room)
+            {
+                room.SetChatOccluded(hidden);
+            }
+        }
+
         private void SwitchView(string viewName)
         {
             var traceWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -3021,6 +3054,7 @@ namespace HMWT_MUI
             {
                 UpdateTabButtonsStyle(viewName);
                 NotifyViewShown(viewName, MainContentArea.Content as UserControl);
+                UpdateChatOcclusion();
                 return;
             }
 
@@ -3046,6 +3080,7 @@ namespace HMWT_MUI
             // Данные могли устареть, пока вкладка была закрыта: сообщаем виду
             if (viewToShow is Views.RoomView room) room.Refresh();
             NotifyViewShown(viewName, viewToShow);
+            UpdateChatOcclusion();
             attachedMs = traceWatch.ElapsedMilliseconds;
 
             // Раскладка идёт уже после обработчика. Этот вызов сработает, когда

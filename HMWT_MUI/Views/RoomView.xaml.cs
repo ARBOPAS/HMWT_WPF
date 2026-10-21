@@ -62,17 +62,39 @@ namespace HMWT_MUI.Views
 
         /// <summary>Список истории комнат заполняется программой, а не игроком.</summary>
         private bool _recentRoomsLoading;
+        private bool _chatOccluded;
+        private readonly HashSet<string> _requestedChatImages = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, DateTime> _chatImageRequestedAt = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+        private DispatcherTimer _chatImageTimer;
+
+        /// <summary>Спрятать WebView под оверлеем: HWND WebView2 всегда выше WPF.</summary>
+        public void SetChatOccluded(bool hidden)
+        {
+            _chatOccluded = hidden;
+            if (ChatWeb == null) return;
+            ChatWeb.SetOwnerOccluded(hidden);
+        }
 
         public RoomView()
         {
             InitializeComponent();
             _ui = Dispatcher;
 
+            // Картинки догружаем по одной: хост не любит пачку запросов
+            // и отбрасывает те, что пришли слишком часто.
+            _chatImageTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+            _chatImageTimer.Tick += (s, e) => UpdateFeed();
+
             // Лента на WebView2: гифки и картинки не грузят поток WPF.
             // Пока движок не поднялся — остаётся старая нативная лента.
             ChatWeb.Ready += () =>
             {
-                ChatWeb.Visibility = Visibility.Visible;
+                ChatWeb.Width = double.NaN;
+                ChatWeb.Height = double.NaN;
+                ChatWeb.HorizontalAlignment = HorizontalAlignment.Stretch;
+                ChatWeb.VerticalAlignment = VerticalAlignment.Stretch;
+                ChatWeb.Opacity = 1;
+                ChatWeb.SetOwnerOccluded(_chatOccluded);
                 feedScroll.Visibility = Visibility.Collapsed;
                 _renderedFeedCount = -1;
                 UpdateFeed();
@@ -84,6 +106,7 @@ namespace HMWT_MUI.Views
 
             Loaded += (s, e) =>
             {
+                if (ChatWeb != null) ChatWeb.SetOwnerOccluded(_chatOccluded);
                 // Вкладку пересоздают при каждом возврате: подписки живут ровно
                 // столько, сколько вкладка на экране. Раньше они вешались один
                 // раз в конструкторе и снимались при уходе — после первого
@@ -107,6 +130,7 @@ namespace HMWT_MUI.Views
             };
             Unloaded += (s, e) =>
             {
+                if (ChatWeb != null) ChatWeb.SetOwnerOccluded(true);
                 UnsubscribeSession();
                 _photoRetryTimer.Stop();
             };
@@ -126,6 +150,7 @@ namespace HMWT_MUI.Views
             _session.SnapshotReceived += OnSnapshotReceived;
             _session.PeerDeparted += OnPeerDeparted;
             _session.PhotoUpdated += OnPhotoUpdated;
+            _session.ChatImageReceived += OnChatImageReceived;
         }
 
         /// <summary>Отписка при уходе с вкладки. Подписки не должны копиться.</summary>
@@ -139,6 +164,7 @@ namespace HMWT_MUI.Views
             _session.SnapshotReceived -= OnSnapshotReceived;
             _session.PeerDeparted -= OnPeerDeparted;
             _session.PhotoUpdated -= OnPhotoUpdated;
+            _session.ChatImageReceived -= OnChatImageReceived;
         }
 
         #region === ПОИСК РЕСУРСОВ ===
@@ -171,7 +197,17 @@ namespace HMWT_MUI.Views
 
         #region === СОБЫТИЯ КОМНАТЫ (из сетевых потоков) ===
 
-        private void OnSessionStateChanged() => _ui.BeginInvoke(new Action(RefreshAll));
+        private void OnSessionStateChanged() => _ui.BeginInvoke(new Action(() =>
+        {
+            if (!_session.IsActive)
+            {
+                _requestedChatImages.Clear();
+                _chatImageRequestedAt.Clear();
+                _chatImageTimer.Stop();
+                _renderedFeedCount = -1;
+            }
+            RefreshAll();
+        }));
 
         private void OnFeedReceived(FeedEntry entry)
         {
@@ -193,6 +229,16 @@ namespace HMWT_MUI.Views
             _renderedPlayerCount = -1;
             RefreshAll();
         }));
+
+        private void OnChatImageReceived(string imageId, string base64, string extension)
+        {
+            _ui.BeginInvoke(new Action(() =>
+            {
+                _requestedChatImages.Remove(imageId);
+                _chatImageRequestedAt.Remove(imageId);
+                if (ChatWeb.IsReady) ChatWeb.UpdateImage(imageId, base64, extension);
+            }));
+        }
 
         /// <summary>
         /// Участник ушёл (приходит у ведущего от сетевого слоя, у гостя — из
@@ -871,13 +917,70 @@ namespace HMWT_MUI.Views
         {
             var feed = _session.GetFeed(300);
 
-            // Даже если число записей не изменилось, WebView должен знать
-            // о подписи/картинке; отправка ленты дешёвая.
-            ChatWeb.SetFeed(feed);
+            // Картинки, которых нет в памяти после переподключения, догружаем
+            // у ведущего по id. По одной за проход: два запроса подряд хост
+            // отбрасывал из-за защиты от спама, и вторая гифка оставалась пустой.
+            if (!_session.IsActive)
+            {
+                _requestedChatImages.Clear();
+                _chatImageRequestedAt.Clear();
+                _chatImageTimer.Stop();
+            }
+
+            FeedEntry missingImage = null;
+            foreach (var entry in feed)
+            {
+                if (entry.Kind != FeedKind.Image) continue;
+                if (!string.IsNullOrEmpty(entry.ImageBase64)) continue;
+                if (string.IsNullOrWhiteSpace(entry.ImageId)) continue;
+
+                if (!_requestedChatImages.Contains(entry.ImageId))
+                {
+                    missingImage = entry;
+                    break;
+                }
+
+                // Ответ мог потеряться — через несколько секунд пробуем ещё раз
+                if (_chatImageRequestedAt.TryGetValue(entry.ImageId, out var askedAt) &&
+                    (DateTime.UtcNow - askedAt).TotalSeconds > 4)
+                {
+                    missingImage = entry;
+                    break;
+                }
+            }
+
+            if (missingImage != null)
+            {
+                _requestedChatImages.Add(missingImage.ImageId);
+                _chatImageRequestedAt[missingImage.ImageId] = DateTime.UtcNow;
+                _session.RequestChatImage(missingImage.ImageId);
+                _chatImageTimer.Start();
+            }
+            else
+            {
+                bool stillWaiting = feed.Any(e => e.Kind == FeedKind.Image &&
+                                                  string.IsNullOrEmpty(e.ImageBase64) &&
+                                                  _requestedChatImages.Contains(e.ImageId ?? ""));
+                if (stillWaiting) _chatImageTimer.Start();
+                else _chatImageTimer.Stop();
+            }
+
+            // Когда WebView уже на экране, нативную ленту вообще не собираем:
+            // иначе на каждое сообщение заново строились все карточки.
             if (ChatWeb.IsReady)
             {
-                ChatWeb.Visibility = Visibility.Visible;
+                if (_renderedFeedCount < 0 || feed.Count < _renderedFeedCount)
+                {
+                    ChatWeb.SetFeed(feed);
+                }
+                else if (feed.Count > _renderedFeedCount)
+                {
+                    ChatWeb.AppendFeed(feed.Skip(_renderedFeedCount).ToList());
+                }
+
                 feedScroll.Visibility = Visibility.Collapsed;
+                _renderedFeedCount = feed.Count;
+                return;
             }
 
             if (feed.Count == _renderedFeedCount) return;

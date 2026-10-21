@@ -147,9 +147,20 @@ namespace HMWT_MUI.Net
         /// 1.2.8.7 — лента чата на WebView2: текст, броски, системные записи,
         /// картинки и GIF; уведомления о медиа только текстом. Протокол 9.
         ///
+        /// 1.2.8.8 — WebView2 в ленте получает окно до инициализации (иначе
+        /// оставалась нативная заглушка и гифки не показывались); история
+        /// ограничена 1000 записями; предел картинки 48 МБ; свой звук можно
+        /// выбрать в WAV, MP3, WMA, M4A или AAC. Протокол 9.
+        ///
+        /// 1.2.8.9 — картинки из истории догружаются у ведущего по id, поэтому
+        /// после переподключения они снова появляются; протокол 10.
+        ///
+        /// 1.2.8.10 — догрузка идёт по одной картинке (хост больше не режет
+        /// пачку запросов), а старым записям без imageId он выдаёт id сам.
+        ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.2.8.7";
+        public const string AppVersion = "1.2.8.10";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -170,7 +181,7 @@ namespace HMWT_MUI.Net
         /// (<see cref="MapTokenLive"/>): полную карту на каждом шаге больше
         /// не шлём.
         /// </summary>
-        public const int ProtocolVersion = 9;
+        public const int ProtocolVersion = 10;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -280,6 +291,10 @@ namespace HMWT_MUI.Net
 
         /// <summary>Пинг по карте: игрок/хост показал точку, её видят все в комнате.</summary>
         public const string MapPing = "map_ping";
+
+        /// <summary>Игрок просит у хоста картинку из истории чата.</summary>
+        public const string ChatImageRequest = "chat_image_request";
+        public const string ChatImageResponse = "chat_image_response";
 
         /// <summary>Хост отвечает: такого аватара у него нет.</summary>
         public const string PhotoMissing = "photo_missing";

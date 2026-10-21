@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -122,20 +122,46 @@ namespace HMWT_MUI.Views
             var dialog = new OpenFileDialog
             {
                 Title = "Звук уведомления",
-                Filter = "Звук WAV (*.wav)|*.wav|Все файлы (*.*)|*.*"
+                Filter = "Аудио (*.wav;*.mp3;*.wma;*.m4a;*.aac)|*.wav;*.mp3;*.wma;*.m4a;*.aac|" +
+                         "WAV (*.wav)|*.wav|MP3 (*.mp3)|*.mp3|Все файлы (*.*)|*.*"
             };
             if (dialog.ShowDialog() != true) return;
 
             try
             {
-                string target = Path.Combine(PhotoHelper.GetWritableRoot(), "notify-custom.wav");
+                string ext = Path.GetExtension(dialog.FileName).ToLowerInvariant();
+                switch (ext)
+                {
+                    case ".wav":
+                    case ".mp3":
+                    case ".wma":
+                    case ".m4a":
+                    case ".aac":
+                        break;
+                    default:
+                        Note("Поддерживаются WAV, MP3, WMA, M4A и AAC.");
+                        return;
+                }
+
+                string target = Path.Combine(PhotoHelper.GetWritableRoot(), "notify-custom" + ext);
                 if (!string.Equals(dialog.FileName, target, StringComparison.OrdinalIgnoreCase))
                     File.Copy(dialog.FileName, target, true);
 
-                // Проверяем, что WAV читается, прежде чем сохранять настройку
-                using (var check = new System.Media.SoundPlayer(target)) check.Load();
+                // Старые файлы другого формата больше не нужны
+                foreach (string old in Directory.GetFiles(PhotoHelper.GetWritableRoot(), "notify-custom.*"))
+                {
+                    if (string.Equals(old, target, StringComparison.OrdinalIgnoreCase)) continue;
+                    try { File.Delete(old); } catch { }
+                }
 
-                UiPreferences.NotificationSoundPath = "notify-custom.wav";
+                // WAV проверяем сразу; MP3/WMA/M4A отдаём MediaPlayer
+                if (ext == ".wav")
+                {
+                    using var check = new System.Media.SoundPlayer(target);
+                    check.Load();
+                }
+
+                UiPreferences.NotificationSoundPath = "notify-custom" + ext;
                 UiPreferences.NotificationSoundEnabled = true;
                 chkNotificationSound.IsChecked = true;
                 NotificationSoundService.Reload();
@@ -145,7 +171,7 @@ namespace HMWT_MUI.Views
             }
             catch (Exception ex)
             {
-                Note("Не удалось прочитать WAV: " + ex.Message);
+                Note("Не удалось прочитать звук: " + ex.Message);
             }
         }
 

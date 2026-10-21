@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -274,6 +275,29 @@ namespace HMWT_MUI.Net
             return ordered;
         }
 
+        private static string LegacyImageId(FeedEntry entry)
+        {
+            try
+            {
+                string seed = string.Join("|",
+                    entry.At.Ticks.ToString(),
+                    entry.AuthorId ?? "",
+                    entry.Text ?? "",
+                    entry.ImageName ?? "",
+                    entry.ImageExtension ?? "",
+                    (entry.ImageBase64 ?? "").Length.ToString());
+                using var sha = SHA256.Create();
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(seed));
+                var sb = new StringBuilder("legacy-");
+                for (int i = 0; i < 8; i++) sb.Append(hash[i].ToString("x2"));
+                return sb.ToString();
+            }
+            catch
+            {
+                return "legacy-" + Guid.NewGuid().ToString("N");
+            }
+        }
+
         private static List<FeedEntry> ReadJsonl(string file)
         {
             var list = new List<FeedEntry>();
@@ -286,7 +310,14 @@ namespace HMWT_MUI.Net
                 {
                     var entry = JsonSerializer.Deserialize<FeedEntry>(line,
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    if (entry != null) list.Add(entry);
+                    if (entry != null)
+                    {
+                        // В старых комнатах у картинок ещё не было id. Без него
+                        // клиент после переподключения не может попросить файл.
+                        if (entry.Kind == FeedKind.Image && string.IsNullOrEmpty(entry.ImageId))
+                            entry.ImageId = LegacyImageId(entry);
+                        list.Add(entry);
+                    }
                 }
                 catch
                 {

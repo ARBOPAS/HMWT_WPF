@@ -35,6 +35,9 @@ namespace HMWT_MUI.Net
 
         /// <summary>Кто-то пингнул точку на карте.</summary>
         public Action<double, double> PingReceived { get; set; }
+
+        /// <summary>Хост прислал картинку из истории чата: (id, base64, ext).</summary>
+        public Action<string, string, string> ChatImageReceived { get; set; }
         public Action<FeedEntry> FeedReceived { get; set; }
         public Action<string, string, bool> ConnectionChanged { get; set; }  // (состояние, текст, подключён)
         public Action<string, string> Failed { get; set; }                   // (код ошибки, текст)
@@ -458,6 +461,12 @@ namespace HMWT_MUI.Net
                         if (ping != null) Events?.PingReceived?.Invoke(ping.X, ping.Y);
                         break;
 
+                    case MsgType.ChatImageResponse:
+                        var image = msg.As<ChatImageResponse>();
+                        if (image != null)
+                            Events?.ChatImageReceived?.Invoke(image.ImageId, image.ImageBase64, image.ImageExtension);
+                        break;
+
                     case MsgType.ChatMessage:
                     case MsgType.RollMessage:
                     case MsgType.SystemNotice:
@@ -619,6 +628,10 @@ namespace HMWT_MUI.Net
         /// <summary>Пинг по карте: ведущий разошлёт всем.</summary>
         public Task SendMapPingAsync(double x, double y)
             => SendAsync(new NetMessage(MsgType.MapPing, new MapPingRequest { X = x, Y = y }));
+
+        /// <summary>Просит у хоста картинку из истории чата.</summary>
+        public Task RequestChatImageAsync(string imageId)
+            => SendAsync(new NetMessage(MsgType.ChatImageRequest, new ChatImageRequest { ImageId = imageId ?? "" }));
 
         /// <summary>Сообщает ведущему, какие штрихи стёрты ластиком.</summary>
         public Task SendMapStrokeEraseAsync(List<int> ids)

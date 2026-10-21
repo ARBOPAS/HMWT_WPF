@@ -25,6 +25,46 @@ namespace HMWT_MUI.Controls
 
         public bool IsReady { get; private set; }
 
+        private static readonly List<WeakReference> _live = new List<WeakReference>();
+        private static int _dialogDepth;
+        private bool _ownerOccluded;
+
+        /// <summary>Спрятать все ленты, пока поверх окна открыт модальный диалог.</summary>
+        public static void DialogOpened()
+        {
+            _dialogDepth++;
+            foreach (var view in Alive()) view.UpdateVisibility();
+        }
+
+        public static void DialogClosed()
+        {
+            if (_dialogDepth > 0) _dialogDepth--;
+            foreach (var view in Alive()) view.UpdateVisibility();
+        }
+
+        private static IEnumerable<ChatWebView> Alive()
+        {
+            foreach (var weak in _live.ToList())
+            {
+                ChatWebView view;
+                try { view = weak.Target as ChatWebView; } catch { view = null; }
+                if (view == null) _live.Remove(weak);
+                else yield return view;
+            }
+        }
+
+        /// <summary>Оверлей самого листа (КД, хиты и т.п.) — тоже прячем.</summary>
+        public void SetOwnerOccluded(bool hidden)
+        {
+            _ownerOccluded = hidden;
+            UpdateVisibility();
+        }
+
+        private void UpdateVisibility()
+        {
+            Visibility = (_dialogDepth > 0 || _ownerOccluded) ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private CoreWebView2 _core;
         private bool _initStarted;
         private string _pendingJson = "";
@@ -37,6 +77,8 @@ namespace HMWT_MUI.Controls
         {
             InitializeComponent();
             Loaded += OnLoaded;
+            Loaded += (s, e) => { if (!_live.Any(w => ReferenceEquals(w.Target, this))) _live.Add(new WeakReference(this)); };
+            Unloaded += (s, e) => { _live.RemoveAll(w => ReferenceEquals(w.Target, this)); };
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -50,6 +92,11 @@ namespace HMWT_MUI.Controls
         {
             try
             {
+                // Окно движка должно существовать до EnsureCoreWebView2Async:
+                // у скрытого контрола нет HWND, и инициализация зависает.
+                Web.Visibility = Visibility.Visible;
+                Fallback.Visibility = Visibility.Collapsed;
+
                 var environment = await WebView2Host.GetEnvironmentAsync();
                 await Web.EnsureCoreWebView2Async(environment);
                 if (Web.CoreWebView2 == null) throw new InvalidOperationException("WebView2 не создан");
@@ -81,14 +128,25 @@ namespace HMWT_MUI.Controls
             }
         }
 
-        /// <summary>Передаёт всю ленту в страницу. Вызывается из UpdateFeed.</summary>
+        /// <summary>Передаёт всю ленту в страницу (первый показ/сброс истории).</summary>
         public void SetFeed(IList<FeedEntry> entries)
         {
             if (entries == null) entries = new List<FeedEntry>();
+            Send("feed", entries);
+        }
 
+        /// <summary>Дописывает только новые записи: не гоняем старые картинки заново.</summary>
+        public void AppendFeed(IList<FeedEntry> entries)
+        {
+            if (entries == null || entries.Count == 0) return;
+            Send("append", entries);
+        }
+
+        private void Send(string type, IList<FeedEntry> entries)
+        {
             var payload = new
             {
-                type = "feed",
+                type,
                 entries = entries.Select(e => new
                 {
                     kind = (int)e.Kind,
@@ -101,12 +159,34 @@ namespace HMWT_MUI.Controls
                     rolls = e.IndividualRolls ?? new List<int>(),
                     image = e.ImageBase64 ?? "",
                     ext = e.ImageExtension ?? "",
-                    name = e.ImageName ?? ""
+                    name = e.ImageName ?? "",
+                    id = e.ImageId ?? ""
                 }).ToList()
             };
 
             _pendingJson = JsonSerializer.Serialize(payload, _json);
             TrySendPending();
+        }
+
+        /// <summary>Картинка догрузилась с хоста — подменяем её в уже нарисованной ленте.</summary>
+        public void UpdateImage(string imageId, string base64, string extension)
+        {
+            if (!IsReady || _core == null || string.IsNullOrWhiteSpace(imageId)) return;
+            try
+            {
+                string payload = JsonSerializer.Serialize(new
+                {
+                    type = "image",
+                    id = imageId,
+                    image = base64 ?? "",
+                    ext = extension ?? ""
+                }, _json);
+                _core.PostWebMessageAsJson(payload);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("[ChatWeb] догрузка картинки: " + ex.Message);
+            }
         }
 
         private void TrySendPending()
@@ -133,6 +213,7 @@ namespace HMWT_MUI.Controls
                 if (type != "ready") return;
 
                 IsReady = true;
+                UpdateVisibility();
                 TrySendPending();
                 Ready?.Invoke();
             }
@@ -174,8 +255,10 @@ document.addEventListener('scroll', () => {
 });
 window.chrome.webview.addEventListener('message', (e) => {
   const m = e.data;
-  if (!m || m.type !== 'feed') return;
-  render(m.entries || []);
+  if (!m) return;
+  if (m.type === 'feed') render(m.entries || []);
+  else if (m.type === 'append') append(m.entries || []);
+  else if (m.type === 'image') updateImage(m);
 });
 window.chrome.webview.postMessage({ type: 'ready' });
 
@@ -185,49 +268,66 @@ function el(tag, cls, text) {
   if (text !== undefined && text !== null) n.textContent = String(text);
   return n;
 }
-function render(entries) {
-  feed.innerHTML = '';
-  if (!entries.length) { feed.appendChild(el('div', 'empty', 'Лента пуста. Броски и сообщения появятся здесь.')); return; }
+function rowFor(e) {
+  if (e.kind === 2) return el('div', 'row system', e.text || '');
 
-  for (const e of entries) {
-    if (e.kind === 2) {
-      feed.appendChild(el('div', 'row system', e.text || ''));
-      continue;
+  const row = el('div', 'row' + (e.kind === 1 ? ' roll' : ''));
+  if (e.kind === 3 && e.id) row.dataset.imageId = e.id;
+  const head = el('div', 'head');
+  head.appendChild(el('span', 'author', e.author || 'Игрок'));
+  head.appendChild(el('span', '', e.time || ''));
+  row.appendChild(head);
+
+  if (e.kind === 1) {
+    row.appendChild(el('div', 'text', e.rollType || e.text || 'Бросок'));
+    row.appendChild(el('div', 'total', 'Итог: ' + (e.total ?? 0)));
+    const details = [];
+    if (e.formula) details.push(e.formula);
+    if (e.rolls && e.rolls.length) details.push('кубы: ' + e.rolls.join(', '));
+    if (details.length) row.appendChild(el('div', 'meta', details.join(' · ')));
+  } else {
+    if (e.text) row.appendChild(el('div', 'text', e.text));
+    if (e.kind === 3 && e.image) {
+      const img = document.createElement('img');
+      img.className = 'image';
+      const ext = (e.ext || '.png').replace('.', '');
+      img.src = 'data:image/' + (ext === 'jpg' ? 'jpeg' : ext) + ';base64,' + e.image;
+      img.alt = e.name || 'картинка';
+      row.appendChild(img);
+    } else if (e.kind === 3) {
+      row.appendChild(el('div', 'missing', 'Картинка недоступна в истории'));
     }
-
-    const row = el('div', 'row' + (e.kind === 1 ? ' roll' : ''));
-    const head = el('div', 'head');
-    head.appendChild(el('span', 'author', e.author || 'Игрок'));
-    head.appendChild(el('span', '', e.time || ''));
-    row.appendChild(head);
-
-    if (e.kind === 1) {
-      row.appendChild(el('div', 'text', e.rollType || e.text || 'Бросок'));
-      const total = el('div', 'total', 'Итог: ' + (e.total ?? 0));
-      row.appendChild(total);
-      const details = [];
-      if (e.formula) details.push(e.formula);
-      if (e.rolls && e.rolls.length) details.push('кубы: ' + e.rolls.join(', '));
-      if (details.length) row.appendChild(el('div', 'meta', details.join(' · ')));
-    } else {
-      if (e.text) row.appendChild(el('div', 'text', e.text));
-      if (e.kind === 3 && e.image) {
-        const img = document.createElement('img');
-        img.className = 'image';
-        const ext = (e.ext || '.png').replace('.', '');
-        img.src = 'data:image/' + (ext === 'jpg' ? 'jpeg' : ext) + ';base64,' + e.image;
-        img.alt = e.name || 'картинка';
-        row.appendChild(img);
-      } else if (e.kind === 3) {
-        row.appendChild(el('div', 'missing', 'Картинка недоступна в истории'));
-      }
-    }
-    feed.appendChild(row);
   }
-
+  return row;
+}
+function updateImage(m) {
+  if (!m || !m.id) return;
+  const row = feed.querySelector('[data-image-id=""' + m.id + '""]');
+  if (!row) return;
+  let img = row.querySelector('img.image');
+  if (!img) {
+    img = document.createElement('img');
+    img.className = 'image';
+    row.appendChild(img);
+    const missing = row.querySelector('.missing');
+    if (missing) missing.remove();
+  }
+  const ext = (m.ext || '.png').replace('.', '');
+  img.src = 'data:image/' + (ext === 'jpg' ? 'jpeg' : ext) + ';base64,' + m.image;
+}
+function append(entries) {
+  for (const e of entries) feed.appendChild(rowFor(e));
   if (autoScroll) window.scrollTo(0, document.body.scrollHeight);
 }
-</script></body></html>";
+function render(entries) {
+  feed.innerHTML = '';
+  if (!entries.length) {
+    feed.appendChild(el('div', 'empty', 'Лента пуста. Броски и сообщения появятся здесь.'));
+    return;
+  }
+  for (const e of entries) feed.appendChild(rowFor(e));
+  window.scrollTo(0, document.body.scrollHeight);
+}</script></body></html>";
         }
     }
 }

@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -151,5 +151,5 @@ using System.Windows;
 // и рисуется порциями, полная карточка читается по выбору. Плюс обмен
 // бестиарием файлом .hmwtpack (существа и картинки) и видимая пометка
 // источника у существа.
-[assembly: AssemblyVersion("1.2.8.7")]
-[assembly: AssemblyFileVersion("1.2.8.7")]
+[assembly: AssemblyVersion("1.2.8.10")]
+[assembly: AssemblyFileVersion("1.2.8.10")]
