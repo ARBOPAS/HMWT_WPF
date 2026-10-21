@@ -272,8 +272,13 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
-                    <Border Style="{StaticResource HeaderTile}"
+                    <Border Style="{StaticResource HeaderTile}" MouseLeftButtonUp="HeaderProfE_Click"
                                 ToolTip="Бонус мастерства — прибавляется к проверкам и броскам атаки">
+                        <!-- Сдвиг для «вздрагивания» при нажатии: меняет только вид,
+                             раскладку не трогает, поэтому соседние плитки не прыгают -->
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="ProfTileShake"/>
+                        </Border.RenderTransform>
                         <Grid>
                             <StackPanel>
                                 <TextBlock Text="МАСТЕРСТВО" Foreground="{StaticResource B.Mute}" 
@@ -281,6 +286,18 @@
                                 <TextBlock x:Name="txtHeaderProfBonus" Text="+2" Foreground="{StaticResource B.Arcane}" 
                                            FontSize="{DynamicResource FS.StatValue}" FontWeight="Bold" HorizontalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </StackPanel>
+
+                            <!-- Счётчик нажатий: сидит в углу плитки и виден только после
+                                 первого щелчка. Цвет и свечение ставит код. -->
+                            <Border x:Name="ProfCounterBadge" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                    Margin="0,0,-7,-5" Padding="4,0,4,1" CornerRadius="7"
+                                    Background="#D90B0D16" IsHitTestVisible="False" Opacity="0">
+                                <TextBlock x:Name="txtProfClicks" Text="0" FontFamily="{StaticResource F.Display}"
+                                           FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource B.Arcane}"/>
+                            </Border>
+
+                            <!-- Сюда прилетают всплывающие «+1» -->
+                            <Canvas x:Name="ProfPopLayer" IsHitTestVisible="False"/>
                         </Grid>
                     </Border>
                         <Border Style="{StaticResource HeaderTile}" MinWidth="150" MaxWidth="232">

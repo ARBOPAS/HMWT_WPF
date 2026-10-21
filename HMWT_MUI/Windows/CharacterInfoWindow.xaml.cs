@@ -457,6 +457,265 @@ namespace HMWT_MUI
             HPCalcOverlay.RenderTransform.BeginAnimation(TranslateTransform.XProperty, animation);
         }
 
+        #region === Счётчик нажатий на плитке мастерства ===
+
+        // Нажатие на плитку мастерства: плитка вздрагивает, в углу вспыхивает
+        // счётчик, а вверх улетает «+1». На ProfClickLimit счётчик гаснет
+        // и счёт начинается заново.
+
+        /// <summary>Сколько нажатий терпит счётчик до обнуления.</summary>
+        private const int ProfClickLimit = 9999;
+
+        /// <summary>Вспышка в момент нажатия.</summary>
+        private static readonly Color ProfFlashColor = Color.FromRgb(0xFF, 0xF4, 0xD2);
+
+        /// <summary>Золото на «круглых» числах и на последнем нажатии.</summary>
+        private static readonly Color ProfGoldColor = Color.FromRgb(0xFF, 0xBE, 0x5C);
+
+        /// <summary>Обычный цвет счётчика — как у самого бонуса мастерства.</summary>
+        private static readonly Color ProfBaseColor = Color.FromRgb(0xA9, 0x8B, 0xEC);
+
+        private int _profClicks;
+        private bool _profFinale;
+        private readonly Random _profRng = new Random();
+        private readonly List<TextBlock> _profPops = new List<TextBlock>();
+        private int _profPopIndex;
+        private DispatcherTimer _profResetTimer;
+        private SolidColorBrush _profCounterBrush;
+        private DropShadowEffect _profGlow;
+
+        /// <summary>Круглое число: каждое сотое нажатие и последнее.</summary>
+        private bool ProfRoundNumber => _profFinale || (_profClicks > 0 && _profClicks % 100 == 0);
+
+        private void HeaderProfE_Click(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+
+            PrepareProfCounter();
+
+            if (!_profFinale) _profClicks++;
+            if (_profClicks >= ProfClickLimit) _profFinale = true;
+
+            ShakeProfTile();
+            PopProfCounter();
+            ShowProfClickPop();
+
+            if (_profFinale && _profResetTimer == null) StartProfFinale();
+        }
+
+        /// <summary>
+        /// Готовит счётчик к работе: свою кисть и свечение.
+        ///
+        /// Кисти из словаря темы заморожены, а их цвет нужно плавно менять на
+        /// каждом нажатии, поэтому здесь создаются обычные, «живые».
+        /// </summary>
+        private void PrepareProfCounter()
+        {
+            if (_profCounterBrush != null) return;
+
+            _profCounterBrush = new SolidColorBrush(ProfBaseColor);
+            txtProfClicks.Foreground = _profCounterBrush;
+
+            _profGlow = new DropShadowEffect
+            {
+                Color = ProfBaseColor,
+                BlurRadius = 8,
+                ShadowDepth = 0,
+                Opacity = 0.95
+            };
+            txtProfClicks.Effect = _profGlow;
+
+            txtProfClicks.RenderTransformOrigin = new Point(0.5, 0.5);
+            txtProfClicks.RenderTransform = new ScaleTransform(1, 1);
+        }
+
+        /// <summary>Короткое вздрагивание плитки: в сторону, обратно и на место.</summary>
+        private void ShakeProfTile()
+        {
+            // На круглых числах тряхнём заметнее, чтобы нажатие чувствовалось
+            double strength = 1.6 + _profRng.NextDouble() * 1.3;
+            if (_profClicks > 0 && _profClicks % 100 == 0) strength *= 1.9;
+            if (_profFinale) strength *= 2.2;
+
+            int direction = _profRng.Next(2) == 0 ? 1 : -1;
+
+            ProfTileShake.BeginAnimation(TranslateTransform.XProperty, Knock(strength * direction));
+            ProfTileShake.BeginAnimation(TranslateTransform.YProperty, Knock(-strength * 0.5 * direction));
+        }
+
+        /// <summary>Дрожание по одной оси: туда, обратно, чуть-чуть и в ноль.</summary>
+        private static DoubleAnimationUsingKeyFrames Knock(double offset)
+        {
+            var animation = new DoubleAnimationUsingKeyFrames
+            {
+                Duration = TimeSpan.FromMilliseconds(215)
+            };
+
+            animation.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+            animation.KeyFrames.Add(new EasingDoubleKeyFrame(offset, KeyTime.FromPercent(0.2),
+                new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+            animation.KeyFrames.Add(new EasingDoubleKeyFrame(-offset * 0.6, KeyTime.FromPercent(0.5)));
+            animation.KeyFrames.Add(new EasingDoubleKeyFrame(offset * 0.28, KeyTime.FromPercent(0.74)));
+            animation.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromPercent(1),
+                new QuadraticEase { EasingMode = EasingMode.EaseOut }));
+
+            return animation;
+        }
+
+        /// <summary>Счётчик вспыхивает: подскок размера, свечение и цвет.</summary>
+        private void PopProfCounter()
+        {
+            txtProfClicks.Text = _profClicks.ToString();
+
+            // Появился — значит, дальше горит, пока не обнулится
+            ProfCounterBadge.BeginAnimation(UIElement.OpacityProperty, null);
+            ProfCounterBadge.Opacity = 1;
+
+            if (txtProfClicks.RenderTransform is ScaleTransform scale)
+            {
+                double peak = _profFinale ? 1.45 : 1.2;
+                var pop = new DoubleAnimationUsingKeyFrames
+                {
+                    Duration = TimeSpan.FromMilliseconds(270)
+                };
+                pop.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(0)));
+                pop.KeyFrames.Add(new EasingDoubleKeyFrame(peak, KeyTime.FromPercent(0.22)));
+                pop.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(1),
+                    new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.5 }));
+
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+            }
+
+            if (_profGlow != null)
+            {
+                double bright = _profFinale ? 34 : 22;
+                var blur = new DoubleAnimationUsingKeyFrames
+                {
+                    Duration = TimeSpan.FromMilliseconds(340)
+                };
+                blur.KeyFrames.Add(new EasingDoubleKeyFrame(8, KeyTime.FromPercent(0)));
+                blur.KeyFrames.Add(new EasingDoubleKeyFrame(bright, KeyTime.FromPercent(0.2)));
+                blur.KeyFrames.Add(new EasingDoubleKeyFrame(9, KeyTime.FromPercent(1)));
+                _profGlow.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blur);
+                _profGlow.BeginAnimation(DropShadowEffect.ColorProperty, FlashTo(ProfFlashColor));
+            }
+
+            if (_profCounterBrush != null)
+                _profCounterBrush.BeginAnimation(SolidColorBrush.ColorProperty, FlashTo(ProfFlashColor));
+        }
+
+        /// <summary>Цвет: вспышка в начале, золото на круглых, обычный в конце.</summary>
+        private ColorAnimationUsingKeyFrames FlashTo(Color flash)
+        {
+            Color settle = ProfRoundNumber ? ProfGoldColor : ProfBaseColor;
+
+            var animation = new ColorAnimationUsingKeyFrames
+            {
+                Duration = TimeSpan.FromMilliseconds(430)
+            };
+
+            animation.KeyFrames.Add(new EasingColorKeyFrame(flash, KeyTime.FromPercent(0)));
+            animation.KeyFrames.Add(new EasingColorKeyFrame(settle, KeyTime.FromPercent(0.55)));
+            animation.KeyFrames.Add(new EasingColorKeyFrame(ProfBaseColor, KeyTime.FromPercent(1)));
+
+            return animation;
+        }
+
+        /// <summary>Вверх от плитки улетает «+1» и растворяется.</summary>
+        private void ShowProfClickPop()
+        {
+            if (ProfPopLayer == null) return;
+
+            if (_profPops.Count == 0) CreateProfPops();
+
+            var pop = _profPops[_profPopIndex];
+            _profPopIndex = (_profPopIndex + 1) % _profPops.Count;
+
+            pop.FontSize = 11 + _profRng.NextDouble() * 3;
+            pop.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+            // «+1» появляется НАД плиткой и уходит выше: внутри плитки он
+            // закрывал бы подпись «МАСТЕРСТВО», а так улетает в пустое место
+            double width = ProfPopLayer.ActualWidth;
+            if (width <= 0) width = pop.DesiredSize.Width * 4;
+
+            Canvas.SetLeft(pop, Math.Max(0, (width - pop.DesiredSize.Width) / 2));
+            Canvas.SetTop(pop, -pop.DesiredSize.Height - 2);
+
+            pop.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(640))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+                });
+
+            if (pop.RenderTransform is TranslateTransform move)
+            {
+                move.BeginAnimation(TranslateTransform.YProperty,
+                    new DoubleAnimation(0, -18, TimeSpan.FromMilliseconds(640))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    });
+            }
+        }
+
+        /// <summary>Запас «+1»: пяти хватает даже на очень частое нажатие.</summary>
+        private void CreateProfPops()
+        {
+            var font = TryFindResource("F.Display") as FontFamily ?? new FontFamily("Segoe UI");
+
+            for (int i = 0; i < 5; i++)
+            {
+                var pop = new TextBlock
+                {
+                    Text = "+1",
+                    FontFamily = font,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(ProfBaseColor),
+                    IsHitTestVisible = false,
+                    Opacity = 0,
+                    RenderTransform = new TranslateTransform(),
+                    Effect = new DropShadowEffect
+                    {
+                        Color = ProfBaseColor,
+                        BlurRadius = 10,
+                        ShadowDepth = 0,
+                        Opacity = 0.9
+                    }
+                };
+
+                ProfPopLayer.Children.Add(pop);
+                _profPops.Add(pop);
+            }
+        }
+
+        /// <summary>
+        /// Последнее нажатие: счётчик показывает предел, вспыхивает и гаснет,
+        /// а счёт начинается заново.
+        /// </summary>
+        private void StartProfFinale()
+        {
+            _profResetTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+            _profResetTimer.Tick += (s, e) =>
+            {
+                _profResetTimer.Stop();
+                _profResetTimer = null;
+
+                // Напоследок тряхнуть, потом погасить и обнулить
+                ShakeProfTile();
+
+                _profClicks = 0;
+                _profFinale = false;
+
+                ProfCounterBadge.BeginAnimation(UIElement.OpacityProperty, null);
+                ProfCounterBadge.Opacity = 0;
+                txtProfClicks.Text = "0";
+            };
+            _profResetTimer.Start();
+        }
+
+        #endregion
+
         private void BtnPotion_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string diceFormula)
