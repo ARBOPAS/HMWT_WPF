@@ -1,4 +1,4 @@
-<UserControl x:Class="HMWT_MUI.Views.CharacterInfoView"
+﻿<UserControl x:Class="HMWT_MUI.Views.CharacterInfoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
@@ -83,6 +83,7 @@
             <StackPanel Orientation="Horizontal">
                 <RadioButton x:Name="tabMainBtn" Style="{StaticResource ViewTab}" Content="ХАРАКТЕРИСТИКИ" IsChecked="True" Checked="TabMain_Checked"/>
                 <RadioButton x:Name="tabPersBtn" Style="{StaticResource ViewTab}" Content="ЛИЧНОСТЬ И ПРЕДЫСТОРИЯ" Checked="TabPersonality_Checked"/>
+                <RadioButton x:Name="tabFeaturesBtn" Style="{StaticResource ViewTab}" Content="ЧЕРТЫ И ОСОБЕННОСТИ" Checked="TabFeatures_Checked"/>
             </StackPanel>
         </Border>
 
@@ -592,12 +593,14 @@
                  раньше она была отдельной полосой во всю ширину, и внизу вкладки
                  оставалась пустая область. -->
             <Border Grid.Row="2" Background="{StaticResource B.AbilityCard}" BorderBrush="{StaticResource B.Line}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="8,0,8,8"
-                    HorizontalAlignment="Left">
+                    HorizontalAlignment="Stretch">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.05*"/>
                         <ColumnDefinition Width="24"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="1.15*"/>
                     </Grid.ColumnDefinitions>
 
                     <Grid>
@@ -684,6 +687,39 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+
+                    <Border Grid.Column="3" Background="{StaticResource B.Line}" Width="1" Margin="0,20"/>
+
+                    <!-- Защиты: уязвимости, сопротивления, иммунитеты. Раньше
+                         этот угол листа пустовал, хотя в бою эти записи нужны чаще
+                         всего. Справочник типов урона и состояний плюс свободный ввод. -->
+                    <Border Grid.Column="4" Background="{StaticResource B.Slate}"
+                            BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                            CornerRadius="8" Padding="14">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <helpers:IconView Kind="shield" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+                                <TextBlock Text="ЗАЩИТЫ" Foreground="{StaticResource B.Accent}" FontSize="14"
+                                           FontWeight="Bold" FontFamily="{StaticResource F.Display}" Margin="8,0,0,0"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Уязвимости" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
+                            <WrapPanel x:Name="wpVulnerabilities" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Сопротивления" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
+                            <WrapPanel x:Name="wpResistances" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Иммунитеты" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
+                            <WrapPanel x:Name="wpImmunities" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Иммунитет к состояниям" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
+                            <WrapPanel x:Name="wpConditionImmunities" Margin="0,0,0,10"/>
+
+                            <Button x:Name="btnAddDefense" Content="+ ДОБАВИТЬ ЗАЩИТУ" Height="34"
+                                    Style="{StaticResource OverlaySecondaryBtn}"
+                                    HorizontalAlignment="Left" Click="BtnAddDefense_Click"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
         </Grid>
@@ -788,6 +824,98 @@
                 </Grid>
                 <TextBlock Grid.Row="2" Text="История персонажа" Foreground="{StaticResource B.Mute}" FontSize="12" Margin="0,0,0,4"/>
                 <TextBox Grid.Row="4" x:Name="txtBackstory" Style="{StaticResource AreaField}" Tag="Backstory" LostFocus="AddInfo_LostFocus"/>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="tabFeatures" Grid.Row="1" Visibility="Collapsed" Margin="16,12,16,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="ЧЕРТЫ И ОСОБЕННОСТИ" Foreground="{StaticResource B.Accent}"
+                               FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock x:Name="txtFeaturesSubtitle" Text="Классовые умения, расовые особенности и черты"
+                               Foreground="{StaticResource B.Mute}" FontSize="12" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <RadioButton x:Name="feat2024Btn" Style="{StaticResource ViewTab}" Content="2024" IsChecked="True"
+                                 Checked="FeatureEdition_Checked" Tag="2024"/>
+                    <RadioButton x:Name="feat2014Btn" Style="{StaticResource ViewTab}" Content="2014"
+                                 Checked="FeatureEdition_Checked" Tag="2014"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="txtFeatureSearch" Grid.Column="0" Style="{StaticResource SearchBox}"
+                         Tag="поиск по названию или описанию…" TextChanged="FeatureFilter_Changed"/>
+                <ComboBox x:Name="cmbFeatureKind" Grid.Column="1" Width="170" Margin="10,0,0,0"
+                          Style="{StaticResource DarkComboBox}" ItemContainerStyle="{StaticResource DmComboBoxItem}"
+                          SelectionChanged="FeatureFilter_Changed"/>
+                <ComboBox x:Name="cmbFeatureOwner" Grid.Column="2" Width="200" Margin="10,0,0,0"
+                          Style="{StaticResource DarkComboBox}" ItemContainerStyle="{StaticResource DmComboBoxItem}"
+                          SelectionChanged="FeatureFilter_Changed"/>
+                <Button x:Name="btnAddCustomFeature" Grid.Column="3" Content="СВОЯ ЧЕРТА" Height="38"
+                        Margin="10,0,0,0" Style="{StaticResource OverlayPrimaryBtn}" Click="BtnAddCustomFeature_Click"/>
+            </Grid>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.05*"/>
+                    <ColumnDefinition Width="24"/>
+                    <ColumnDefinition Width="1.3*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{StaticResource B.AbilityCard}" BorderBrush="{StaticResource B.Line}"
+                        BorderThickness="1" CornerRadius="10" Padding="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <helpers:IconView Kind="sparkle" IconSize="15" IconBrush="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="МОИ ЧЕРТЫ" Foreground="{StaticResource B.Accent}" FontFamily="{StaticResource F.Display}"
+                                       FontSize="14" FontWeight="Bold" Margin="8,0,0,0"/>
+                            <TextBlock x:Name="txtMyFeaturesCount" Text="0" Foreground="{StaticResource B.Mute}" FontSize="12"
+                                       Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="spMyFeatures"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Background="{StaticResource B.Line}" Width="1" Margin="0,8"/>
+
+                <Border Grid.Column="2" Background="{StaticResource B.AbilityCard}" BorderBrush="{StaticResource B.Line}"
+                        BorderThickness="1" CornerRadius="10" Padding="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <helpers:IconView Kind="book" IconSize="15" IconBrush="{StaticResource B.Frost}" VerticalAlignment="Center"/>
+                            <TextBlock Text="СПРАВОЧНИК" Foreground="{StaticResource B.Frost}" FontFamily="{StaticResource F.Display}"
+                                       FontSize="14" FontWeight="Bold" Margin="8,0,0,0"/>
+                            <TextBlock x:Name="txtCatalogCount" Text="0" Foreground="{StaticResource B.Mute}" FontSize="12"
+                                       Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="spFeatureCatalog"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
             </Grid>
         </Grid>
         </Grid>

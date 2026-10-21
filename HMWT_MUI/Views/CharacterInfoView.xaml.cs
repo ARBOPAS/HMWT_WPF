@@ -542,7 +542,21 @@ namespace HMWT_MUI.Views
                 SetIfColumn(r, "Hair", txtHair);
                 SetIfColumn(r, "Backstory", txtBackstory);
                 SetIfColumn(r, "Background", txtBackground);
+
+                string defenseJson = GetColumn(r, "Defenses");
+                LoadDefenses(defenseJson);
+                LoadFeatures(GetColumn(r, "Features"));
             }
+        }
+
+        private static string GetColumn(System.Data.Common.DbDataReader r, string column)
+        {
+            for (int i = 0; i < r.FieldCount; i++)
+            {
+                if (!string.Equals(r.GetName(i), column, StringComparison.OrdinalIgnoreCase)) continue;
+                return r.IsDBNull(i) ? "" : r.GetValue(i)?.ToString() ?? "";
+            }
+            return "";
         }
 
         /// <summary>Присваивает текст из колонки, если такая колонка есть в выборке.</summary>
@@ -791,20 +805,32 @@ namespace HMWT_MUI.Views
         #region === ПЕРЕКЛЮЧЕНИЕ ТАБОВ ===
         private void TabMain_Checked(object sender, RoutedEventArgs e)
         {
-            if (tabMain != null && tabPersonality != null)
+            if (tabMain != null && tabPersonality != null && tabFeatures != null)
             {
                 tabMain.Visibility = Visibility.Visible;
                 tabPersonality.Visibility = Visibility.Collapsed;
+                tabFeatures.Visibility = Visibility.Collapsed;
             }
         }
 
         private void TabPersonality_Checked(object sender, RoutedEventArgs e)
         {
-            if (tabMain != null && tabPersonality != null)
+            if (tabMain != null && tabPersonality != null && tabFeatures != null)
             {
                 tabMain.Visibility = Visibility.Collapsed;
                 tabPersonality.Visibility = Visibility.Visible;
+                tabFeatures.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void TabFeatures_Checked(object sender, RoutedEventArgs e)
+        {
+            if (tabMain == null || tabPersonality == null || tabFeatures == null) return;
+            tabMain.Visibility = Visibility.Collapsed;
+            tabPersonality.Visibility = Visibility.Collapsed;
+            tabFeatures.Visibility = Visibility.Visible;
+            EnsureFeatureFilters();
+            RefreshFeatureTab();
         }
         #endregion
 
@@ -955,6 +981,10 @@ namespace HMWT_MUI.Views
         /// <summary>Отмеченные владения. Заполняется при загрузке и при кликах.</summary>
         private readonly HashSet<string> _armorProf = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _weaponProf = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private List<DefenseEntry> _defenses = new List<DefenseEntry>();
+        private List<FeatureEntry> _features = new List<FeatureEntry>();
+        private string _featureEdition = "2024";
+        private bool _featureLoading;
 
         /// <summary>
         /// Строит кнопки владений. Вызывается один раз при загрузке вида.
@@ -995,6 +1025,439 @@ namespace HMWT_MUI.Views
                 UpdateProficiencyButtonVisual(button, selected.Contains(kind));
                 panel.Children.Add(button);
             }
+        }
+
+        private void LoadDefenses(string json)
+        {
+            _defenses = DefenseCatalog.Load(json);
+            RefreshDefensePanels();
+        }
+
+        private void SaveDefenses()
+        {
+            SaveAdditionalInfo("Defenses", DefenseCatalog.Save(_defenses));
+        }
+
+        private void RefreshDefensePanels()
+        {
+            FillDefensePanel(wpVulnerabilities, DefenseKind.Vulnerability);
+            FillDefensePanel(wpResistances, DefenseKind.Resistance);
+            FillDefensePanel(wpImmunities, DefenseKind.Immunity);
+            FillDefensePanel(wpConditionImmunities, DefenseKind.ConditionImmunity);
+        }
+
+        private void FillDefensePanel(Panel panel, string kind)
+        {
+            if (panel == null) return;
+            panel.Children.Clear();
+
+            var entries = _defenses.Where(d => d.Kind == kind).ToList();
+            if (entries.Count == 0)
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "—",
+                    Foreground = (Brush)FindResource("B.Mute"),
+                    FontSize = 12,
+                    Margin = new Thickness(0, 0, 0, 2)
+                });
+                return;
+            }
+
+            foreach (var entry in entries)
+            {
+                var chip = new Button
+                {
+                    Content = entry.Name + "  ×",
+                    Tag = entry,
+                    Margin = new Thickness(0, 0, 6, 5),
+                    Padding = new Thickness(9, 4, 9, 4),
+                    FontSize = 11,
+                    Cursor = Cursors.Hand,
+                    ToolTip = "Убрать " + entry.Name,
+                    Background = (Brush)FindResource(kind == DefenseKind.Vulnerability
+                        ? "B.Slate" : "B.PanelHi"),
+                    Foreground = (Brush)FindResource("B.Ink"),
+                    BorderBrush = (Brush)FindResource("B.Line"),
+                    BorderThickness = new Thickness(1)
+                };
+                chip.Click += (s, e) =>
+                {
+                    _defenses.Remove(entry);
+                    SaveDefenses();
+                    RefreshDefensePanels();
+                };
+                panel.Children.Add(chip);
+            }
+        }
+
+        private void BtnAddDefense_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new DefensePickerWindow { Owner = Window.GetWindow(this) };
+            if (dialog.ShowDialog() != true) return;
+
+            string name = (dialog.SelectedName ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            if (_defenses.Any(d => d.Kind == dialog.SelectedKind &&
+                                   string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                (Window.GetWindow(this) as CharacterInfoWindow)?.ShowToast("Такая защита уже есть");
+                return;
+            }
+
+            _defenses.Add(new DefenseEntry { Kind = dialog.SelectedKind, Name = name });
+            SaveDefenses();
+            RefreshDefensePanels();
+        }
+
+        // ══════════════════════ ЧЕРТЫ И ОСОБЕННОСТИ ══════════════════════
+
+        private void LoadFeatures(string json)
+        {
+            _features = CharacterFeatureCatalog.Load(json);
+            RefreshMyFeatures();
+        }
+
+        private void SaveFeatures()
+            => SaveAdditionalInfo("Features", CharacterFeatureCatalog.Save(_features));
+
+        private void EnsureFeatureFilters()
+        {
+            if (_featureLoading || cmbFeatureKind == null || cmbFeatureOwner == null) return;
+            _featureLoading = true;
+            try
+            {
+                if (cmbFeatureKind.Items.Count == 0)
+                {
+                    cmbFeatureKind.Items.Add("Все умения");
+                    cmbFeatureKind.Items.Add("Классовые");
+                    cmbFeatureKind.Items.Add("Расовые");
+                    cmbFeatureKind.Items.Add("Черты");
+                    cmbFeatureKind.SelectedIndex = 0;
+                }
+
+                string selectedOwner = cmbFeatureOwner.SelectedItem as string;
+                cmbFeatureOwner.Items.Clear();
+                cmbFeatureOwner.Items.Add("Все источники");
+                foreach (string owner in CharacterFeatureCatalog.LoadOwners(_featureEdition))
+                    cmbFeatureOwner.Items.Add(owner);
+
+                int index = string.IsNullOrWhiteSpace(selectedOwner)
+                    ? 0
+                    : cmbFeatureOwner.Items.IndexOf(selectedOwner);
+                cmbFeatureOwner.SelectedIndex = index >= 0 ? index : 0;
+            }
+            finally { _featureLoading = false; }
+        }
+
+        private void RefreshFeatureTab()
+        {
+            if (tabFeatures == null) return;
+            EnsureFeatureFilters();
+            RefreshMyFeatures();
+            RefreshFeatureCatalog();
+            if (txtFeaturesSubtitle != null)
+            {
+                txtFeaturesSubtitle.Text = _featureEdition == "2024"
+                    ? "Новое издание · данные из импортированного SRD 2024"
+                    : "Старое издание · текст зависит от импортированного SRD 2014";
+            }
+        }
+
+        private void RefreshMyFeatures()
+        {
+            if (spMyFeatures == null) return;
+            spMyFeatures.Children.Clear();
+            if (txtMyFeaturesCount != null) txtMyFeaturesCount.Text = _features.Count.ToString();
+
+            if (_features.Count == 0)
+            {
+                spMyFeatures.Children.Add(new TextBlock
+                {
+                    Text = "Пока пусто. Добавь умение из справочника справа или создай свою черту.",
+                    Foreground = (Brush)FindResource("B.Mute"),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+                return;
+            }
+
+            foreach (var entry in _features.OrderBy(f => f.Level).ThenBy(f => f.Name))
+                spMyFeatures.Children.Add(BuildMyFeatureCard(entry));
+        }
+
+        private Border BuildMyFeatureCard(FeatureEntry entry)
+        {
+            var card = new Border
+            {
+                Background = (Brush)FindResource("B.PanelHi"),
+                BorderBrush = (Brush)FindResource("B.Line"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(11, 8, 11, 9),
+                Margin = new Thickness(0, 0, 0, 7)
+            };
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var head = new Grid();
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var title = new TextBlock
+            {
+                Text = entry.Name,
+                Foreground = (Brush)FindResource("B.Ink"),
+                FontFamily = (FontFamily)FindResource("F.Display"),
+                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            head.Children.Add(title);
+
+            var meta = new TextBlock
+            {
+                Text = FeatureMeta(entry),
+                Foreground = (Brush)FindResource("B.Frost"),
+                FontSize = 11,
+                Margin = new Thickness(8, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(meta, 1);
+            head.Children.Add(meta);
+
+            var remove = new Button
+            {
+                Content = "×",
+                Width = 24,
+                Height = 24,
+                FontSize = 15,
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                Foreground = (Brush)FindResource("B.Mute"),
+                BorderThickness = new Thickness(0),
+                ToolTip = "Убрать"
+            };
+            remove.Click += (s, e) =>
+            {
+                _features.Remove(entry);
+                SaveFeatures();
+                RefreshMyFeatures();
+                RefreshFeatureCatalog();
+            };
+            Grid.SetColumn(remove, 2);
+            head.Children.Add(remove);
+            root.Children.Add(head);
+
+            if (!string.IsNullOrWhiteSpace(entry.Description))
+            {
+                var description = new TextBlock
+                {
+                    Text = entry.Description,
+                    Foreground = (Brush)FindResource("B.Mute"),
+                    FontSize = 11.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 6, 0, 0),
+                    LineHeight = 17
+                };
+                Grid.SetRow(description, 1);
+                root.Children.Add(description);
+            }
+
+            card.Child = root;
+            return card;
+        }
+
+        private static string FeatureMeta(FeatureEntry entry)
+        {
+            string kind = entry.Kind switch
+            {
+                "Traits" => "Раса",
+                "Feats" => "Черта",
+                "Features" => "Класс",
+                "Custom" => "Своё",
+                _ => entry.Kind ?? ""
+            };
+            string source = string.IsNullOrWhiteSpace(entry.Source) ? kind : entry.Source;
+            return entry.Level > 0 ? $"{source} · ур. {entry.Level}" : source;
+        }
+
+        private void RefreshFeatureCatalog()
+        {
+            if (spFeatureCatalog == null || _featureLoading) return;
+            spFeatureCatalog.Children.Clear();
+
+            string category = cmbFeatureKind.SelectedIndex switch
+            {
+                1 => "Features",
+                2 => "Traits",
+                3 => "Feats",
+                _ => ""
+            };
+            string owner = cmbFeatureOwner.SelectedIndex > 0
+                ? cmbFeatureOwner.SelectedItem as string ?? ""
+                : "";
+            string search = (txtFeatureSearch.Text ?? "").Trim();
+
+            var catalog = CharacterFeatureCatalog.LoadCatalog(_featureEdition, category, owner, search);
+            if (txtCatalogCount != null) txtCatalogCount.Text = catalog.Count.ToString();
+
+            if (catalog.Count == 0)
+            {
+                spFeatureCatalog.Children.Add(new TextBlock
+                {
+                    Text = _featureEdition == "2024"
+                        ? "Нет данных. Импортируй папку 2024\\ru через «Справка → Импорт SRD»."
+                        : "Нет данных за 2014. Импортируй папку 2014\\en — текст будет на английском.",
+                    Foreground = (Brush)FindResource("B.Mute"),
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+                return;
+            }
+
+            foreach (var entry in catalog)
+                spFeatureCatalog.Children.Add(BuildCatalogFeatureCard(entry));
+        }
+
+        private Border BuildCatalogFeatureCard(FeatureEntry entry)
+        {
+            bool already = _features.Any(f => string.Equals(f.Name, entry.Name, StringComparison.OrdinalIgnoreCase) &&
+                                              string.Equals(f.Source, entry.Source, StringComparison.OrdinalIgnoreCase));
+
+            var card = new Border
+            {
+                Background = (Brush)FindResource("B.Slate"),
+                BorderBrush = (Brush)FindResource("B.Line"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12, 9, 12, 10),
+                Margin = new Thickness(0, 0, 0, 7)
+            };
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var head = new StackPanel();
+            head.Children.Add(new TextBlock
+            {
+                Text = entry.Name,
+                Foreground = (Brush)FindResource("B.Ink"),
+                FontFamily = (FontFamily)FindResource("F.Display"),
+                FontWeight = FontWeights.Bold,
+                FontSize = 12.5,
+                TextWrapping = TextWrapping.Wrap
+            });
+            head.Children.Add(new TextBlock
+            {
+                Text = FeatureMeta(entry),
+                Foreground = (Brush)FindResource("B.Frost"),
+                FontSize = 10.5,
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            root.Children.Add(head);
+
+            string preview = entry.Description ?? "";
+            if (preview.Length > 230) preview = preview.Substring(0, 230).TrimEnd() + "…";
+            if (preview.Length > 0)
+            {
+                var description = new TextBlock
+                {
+                    Text = preview,
+                    Foreground = (Brush)FindResource("B.Mute"),
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 6, 12, 0),
+                    LineHeight = 16
+                };
+                Grid.SetRow(description, 1);
+                root.Children.Add(description);
+            }
+
+            var add = new Button
+            {
+                Content = already ? "ДОБАВЛЕНО" : "ДОБАВИТЬ",
+                Height = 28,
+                MinWidth = 86,
+                Padding = new Thickness(8, 0, 8, 0),
+                FontSize = 10.5,
+                IsEnabled = !already,
+                Style = (Style)FindResource("OverlaySecondaryBtn"),
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            add.Click += (s, e) =>
+            {
+                if (_features.Any(f => string.Equals(f.Name, entry.Name, StringComparison.OrdinalIgnoreCase) &&
+                                       string.Equals(f.Source, entry.Source, StringComparison.OrdinalIgnoreCase)))
+                    return;
+                _features.Add(new FeatureEntry
+                {
+                    Name = entry.Name,
+                    Source = entry.Source,
+                    Kind = entry.Kind,
+                    Level = entry.Level,
+                    Description = entry.Description
+                });
+                SaveFeatures();
+                RefreshMyFeatures();
+                RefreshFeatureCatalog();
+            };
+            Grid.SetColumn(add, 1);
+            root.Children.Add(add);
+
+            card.Child = root;
+            return card;
+        }
+
+        private void FeatureFilter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_featureLoading) return;
+            RefreshFeatureCatalog();
+        }
+
+        private void FeatureFilter_Changed(object sender, TextChangedEventArgs e)
+        {
+            if (_featureLoading) return;
+            RefreshFeatureCatalog();
+        }
+
+        private void FeatureEdition_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_featureLoading || cmbFeatureKind == null) return;
+            if (!(sender is RadioButton radio) || radio.IsChecked != true) return;
+            _featureEdition = string.Equals(radio.Tag as string, "2014", StringComparison.Ordinal) ? "2014" : "2024";
+            EnsureFeatureFilters();
+            RefreshFeatureTab();
+        }
+
+        private void BtnAddCustomFeature_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new FeatureEditorWindow { Owner = Window.GetWindow(this) };
+            if (dialog.ShowDialog() != true || dialog.Result == null) return;
+
+            var entry = dialog.Result;
+            if (_features.Any(f => string.Equals(f.Name, entry.Name, StringComparison.OrdinalIgnoreCase) &&
+                                   string.Equals(f.Source, entry.Source, StringComparison.OrdinalIgnoreCase)))
+            {
+                (Window.GetWindow(this) as CharacterInfoWindow)?.ShowToast("Такая черта уже есть");
+                return;
+            }
+
+            _features.Add(entry);
+            SaveFeatures();
+            RefreshMyFeatures();
+            RefreshFeatureCatalog();
         }
 
         /// <summary>Подсвечивает кнопку, если владение отмечено.</summary>

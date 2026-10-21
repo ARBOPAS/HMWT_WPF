@@ -207,6 +207,8 @@
     <Compile Include="Services\SrdItemImporter.cs" />
     <Compile Include="Services\SrdDatabaseImporter.cs" />
     <Compile Include="Services\ShareService.cs" />
+    <Compile Include="Services\CharacterFeatureCatalog.cs" />
+    <Compile Include="Services\CharacterDefenseCatalog.cs" />
     <Compile Include="Services\CharacterPackService.cs" />
     <Compile Include="Services\ShopService.cs" />
     <Compile Include="Net\RoomStore.cs" />
@@ -302,6 +304,12 @@
     </Compile>
     <Compile Include="Windows\MessageDialog.cs" />
     <Compile Include="Windows\NotificationWindow.cs" />
+    <Compile Include="Windows\FeatureEditorWindow.xaml.cs">
+      <DependentUpon>FeatureEditorWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\DefensePickerWindow.xaml.cs">
+      <DependentUpon>DefensePickerWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\CharacterInfoWindow.xaml.cs">
       <DependentUpon>CharacterInfoWindow.xaml</DependentUpon>
     </Compile>
@@ -398,6 +406,14 @@
     <Page Include="Controls\DmProfileEditor.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Windows\FeatureEditorWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\DefensePickerWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\CharacterInfoWindow.xaml">
       <SubType>Designer</SubType>

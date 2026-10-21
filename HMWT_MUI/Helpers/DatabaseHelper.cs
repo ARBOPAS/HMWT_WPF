@@ -324,6 +324,8 @@ namespace HMWT_MUI
 
             @"CREATE TABLE IF NOT EXISTS CharacterIdAddInfo (
                 id_character INTEGER PRIMARY KEY, Languages TEXT, Traits TEXT, Attachments TEXT, Weakness TEXT,
+                Defenses TEXT DEFAULT '',
+                Features TEXT DEFAULT '',
                 FOREIGN KEY (id_character) REFERENCES CharacterInfo(id_character) ON DELETE CASCADE);",
 
             @"CREATE TABLE IF NOT EXISTS LevelTable (
@@ -410,6 +412,9 @@ namespace HMWT_MUI
                 properties TEXT,            
                 publisher TEXT,
                 book TEXT,
+                srd_index TEXT,
+                owner TEXT,
+                level INTEGER DEFAULT 0,
                 UNIQUE(category, name, book));",
 
             // Каталог предметов для вкладки «Магазин» (импорт Data\srd\items.json).
@@ -505,6 +510,7 @@ namespace HMWT_MUI
                 EnsureColumns(conn, transaction, "CharacterIdAddInfo",
                     "Weapons TEXT", "Ideals TEXT", "Bonds TEXT", "Background TEXT",
                     "Height TEXT", "Weight TEXT", "Eyes TEXT", "Hair TEXT", "Backstory TEXT",
+                    "Defenses TEXT DEFAULT ''", "Features TEXT DEFAULT ''",
                     // Ссылка на предысторию из справочника: сам текст остаётся в Background,
                     // чтобы ничего не потерялось, если запись удалят
                     "id_background INTEGER");
@@ -714,7 +720,8 @@ namespace HMWT_MUI
             // что запись уже есть, и вторая база только дополняет первую
 
             EnsureColumns(conn, transaction, "SpellReference", SrdIndexColumn);
-            EnsureColumns(conn, transaction, "SrdReference", SrdIndexColumn);
+            EnsureColumns(conn, transaction, "SrdReference", SrdIndexColumn,
+                "owner TEXT", "level INTEGER DEFAULT 0");
 
             SeedDefaultEquipmentSlots(conn, transaction);
             SeedDefaultTags(conn, transaction);

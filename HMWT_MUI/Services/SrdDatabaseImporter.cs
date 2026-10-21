@@ -606,13 +606,15 @@ namespace HMWT_MUI.Services
             using var cmd = conn.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = @"
-                INSERT INTO SrdReference (category, name, description, properties, publisher, book, srd_index)
-                VALUES (@cat, @name, @desc, @props, @pub, @book, @index)
+                INSERT INTO SrdReference (category, name, description, properties, publisher, book, srd_index, owner, level)
+                VALUES (@cat, @name, @desc, @props, @pub, @book, @index, @owner, @level)
                 ON CONFLICT(category, name, book) DO UPDATE SET
                     description=excluded.description,
                     properties=excluded.properties,
                     publisher=excluded.publisher,
-                    srd_index=excluded.srd_index";
+                    srd_index=excluded.srd_index,
+                    owner=excluded.owner,
+                    level=excluded.level";
 
             // Названия, уже занятые в этом файле: пара «название и книга» в таблице
             // уникальна, и без разведения повторы схлопнулись бы в одну строку
@@ -651,6 +653,8 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@pub", "Wizards of the Coast (SRD, CC-BY-4.0)");
                 cmd.Parameters.AddWithValue("@book", Book(result));
                 cmd.Parameters.AddWithValue("@index", Text(el, "index"));
+                cmd.Parameters.AddWithValue("@owner", OwnerOf(el));
+                cmd.Parameters.AddWithValue("@level", LevelOf(el));
                 cmd.ExecuteNonQuery();
                 count++;
             }
@@ -666,6 +670,40 @@ namespace HMWT_MUI.Services
         /// называются одинаково («Варвар 3»). Пара «название и книга» в таблице
         /// справочника уникальна, поэтому без уточнения часть записей схлопнулась бы.
         /// </summary>
+        /// <summary>Владелец записи: класс, вид или тип черты.</summary>
+        private static string OwnerOf(JsonElement el)
+        {
+            string className = NestedText(el, "class", "name");
+            if (className.Length > 0) return className;
+
+            string species = NamesOf(el, "species");
+            if (species.Length > 0) return species;
+
+            string races = NamesOf(el, "races");
+            if (races.Length > 0) return races;
+
+            string featType = Text(el, "type");
+            if (featType.Length > 0) return featType;
+
+            return "";
+        }
+
+        /// <summary>Уровень умения. В 2024 level — объект «Варвар 1», в 2014 — число.</summary>
+        private static int LevelOf(JsonElement el)
+        {
+            if (!el.TryGetProperty("level", out var level)) return 0;
+
+            if (level.ValueKind == JsonValueKind.Number && level.TryGetInt32(out int number))
+                return number;
+
+            string text = level.ValueKind == JsonValueKind.Object
+                ? Text(level, "name")
+                : level.ValueKind == JsonValueKind.String ? level.GetString() ?? "" : "";
+
+            var match = System.Text.RegularExpressions.Regex.Match(text ?? "", @"(\d+)\s*$");
+            return match.Success && int.TryParse(match.Groups[1].Value, out int parsed) ? parsed : 0;
+        }
+
         private static string QualifiedName(JsonElement el)
         {
             string name = Text(el, "name");

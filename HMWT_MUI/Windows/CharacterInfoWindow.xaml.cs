@@ -77,6 +77,7 @@ namespace HMWT_MUI
         private int _tempLevel = 1;
         private int _tempExp = 0;
         private int _tempProficiency = 2;
+        private double _levelProgressPercent;
 
         // Состояние персонажа в шапке: состояния, вдохновение, концентрация
         private List<CharacterStateService.ConditionOption> _conditionOptions =
@@ -1200,21 +1201,37 @@ namespace HMWT_MUI
             txtLevelMin.Text = level.ToString();
             txtLevelMax.Text = (level + 1).ToString();
 
-            int expForCurrentLevel = GetExpForNextLevel(level - 1);
             int expForNextLevel = GetExpForNextLevel(level);
-            int expInRange = currentExp - expForCurrentLevel;
-            int expNeeded = expForNextLevel - expForCurrentLevel;
 
-            double percentage = expNeeded > 0 ? (double)expInRange / expNeeded * 100 : 0;
-            percentage = Math.Max(0, Math.Min(100, percentage));
+            // Опыт хранится накопительно, а в оверлее показывается как
+            // «текущий / необходимый». Раньше из него вычитался порог прошлого
+            // уровня, и при нестандартной паре уровень/опыт бар становился нулевым.
+            double percentage = level >= 20 || expForNextLevel <= 0
+                ? 100
+                : (double)currentExp / expForNextLevel * 100;
+            _levelProgressPercent = Math.Max(0, Math.Min(100, percentage));
+            ApplyLevelProgressWidth();
 
-            double containerWidth = ProgressBarFill.Parent is Border parentBorder ? parentBorder.ActualWidth : 280;
-            ProgressBarFill.Width = Math.Max(0, containerWidth * percentage / 100);
+            // Ширина дорожки появляется только после раскладки оверлея
+            Dispatcher.BeginInvoke(new Action(ApplyLevelProgressWidth), DispatcherPriority.Loaded);
 
-            txtExpCurrent.Text = $"Опыт: {currentExp} / {expForNextLevel}";
+            txtExpCurrent.Text = level >= 20
+                ? $"Опыт: {currentExp} / максимум"
+                : $"Опыт: {currentExp} / {expForNextLevel}";
             btnLevelUpAvailable.Visibility = (currentExp >= expForNextLevel && level < 20)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+        }
+
+        private void LevelProgressTrack_SizeChanged(object sender, SizeChangedEventArgs e)
+            => ApplyLevelProgressWidth();
+
+        private void ApplyLevelProgressWidth()
+        {
+            if (LevelProgressTrack == null || ProgressBarFill == null) return;
+            double width = LevelProgressTrack.ActualWidth;
+            if (width <= 0) return;
+            ProgressBarFill.Width = width * _levelProgressPercent / 100;
         }
 
         private void UpdateProgressBarFromDB()

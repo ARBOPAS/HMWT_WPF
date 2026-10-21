@@ -820,8 +820,9 @@
                                 <TextBlock Grid.Column="2" x:Name="txtLevelMax" Text="2" Foreground="{StaticResource B.Mute}" 
                                            FontSize="14" VerticalAlignment="Center" FontFamily="{StaticResource F.Display}"/>
                             </Grid>
-                            <Border Height="8" Background="{StaticResource B.Void}" CornerRadius="4" Margin="0,0,0,10" 
-                                    BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                            <Border x:Name="LevelProgressTrack" Height="8" Background="{StaticResource B.Void}" CornerRadius="4" Margin="0,0,0,10" 
+                                    BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                                    SizeChanged="LevelProgressTrack_SizeChanged" ClipToBounds="True">
                                 <Border x:Name="ProgressBarFill" Background="{StaticResource B.Accent}" CornerRadius="4" 
                                         HorizontalAlignment="Left" Width="0"/>
                             </Border>
@@ -829,9 +830,8 @@
                                        FontSize="12" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                             <TextBlock x:Name="txtManagerProfBonus" Text="Бонус мастерства: +2" Foreground="{StaticResource B.Frost}" 
                                        FontSize="12" HorizontalAlignment="Center" FontWeight="Bold"/>
-                            <Button x:Name="btnLevelUpAvailable" Height="42" 
-                                    Background="{StaticResource B.Ok}" Foreground="{StaticResource B.OnFill}" BorderThickness="0" Cursor="Hand" 
-                                    FontWeight="Bold" Margin="0,16,0,0" Visibility="Collapsed" Click="BtnLevelUpAvailable_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="bolt" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПОВЫСИТЬ УРОВЕНЬ" VerticalAlignment="Center"/></StackPanel></Button>
+                            <Button x:Name="btnLevelUpAvailable" Height="42" Style="{StaticResource OverlayPrimaryBtn}"
+                                    Margin="0,16,0,0" Visibility="Collapsed" Click="BtnLevelUpAvailable_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="bolt" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="ПОВЫСИТЬ УРОВЕНЬ" VerticalAlignment="Center"/></StackPanel></Button>
                         </StackPanel>
                     </Border>
 
@@ -858,9 +858,8 @@
                                      TextChanged="TxtLevelInput_TextChanged"
                                      ToolTip="Можно вводить с клавиатуры или нажимать кнопки"/>
                             <Button Grid.Column="1" x:Name="btnClearInput" Width="52" Height="52" 
-                                    Background="{StaticResource B.Slate}" Foreground="{StaticResource B.Ink}" 
-                                    BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
-                                    Click="BtnClearInput_Click"><helpers:IconView Kind="backspace" IconSize="18" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                                    Style="{StaticResource CalcKeyBtn}" Click="BtnClearInput_Click"
+                                    ToolTip="Стереть"><helpers:IconView Kind="backspace" IconSize="18" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
                         </Grid>
                         <Grid Grid.Row="1">
                             <Grid.RowDefinitions>
@@ -976,9 +975,8 @@
                                 </Grid>
                             </StackPanel>
                             <Button x:Name="btnCloseManualEdit" Content="ЗАКРЫТЬ" Height="42" 
-                                    Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}" 
-                                    BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand" 
-                                    FontSize="13" FontWeight="Bold" Click="BtnCloseManualEdit_Click"/>
+                                    Style="{StaticResource OverlaySecondaryBtn}"
+                                    Click="BtnCloseManualEdit_Click"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -1070,16 +1068,13 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="btnRollDice" Grid.Column="0" Height="52"
+                        <Button x:Name="btnRollDice" Grid.Column="0" Height="52" Style="{StaticResource OverlayPrimaryBtn}"
                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                                Background="{StaticResource B.Accent}" Foreground="{StaticResource B.OnAccent}" BorderThickness="0"
-                                FontWeight="Bold" Cursor="Hand" Click="BtnRollDice_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="БРОСИТЬ" VerticalAlignment="Center"/></StackPanel></Button>
+                                Click="BtnRollDice_Click"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="dice" IconSize="17" IconBrush="{StaticResource B.Void}" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="БРОСИТЬ" VerticalAlignment="Center"/></StackPanel></Button>
                         <Button x:Name="btnRollFormula" Grid.Column="1" Content="По формуле" Height="52" MinWidth="130"
-                                Margin="10,0,0,0" Padding="12,0"
+                                Margin="10,0,0,0" Style="{StaticResource OverlaySecondaryBtn}"
                                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                                Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Accent}"
-                                BorderBrush="{StaticResource B.Accent}" BorderThickness="1"
-                                FontSize="14" FontWeight="SemiBold" Cursor="Hand" Click="BtnRollFormula_Click"/>
+                                Click="BtnRollFormula_Click"/>
                     </Grid>
                 </Grid>
             </Border>
@@ -1157,11 +1152,9 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="btnRestCancel" Content="ЗАКРЫТЬ" Height="44" Margin="0,0,5,0"
-                                Background="{StaticResource B.PanelHi}" Foreground="{StaticResource B.Ink}"
-                                BorderThickness="1" BorderBrush="{StaticResource B.Line}" Cursor="Hand"
-                                FontSize="13" FontWeight="Bold" Click="BtnCloseRest_Click"/>
+                                Style="{StaticResource OverlaySecondaryBtn}" Click="BtnCloseRest_Click"/>
                         <Button x:Name="btnRestGo" Grid.Column="1" Content="ОТДОХНУТЬ" Height="44" Margin="5,0,0,0"
-                                Style="{StaticResource ActionBtn}" Click="BtnRestGo_Click"/>
+                                Style="{StaticResource OverlayPrimaryBtn}" Click="BtnRestGo_Click"/>
                     </Grid>
                 </Grid>
             </Border>
