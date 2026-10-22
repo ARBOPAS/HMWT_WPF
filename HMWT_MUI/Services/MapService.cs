@@ -80,7 +80,8 @@ namespace HMWT_MUI.Services
                         photo_hash TEXT DEFAULT '',
                         photo_path TEXT DEFAULT '',
                         facing REAL DEFAULT 0,
-                        view_angle REAL DEFAULT 360
+                        view_angle REAL DEFAULT 360,
+                        frame_color TEXT DEFAULT ''
                     );
                     CREATE TABLE IF NOT EXISTS MapStroke (
                         id_stroke INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,6 +142,7 @@ namespace HMWT_MUI.Services
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "photo_path TEXT DEFAULT ''");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "facing REAL DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "view_angle REAL DEFAULT 360");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "frame_color TEXT DEFAULT ''");
 
                 // Версия формы «разведанного». До 1.2.5 полигон сохранялся без
                 // центра сектора и выглядел обрезанными кусками, а не конусом.
@@ -469,7 +471,8 @@ namespace HMWT_MUI.Services
                     PhotoHash = Text(reader, "photo_hash"),
                     PhotoPath = Text(reader, "photo_path"),
                     Facing = Double(reader, "facing", 0),
-                    ViewAngle = Double(reader, "view_angle", 360)
+                    ViewAngle = Double(reader, "view_angle", 360),
+                    FrameColor = Text(reader, "frame_color")
                 });
             }
 
@@ -490,10 +493,10 @@ namespace HMWT_MUI.Services
                 string sql = token.Id > 0
                     ? @"UPDATE MapToken SET id_combatant = @combatant, label = @label, x = @x, y = @y,
                               size_cells = @size, color = @color, hidden = @hidden, facing = @facing, view_angle = @angle, reveal_cells = @reveal, is_player = @isPlayer,
-                              photo_hash = @photoHash, photo_path = @photoPath
+                              photo_hash = @photoHash, photo_path = @photoPath, frame_color = @frameColor
                         WHERE id_token = @id"
-                    : @"INSERT INTO MapToken (id_scene, id_combatant, label, x, y, size_cells, color, hidden, facing, view_angle, reveal_cells, is_player, photo_hash, photo_path)
-                        VALUES (@scene, @combatant, @label, @x, @y, @size, @color, @hidden, @facing, @angle, @reveal, @isPlayer, @photoHash, @photoPath)";
+                    : @"INSERT INTO MapToken (id_scene, id_combatant, label, x, y, size_cells, color, hidden, facing, view_angle, reveal_cells, is_player, photo_hash, photo_path, frame_color)
+                        VALUES (@scene, @combatant, @label, @x, @y, @size, @color, @hidden, @facing, @angle, @reveal, @isPlayer, @photoHash, @photoPath, @frameColor)";
 
                 using var cmd = new SqliteCommand(sql, conn);
                 if (token.Id > 0) cmd.Parameters.AddWithValue("@id", token.Id);
@@ -511,6 +514,7 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@isPlayer", token.IsPlayer ? 1 : 0);
                 cmd.Parameters.AddWithValue("@photoHash", token.PhotoHash ?? "");
                 cmd.Parameters.AddWithValue("@photoPath", token.PhotoPath ?? "");
+                cmd.Parameters.AddWithValue("@frameColor", token.FrameColor ?? "");
                 cmd.ExecuteNonQuery();
 
                 if (token.Id <= 0)

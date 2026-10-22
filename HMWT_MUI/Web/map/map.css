@@ -18,3 +18,29 @@ html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background:
   background: #0b0d16f2; color: #9ff0d0; font: 13px "Segoe UI", sans-serif;
   pointer-events: none; white-space: nowrap; max-width: 90%;
 }
+
+/* Меню по правой кнопке: у WebView2 свои контекстные меню выключены,
+   поэтому меню жетона и стены рисует сама страница. */
+.hmwt-menu {
+  display: none; position: absolute; left: 0; top: 0; z-index: 30;
+  min-width: 208px; max-height: 82vh; overflow-y: auto;
+  padding: 5px; border: 1px solid #3b4a72; border-radius: 8px;
+  background: #0e1220f5; box-shadow: 0 10px 26px #000000cc;
+  color: #dfe6ff; font: 12.5px "Segoe UI", sans-serif;
+  user-select: none;
+}
+.hmwt-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 9px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+}
+.hmwt-item:hover { background: #1d2740; }
+.hmwt-disabled { color: #8b95b4; cursor: default; }
+.hmwt-disabled:hover { background: transparent; }
+.hmwt-danger { color: #ff9b9b; }
+.hmwt-danger:hover { background: #3a1d24; }
+.hmwt-check { color: #ffd27a; }
+.hmwt-sep { height: 1px; margin: 4px 6px; background: #26314f; }
+.hmwt-swatch {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 1px solid #00000088; flex: 0 0 auto;
+}

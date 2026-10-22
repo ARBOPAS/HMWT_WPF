@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -21,11 +21,44 @@ namespace HMWT_MUI.Controls
         private bool _started;
         private CoreWebView2 _core;
         private string _pending = "";
+        private int _stateMessages;
 
         public event Action Ready;
         public event Action Failed;
         public event Action<int, double, double> TokenMoved;
         public event Action<int, double, double, List<Net.MapTrailPoint>> TokenMovedWithTrail;
+        public event Action<double, double> ShapePlaced;
+        public event Action<double, double> Pinged;
+
+        /// <summary>Жетон тянут: промежуточное положение без записи в базу.</summary>
+        public event Action<int, double, double> TokenMovedLive;
+
+        /// <summary>Фигуру двигают. commit = false — только показ, true — отпустили.</summary>
+        public event Action<int, double, double, bool> ShapeMoved;
+
+        /// <summary>Готовый штрих кисти (или след ластика) из WebView.</summary>
+        public event Action<List<Net.MapTrailPoint>, string, double, bool> StrokeAdded;
+
+        /// <summary>Протянутая стена или дверь (координаты в системе картинки).</summary>
+        public event Action<double, double, double, double, string> WallAdded;
+
+        /// <summary>Пункт меню жетона: размер, обзор, поворот, рамка, удаление.</summary>
+        public event Action<int, string, string> TokenMenuAction;
+
+        /// <summary>Жетон выбрали на карте — от него зависит ползунок «Обзор».</summary>
+        public event Action<int> TokenSelected;
+
+        /// <summary>Начали новый маршрут — старый след этого жетона нужно стереть.</summary>
+        public event Action<int> TrailCleared;
+
+        /// <summary>Действие с фигурой: поворот, размер, цвет, удаление.</summary>
+        public event Action<int, string, string> ShapeAction;
+
+        /// <summary>Действие со стеной: открыть/закрыть дверь, убрать.</summary>
+        public event Action<int, string> WallAction;
+
+        /// <summary>Страница просит картинку карты заново (после перезагрузки WebView).</summary>
+        public event Action ImageNeeded;
 
         public bool IsReady { get; private set; }
 
@@ -151,7 +184,7 @@ namespace HMWT_MUI.Controls
 
                 _web.DefaultBackgroundColor = System.Drawing.Color.FromArgb(0x0B, 0x0D, 0x16);
                 _web.Visibility = Visibility.Visible;
-                _core.Navigate("https://hmwt.map/index.html?v=1326");
+                _core.Navigate("https://hmwt.map/index.html?v=" + DateTime.Now.Ticks);
             }
             catch (Exception ex)
             {
@@ -160,6 +193,18 @@ namespace HMWT_MUI.Controls
                 IsHitTestVisible = false;
                 Failed?.Invoke();
             }
+        }
+
+        /// <summary>
+        /// Разовое сообщение (пинг, вспышка), которое не является состоянием:
+        /// если WebView ещё не готов, оно просто теряется и не подменяет
+        /// ожидающее состояние сцены.
+        /// </summary>
+        public void SendEphemeral(string json)
+        {
+            if (string.IsNullOrEmpty(json) || !IsReady || _core == null) return;
+            try { _core.PostWebMessageAsJson(json); }
+            catch (Exception ex) { Debug.WriteLine("[MapWeb] ephemeral: " + ex.Message); }
         }
 
         public void SendState(string json)
@@ -171,6 +216,11 @@ namespace HMWT_MUI.Controls
             try
             {
                 _core.PostWebMessageAsJson(json);
+                // Журнал не должен расти на каждом кадре: карта шлёт состояние
+                // несколько раз в секунду. Пишем редкие отметки для отладки.
+                _stateMessages++;
+                if (_stateMessages % 50 == 0)
+                    WriteLog("state #" + _stateMessages + " bytes=" + json.Length);
                 _pending = "";
             }
             catch (Exception ex)
@@ -203,7 +253,46 @@ namespace HMWT_MUI.Controls
                         _core.PostWebMessageAsJson(_pending);
                         _pending = "";
                     }
+                    WriteLog("ready");
                     Ready?.Invoke();
+                    return;
+                }
+
+                if (type == "jsLog" || type == "jsError")
+                {
+                    string text = root.TryGetProperty("text", out var logEl) ? logEl.GetString() : "";
+                    WriteLog((type == "jsError" ? "JS ERROR " : "js ") + text);
+                    return;
+                }
+
+                if (type == "needImage")
+                {
+                    ImageNeeded?.Invoke();
+                    return;
+                }
+
+                if (type == "placeShape" &&
+                    root.TryGetProperty("x", out var sx) &&
+                    root.TryGetProperty("y", out var sy))
+                {
+                    ShapePlaced?.Invoke(sx.GetDouble(), sy.GetDouble());
+                    return;
+                }
+
+                if (type == "ping" &&
+                    root.TryGetProperty("x", out var pingX) &&
+                    root.TryGetProperty("y", out var pingY))
+                {
+                    Pinged?.Invoke(pingX.GetDouble(), pingY.GetDouble());
+                    return;
+                }
+
+                if (type == "moveTokenLive" &&
+                    root.TryGetProperty("id", out var liveId) &&
+                    root.TryGetProperty("x", out var liveX) &&
+                    root.TryGetProperty("y", out var liveY))
+                {
+                    TokenMovedLive?.Invoke(liveId.GetInt32(), liveX.GetDouble(), liveY.GetDouble());
                     return;
                 }
 
@@ -215,23 +304,115 @@ namespace HMWT_MUI.Controls
                     int id = idEl.GetInt32();
                     double x = xEl.GetDouble();
                     double y = yEl.GetDouble();
-                    var trail = new List<Net.MapTrailPoint>();
-                    if (root.TryGetProperty("points", out var pts) && pts.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var p in pts.EnumerateArray())
-                        {
-                            if (p.TryGetProperty("x", out var px) && p.TryGetProperty("y", out var py))
-                                trail.Add(new Net.MapTrailPoint { X = px.GetDouble(), Y = py.GetDouble() });
-                        }
-                    }
+                    var trail = ReadPoints(root, "points");
                     TokenMoved?.Invoke(id, x, y);
                     TokenMovedWithTrail?.Invoke(id, x, y, trail);
+                    return;
+                }
+
+                if (type == "moveShape" &&
+                    root.TryGetProperty("id", out var shapeId) &&
+                    root.TryGetProperty("x", out var shapeX) &&
+                    root.TryGetProperty("y", out var shapeY))
+                {
+                    bool commit = root.TryGetProperty("commit", out var commitEl) &&
+                                  commitEl.ValueKind == JsonValueKind.True;
+                    ShapeMoved?.Invoke(shapeId.GetInt32(), shapeX.GetDouble(), shapeY.GetDouble(), commit);
+                    return;
+                }
+
+                if (type == "stroke")
+                {
+                    var points = ReadPoints(root, "points");
+                    string color = root.TryGetProperty("color", out var colorEl) ? colorEl.GetString() : "";
+                    double thickness = root.TryGetProperty("thickness", out var thEl) ? thEl.GetDouble() : 4;
+                    bool eraser = root.TryGetProperty("eraser", out var erEl) && erEl.ValueKind == JsonValueKind.True;
+                    if (points.Count > 0) StrokeAdded?.Invoke(points, color ?? "", thickness, eraser);
+                    return;
+                }
+
+                if (type == "wall" &&
+                    root.TryGetProperty("x1", out var w1x) &&
+                    root.TryGetProperty("y1", out var w1y) &&
+                    root.TryGetProperty("x2", out var w2x) &&
+                    root.TryGetProperty("y2", out var w2y))
+                {
+                    string kind = root.TryGetProperty("kind", out var kindEl) ? kindEl.GetString() : "wall";
+                    WallAdded?.Invoke(w1x.GetDouble(), w1y.GetDouble(),
+                        w2x.GetDouble(), w2y.GetDouble(), kind ?? "wall");
+                    return;
+                }
+
+                if (type == "tokenMenuAction" &&
+                    root.TryGetProperty("id", out var menuId) &&
+                    root.TryGetProperty("action", out var actionEl))
+                {
+                    string action = actionEl.GetString() ?? "";
+                    string value = root.TryGetProperty("value", out var valueEl) ? valueEl.GetString() : "";
+                    TokenMenuAction?.Invoke(menuId.GetInt32(), action, value ?? "");
+                    return;
+                }
+
+                if (type == "selectToken" && root.TryGetProperty("id", out var selectId))
+                {
+                    TokenSelected?.Invoke(selectId.GetInt32());
+                    return;
+                }
+
+                if (type == "trailClear" && root.TryGetProperty("id", out var trailId))
+                {
+                    TrailCleared?.Invoke(trailId.GetInt32());
+                    return;
+                }
+
+                if (type == "shapeAction" &&
+                    root.TryGetProperty("id", out var shapeActionId) &&
+                    root.TryGetProperty("action", out var shapeActionEl))
+                {
+                    string value = root.TryGetProperty("value", out var shapeValueEl)
+                        ? shapeValueEl.GetString() : "";
+                    ShapeAction?.Invoke(shapeActionId.GetInt32(),
+                        shapeActionEl.GetString() ?? "", value ?? "");
+                    return;
+                }
+
+                if (type == "wallAction" &&
+                    root.TryGetProperty("id", out var wallId) &&
+                    root.TryGetProperty("action", out var wallActionEl))
+                {
+                    WallAction?.Invoke(wallId.GetInt32(), wallActionEl.GetString() ?? "");
+                    return;
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("[MapWeb] message: " + ex.Message);
+                WriteLog("message error: " + ex.Message);
             }
+        }
+
+        private static List<Net.MapTrailPoint> ReadPoints(JsonElement root, string name)
+        {
+            var list = new List<Net.MapTrailPoint>();
+            if (!root.TryGetProperty(name, out var pts) || pts.ValueKind != JsonValueKind.Array) return list;
+
+            foreach (var p in pts.EnumerateArray())
+            {
+                if (p.TryGetProperty("x", out var px) && p.TryGetProperty("y", out var py))
+                    list.Add(new Net.MapTrailPoint { X = px.GetDouble(), Y = py.GetDouble() });
+            }
+            return list;
+        }
+
+        /// <summary>Журнал моста WebView → C#: без него ошибки JS видны только в отладчике.</summary>
+        internal static void WriteLog(string text)
+        {
+            try
+            {
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "hmwt-map-web.log"),
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " " + text + Environment.NewLine);
+            }
+            catch { }
         }
     }
 }

@@ -898,10 +898,13 @@ namespace HMWT_MUI.Net
             _server.UpdateTokenLive(tokenId, x, y, facing);
         }
 
-        /// <summary>Передаёт пройденный путь жетона остальным участникам.</summary>
+        /// <summary>
+        /// Передаёт пройденный путь жетона остальным участникам. Пустой список —
+        /// сигнал «след стёрт»: жетон начал новый маршрут с чистого листа.
+        /// </summary>
         public void PublishMapTrail(int tokenId, List<MapTrailPoint> points)
         {
-            if (!IsActive || points == null || points.Count < 2) return;
+            if (!IsActive || points == null) return;
 
             if (IsHost)
             {

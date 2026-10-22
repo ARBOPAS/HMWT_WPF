@@ -10,8 +10,13 @@
   <div id="stage"></div>
   <div id="measure"></div>
   <div id="toast"></div>
-  <div id="hint">ЛКМ — жетон / панорама · колесо — масштаб</div>
+  <div id="hint">ЛКМ — жетон / панорама · колесо — масштаб · ПКМ — меню жетона</div>
   <script src="pixi.min.js?v=7403"></script>
-  <script src="map.v7.js?v=1"></script>
+  <!-- Одна версия рендерера, без копии map.v7.js. Метка времени в адресе
+       обязательна: WebView2 иначе держит старый map.js в кэше, и правки
+       не доезжают до карты до переустановки приложения. -->
+  <script>
+    document.write('<script src="map.js?v=' + Date.now() + '"><\/script>');
+  </script>
 </body>
 </html>

@@ -100,6 +100,9 @@ namespace HMWT_MUI.Views
         /// </summary>
         private bool _suppressFogEvents;
 
+        /// <summary>Выбор жетона сам двигает ползунок «Обзор» — сохранять это не нужно.</summary>
+        private bool _suppressRevealEvents;
+
         private Button _shapeButton;
 
         private readonly Canvas _drawLayer = new Canvas();
@@ -112,7 +115,7 @@ namespace HMWT_MUI.Views
         private System.Windows.Shapes.Line _wallPreview;
         private readonly CheckBox _drawCheck = DmUiKit.Check("Кисть", false);
         private readonly CheckBox _eraserCheck = DmUiKit.Check("Ластик", false);
-        private readonly TextBox _brushField = DmUiKit.Field("4", 50, "Толщина");
+        private readonly TextBox _brushField = DmUiKit.Field("16", 50, "Толщина");
         private Border _brushSwatch;
         private string _brushColor = "#FFE06A63";
         private List<Point> _strokePoints;
@@ -256,7 +259,26 @@ namespace HMWT_MUI.Views
                 _webMap.Visibility = Visibility.Visible;
                 _world.Visibility = Visibility.Collapsed;
                 _webSyncTimer?.Start();
+
+                // Страница WebView могла перезагрузиться (или впервые открыться),
+                // а кэш «что уже отправлено» остался от прошлой. Без сброса карта
+                // и портреты не приезжали: C# считал, что они уже в WebView, и
+                // картинка оставалась чёрной, а туман рисовался поверх пустоты.
+                ResetWebCache();
                 PushWebMap();
+
+                try
+                {
+                    Point origin = _webMap.PointToScreen(new Point(0, 0));
+                    WebLog($"web origin {origin.X:0},{origin.Y:0} " +
+                           $"size {_webMap.ActualWidth:0}x{_webMap.ActualHeight:0}");
+                }
+                catch { }
+
+                // Окно могли развернуть уже после старта WebView: для проверок
+                // мыши важно знать актуальные экранные координаты полотна.
+                _webMap.SizeChanged -= OnWebMapSizeChanged;
+                _webMap.SizeChanged += OnWebMapSizeChanged;
             };
             _webMap.Failed += () =>
             {
@@ -265,6 +287,18 @@ namespace HMWT_MUI.Views
                 _world.Visibility = Visibility.Visible;
             };
             _webMap.TokenMovedWithTrail += OnWebTokenMoved;
+            _webMap.TokenMovedLive += OnWebTokenMovedLive;
+            _webMap.ShapePlaced += OnWebShapePlaced;
+            _webMap.ShapeMoved += OnWebShapeMoved;
+            _webMap.StrokeAdded += OnWebStroke;
+            _webMap.WallAdded += OnWebWall;
+            _webMap.WallAction += OnWebWallAction;
+            _webMap.TokenMenuAction += OnWebTokenMenuAction;
+            _webMap.TokenSelected += OnWebTokenSelected;
+            _webMap.TrailCleared += OnWebTrailCleared;
+            _webMap.ShapeAction += OnWebShapeAction;
+            _webMap.ImageNeeded += OnWebImageNeeded;
+            _webMap.Pinged += OnWebPinged;
 
             _webSyncTimer = new System.Windows.Threading.DispatcherTimer
             {
@@ -620,6 +654,7 @@ namespace HMWT_MUI.Views
             _revealSlider.IsEnabled = _isDm || _remote;
             _revealSlider.ValueChanged += (s, e) =>
             {
+                if (_suppressRevealEvents) return;
                 if (_scene == null) return;
                 var selected = _scene.Tokens.FirstOrDefault(x => x.Id == _selectedTokenId);
                 if (selected == null) return;
@@ -644,6 +679,7 @@ namespace HMWT_MUI.Views
                 RenderFov();
                 RememberCurrentVision();
                 BuildFogMask();
+                PushWebMap();
             };
             bar.Children.Add(_revealSlider);
 
@@ -836,6 +872,7 @@ namespace HMWT_MUI.Views
                         hidden = t.Hidden,
                         selected = t.Id == _selectedTokenId,
                         canMove = CanMoveToken(t),
+                        frameColor = t.FrameColor ?? "",
                         // null — аватар не менялся; "" — аватара нет.
                         photo = sendPhoto ? WebAssetUrl(photoPath) : null
                     });
@@ -850,6 +887,9 @@ namespace HMWT_MUI.Views
                     imageHash,
                     image,
                     isDm = _isDm,
+                    rotation = _scene.Rotation,
+                    flipH = _scene.FlipH,
+                    flipV = _scene.FlipV,
                     grid = new
                     {
                         on = _scene.GridOn,
@@ -857,7 +897,8 @@ namespace HMWT_MUI.Views
                         offsetX = _scene.GridOffsetX,
                         offsetY = _scene.GridOffsetY,
                         thickness = _scene.GridThickness,
-                        color = _scene.GridColor
+                        color = _scene.GridColor,
+                        snap = _scene.SnapToGrid
                     },
                     fog = new
                     {
@@ -866,6 +907,26 @@ namespace HMWT_MUI.Views
                     },
                     trailColor = string.IsNullOrWhiteSpace(_scene.TrailColor)
                         ? "#FF9B8BFF" : _scene.TrailColor,
+                    fovTokens = WebFovTokens(),
+                    tool = new
+                    {
+                        shape = _pendingShape == null ? null : _pendingShape.Kind,
+                        shapeRadius = _pendingShape == null ? 0 : _pendingShape.RadiusCells,
+                        ping = _pingCheck.IsChecked == true,
+                        measure = _measureCheck.IsChecked == true,
+                        brush = _drawCheck.IsChecked == true,
+                        eraser = _eraserCheck.IsChecked == true,
+                        wall = _wallCheck.IsChecked == true,
+                        brushColor = _brushColor,
+                        brushThickness = BrushThickness()
+                    },
+                    strokes = _scene.Strokes.Select(s => new
+                    {
+                        id = s.Id,
+                        color = s.Color,
+                        thickness = s.Thickness,
+                        points = s.Points
+                    }).ToList(),
                     trails = _trails.Select(pair => new
                     {
                         id = pair.Key,
@@ -929,6 +990,527 @@ namespace HMWT_MUI.Views
                     DateTime.Now.ToString("HH:mm:ss.fff") + " " + text + Environment.NewLine);
             }
             catch { }
+        }
+
+        private static readonly System.Text.Json.JsonSerializerOptions WebJsonOptions =
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+
+        /// <summary>Секущие области обзора — их WebView и вырезает из тумана.</summary>
+        private List<object> WebFovTokens()
+        {
+            var list = new List<object>();
+            if (_scene?.Tokens == null) return list;
+
+            bool combined = !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase);
+
+            foreach (var t in _scene.Tokens)
+            {
+                if (t == null || t.Hidden || t.RevealCells <= 0) continue;
+                list.Add(new
+                {
+                    id = t.Id,
+                    x = t.X,
+                    y = t.Y,
+                    facing = t.Facing,
+                    viewAngle = t.ViewAngle,
+                    revealCells = t.RevealCells,
+                    isPlayer = t.IsPlayer,
+                    // Развеивает ли этот жетон туман именно для смотрящего:
+                    // у игрока — отряд или только свой, у мастера — отряд.
+                    reveals = RevealsFog(t, combined),
+                    // «Свой» жетон: у мастера своих нет (он видит всё, но
+                    // приглушает скрытое), у игрока — только его персонаж.
+                    mine = !_isDm && CanMoveToken(t)
+                });
+            }
+
+            return list;
+        }
+
+        /// <summary>
+        /// Лёгкое обновление тумана: только «разведанное» и текущий обзор.
+        /// Полную сцену на каждом шаге перетаскивания слать нельзя — там следы,
+        /// жетоны и портреты, а нужно лишь новое вырезанное пятно.
+        /// </summary>
+        private void PushWebFog()
+        {
+            if (!_webMapReady || _scene == null) return;
+
+            try
+            {
+                var fov = WebFovTokens();
+                var payload = new
+                {
+                    type = "fog",
+                    sceneId = _scene.Id,
+                    isDm = _isDm,
+                    grid = new { px = _scene.GridPx },
+                    fog = new { on = WebFogEnabled(), seen = _seenPoints.ToList() },
+                    fovTokens = fov
+                };
+
+                _webMap.SendState(System.Text.Json.JsonSerializer.Serialize(payload, WebJsonOptions));
+                _webSeenVersion = _seenVersion;
+                WebLog($"fog push seen={_seenPoints.Count} fov={fov.Count}");
+            }
+            catch (Exception ex)
+            {
+                WebLog("fog state error: " + ex.Message);
+            }
+        }
+
+        /// <summary>После перезагрузки WebView всё, что «уже отправлено», нужно слать заново.</summary>
+        private void ResetWebCache()
+        {
+            _webImageHash = "";
+            _webTokenPhotoKeys.Clear();
+            _webDataUrls.Clear();
+            _webSeenVersion = -1;
+        }
+
+        /// <summary>Полотно WebView переехало или изменило размер — пишем его экранные координаты.</summary>
+        private void OnWebMapSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            try
+            {
+                Point origin = _webMap.PointToScreen(new Point(0, 0));
+                WebLog($"web origin {origin.X:0},{origin.Y:0} " +
+                       $"size {_webMap.ActualWidth:0}x{_webMap.ActualHeight:0}");
+            }
+            catch { }
+        }
+
+        private void OnWebImageNeeded()
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(OnWebImageNeeded));
+                return;
+            }
+
+            ResetWebCache();
+            PushWebMap();
+        }
+
+        private void OnWebTokenMovedLive(int tokenId, double x, double y)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebTokenMovedLive(tokenId, x, y)));
+                return;
+            }
+
+            if (_scene == null) return;
+            var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
+            if (token == null || !CanMoveToken(token)) return;
+
+            if (_scene.SnapToGrid)
+            {
+                double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
+                x = Math.Round((x - cell / 2) / cell) * cell + cell / 2;
+                y = Math.Round((y - cell / 2) / cell) * cell + cell / 2;
+            }
+
+            token.X = Math.Max(0, Math.Min(_scene.WidthPx, x));
+            token.Y = Math.Max(0, Math.Min(_scene.HeightPx, y));
+
+            AppendTrail(token, new Point(token.X, token.Y));
+
+            if ((DateTime.UtcNow - _lastLiveMoveSent).TotalMilliseconds >= 200)
+            {
+                _lastLiveMoveSent = DateTime.UtcNow;
+                if (_remote)
+                    RoomSession.Instance.SendMapMoveLive(token.Id, token.X, token.Y, token.Facing);
+                else if (_inRoom)
+                    RoomSession.Instance.PublishLiveTokenMove(token.Id, token.X, token.Y, token.Facing);
+            }
+
+            // Разведка «на ходу»: новый сектор появляется сразу, а не после
+            // отпускания кнопки. В базу и сеть пишем не чаще 3 раз в секунду.
+            if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 320)
+            {
+                _lastLiveFog = DateTime.UtcNow;
+                if (WebFogEnabled())
+                {
+                    RememberCurrentVision();
+                    PushWebFog();
+                }
+            }
+
+            if (!_webMapReady) { BuildFogMask(); RenderFov(); }
+        }
+
+        private void OnWebShapeMoved(int shapeId, double x, double y, bool commit)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebShapeMoved(shapeId, x, y, commit)));
+                return;
+            }
+
+            if (_scene == null || (!_isDm && !_remote)) return;
+            var shape = _scene.Shapes.FirstOrDefault(s => s.Id == shapeId);
+            if (shape == null) return;
+
+            if (_scene.SnapToGrid)
+            {
+                double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
+                x = Math.Round((x - cell / 2) / cell) * cell + cell / 2;
+                y = Math.Round((y - cell / 2) / cell) * cell + cell / 2;
+            }
+
+            shape.X = x;
+            shape.Y = y;
+            RenderShapes();
+            if (!commit) return;
+
+            CommitShape(shape, "update");
+            PushWebMap();
+        }
+
+        private void OnWebStroke(List<MapTrailPoint> points, string color, double thickness, bool eraser)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebStroke(points, color, thickness, eraser)));
+                return;
+            }
+
+            if (_scene == null || points == null || points.Count == 0) return;
+
+            var path = points.Where(p => p != null).Select(p => new Point(p.X, p.Y)).ToList();
+            if (path.Count == 0) return;
+
+            if (eraser)
+            {
+                // Ластик прощает промах: радиус вдвое больше кисти, иначе на
+                // карте 5000 px линию толщиной 16 почти невозможно задеть.
+                EraseAt(path, Math.Max(12, thickness * 2));
+                PushWebMap();
+                return;
+            }
+
+            var stroke = new MapStrokeData
+            {
+                SceneId = _scene.Id,
+                Color = string.IsNullOrWhiteSpace(color) ? _brushColor : color.Trim(),
+                Thickness = Math.Max(1, Math.Min(80, thickness <= 0 ? BrushThickness() : thickness)),
+                Points = PointsToString(path)
+            };
+
+            if (_remote)
+            {
+                // У игрока нет базы ведущего: рисуем у себя и просим сохранить.
+                stroke.Id = -Math.Abs(Guid.NewGuid().GetHashCode());
+                _scene.Strokes.Add(stroke);
+                RoomSession.Instance.SendMapStroke(stroke);
+            }
+            else if (MapService.SaveStroke(stroke) > 0)
+            {
+                _scene.Strokes.Add(stroke);
+                PublishMap();
+                var saved = stroke;
+                PushUndo(() =>
+                {
+                    MapService.DeleteStroke(saved.Id);
+                    _scene?.Strokes.RemoveAll(s => s.Id == saved.Id);
+                    PublishMap();
+                    PushWebMap();
+                });
+            }
+
+            RenderStrokes();
+            PushWebMap();
+        }
+
+        private void OnWebWall(double x1, double y1, double x2, double y2, string kind)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebWall(x1, y1, x2, y2, kind)));
+                return;
+            }
+
+            if (_scene == null || !_isDm) return;
+
+            Point start = SnapWallPoint(new Point(x1, y1));
+            Point end = SnapWallPoint(new Point(x2, y2));
+
+            // Стена за пределами картинки бесполезна: обзор и туман считаются
+            // в её координатах, поэтому прижимаем концы к полю карты.
+            double maxX = Math.Max(1, _scene.WidthPx);
+            double maxY = Math.Max(1, _scene.HeightPx);
+            start = new Point(Math.Max(0, Math.Min(maxX, start.X)),
+                              Math.Max(0, Math.Min(maxY, start.Y)));
+            end = new Point(Math.Max(0, Math.Min(maxX, end.X)),
+                            Math.Max(0, Math.Min(maxY, end.Y)));
+
+            if (Math.Abs(end.X - start.X) + Math.Abs(end.Y - start.Y) < 8) return;
+
+            var wall = new MapWallData
+            {
+                SceneId = _scene.Id,
+                X1 = start.X,
+                Y1 = start.Y,
+                X2 = end.X,
+                Y2 = end.Y,
+                Kind = string.Equals(kind, "door", StringComparison.OrdinalIgnoreCase) ? "door" : "wall"
+            };
+
+            if (MapService.SaveWall(wall) > 0)
+            {
+                _scene.Walls.Add(wall);
+                var saved = wall;
+                PushUndo(() =>
+                {
+                    MapService.DeleteWall(saved.Id);
+                    _scene?.Walls.RemoveAll(w => w.Id == saved.Id);
+                    PublishMap();
+                    PushWebMap();
+                });
+                PublishMap();
+                RenderWalls();
+                BuildFogMask();
+                PushWebMap();
+            }
+        }
+
+        private void OnWebWallAction(int wallId, string action)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebWallAction(wallId, action)));
+                return;
+            }
+
+            if (_scene == null || !_isDm) return;
+            var wall = _scene.Walls.FirstOrDefault(w => w.Id == wallId);
+            if (wall == null) return;
+            WebLog($"wall action {wallId} {action}");
+
+            if (string.Equals(action, "remove", StringComparison.OrdinalIgnoreCase))
+            {
+                MapService.DeleteWall(wall.Id);
+                _scene.Walls.RemoveAll(w => w.Id == wall.Id);
+            }
+            else
+            {
+                wall.IsOpen = !wall.IsOpen;
+                MapService.UpdateWall(wall);
+            }
+
+            PublishMap();
+            RenderWalls();
+            BuildFogMask();
+            PushWebMap();
+        }
+
+        /// <summary>Меню жетона в WebView: размер, обзор, поворот, рамка, удаление.</summary>
+        private void OnWebTokenMenuAction(int tokenId, string action, string value)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebTokenMenuAction(tokenId, action, value)));
+                return;
+            }
+
+            if (_scene == null) return;
+            var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
+            if (token == null) return;
+
+            // Игроку доступен только свой жетон, и то без ведущих действий.
+            bool mine = CanMoveToken(token);
+            WebLog($"token menu {tokenId} {action} '{value}' dm={_isDm} mine={mine}");
+            if (!_isDm && !mine) return;
+
+            switch ((action ?? "").ToLowerInvariant())
+            {
+                case "size":
+                    if (!int.TryParse(value, out int cells)) return;
+                    cells = Math.Max(1, Math.Min(8, cells));
+                    if (_remote) SetRemoteTokenSize(token, cells);
+                    else SetTokenSize(token, cells);
+                    break;
+
+                case "viewangle":
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out double angle)) return;
+                    angle = Math.Max(5, Math.Min(360, angle));
+                    if (_isDm) SetViewAngle(token, angle);
+                    else SetRemoteViewAngle(token, angle);
+                    break;
+
+                case "facing":
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out double delta)) return;
+                    if (_isDm) RotateFacing(token, delta);
+                    else RotateFacingRemote(token, delta);
+                    break;
+
+                case "frame":
+                    if (!_isDm) return;
+                    SetTokenFrame(token, value);
+                    break;
+
+                case "reveal":
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out double reveal)) return;
+                    reveal = Math.Max(1, Math.Min(40, reveal));
+                    if (_isDm)
+                    {
+                        SetRevealCells(token, reveal);
+                    }
+                    else
+                    {
+                        // Игрок меняет дальность своего обзора — хост применит и разошлёт
+                        token.RevealCells = reveal;
+                        RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y,
+                            double.NaN, -1, -1, reveal);
+                        RenderFov();
+                        RememberCurrentVision();
+                        BuildFogMask();
+                    }
+                    break;
+
+                case "remove":
+                    if (!_isDm) return;
+                    MapService.DeleteToken(token.Id);
+                    _scene.Tokens.RemoveAll(t => t.Id == token.Id);
+                    PublishMap();
+                    RebuildTokens();
+                    break;
+
+                default:
+                    return;
+            }
+
+            PushWebMap();
+        }
+
+        private void SetTokenFrame(MapTokenData token, string color)
+        {
+            if (token == null) return;
+            token.FrameColor = string.IsNullOrWhiteSpace(color) ? "" : color.Trim();
+            if (!_remote)
+            {
+                MapService.SaveToken(token);
+                PublishMap();
+            }
+            PushWebMap();
+        }
+
+        /// <summary>
+        /// Жетон выбрали на карте WebGL. Ползунок «Обзор» в панели двигает
+        /// именно выделенный жетон, поэтому без этого он ничего не делал.
+        /// </summary>
+        private void OnWebTokenSelected(int tokenId)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebTokenSelected(tokenId)));
+                return;
+            }
+
+            if (_scene == null) return;
+            var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
+            if (token == null) return;
+
+            SelectToken(token);
+            PushWebMap();
+        }
+
+        /// <summary>Жетон начали вести заново — старый маршрут стираем у всех.</summary>
+        private void OnWebTrailCleared(int tokenId)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebTrailCleared(tokenId)));
+                return;
+            }
+
+            ClearTrail(tokenId);
+
+            // Пустой список — сигнал «след стёрт»: у клиентов он тоже убирается
+            if (_inRoom) RoomSession.Instance.PublishMapTrail(tokenId, new List<MapTrailPoint>());
+            PushWebMap();
+        }
+
+        /// <summary>Поворот, размер, цвет и удаление фигуры из меню WebGL.</summary>
+        private void OnWebShapeAction(int shapeId, string action, string value)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebShapeAction(shapeId, action, value)));
+                return;
+            }
+
+            if (_scene == null || (!_isDm && !_remote)) return;
+            var shape = _scene.Shapes.FirstOrDefault(s => s.Id == shapeId);
+            if (shape == null) return;
+
+            WebLog($"shape action {shapeId} {action} '{value}'");
+
+            switch ((action ?? "").ToLowerInvariant())
+            {
+                case "rotate":
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out double delta)) return;
+                    shape.Angle = ((shape.Angle + delta) % 360 + 360) % 360;
+                    break;
+
+                case "radius":
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out double step)) return;
+                    shape.RadiusCells = Math.Max(0.5, Math.Min(20, shape.RadiusCells + step));
+                    break;
+
+                case "color":
+                    if (string.IsNullOrWhiteSpace(value)) return;
+                    shape.Color = value.Trim();
+                    break;
+
+                case "delete":
+                    CommitShape(shape, "delete");
+                    PushWebMap();
+                    return;
+
+                default:
+                    return;
+            }
+
+            CommitShape(shape, "update");
+            PushWebMap();
+        }
+
+        private void OnWebShapePlaced(double x, double y)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebShapePlaced(x, y)));
+                return;
+            }
+            if (_scene == null || _pendingShape == null || (!_isDm && !_remote)) return;
+            PlaceShape(new Point(x, y));
+            PushWebMap();
+        }
+
+        private void OnWebPinged(double x, double y)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebPinged(x, y)));
+                return;
+            }
+            if (_scene == null) return;
+            var point = new Point(x, y);
+            ShowPing(point);
+            RoomSession.Instance.SendMapPing(x, y);
+            _pingCheck.IsChecked = false;
+            PushWebMap();
         }
 
         private string WebAssetUrl(string path)
@@ -1362,12 +1944,23 @@ namespace HMWT_MUI.Views
             var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
             if (token == null) return;
 
-            foreach (var point in points)
+            // Сообщение несёт весь путь, а не приращение. Раньше точки
+            // добавлялись к уже нарисованному маршруту, и на карте оставался
+            // «путь», которым жетон не ходил.
+            if (points.Count < 2)
             {
-                if (point == null) continue;
-                AppendTrail(token, new Point(point.X, point.Y));
+                ClearTrail(tokenId);
+                return;
             }
+
+            _trails[tokenId] = points
+                .Where(p => p != null)
+                .Select(p => new Point(p.X, p.Y))
+                .ToList();
+            _trailTouched[tokenId] = DateTime.UtcNow;
+
             RenderTrails();
+            if (_webMapReady) PushWebMap();
         }
 
         private void ApplyRemoteLiveMove(int tokenId, double x, double y, double facing)
@@ -2101,6 +2694,15 @@ namespace HMWT_MUI.Views
                 RoomSession.Instance.ResetClientsSeen();
             }
 
+            // «Развеять туман» — это полный сброс разведки, а не только снятие
+            // плёнки: иначе при следующем включении остаются старые пятна.
+            if (!on)
+            {
+                ClearSeenPoints();
+                MapService.ClearSeen(_scene.Id);
+                RoomSession.Instance.ResetClientsSeen();
+            }
+
             _fog.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
             BuildFogMask();
             // У мастера туман — плёнка, у игроков сплошной чёрный
@@ -2192,7 +2794,7 @@ namespace HMWT_MUI.Views
             string text = (_brushField.Text ?? "").Trim().Replace(',', '.');
             if (!double.TryParse(text, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out double value) || value <= 0)
-                return 4;
+                return 16;
 
             return Math.Max(1, Math.Min(80, value));
         }
@@ -2552,19 +3154,10 @@ namespace HMWT_MUI.Views
             double radius = cell * Math.Max(1, reveal);
 
             var center = new Point(token.X, token.Y);
-            double startDeg, endDeg;
-
-            if (token.ViewAngle >= 359.9)
-            {
-                startDeg = 0;
-                endDeg = 360;
-            }
-            else
-            {
-                double half = Math.Max(5, Math.Min(180, token.ViewAngle / 2));
-                startDeg = token.Facing - half;
-                endDeg = token.Facing + half;
-            }
+            bool full = token.ViewAngle >= 359.9;
+            double half = full ? 180.0 : Math.Max(2.5, Math.Min(180.0, token.ViewAngle / 2.0));
+            double startDeg = full ? 0 : token.Facing - half;
+            double endDeg = full ? 360 : token.Facing + half;
 
             var walls = _scene.Walls;
             var figure = new PathFigure { StartPoint = center, IsClosed = true };
@@ -2585,11 +3178,19 @@ namespace HMWT_MUI.Views
                     if (Math.Sqrt(dx * dx + dy * dy) > radius) continue;
 
                     double cornerAngle = Math.Atan2(dy, dx) * 180.0 / Math.PI;
-                    if (cornerAngle < startDeg || cornerAngle > endDeg) continue;
 
-                    angles.Add(cornerAngle - 0.35);
-                    angles.Add(cornerAngle);
-                    angles.Add(cornerAngle + 0.35);
+                    // Сравниваем не абсолютный угол, а отклонение от взгляда:
+                    // конус, смотрящий на 0°, раньше «терял» углы стен на 350°.
+                    double rel = NormalizeDeg(cornerAngle - token.Facing);
+                    if (rel < -half || rel > half) continue;
+
+                    // Для полного круга угол приводим к 0..360, для конуса —
+                    // к непрерывной шкале вокруг направления взгляда.
+                    double angle = full ? NormalizeDeg(cornerAngle) : token.Facing + rel;
+
+                    angles.Add(angle - 0.35);
+                    angles.Add(angle);
+                    angles.Add(angle + 0.35);
                 }
             }
 
@@ -2612,6 +3213,14 @@ namespace HMWT_MUI.Views
             geometry.Figures.Add(figure);
             geometry.Transform = new MatrixTransform(matrix);
             return geometry;
+        }
+
+        /// <summary>Приводит угол к диапазону 0..360.</summary>
+        private static double NormalizeDeg(double deg)
+        {
+            deg %= 360.0;
+            if (deg < 0) deg += 360.0;
+            return deg;
         }
 
         /// <summary>Расстояние до стены по лучу (или maxDist, если стена не мешает).</summary>
@@ -3728,19 +4337,25 @@ namespace HMWT_MUI.Views
         {
             if (shape == null) return;
 
+            bool delete = string.Equals(action, "delete", StringComparison.OrdinalIgnoreCase);
+
             if (_remote)
             {
-                if (string.Equals(action, "delete", StringComparison.OrdinalIgnoreCase))
-                    _scene?.Shapes.RemoveAll(s => s.Id == shape.Id);
+                if (delete) _scene?.Shapes.RemoveAll(s => s.Id == shape.Id);
                 RoomSession.Instance.SendMapShape(action, shape);
                 RenderShapes();
                 return;
             }
 
-            if (string.Equals(action, "delete", StringComparison.OrdinalIgnoreCase))
+            if (delete)
+            {
                 MapService.DeleteShape(shape.Id);
+                _scene?.Shapes.RemoveAll(s => s.Id == shape.Id);
+            }
             else
+            {
                 MapService.SaveShape(shape);
+            }
 
             PublishMap();
             RenderShapes();
@@ -3905,8 +4520,15 @@ namespace HMWT_MUI.Views
             if (token == null) return;
 
             _selectedTokenId = token.Id;
-            _revealSlider.Value = Math.Max(_revealSlider.Minimum,
-                Math.Min(_revealSlider.Maximum, token.RevealCells > 0 ? token.RevealCells : 6));
+
+            _suppressRevealEvents = true;
+            try
+            {
+                _revealSlider.Value = Math.Max(_revealSlider.Minimum,
+                    Math.Min(_revealSlider.Maximum, token.RevealCells > 0 ? token.RevealCells : 6));
+            }
+            finally { _suppressRevealEvents = false; }
+
             UpdateSelectionVisuals();
             Focus();
         }
@@ -4658,6 +5280,15 @@ namespace HMWT_MUI.Views
                 Canvas.SetLeft(ring, screen.X - 18);
                 Canvas.SetTop(ring, screen.Y - 18);
                 _pingLayer.Children.Add(ring);
+
+                // Пинг должен быть виден и на WebGL-карте: WPF-слой лежит под
+                // WebView, поэтому дублируем его туда же в координатах картинки.
+                try
+                {
+                    _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(
+                        new { type = "ping", x = scenePoint.X, y = scenePoint.Y }, WebJsonOptions));
+                }
+                catch { }
 
                 var timer = new System.Windows.Threading.DispatcherTimer
                 {

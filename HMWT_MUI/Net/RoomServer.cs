@@ -1282,8 +1282,8 @@ namespace HMWT_MUI.Net
                 .Where(p => p != null)
                 .Take(2000)
                 .ToList();
-            if (points.Count < 2) return;
 
+            // Пустой список — «след стёрт»: игрок начал новый маршрут.
             MapTrailAdded?.Invoke(message.TokenId, points);
             _ = BroadcastMapTrailAsync(message.TokenId, points, conn.PlayerId);
         }
@@ -1358,7 +1358,7 @@ namespace HMWT_MUI.Net
         /// <summary>Ведущий прошёл жетоном — рассылаем путь остальным.</summary>
         public void BroadcastMapTrail(int tokenId, List<MapTrailPoint> points)
         {
-            if (points == null || points.Count < 2) return;
+            if (points == null) return;
             _ = BroadcastMapTrailAsync(tokenId, points, null);
         }
 

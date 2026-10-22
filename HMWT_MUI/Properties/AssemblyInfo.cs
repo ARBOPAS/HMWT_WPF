@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -151,5 +151,8 @@ using System.Windows;
 // и рисуется порциями, полная карточка читается по выбору. Плюс обмен
 // бестиарием файлом .hmwtpack (существа и картинки) и видимая пометка
 // источника у существа.
-[assembly: AssemblyVersion("1.3.3.1")]
-[assembly: AssemblyFileVersion("1.3.3.1")]
+// 1.3.3.3 — карта WebGL: туман в границах картинки, живой обзор и разведка
+// при перетаскивании, фигуры и кисть/ластик мышью, стены и двери, меню жетона
+// по правой кнопке с рамкой, линейка в клетках/футах/метрах. Протокол 13.
+[assembly: AssemblyVersion("1.3.3.3")]
+[assembly: AssemblyFileVersion("1.3.3.3")]
