@@ -163,7 +163,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer\build-installer.ps
 Версии до 1.2.8.15 остаются под MIT: их уже нельзя отозвать, но новые
 версии идут под AGPL.
 
-Название **HMWT Гримуар**, логотип и обозначение **Help Me With That** не
+Название **HMWT Гримуар** и логотип не
 входят в лицензию кода. Правила для форков — в [TRADEMARKS.md](TRADEMARKS.md).
 
 Исходники: [github.com/ARBOPAS/HMWT_WPF](https://github.com/ARBOPAS/HMWT_WPF).

@@ -202,6 +202,9 @@ namespace HMWT_MUI.Net
         /// <summary>Жетон сдвинулся во время перетаскивания: (id, x, y, поворот).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
 
+        /// <summary>Пришёл пройденный путь жетона от другого участника.</summary>
+        public event Action<int, List<MapTrailPoint>> MapTrailReceived;
+
         /// <summary>Получен чужой аватар: файл появился, карточку нужно перерисовать.</summary>
         public event Action<string> PhotoUpdated;
 
@@ -270,6 +273,7 @@ namespace HMWT_MUI.Net
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+                _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
                 {
@@ -387,6 +391,7 @@ namespace HMWT_MUI.Net
                     ChatImageReceived?.Invoke(id, b64, ext);
                 };
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+                _client.Events.MapTrailReceived = (id, points) => MapTrailReceived?.Invoke(id, points);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
                 {
@@ -651,6 +656,7 @@ namespace HMWT_MUI.Net
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+                _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
                 _server.Events.FeedAdded = e => FeedReceived?.Invoke(e);
@@ -890,6 +896,21 @@ namespace HMWT_MUI.Net
             if (!IsActive || !IsHost || _server == null) return;
 
             _server.UpdateTokenLive(tokenId, x, y, facing);
+        }
+
+        /// <summary>Передаёт пройденный путь жетона остальным участникам.</summary>
+        public void PublishMapTrail(int tokenId, List<MapTrailPoint> points)
+        {
+            if (!IsActive || points == null || points.Count < 2) return;
+
+            if (IsHost)
+            {
+                _server?.BroadcastMapTrail(tokenId, points);
+                return;
+            }
+
+            if (_client == null || !_client.IsConnected) return;
+            _ = _client.SendMapTrailAsync(tokenId, points);
         }
 
         /// <summary>Игрок просит карту (например, только что открыл вкладку).</summary>

@@ -967,7 +967,7 @@ namespace HMWT_MUI.Views
         /// </summary>
         private static readonly string[] ArmorProficiencies =
         {
-            "Лёгкие доспехи", "Средние доспехи", "Тяжёлые доспехи", "Щиты"
+            "Лёгкие доспехи", "Средние доспехи", "Тяжёлые доспехи", "Щиты", "Другое"
         };
 
         /// <summary>Владение оружием: категории и распространённые виды.</summary>
@@ -975,7 +975,8 @@ namespace HMWT_MUI.Views
         {
             "Простое оружие", "Воинское оружие",
             "Кинжалы", "Дротики", "Пращи", "Дубинки", "Булавы", "Топоры", "Копья",
-            "Мечи", "Луки", "Арбалеты", "Алебарды", "Молоты", "Рапиры", "Посохи"
+            "Мечи", "Луки", "Арбалеты", "Алебарды", "Молоты", "Рапиры", "Посохи",
+            "Другое", "Импровизированное"
         };
 
         /// <summary>Отмеченные владения. Заполняется при загрузке и при кликах.</summary>
@@ -985,6 +986,7 @@ namespace HMWT_MUI.Views
         private List<FeatureEntry> _features = new List<FeatureEntry>();
         private string _featureEdition = "2024";
         private bool _featureLoading;
+        private int _featureCatalogLimit = 40;
 
         /// <summary>
         /// Строит кнопки владений. Вызывается один раз при загрузке вида.
@@ -1323,8 +1325,26 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            foreach (var entry in catalog)
-                spFeatureCatalog.Children.Add(BuildCatalogFeatureCard(entry));
+            int shown = Math.Min(_featureCatalogLimit, catalog.Count);
+            for (int i = 0; i < shown; i++)
+                spFeatureCatalog.Children.Add(BuildCatalogFeatureCard(catalog[i]));
+
+            if (catalog.Count > shown)
+            {
+                var more = new Button
+                {
+                    Content = $"ПОКАЗАТЬ ЕЩЁ ({catalog.Count - shown})",
+                    Height = 34,
+                    Margin = new Thickness(0, 4, 0, 0),
+                    Style = (Style)FindResource("OverlaySecondaryBtn")
+                };
+                more.Click += (s, e) =>
+                {
+                    _featureCatalogLimit += 40;
+                    RefreshFeatureCatalog();
+                };
+                spFeatureCatalog.Children.Add(more);
+            }
         }
 
         private Border BuildCatalogFeatureCard(FeatureEntry entry)
@@ -1423,12 +1443,14 @@ namespace HMWT_MUI.Views
         private void FeatureFilter_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_featureLoading) return;
+            _featureCatalogLimit = 40;
             RefreshFeatureCatalog();
         }
 
         private void FeatureFilter_Changed(object sender, TextChangedEventArgs e)
         {
             if (_featureLoading) return;
+            _featureCatalogLimit = 40;
             RefreshFeatureCatalog();
         }
 
@@ -1437,6 +1459,7 @@ namespace HMWT_MUI.Views
             if (_featureLoading || cmbFeatureKind == null) return;
             if (!(sender is RadioButton radio) || radio.IsChecked != true) return;
             _featureEdition = string.Equals(radio.Tag as string, "2014", StringComparison.Ordinal) ? "2014" : "2024";
+            _featureCatalogLimit = 40;
             EnsureFeatureFilters();
             RefreshFeatureTab();
         }

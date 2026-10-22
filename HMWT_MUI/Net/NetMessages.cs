@@ -493,6 +493,20 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("f")] public double Facing { get; set; } = -1;
     }
 
+    /// <summary>Точка пройденного пути жетона. Нужна, чтобы у остальных
+    /// оставался весь маршрут, а не только начальная и конечная точки.</summary>
+    public sealed class MapTrailPoint
+    {
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
+    }
+
+    public sealed class MapTrailMessage
+    {
+        [JsonPropertyName("id")] public int TokenId { get; set; }
+        [JsonPropertyName("points")] public List<MapTrailPoint> Points { get; set; } = new List<MapTrailPoint>();
+    }
+
     /// <summary>
     /// Часть картинки карты. Данные сжаты gzip и закодированы base64: PNG уже
     /// сжатый, но JSON-обёртка добавляет свою долю, а так её съедает gzip.

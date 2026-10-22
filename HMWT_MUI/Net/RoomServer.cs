@@ -111,6 +111,9 @@ namespace HMWT_MUI.Net
         /// <summary>Жетон сдвинулся во время перетаскивания (лёгкое обновление).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
 
+        /// <summary>Игрок прислал пройденный путь жетона.</summary>
+        public event Action<int, List<MapTrailPoint>> MapTrailAdded;
+
         private int _playerCounter;
 
         public RoomServerEvents Events { get; set; } = new RoomServerEvents();
@@ -488,6 +491,10 @@ namespace HMWT_MUI.Net
 
                     case MsgType.MapMove:
                         ApplyMapMove(conn, msg.As<MapMoveRequest>());
+                        break;
+
+                    case MsgType.MapTrail:
+                        HandleMapTrail(conn, msg.As<MapTrailMessage>());
                         break;
 
                     case MsgType.MapImageRequest:
@@ -1262,6 +1269,43 @@ namespace HMWT_MUI.Net
             if (!changed) return;
 
             _ = BroadcastTokenLiveAsync(tokenId, x, y, facing, null);
+        }
+
+        private void HandleMapTrail(ClientConnection conn, MapTrailMessage message)
+        {
+            if (conn == null || message == null) return;
+            var points = (message.Points ?? new List<MapTrailPoint>())
+                .Where(p => p != null)
+                .Take(2000)
+                .ToList();
+            if (points.Count < 2) return;
+
+            MapTrailAdded?.Invoke(message.TokenId, points);
+            _ = BroadcastMapTrailAsync(message.TokenId, points, conn.PlayerId);
+        }
+
+        /// <summary>Ведущий прошёл жетоном — рассылаем путь остальным.</summary>
+        public void BroadcastMapTrail(int tokenId, List<MapTrailPoint> points)
+        {
+            if (points == null || points.Count < 2) return;
+            _ = BroadcastMapTrailAsync(tokenId, points, null);
+        }
+
+        private async Task BroadcastMapTrailAsync(int tokenId, List<MapTrailPoint> points,
+            string exceptPlayerId)
+        {
+            var message = new NetMessage(MsgType.MapTrail, new MapTrailMessage
+            {
+                TokenId = tokenId,
+                Points = points
+            });
+
+            foreach (var c in _clients.Values.Where(c => c.HandshakeDone &&
+                         !string.Equals(c.PlayerId, exceptPlayerId, StringComparison.Ordinal)).ToList())
+            {
+                try { await SendSafeAsync(c, message).ConfigureAwait(false); }
+                catch (Exception ex) { Debug.WriteLine($"[RoomServer] trail: {ex.Message}"); }
+            }
         }
 
         /// <summary>

@@ -730,7 +730,7 @@ namespace HMWT_MUI
                 "Лицензия: GNU Affero General Public License v3.0 only (AGPL-3.0-only).\n" +
                 "Исходный код: https://github.com/ARBOPAS/HMWT_WPF\n\n" +
                 "Программа предоставляется без гарантий, как описано в разделах 15–16 AGPL-3.0.\n\n" +
-                "Название HMWT Гримуар, логотип и Help Me With That не входят в лицензию кода.\n\n" +
+                "Название HMWT Гримуар и логотип не входят в лицензию кода.\n\n" +
                 "Версия: " + Net.NetVersions.AppVersion + "\n\n" +
                 "Проект не связан с Wizards of the Coast и не одобрен ими. " +
                 "Имена, тексты и описания из книг принадлежат их издателям. " +

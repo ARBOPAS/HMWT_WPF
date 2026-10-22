@@ -164,7 +164,7 @@ namespace HMWT_MUI.Net
         ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.2.8.15";
+        public const string AppVersion = "1.2.8.21";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -185,7 +185,7 @@ namespace HMWT_MUI.Net
         /// (<see cref="MapTokenLive"/>): полную карту на каждом шаге больше
         /// не шлём.
         /// </summary>
-        public const int ProtocolVersion = 10;
+        public const int ProtocolVersion = 11;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -280,6 +280,9 @@ namespace HMWT_MUI.Net
         /// забивают канал и интерфейс.
         /// </summary>
         public const string MapTokenLive = "map_token_live";
+
+        /// <summary>Полный путь, пройденный жетоном за перетаскивание.</summary>
+        public const string MapTrail = "map_trail";
 
         /// <summary>
         /// Хост начал разведку заново (туман выключили и включили): игроки

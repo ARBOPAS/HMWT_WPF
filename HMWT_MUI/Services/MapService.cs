@@ -52,11 +52,13 @@ namespace HMWT_MUI.Services
                         height_px INTEGER DEFAULT 0,
                         grid_px REAL DEFAULT 70,
                         grid_on INTEGER DEFAULT 1,
+                        grid_snap INTEGER DEFAULT 1,
                         grid_offset_x REAL DEFAULT 0,
                         grid_offset_y REAL DEFAULT 0,
                         fog_on INTEGER DEFAULT 1,
                         fog_mode TEXT DEFAULT 'combined',
                         grid_color TEXT DEFAULT '#33FFFFFF',
+                        grid_thickness REAL DEFAULT 1,
                         rotation INTEGER DEFAULT 0,
                         flip_h INTEGER DEFAULT 0,
                         flip_v INTEGER DEFAULT 0,
@@ -124,6 +126,8 @@ namespace HMWT_MUI.Services
 
                 // Колонки, которые могли не появиться в базе старше этой версии
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_color TEXT DEFAULT '#33FFFFFF'");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_thickness REAL DEFAULT 1");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_snap INTEGER DEFAULT 1");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "fog_mode TEXT DEFAULT 'combined'");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "rotation INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "flip_h INTEGER DEFAULT 0");
@@ -274,10 +278,12 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@h", scene.HeightPx);
                 cmd.Parameters.AddWithValue("@grid", scene.GridPx);
                 cmd.Parameters.AddWithValue("@gridOn", scene.GridOn ? 1 : 0);
+                cmd.Parameters.AddWithValue("@gridSnap", scene.SnapToGrid ? 1 : 0);
                 cmd.Parameters.AddWithValue("@gx", scene.GridOffsetX);
                 cmd.Parameters.AddWithValue("@gy", scene.GridOffsetY);
                 cmd.Parameters.AddWithValue("@fog", scene.FogOn ? 1 : 0);
                 cmd.Parameters.AddWithValue("@gridColor", string.IsNullOrWhiteSpace(scene.GridColor) ? "#33FFFFFF" : scene.GridColor);
+                cmd.Parameters.AddWithValue("@gridThickness", Math.Max(0.5, Math.Min(6, scene.GridThickness)));
                 cmd.Parameters.AddWithValue("@fogMode", string.IsNullOrWhiteSpace(scene.FogMode) ? "combined" : scene.FogMode);
                 cmd.Parameters.AddWithValue("@rotation", scene.Rotation);
                 cmd.Parameters.AddWithValue("@flipH", scene.FlipH ? 1 : 0);
@@ -324,11 +330,13 @@ namespace HMWT_MUI.Services
                 HeightPx = Int(reader, "height_px"),
                 GridPx = Double(reader, "grid_px", 70),
                 GridOn = Int(reader, "grid_on") != 0,
+                SnapToGrid = Int(reader, "grid_snap") != 0,
                 GridOffsetX = Double(reader, "grid_offset_x", 0),
                 GridOffsetY = Double(reader, "grid_offset_y", 0),
                 FogOn = Int(reader, "fog_on") != 0,
                 FogMode = Text(reader, "fog_mode") == "own" ? "own" : "combined",
                 GridColor = Text(reader, "grid_color"),
+                GridThickness = Double(reader, "grid_thickness", 1),
                 Rotation = Int(reader, "rotation"),
                 FlipH = Int(reader, "flip_h") != 0,
                 FlipV = Int(reader, "flip_v") != 0

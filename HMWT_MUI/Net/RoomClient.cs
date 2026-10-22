@@ -27,6 +27,9 @@ namespace HMWT_MUI.Net
         /// <summary>Жетон сдвинулся во время чужого перетаскивания: (id, x, y, поворот).</summary>
         public Action<int, double, double, double> TokenLiveReceived { get; set; }
 
+        /// <summary>Пришёл путь жетона от другого участника.</summary>
+        public Action<int, List<MapTrailPoint>> MapTrailReceived { get; set; }
+
         /// <summary>Пришёл новый разведанный сектор от другого игрока/хоста.</summary>
         public Action<string> MapSeenReceived { get; set; }
 
@@ -446,6 +449,12 @@ namespace HMWT_MUI.Net
                             Events?.TokenLiveReceived?.Invoke(live.TokenId, live.X, live.Y, live.Facing);
                         break;
 
+                    case MsgType.MapTrail:
+                        var trail = msg.As<MapTrailMessage>();
+                        if (trail?.Points != null)
+                            Events?.MapTrailReceived?.Invoke(trail.TokenId, trail.Points);
+                        break;
+
                     case MsgType.MapSeenAdd:
                         var seen = msg.As<MapSeenAddRequest>();
                         if (seen != null) Events?.MapSeenReceived?.Invoke(seen.Points);
@@ -615,6 +624,13 @@ namespace HMWT_MUI.Net
                 Y = y,
                 Facing = double.IsNaN(facing) ? -1 : facing,
                 Live = true
+            }));
+
+        public Task SendMapTrailAsync(int tokenId, List<MapTrailPoint> points)
+            => SendAsync(new NetMessage(MsgType.MapTrail, new MapTrailMessage
+            {
+                TokenId = tokenId,
+                Points = points ?? new List<MapTrailPoint>()
             }));
 
         /// <summary>Отправляет нарисованный штрих ведущему.</summary>

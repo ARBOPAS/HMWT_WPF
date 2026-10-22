@@ -73,6 +73,14 @@ namespace HMWT_MUI.Views
             new Dictionary<string, Geometry>(StringComparer.Ordinal);
         private Matrix _seenGeometryMatrix;
 
+        // 129 отдельных полигонов в CombinedGeometry стоят сотни миллисекунд.
+        // Один раз объединяем их в общую фигуру и пересобираем только при
+        // добавлении нового сектора.
+        private Geometry _seenUnion;
+        private int _seenVersion;
+        private int _seenUnionVersion = -1;
+        private Matrix _seenUnionMatrix;
+
         /// <summary>Для какой сцены разведанное уже прочитано из базы.</summary>
         private int _seenLoadedSceneId = -1;
         private readonly CheckBox _fogCheck = DmUiKit.Check("Туман", false);
@@ -115,6 +123,51 @@ namespace HMWT_MUI.Views
 
         /// <summary>Были ли мы в комнате на прошлом событии: вход/выход требуют перечитывания.</summary>
         private bool _lastRoomActive;
+        private bool _roomSubscribed;
+
+        // Не просим одну и ту же картинку каждые две секунды: повторный запрос
+        // запускает вторую передачу файла и забивает канал, из-за чего жетоны
+        // начинают ездить с задержкой.
+        private readonly Dictionary<string, DateTime> _mapAssetAsked =
+            new Dictionary<string, DateTime>(StringComparer.Ordinal);
+        private const int MapAssetRetrySeconds = 15;
+
+        // Перетаскивание приходит сотнями MouseMove в секунду. Пересобирать
+        // туман и следы на каждый пиксель нельзя: очередь событий растёт,
+        // и карта постепенно превращается в 1 FPS.
+        private DateTime _lastDragFov = DateTime.MinValue;
+        private DateTime _lastTrailRender = DateTime.MinValue;
+
+        // Чужие live-ходы приходят с сетевым джиттером. Копим последний кадр
+        // по жетону и применяем его с небольшой задержкой, как в VTT: плавнее
+        // и без очереди из сотен промежуточных позиций.
+        private sealed class PendingLiveMove
+        {
+            public double X;
+            public double Y;
+            public double Facing;
+            public DateTime ReceivedAt;
+        }
+
+        private readonly Dictionary<int, PendingLiveMove> _pendingLiveMoves =
+            new Dictionary<int, PendingLiveMove>();
+        private readonly System.Windows.Threading.DispatcherTimer _liveMoveTimer =
+            new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
+        private const int LiveMoveDelayMs = 250;
+
+        // Сглаживание самого жетона: модель уже в новой точке, а картинка
+        // доезжает за 160 мс. Иначе при пинге 140 мс жетон прыгает рывками.
+        private sealed class VisualMove
+        {
+            public double FromLeft, FromTop, ToLeft, ToTop;
+            public DateTime StartedAt;
+        }
+
+        private readonly Dictionary<int, VisualMove> _visualMoves =
+            new Dictionary<int, VisualMove>();
+        private readonly System.Windows.Threading.DispatcherTimer _visualTimer =
+            new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        private const int VisualMoveMs = 240;
 
         /// <summary>
         /// След жетона: по каким точкам он ехал. Общий для всех, кто видит карту,
@@ -137,6 +190,7 @@ namespace HMWT_MUI.Views
         private readonly ComboBox _sceneCombo = DmUiKit.Combo(new[] { "—" }, "—", false, 170);
         private readonly TextBox _cellField = DmUiKit.Field("70", 58, "Клетка, px");
         private readonly Slider _cellSlider = new Slider { Width = 110, Minimum = 20, Maximum = 200, TickFrequency = 5, IsSnapToTickEnabled = true };
+        private readonly Slider _gridThicknessSlider = new Slider { Width = 76, Minimum = 0.5, Maximum = 4, TickFrequency = 0.5, IsSnapToTickEnabled = true, Value = 1 };
         private readonly Slider _revealSlider = new Slider { Width = 100, Minimum = 1, Maximum = 20, TickFrequency = 1, IsSnapToTickEnabled = true, Value = 6 };
         private readonly TextBlock _revealLabel = new TextBlock { FontSize = 11 };
         private readonly Slider _shapeSlider = new Slider { Width = 90, Minimum = 1, Maximum = 20, TickFrequency = 1, IsSnapToTickEnabled = true, Value = 4 };
@@ -148,6 +202,7 @@ namespace HMWT_MUI.Views
         private Border _measureLabel;
         private Point? _measureStart;
         private readonly CheckBox _gridCheck = DmUiKit.Check("Сетка", true);
+        private readonly CheckBox _snapCheck = DmUiKit.Check("Привязка", true);
 
         private readonly ScaleTransform _zoom = new ScaleTransform(1, 1);
         private readonly TranslateTransform _shift = new TranslateTransform(0, 0);
@@ -177,41 +232,72 @@ namespace HMWT_MUI.Views
             FocusVisualStyle = null;
             KeyDown += MapView_KeyDown;
             _retryTimer.Tick += OnRetryTick;
+            _liveMoveTimer.Tick += ApplyPendingLiveMoves;
+            _visualTimer.Tick += ApplyVisualMoves;
             _trailTimer.Tick += (s, e) => RemoveOldTrails();
 
             BuildShell();
             Loaded += (s, e) =>
             {
+                SubscribeRoom();
                 Refresh();
-                var room = RoomSession.Instance;
                 _lastRoomActive = _inRoom;
-                room.MapChanged += OnMapChanged;
-                room.MapImageReady += OnMapImageReady;
-                room.MapSeenReset += OnMapSeenReset;
-                room.MapSeenAdded += OnMapSeenAdded;
-                room.MapSeenSynced += OnMapSeenSynced;
-                room.Pinged += OnMapPing;
-                room.TokenMovedLive += OnTokenMovedLive;
-                room.StateChanged += OnRoomStateChanged;
                 _retryTimer.Start();
             };
             Unloaded += (s, e) =>
             {
-                var room = RoomSession.Instance;
-                room.MapChanged -= OnMapChanged;
-                room.MapImageReady -= OnMapImageReady;
-                room.MapSeenReset -= OnMapSeenReset;
-                room.MapSeenAdded -= OnMapSeenAdded;
-                room.MapSeenSynced -= OnMapSeenSynced;
-                room.Pinged -= OnMapPing;
-                room.TokenMovedLive -= OnTokenMovedLive;
-                room.StateChanged -= OnRoomStateChanged;
+                UnsubscribeRoom();
                 _retryTimer.Stop();
+                _liveMoveTimer.Stop();
+                _pendingLiveMoves.Clear();
+                _visualTimer.Stop();
+                _visualMoves.Clear();
                 _trailTimer.Stop();
                 _trails.Clear();
                 _trailTouched.Clear();
                 _trailLayer.Children.Clear();
             };
+            IsVisibleChanged += (s, e) =>
+            {
+                if (!IsVisible) return;
+                // Вкладку могли не выгрузить, а просто скрыть; Loaded в таком
+                // случае не срабатывает, и карта оставалась с прошлым кадром.
+                SubscribeRoom();
+                Refresh();
+                _retryTimer.Start();
+            };
+        }
+
+        private void SubscribeRoom()
+        {
+            if (_roomSubscribed) return;
+            var room = RoomSession.Instance;
+            _roomSubscribed = true;
+            room.MapChanged += OnMapChanged;
+            room.MapImageReady += OnMapImageReady;
+            room.MapSeenReset += OnMapSeenReset;
+            room.MapSeenAdded += OnMapSeenAdded;
+            room.MapSeenSynced += OnMapSeenSynced;
+            room.Pinged += OnMapPing;
+            room.TokenMovedLive += OnTokenMovedLive;
+            room.MapTrailReceived += OnMapTrailReceived;
+            room.StateChanged += OnRoomStateChanged;
+        }
+
+        private void UnsubscribeRoom()
+        {
+            if (!_roomSubscribed) return;
+            var room = RoomSession.Instance;
+            _roomSubscribed = false;
+            room.MapChanged -= OnMapChanged;
+            room.MapImageReady -= OnMapImageReady;
+            room.MapSeenReset -= OnMapSeenReset;
+            room.MapSeenAdded -= OnMapSeenAdded;
+            room.MapSeenSynced -= OnMapSeenSynced;
+            room.Pinged -= OnMapPing;
+            room.TokenMovedLive -= OnTokenMovedLive;
+            room.MapTrailReceived -= OnMapTrailReceived;
+            room.StateChanged -= OnRoomStateChanged;
         }
 
         /// <summary>Мастер просит открыть существо в бестиарии (карточка жетона).</summary>
@@ -301,6 +387,25 @@ namespace HMWT_MUI.Views
             _gridCheck.Unchecked += (s, e) => { if (_scene != null) { _scene.GridOn = false; MapService.SaveScene(_scene); PublishMap(); BuildGrid(); } };
             bar.Children.Add(_gridCheck);
 
+            _snapCheck.Margin = new Thickness(0, 0, 8, 0);
+            _snapCheck.IsEnabled = _isDm;
+            _snapCheck.ToolTip = "Привязывать жетоны к клеткам. Сетку можно оставить видимой и двигаться свободно.";
+            _snapCheck.Checked += (s, e) =>
+            {
+                if (_scene == null || !_isDm) return;
+                _scene.SnapToGrid = true;
+                MapService.SaveScene(_scene);
+                PublishMap();
+            };
+            _snapCheck.Unchecked += (s, e) =>
+            {
+                if (_scene == null || !_isDm) return;
+                _scene.SnapToGrid = false;
+                MapService.SaveScene(_scene);
+                PublishMap();
+            };
+            bar.Children.Add(_snapCheck);
+
             _cellSlider.Margin = new Thickness(0, 0, 6, 0);
             _cellSlider.VerticalAlignment = VerticalAlignment.Center;
             _cellSlider.ToolTip = "Размер клетки: тяните, чтобы подогнать под сетку карты";
@@ -319,6 +424,24 @@ namespace HMWT_MUI.Views
                 BuildFogMask();
             };
             bar.Children.Add(_cellSlider);
+
+            // Толщина линий сетки: на светлых картах тонкая линия почти не видна.
+            _gridThicknessSlider.Margin = new Thickness(0, 0, 8, 0);
+            _gridThicknessSlider.VerticalAlignment = VerticalAlignment.Center;
+            _gridThicknessSlider.ToolTip = "Толщина линий сетки";
+            _gridThicknessSlider.IsEnabled = _isDm;
+            _gridThicknessSlider.ValueChanged += (s, e) =>
+            {
+                if (_scene == null || !_isDm) return;
+                double value = Math.Max(0.5, Math.Min(4, _gridThicknessSlider.Value));
+                if (Math.Abs(_scene.GridThickness - value) < 0.01) return;
+
+                _scene.GridThickness = value;
+                MapService.SaveScene(_scene);
+                PublishMap();
+                BuildGrid();
+            };
+            bar.Children.Add(_gridThicknessSlider);
 
             _cellField.Width = 58;
             _cellField.Margin = new Thickness(0, 0, 4, 0);
@@ -686,11 +809,16 @@ namespace HMWT_MUI.Views
         /// <summary>Показывает карту, пришедшую от мастера.</summary>
         private void OpenRemoteScene(MapSceneData remote)
         {
+            _pendingLiveMoves.Clear();
+            _liveMoveTimer.Stop();
             ClearMeasure();
             _scene = remote;
 
             _gridCheck.IsChecked = _scene.GridOn;
+            _snapCheck.IsChecked = _scene.SnapToGrid;
             _cellField.Text = ((int)Math.Round(_scene.GridPx <= 4 ? 70 : _scene.GridPx)).ToString();
+            _gridThicknessSlider.Value = Math.Max(_gridThicknessSlider.Minimum,
+                Math.Min(_gridThicknessSlider.Maximum, _scene.GridThickness));
             _suppressFogEvents = true;
             try { _fogCheck.IsChecked = _scene.FogOn; }
             finally { _suppressFogEvents = false; }
@@ -709,7 +837,7 @@ namespace HMWT_MUI.Views
             }
             else if (path == null)
             {
-                RoomSession.Instance.RequestMapImage(_scene.ImageHash);
+                RequestMapAsset(_scene.ImageHash);
                 _mapImage.Source = null;
                 _mapImage.Width = 0;
                 _mapImage.Height = 0;
@@ -731,7 +859,7 @@ namespace HMWT_MUI.Views
                 if (string.IsNullOrWhiteSpace(token.PhotoHash)) continue;
                 if (RemoteImagePath(token.PhotoHash) != null) continue;
 
-                RoomSession.Instance.RequestMapImage(token.PhotoHash);
+                RequestMapAsset(token.PhotoHash);
             }
 
             BuildGrid();
@@ -813,6 +941,10 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            // Скрытая копия вкладки не должна пересобирать сцену: при возврате
+            // IsVisibleChanged сделает Refresh.
+            if (!IsVisible) return;
+
             // Пока жетон держат мышью, карту не пересобираем: иначе объект,
             // который тащат, заменится и перетаскивание оборвётся
             if (_dragToken != null) return;
@@ -822,6 +954,9 @@ namespace HMWT_MUI.Views
                 var fromServer = RoomSession.Instance.GetMapScene();
                 if (fromServer != null && _scene != null && fromServer.Id == _scene.Id)
                 {
+                    // Полный снимок важнее очереди промежуточных шагов
+                    _pendingLiveMoves.Clear();
+                    _liveMoveTimer.Stop();
                     TrackTokenMoves(_scene, fromServer);
                     _scene = fromServer;
                     BuildGrid();
@@ -852,6 +987,20 @@ namespace HMWT_MUI.Views
             }
         }
 
+        /// <summary>Просит картинку один раз и не дублирует передачу каждые две секунды.</summary>
+        private void RequestMapAsset(string hash)
+        {
+            if (string.IsNullOrWhiteSpace(hash)) return;
+
+            DateTime now = DateTime.UtcNow;
+            if (_mapAssetAsked.TryGetValue(hash, out var asked) &&
+                (now - asked).TotalSeconds < MapAssetRetrySeconds)
+                return;
+
+            _mapAssetAsked[hash] = now;
+            RoomSession.Instance.RequestMapImage(hash);
+        }
+
         private void OnMapImageReady(string hash, string path)
         {
             if (!_remote) return;
@@ -862,6 +1011,8 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            if (!IsVisible) return;
+            _mapAssetAsked.Remove(hash);
             if (_scene == null) return;
 
             // Картинка карты — показываем её; портрет жетона — перерисовываем
@@ -892,10 +1043,73 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            if (!IsVisible) return;
             if (_scene == null) return;
 
             // Свой жетон уже двигает сама мышь — второй раз не трогаем
             if (_dragToken != null && _dragToken.Id == tokenId) return;
+
+            PendingLiveMove pending;
+            if (!_pendingLiveMoves.TryGetValue(tokenId, out pending))
+            {
+                pending = new PendingLiveMove();
+                _pendingLiveMoves[tokenId] = pending;
+            }
+            pending.X = x;
+            pending.Y = y;
+            pending.Facing = facing;
+            pending.ReceivedAt = DateTime.UtcNow;
+
+            if (!_liveMoveTimer.IsEnabled) _liveMoveTimer.Start();
+        }
+
+        private void ApplyPendingLiveMoves(object sender, EventArgs e)
+        {
+            if (_scene == null || _pendingLiveMoves.Count == 0)
+            {
+                _liveMoveTimer.Stop();
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            var ready = _pendingLiveMoves
+                .Where(p => (now - p.Value.ReceivedAt).TotalMilliseconds >= LiveMoveDelayMs)
+                .Select(p => p.Key)
+                .ToList();
+
+            foreach (int tokenId in ready)
+            {
+                PendingLiveMove pending = _pendingLiveMoves[tokenId];
+                _pendingLiveMoves.Remove(tokenId);
+                ApplyRemoteLiveMove(tokenId, pending.X, pending.Y, pending.Facing);
+            }
+
+            if (_pendingLiveMoves.Count == 0) _liveMoveTimer.Stop();
+        }
+
+        private void OnMapTrailReceived(int tokenId, List<MapTrailPoint> points)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnMapTrailReceived(tokenId, points)));
+                return;
+            }
+
+            if (_scene == null || points == null || points.Count == 0) return;
+            var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
+            if (token == null) return;
+
+            foreach (var point in points)
+            {
+                if (point == null) continue;
+                AppendTrail(token, new Point(point.X, point.Y));
+            }
+            RenderTrails();
+        }
+
+        private void ApplyRemoteLiveMove(int tokenId, double x, double y, double facing)
+        {
+            if (_scene == null) return;
 
             var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
             if (token == null) return;
@@ -917,7 +1131,10 @@ namespace HMWT_MUI.Views
             RefreshTokenVisibility();
             AppendTrail(token, new Point(x, y));
 
-            if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 250)
+            // Туман при большом числе разведанных секторов строится долго.
+            // Во время чужого хода обновляем его реже, а после отпускания
+            // придёт полный снимок карты.
+            if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 700)
             {
                 _lastLiveFog = DateTime.UtcNow;
                 BuildFogMask();
@@ -935,10 +1152,66 @@ namespace HMWT_MUI.Views
                 if (tagged.Id != token.Id) continue;
 
                 double width = host.Width > 0 ? host.Width : 110;
-                Canvas.SetLeft(host, token.X - width / 2);
-                Canvas.SetTop(host, token.Y - (host.Height - 34) / 2);
+                double targetLeft = token.X - width / 2;
+                double targetTop = token.Y - (host.Height - 34) / 2;
+
+                double currentLeft = Canvas.GetLeft(host);
+                double currentTop = Canvas.GetTop(host);
+                if (double.IsNaN(currentLeft)) currentLeft = targetLeft;
+                if (double.IsNaN(currentTop)) currentTop = targetTop;
+
+                _visualMoves[token.Id] = new VisualMove
+                {
+                    FromLeft = currentLeft,
+                    FromTop = currentTop,
+                    ToLeft = targetLeft,
+                    ToTop = targetTop,
+                    StartedAt = DateTime.UtcNow
+                };
+                if (!_visualTimer.IsEnabled) _visualTimer.Start();
                 return;
             }
+        }
+
+        private void ApplyVisualMoves(object sender, EventArgs e)
+        {
+            if (_visualMoves.Count == 0)
+            {
+                _visualTimer.Stop();
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            var done = new List<int>();
+
+            foreach (var pair in _visualMoves.ToList())
+            {
+                Border host = null;
+                foreach (var child in _tokenLayer.Children)
+                {
+                    if (child is Border border && border.Tag is MapTokenData token && token.Id == pair.Key)
+                    {
+                        host = border;
+                        break;
+                    }
+                }
+
+                if (host == null)
+                {
+                    done.Add(pair.Key);
+                    continue;
+                }
+
+                double t = Math.Min(1.0, (now - pair.Value.StartedAt).TotalMilliseconds / VisualMoveMs);
+                double eased = t * t * (3 - 2 * t);
+                Canvas.SetLeft(host, pair.Value.FromLeft + (pair.Value.ToLeft - pair.Value.FromLeft) * eased);
+                Canvas.SetTop(host, pair.Value.FromTop + (pair.Value.ToTop - pair.Value.FromTop) * eased);
+
+                if (t >= 1.0) done.Add(pair.Key);
+            }
+
+            foreach (int id in done) _visualMoves.Remove(id);
+            if (_visualMoves.Count == 0) _visualTimer.Stop();
         }
 
         /// <summary>
@@ -1016,6 +1289,7 @@ namespace HMWT_MUI.Views
             bool active = _inRoom;
             if (active == _lastRoomActive) return;
             _lastRoomActive = active;
+            if (!active) _mapAssetAsked.Clear();
             Refresh();
         }
 
@@ -1052,7 +1326,7 @@ namespace HMWT_MUI.Views
                 if (!string.IsNullOrWhiteSpace(_scene.ImageHash) &&
                     RemoteImagePath(_scene.ImageHash) == null)
                 {
-                    session.RequestMapImage(_scene.ImageHash);
+                    RequestMapAsset(_scene.ImageHash);
                     waitImage = true;
                 }
 
@@ -1062,7 +1336,7 @@ namespace HMWT_MUI.Views
                     if (string.IsNullOrWhiteSpace(token.PhotoHash)) continue;
                     if (RemoteImagePath(token.PhotoHash) != null) continue;
 
-                    session.RequestMapImage(token.PhotoHash);
+                    RequestMapAsset(token.PhotoHash);
                     waitPhotos++;
                 }
 
@@ -1211,8 +1485,11 @@ namespace HMWT_MUI.Views
                 ClearMeasure();
                 _scene = MapService.LoadScene(scene.Id) ?? scene;
                 _gridCheck.IsChecked = _scene.GridOn;
+                _snapCheck.IsChecked = _scene.SnapToGrid;
                 _cellField.Text = ((int)Math.Round(_scene.GridPx <= 4 ? 70 : _scene.GridPx)).ToString();
                 _cellSlider.Value = Math.Max(_cellSlider.Minimum, Math.Min(_cellSlider.Maximum, _scene.GridPx));
+                _gridThicknessSlider.Value = Math.Max(_gridThicknessSlider.Minimum,
+                    Math.Min(_gridThicknessSlider.Maximum, _scene.GridThickness));
 
                 string path = MapService.ResolveImagePath(_scene);
                 if (path != null)
@@ -1446,6 +1723,7 @@ namespace HMWT_MUI.Views
             if (_scene == null || !_scene.GridOn || _scene.WidthPx <= 0) return;
 
             double step = _scene.GridPx > 4 ? _scene.GridPx : 70;
+            double thickness = Math.Max(0.5, Math.Min(6, _scene.GridThickness));
             if (!TryBrush(string.IsNullOrWhiteSpace(_scene.GridColor) ? "#33FFFFFF" : _scene.GridColor, out Brush brush))
                 brush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
 
@@ -1454,7 +1732,7 @@ namespace HMWT_MUI.Views
                 _gridLayer.Children.Add(new System.Windows.Shapes.Line
                 {
                     X1 = x, Y1 = 0, X2 = x, Y2 = _scene.HeightPx,
-                    Stroke = brush, StrokeThickness = 1, IsHitTestVisible = false
+                    Stroke = brush, StrokeThickness = thickness, IsHitTestVisible = false
                 });
             }
 
@@ -1463,7 +1741,7 @@ namespace HMWT_MUI.Views
                 _gridLayer.Children.Add(new System.Windows.Shapes.Line
                 {
                     X1 = 0, Y1 = y, X2 = _scene.WidthPx, Y2 = y,
-                    Stroke = brush, StrokeThickness = 1, IsHitTestVisible = false
+                    Stroke = brush, StrokeThickness = thickness, IsHitTestVisible = false
                 });
             }
         }
@@ -1998,7 +2276,7 @@ namespace HMWT_MUI.Views
             // Лучи: равномерные + отдельные в углы стен. Без лучей в углы обзор
             // «просачивался» между соседними лучами и игрок видел за стеной.
             var angles = new List<double>();
-            const int rays = 180;
+            const int rays = 96;
             for (int i = 0; i <= rays; i++) angles.Add(startDeg + (endDeg - startDeg) * i / rays);
 
             foreach (var wall in walls)
@@ -2148,6 +2426,7 @@ namespace HMWT_MUI.Views
 
             bool combined = !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase);
             var geometries = new List<Geometry>();
+            var newSeen = new List<string>();
 
             foreach (var token in _scene.Tokens)
             {
@@ -2179,8 +2458,7 @@ namespace HMWT_MUI.Views
                     // Такой участок уже запоминали: не плодим одинаковые строки
                     // при каждом обновлении сцены от мастера
                     if (!AddSeenPoint(text)) continue;
-
-                    MapService.AddSeen(_scene.Id, text);
+                    newSeen.Add(text);
 
                     // Общий туман: новый сектор сразу уходит ведущему и остальным.
                     // В режиме «свой туман» разведанное остаётся личным.
@@ -2192,6 +2470,14 @@ namespace HMWT_MUI.Views
                 {
                     Debug.WriteLine($"[MapView] разведанное: {ex.Message}");
                 }
+            }
+
+            // Одна запись в SQLite вместо отдельного открытия соединения на
+            // каждый из четырёх жетонов — это заметная часть фриза при драге.
+            if (newSeen.Count > 0)
+            {
+                try { MapService.AddSeenBatch(_scene.Id, newSeen); }
+                catch (Exception ex) { Debug.WriteLine($"[MapView] запись разведанного: {ex.Message}"); }
             }
 
             PerfLog("разведано", perfWatch.ElapsedMilliseconds,
@@ -2223,12 +2509,14 @@ namespace HMWT_MUI.Views
             }
 
             _seenLoadedSceneId = sceneId;
+            _seenVersion++;
         }
 
         private void ClearSeenPoints()
         {
             _seenPoints.Clear();
             _seenSet.Clear();
+            _seenVersion++;
         }
 
         /// <summary>Добавляет сектор с дедупликацией и пределом; true — если он новый.</summary>
@@ -2238,6 +2526,7 @@ namespace HMWT_MUI.Views
             if (!_seenSet.Add(text)) return false;
 
             _seenPoints.Add(text);
+            _seenVersion++;
 
             if (_seenPoints.Count > MaxSeenSectors)
             {
@@ -2324,9 +2613,38 @@ namespace HMWT_MUI.Views
             // на каждый кадр.
             var seenGeometries = GetSeenGeometries(matrix);
 
+            if (_seenUnion == null || _seenUnionVersion != _seenVersion ||
+                !_seenUnionMatrix.Equals(matrix))
+            {
+                try
+                {
+                    Geometry union = null;
+                    foreach (var geometry in seenGeometries)
+                    {
+                        if (geometry == null) continue;
+                        union = union == null ? geometry : Geometry.Combine(union, geometry,
+                            GeometryCombineMode.Union, null);
+                    }
+
+                    if (union != null)
+                    {
+                        try { union.Freeze(); } catch { }
+                    }
+
+                    _seenUnion = union;
+                }
+                catch
+                {
+                    _seenUnion = null;
+                }
+
+                _seenUnionVersion = _seenVersion;
+                _seenUnionMatrix = matrix;
+            }
+
             var known = new GeometryGroup { FillRule = FillRule.Nonzero };
             foreach (var child in vision.Children) known.Children.Add(child);
-            foreach (var child in seenGeometries) known.Children.Add(child);
+            if (_seenUnion != null) known.Children.Add(_seenUnion);
 
             // Один слой «неизвестного»: и мастер, и игрок видят открытым всё,
             // что уже разведано. Раньше у игрока плёнка вырезала только текущий
@@ -2683,7 +3001,14 @@ namespace HMWT_MUI.Views
 
             _trailTouched[token.Id] = DateTime.UtcNow;
             if (!_trailTimer.IsEnabled) _trailTimer.Start();
-            RenderTrails();
+
+            // Перерисовываем след не на каждый пиксель, иначе длинное
+            // перетаскивание забивает Dispatcher очередью Polyline.
+            if ((DateTime.UtcNow - _lastTrailRender).TotalMilliseconds >= 80)
+            {
+                _lastTrailRender = DateTime.UtcNow;
+                RenderTrails();
+            }
         }
 
         /// <summary>
@@ -2888,7 +3213,7 @@ namespace HMWT_MUI.Views
                 Color = _brushColor
             };
 
-            if (_scene.GridOn)
+            if (_scene.SnapToGrid)
             {
                 double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
                 shape.X = Math.Round((shape.X - cell / 2) / cell) * cell + cell / 2;
@@ -3049,7 +3374,7 @@ namespace HMWT_MUI.Views
                 shape.X = point.X - _shapeOffset.X;
                 shape.Y = point.Y - _shapeOffset.Y;
 
-                if (_scene.GridOn)
+                if (_scene.SnapToGrid)
                 {
                     double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
                     shape.X = Math.Round((shape.X - cell / 2) / cell) * cell + cell / 2;
@@ -3246,6 +3571,8 @@ namespace HMWT_MUI.Views
 
         private void RebuildTokens()
         {
+            _visualMoves.Clear();
+            _visualTimer.Stop();
             _tokenLayer.Children.Clear();
             if (_scene == null) return;
 
@@ -3255,7 +3582,15 @@ namespace HMWT_MUI.Views
                 if (token.Hidden && !_isDm) continue;
 
                 var host = BuildTokenVisual(token);
-                if (host != null) _tokenLayer.Children.Add(host);
+                if (host != null)
+                {
+                    // Игрок всегда выше НПС: иначе его жетон можно потерять
+                    // под чужим и не найти мышью. Выбранный/перетаскиваемый
+                    // дополнительно поднимается в момент клика.
+                    bool playerToken = token.IsPlayer || CanMoveToken(token);
+                    Panel.SetZIndex(host, playerToken ? 1000 : 100);
+                    _tokenLayer.Children.Add(host);
+                }
             }
 
             RenderFov();
@@ -3412,7 +3747,11 @@ namespace HMWT_MUI.Views
                 Canvas.SetLeft(host, token.X - captionWidth / 2);
                 Canvas.SetTop(host, token.Y - size / 2);
 
-                host.MouseLeftButtonDown += (s, e) => SelectToken(token);
+                host.MouseLeftButtonDown += (s, e) =>
+                {
+                    Panel.SetZIndex(host, 3000);
+                    SelectToken(token);
+                };
 
                 if (CanMoveToken(token))
                 {
@@ -3441,6 +3780,8 @@ namespace HMWT_MUI.Views
 
             // Новый маршрут начинается с чистого следа
             ClearTrail(token.Id);
+            _pendingLiveMoves.Remove(token.Id);
+            _visualMoves.Remove(token.Id);
             _lastLiveMoveSent = DateTime.MinValue;
             _lastSeenMemory = DateTime.MinValue;
 
@@ -3470,7 +3811,7 @@ namespace HMWT_MUI.Views
             double x = point.X - _dragOffset.X;
             double y = point.Y - _dragOffset.Y;
 
-            if (_scene.GridOn)
+            if (_scene.SnapToGrid)
             {
                 double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
                 x = Math.Round((x - cell / 2) / cell) * cell + cell / 2;
@@ -3484,14 +3825,19 @@ namespace HMWT_MUI.Views
             Canvas.SetLeft(_dragHost, _dragToken.X - width / 2);
             Canvas.SetTop(_dragHost, _dragToken.Y - (_dragHost.Height - 34) / 2);
 
-            // конус обзора должен ехать вместе с жетоном, а не отставать до Q/E
-            RenderFov();
+            // конус обзора должен ехать вместе с жетоном, а не отставать до Q/E.
+            // Но не чаще 20 раз в секунду: MouseMove приходит намного чаще.
+            if ((DateTime.UtcNow - _lastDragFov).TotalMilliseconds >= 50)
+            {
+                _lastDragFov = DateTime.UtcNow;
+                RenderFov();
+            }
 
             // След показываем сразу у себя, а остальным — промежуточными
             // сообщениями (не чаще ~10 раз в секунду), чтобы движение было живым
             AppendTrail(_dragToken, new Point(_dragToken.X, _dragToken.Y));
 
-            if ((DateTime.UtcNow - _lastLiveMoveSent).TotalMilliseconds >= 100)
+            if ((DateTime.UtcNow - _lastLiveMoveSent).TotalMilliseconds >= 200)
             {
                 _lastLiveMoveSent = DateTime.UtcNow;
 
@@ -3507,14 +3853,28 @@ namespace HMWT_MUI.Views
                 }
             }
 
-            // Разведанное по пути: иначе после перетаскивания остаются только
-            // начальная и конечная точки, а полоса маршрута остаётся чёрной
-            if ((DateTime.UtcNow - _lastSeenMemory).TotalMilliseconds >= 300)
+            // Раньше здесь каждые 300 мс вызывались RememberCurrentVision и
+            // BuildFogMask. При 129 разведанных секторах это давало фризы
+            // по 150–300 мс прямо во время перетаскивания. Разведанное
+            // запоминаем один раз в EndTokenDrag, а не на каждом шаге мыши.
+            // Живую разведку показываем по текущему обзору не чаще 2 раз/сек:
+            // в базу и сеть при этом ничего не пишется.
+            if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 500)
             {
-                _lastSeenMemory = DateTime.UtcNow;
-                RememberCurrentVision();
+                _lastLiveFog = DateTime.UtcNow;
                 BuildFogMask();
             }
+        }
+
+        private void PublishLocalTrail(int tokenId)
+        {
+            if (!_inRoom) return;
+            if (!_trails.TryGetValue(tokenId, out var points) || points.Count < 2) return;
+
+            var payload = points
+                .Select(p => new MapTrailPoint { X = p.X, Y = p.Y })
+                .ToList();
+            RoomSession.Instance.PublishMapTrail(tokenId, payload);
         }
 
         private void EndTokenDrag()
@@ -3524,6 +3884,10 @@ namespace HMWT_MUI.Views
             _dragHost?.ReleaseMouseCapture();
 
             AppendTrail(_dragToken, new Point(_dragToken.X, _dragToken.Y));
+
+            // Передаём весь путь, а не только конечную точку: иначе у остальных
+            // остаётся прямая между началом и концом.
+            PublishLocalTrail(_dragToken.Id);
 
             if (_remote)
             {

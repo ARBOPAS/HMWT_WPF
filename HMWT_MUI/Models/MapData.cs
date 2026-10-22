@@ -32,6 +32,10 @@ namespace HMWT_MUI.Models
 
         public bool GridOn { get; set; } = true;
 
+        /// <summary>Привязывать ли перемещение жетонов к клеткам. Сетку можно
+        /// показывать, но двигать жетоны свободно.</summary>
+        public bool SnapToGrid { get; set; } = true;
+
         /// <summary>Смещение сетки по X: бывает, что карта начинается не с угла клетки.</summary>
         public double GridOffsetX { get; set; }
 
@@ -47,6 +51,9 @@ namespace HMWT_MUI.Models
 
         /// <summary>Цвет сетки строкой #AARRGGBB. По умолчанию белая полупрозрачная.</summary>
         public string GridColor { get; set; } = "#33FFFFFF";
+
+        /// <summary>Толщина линий сетки в точках картинки. 1 — тонкая, 3–4 — заметная.</summary>
+        public double GridThickness { get; set; } = 1;
 
         /// <summary>Поворот карты: 0, 90, 180, 270 градусов (не меняет картинку).</summary>
         public int Rotation { get; set; }
