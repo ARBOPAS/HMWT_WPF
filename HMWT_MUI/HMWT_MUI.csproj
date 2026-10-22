@@ -221,6 +221,10 @@
     <Compile Include="Controls\HoverGif.xaml.cs">
       <DependentUpon>HoverGif.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\MapWebRenderer.cs" />
+    <Content Include="Web\map\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Compile Include="Controls\ChatWebView.xaml.cs">
       <DependentUpon>ChatWebView.xaml</DependentUpon>
     </Compile>
@@ -304,6 +308,8 @@
     </Compile>
     <Compile Include="Windows\MessageDialog.cs" />
     <Compile Include="Windows\NotificationWindow.cs" />
+    <Compile Include="Helpers\SpellTextLinker.cs" />
+    <Compile Include="Windows\SpellDetailWindow.cs" />
     <Compile Include="Windows\FeatureEditorWindow.xaml.cs">
       <DependentUpon>FeatureEditorWindow.xaml</DependentUpon>
     </Compile>

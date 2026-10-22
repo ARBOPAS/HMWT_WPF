@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -74,10 +75,20 @@ namespace HMWT_MUI.Views
         private string _pendingPhotoPath;
         private bool _removePhoto;
 
-        private readonly StackPanel _form = new StackPanel { Margin = new Thickness(16, 8, 8, 16) };
-        private readonly StackPanel _preview = new StackPanel { Margin = new Thickness(8, 8, 16, 16) };
+        private readonly StackPanel _preview = new StackPanel { Margin = new Thickness(12, 10, 18, 18) };
         private readonly StackPanel _traitsHost = new StackPanel();
         private readonly StackPanel _actionsHost = new StackPanel();
+
+        // Редактор разбит на страницы: иначе сорок полей в одной колонке
+        // превращаются в кашу, и мастер не понимает, что где вводить.
+        private readonly Grid _pageHost = new Grid();
+        private readonly StackPanel _mainPage = new StackPanel { Margin = new Thickness(20, 8, 18, 24) };
+        private readonly StackPanel _combatPage = new StackPanel { Margin = new Thickness(20, 8, 18, 24) };
+        private readonly StackPanel _actionsPage = new StackPanel { Margin = new Thickness(20, 8, 18, 24) };
+        private readonly StackPanel _textPage = new StackPanel { Margin = new Thickness(20, 8, 18, 24) };
+        private readonly Dictionary<string, StackPanel> _pages = new Dictionary<string, StackPanel>();
+        private readonly Dictionary<string, Button> _pageButtons = new Dictionary<string, Button>();
+        private string _activePage = "main";
         private readonly TextBlock _headerText = new TextBlock();
         private readonly TextBlock _validationText = new TextBlock();
 
@@ -115,9 +126,14 @@ namespace HMWT_MUI.Views
 
         private void BuildShell()
         {
-            var root = new Grid { Background = DmUiKit.B("Panel") };
+            var root = new Grid
+            {
+                Background = DmUiKit.B("Panel")
+            };
+            TextElement.SetFontFamily(root, new FontFamily("Palatino Linotype, Georgia, Segoe UI"));
+            TextElement.SetFontSize(root, 14);
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(430) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(480) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -128,7 +144,7 @@ namespace HMWT_MUI.Views
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _headerText.FontFamily = DmUiKit.Display;
-            _headerText.FontSize = 16;
+            _headerText.FontSize = 22;
             _headerText.FontWeight = FontWeights.Bold;
             _headerText.Foreground = DmUiKit.B("Gold");
             _headerText.VerticalAlignment = VerticalAlignment.Center;
@@ -146,14 +162,52 @@ namespace HMWT_MUI.Views
             Grid.SetRow(header, 0);
             root.Children.Add(header);
 
-            // ── форма и предпросмотр ──
-            // Привязку к строкам и столбцам ставим на саму прокрутку: если повесить
-            // её на внутренний StackPanel, WPF положит обёртку в левый верхний угол,
-            // и форма уедет под шапку
-            var formScroll = DmUiKit.Scroll(_form);
-            Grid.SetRow(formScroll, 1);
-            Grid.SetColumn(formScroll, 0);
-            root.Children.Add(formScroll);
+            // ── страницы формы и предпросмотр ──
+            _pages["main"] = _mainPage;
+            _pages["combat"] = _combatPage;
+            _pages["actions"] = _actionsPage;
+            _pages["text"] = _textPage;
+
+            var content = new Grid();
+            content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var nav = new WrapPanel { Margin = new Thickness(18, 0, 18, 8) };
+            foreach (var pair in new[]
+            {
+                ("main", "Основное"), ("combat", "Защита и черты"),
+                ("actions", "Действия"), ("text", "Тексты и заклинания")
+            })
+            {
+                string key = pair.Item1;
+                var button = DmUiKit.Action(pair.Item2, (s, e) => ShowPage(key),
+                    DmUiKit.ButtonKind.Ghost, null, double.NaN, 32);
+                button.Margin = new Thickness(0, 0, 6, 0);
+                button.FontFamily = TextElement.GetFontFamily(root);
+                _pageButtons[key] = button;
+                nav.Children.Add(button);
+            }
+            content.Children.Add(nav);
+
+            foreach (var pair in _pages)
+            {
+                var scroll = new ScrollViewer
+                {
+                    Content = pair.Value,
+                    Tag = pair.Key,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Visibility = pair.Key == _activePage ? Visibility.Visible : Visibility.Collapsed
+                };
+                Grid.SetRow(scroll, 1);
+                _pageHost.Children.Add(scroll);
+            }
+            Grid.SetRow(_pageHost, 1);
+            content.Children.Add(_pageHost);
+
+            Grid.SetRow(content, 1);
+            Grid.SetColumn(content, 0);
+            root.Children.Add(content);
 
             var previewHead = new TextBlock
             {
@@ -187,8 +241,8 @@ namespace HMWT_MUI.Views
             Content = root;
 
             // Обновление предпросмотра, когда пользователь уходит с поля
-            _form.AddHandler(TextBox.LostFocusEvent, new RoutedEventHandler((s, e) => RefreshPreview()), true);
-            _form.AddHandler(ComboBox.LostFocusEvent, new RoutedEventHandler((s, e) => RefreshPreview()), true);
+            _pageHost.AddHandler(TextBox.LostFocusEvent, new RoutedEventHandler((s, e) => RefreshPreview()), true);
+            _pageHost.AddHandler(ComboBox.LostFocusEvent, new RoutedEventHandler((s, e) => RefreshPreview()), true);
             KeyDown += (s, e) =>
             {
                 if (e.Key == Key.Escape) Cancel();
@@ -215,12 +269,33 @@ namespace HMWT_MUI.Views
             RefreshPreview();
         }
 
+        private void ShowPage(string key)
+        {
+            if (!_pages.ContainsKey(key)) return;
+            _activePage = key;
+
+            foreach (var child in _pageHost.Children)
+            {
+                if (child is ScrollViewer scroll && scroll.Tag is string pageKey)
+                    scroll.Visibility = pageKey == key ? Visibility.Visible : Visibility.Collapsed;
+            }
+            foreach (var pair in _pageButtons)
+            {
+                pair.Value.Opacity = pair.Key == key ? 1.0 : 0.55;
+                pair.Value.FontWeight = pair.Key == key ? FontWeights.Bold : FontWeights.Normal;
+            }
+        }
+
         private void BuildForm()
         {
-            _form.Children.Clear();
+            foreach (var page in _pages.Values) page.Children.Clear();
+            var mainPage = _mainPage;
+            var combatPage = _combatPage;
+            var actionsPage = _actionsPage;
+            var textPage = _textPage;
 
             // ── ОСНОВНОЕ ──
-            _form.Children.Add(DmUiKit.SectionPanel("ОСНОВНОЕ"));
+            mainPage.Children.Add(DmUiKit.SectionPanel("ОСНОВНОЕ"));
 
             _name = DmUiKit.Field(_monster.Name, 260, "Как существо называется в книге");
             _nameEn = DmUiKit.Field(_monster.NameEn, 220, "Оригинальное название (необязательно)");
@@ -231,7 +306,7 @@ namespace HMWT_MUI.Views
             _source = DmUiKit.Field(_monster.Source, 120, "Откуда существо: MM14, доморощённое");
             _tags = DmUiKit.Field(_monster.Tags, 200, "Свои метки: «босс», «лес», «нежить»");
 
-            _form.Children.Add(Wrap(
+            mainPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("НАЗВАНИЕ *", _name),
                 DmUiKit.FieldBlock("НАЗВАНИЕ (ОРИГ.)", _nameEn),
                 DmUiKit.FieldBlock("РАЗМЕР", _size),
@@ -257,11 +332,11 @@ namespace HMWT_MUI.Views
                 Margin = new Thickness(10, 0, 0, 0)
             };
             photoRow.Children.Add(_photoText);
-            _form.Children.Add(photoRow);
+            mainPage.Children.Add(photoRow);
             UpdatePhotoText();
 
             // ── ЗАЩИТА ──
-            _form.Children.Add(DmUiKit.SectionPanel("ЗАЩИТА"));
+            mainPage.Children.Add(DmUiKit.SectionPanel("ЗАЩИТА"));
 
             _armorClass = DmUiKit.Field(_monster.ArmorClass.ToString(), 70);
             _acNote = DmUiKit.Field(_monster.ArmorClassNote, 240, "Например: кожаный доспех, щит");
@@ -280,12 +355,12 @@ namespace HMWT_MUI.Views
             hpRow.Children.Add(hpRoll);
             hpBlock.Children.Add(hpRow);
 
-            _form.Children.Add(Wrap(
+            mainPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("КЛАСС ДОСПЕХА", _armorClass),
                 DmUiKit.FieldBlock("ПОЯСНЕНИЕ К КД", _acNote),
                 hpBlock));
 
-            _form.Children.Add(DmUiKit.SectionPanel("СКОРОСТЬ", "в футах; 0 — значит «нет такого способа движения»"));
+            mainPage.Children.Add(DmUiKit.SectionPanel("СКОРОСТЬ", "в футах; 0 — значит «нет такого способа движения»"));
             _speedWalk = DmUiKit.Field(_monster.SpeedWalk.ToString(), 70);
             _speedFly = DmUiKit.Field(_monster.SpeedFly.ToString(), 70);
             _speedSwim = DmUiKit.Field(_monster.SpeedSwim.ToString(), 70);
@@ -294,7 +369,7 @@ namespace HMWT_MUI.Views
             _speedNote = DmUiKit.Field(_monster.SpeedNote, 200, "Например: только в воде");
             _hover = DmUiKit.Check("Парение (hover)", _monster.Hover);
 
-            _form.Children.Add(Wrap(
+            mainPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("ХОДЬБА", _speedWalk),
                 DmUiKit.FieldBlock("ПОЛЁТ", _speedFly),
                 DmUiKit.FieldBlock("ПЛАВАНИЕ", _speedSwim),
@@ -302,10 +377,10 @@ namespace HMWT_MUI.Views
                 DmUiKit.FieldBlock("КОПАНИЕ", _speedBurrow),
                 DmUiKit.FieldBlock("ПРИМЕЧАНИЕ", _speedNote)));
 
-            _form.Children.Add(_hover);
+            mainPage.Children.Add(_hover);
 
             // ── ХАРАКТЕРИСТИКИ ──
-            _form.Children.Add(DmUiKit.SectionPanel("ХАРАКТЕРИСТИКИ", "модификаторы считаются сами"));
+            mainPage.Children.Add(DmUiKit.SectionPanel("ХАРАКТЕРИСТИКИ", "модификаторы считаются сами"));
 
             _strength = ScoreField(_monster.Strength);
             _dexterity = ScoreField(_monster.Dexterity);
@@ -314,7 +389,7 @@ namespace HMWT_MUI.Views
             _wisdom = ScoreField(_monster.Wisdom);
             _charisma = ScoreField(_monster.Charisma);
 
-            _form.Children.Add(Wrap(
+            mainPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("СИЛА", _strength),
                 DmUiKit.FieldBlock("ЛОВКОСТЬ", _dexterity),
                 DmUiKit.FieldBlock("ТЕЛОСЛОЖЕНИЕ", _constitution),
@@ -323,17 +398,17 @@ namespace HMWT_MUI.Views
                 DmUiKit.FieldBlock("ХАРИЗМА", _charisma)));
 
             _abilityMods = new WrapPanel();
-            _form.Children.Add(_abilityMods);
+            mainPage.Children.Add(_abilityMods);
 
             _saves = DmUiKit.Field(_monster.SavingThrows, 300, "Например: Тел +5, Мдр +3");
             _skills = DmUiKit.Field(_monster.Skills, 300, "Например: Восприятие +5, Скрытность +4");
-            _form.Children.Add(Wrap(
+            mainPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("СПАСБРОСКИ", _saves),
                 DmUiKit.FieldBlock("НАВЫКИ", _skills)));
 
             // ── УЯЗВИМОСТИ И ИММУНИТЕТЫ ──
             string damageHint = "Типы урона: " + string.Join(", ", DiceFormulaParser.AllDamageWords());
-            _form.Children.Add(DmUiKit.SectionPanel("УЯЗВИМОСТИ И ИММУНИТЕТЫ",
+            combatPage.Children.Add(DmUiKit.SectionPanel("УЯЗВИМОСТИ И ИММУНИТЕТЫ",
                 "перечисляйте через запятую · " + damageHint + " · состояния: " + string.Join(", ", Conditions)));
 
             _vulnerabilities = DmUiKit.Field(_monster.DamageVulnerabilities, 320, damageHint);
@@ -342,15 +417,15 @@ namespace HMWT_MUI.Views
             _conditionImmunities = DmUiKit.Field(_monster.ConditionImmunities, 320,
                 "Например: паралич, очарование, отравление");
 
-            _form.Children.Add(Wrap(
+            combatPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("УЯЗВИМОСТЬ К УРОНУ", _vulnerabilities),
                 DmUiKit.FieldBlock("СОПРОТИВЛЕНИЕ УРОНУ", _resistances)));
-            _form.Children.Add(Wrap(
+            combatPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("ИММУНИТЕТ К УРОНУ", _immunities),
                 DmUiKit.FieldBlock("ИММУНИТЕТ К СОСТОЯНИЯМ", _conditionImmunities)));
 
             // ── ЧУВСТВА, ЯЗЫКИ, ОПАСНОСТЬ ──
-            _form.Children.Add(DmUiKit.SectionPanel("ЧУВСТВА, ЯЗЫКИ, ОПАСНОСТЬ"));
+            combatPage.Children.Add(DmUiKit.SectionPanel("ЧУВСТВА, ЯЗЫКИ, ОПАСНОСТЬ"));
 
             _senses = DmUiKit.Field(_monster.Senses, 330,
                 "Например: тёмное зрение 60 футов, пассивное Восприятие 9");
@@ -364,7 +439,7 @@ namespace HMWT_MUI.Views
             var recalc = DmUiKit.Action("Пересчитать", (s, e) => RecalculateChallenge(), DmUiKit.ButtonKind.Ghost,
                 "Взять опыт и бонус мастерства из опасности", 120, 28);
 
-            _form.Children.Add(Wrap(
+            combatPage.Children.Add(Wrap(
                 DmUiKit.FieldBlock("ЧУВСТВА", _senses),
                 DmUiKit.FieldBlock("ЯЗЫКИ", _languages)));
 
@@ -375,7 +450,7 @@ namespace HMWT_MUI.Views
             crRow.Children.Add(recalc);
             crBlock.Children.Add(crRow);
 
-            _form.Children.Add(Wrap(
+            combatPage.Children.Add(Wrap(
                 crBlock,
                 DmUiKit.FieldBlock("ОПЫТ", _experience),
                 DmUiKit.FieldBlock("БОНУС МАСТЕРСТВА", _proficiency),
@@ -384,10 +459,10 @@ namespace HMWT_MUI.Views
                 DmUiKit.FieldBlock("СОКРОВИЩА", DmUiKit.Field(_monster.Treasure, 160), null, 170)));
 
             // ── ЧЕРТЫ ──
-            _form.Children.Add(DmUiKit.SectionPanel("ЧЕРТЫ И ОСОБЕННОСТИ",
+            combatPage.Children.Add(DmUiKit.SectionPanel("ЧЕРТЫ И ОСОБЕННОСТИ",
                 "текст тоже живой: «1к6 огнём» можно бросить нажатием"));
-            _form.Children.Add(_traitsHost);
-            _form.Children.Add(DmUiKit.Action("＋ Добавить черту", (s, e) =>
+            combatPage.Children.Add(_traitsHost);
+            combatPage.Children.Add(DmUiKit.Action("＋ Добавить черту", (s, e) =>
             {
                 CollectFields();
                 _monster.Traits.Add(new MonsterTraitData());
@@ -397,9 +472,9 @@ namespace HMWT_MUI.Views
             RebuildTraits();
 
             // ── ДЕЙСТВИЯ ──
-            _form.Children.Add(DmUiKit.SectionPanel("ДЕЙСТВИЯ, РЕАКЦИИ, ЛЕГЕНДАРНОЕ",
+            actionsPage.Children.Add(DmUiKit.SectionPanel("ДЕЙСТВИЯ, РЕАКЦИИ, ЛЕГЕНДАРНОЕ",
                 "попадание вида «+11» бросает d20+11, а урон — свои кубики"));
-            _form.Children.Add(_actionsHost);
+            actionsPage.Children.Add(_actionsHost);
 
             // WrapPanel: кнопок пять, и «ДЕЙСТВИЯ ЛОГОВА» раньше вылезала за блок
             var actionButtons = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
@@ -414,22 +489,22 @@ namespace HMWT_MUI.Views
                     RefreshPreview();
                 }, DmUiKit.ButtonKind.Ghost, null, double.NaN, 28));
             }
-            _form.Children.Add(actionButtons);
+            actionsPage.Children.Add(actionButtons);
             RebuildActions();
 
             // ── ТЕКСТОВЫЕ БЛОКИ ──
-            _form.Children.Add(DmUiKit.SectionPanel("ЛЕГЕНДАРНОЕ, ЛОГОВО, ЗАКЛИНАНИЯ"));
-            _legendaryIntro = DmUiKit.Field(_monster.LegendaryIntro, double.NaN, null, true, 54);
-            _lairText = DmUiKit.Field(_monster.LairText, double.NaN, null, true, 54);
-            _spells = DmUiKit.Field(_monster.Spells, double.NaN, "Сл спасброска, врождённое колдовство, ячейки", true, 70);
-            _equipment = DmUiKit.Field(_monster.Equipment, double.NaN, null, true, 54);
-            _description = DmUiKit.Field(_monster.Description, double.NaN, null, true, 110);
+            textPage.Children.Add(DmUiKit.SectionPanel("ЛЕГЕНДАРНОЕ, ЛОГОВО, ЗАКЛИНАНИЯ"));
+            _legendaryIntro = DmUiKit.Field(_monster.LegendaryIntro, double.NaN, null, true, 170);
+            _lairText = DmUiKit.Field(_monster.LairText, double.NaN, null, true, 170);
+            _spells = DmUiKit.Field(_monster.Spells, double.NaN, "Сл спасброска, врождённое колдовство, ячейки", true, 460);
+            _equipment = DmUiKit.Field(_monster.Equipment, double.NaN, null, true, 130);
+            _description = DmUiKit.Field(_monster.Description, double.NaN, null, true, 320);
 
-            _form.Children.Add(DmUiKit.FieldBlock("ВВОДНЫЙ ТЕКСТ ЛЕГЕНДАРНЫХ ДЕЙСТВИЙ", _legendaryIntro));
-            _form.Children.Add(DmUiKit.FieldBlock("ЛОГОВО", _lairText));
-            _form.Children.Add(DmUiKit.FieldBlock("ЗАКЛИНАНИЯ И ПСИОНИКА", _spells));
-            _form.Children.Add(DmUiKit.FieldBlock("СНАРЯЖЕНИЕ", _equipment));
-            _form.Children.Add(DmUiKit.FieldBlock("ОПИСАНИЕ И ВНЕШНОСТЬ", _description));
+            textPage.Children.Add(DmUiKit.FieldBlock("ВВОДНЫЙ ТЕКСТ ЛЕГЕНДАРНЫХ ДЕЙСТВИЙ", _legendaryIntro));
+            textPage.Children.Add(DmUiKit.FieldBlock("ЛОГОВО", _lairText));
+            textPage.Children.Add(DmUiKit.FieldBlock("ЗАКЛИНАНИЯ И ПСИОНИКА", _spells));
+            textPage.Children.Add(DmUiKit.FieldBlock("СНАРЯЖЕНИЕ", _equipment));
+            textPage.Children.Add(DmUiKit.FieldBlock("ОПИСАНИЕ И ВНЕШНОСТЬ", _description));
 
             foreach (TextBox box in new[] { _spells, _description, _lairText, _legendaryIntro, _equipment })
             {
@@ -438,6 +513,47 @@ namespace HMWT_MUI.Views
             }
 
             RefreshAbilityMods();
+            ApplyEditorFonts();
+            ShowPage(_activePage);
+        }
+
+        private void ApplyEditorFonts()
+        {
+            var font = new FontFamily("Palatino Linotype, Georgia, Segoe UI");
+            foreach (var page in _pages.Values)
+                ApplyEditorFont(page, font);
+        }
+
+        private static void ApplyEditorFont(DependencyObject root, FontFamily font)
+        {
+            if (root is TextBox box)
+            {
+                box.FontFamily = font;
+                box.FontSize = 13.5;
+                box.Padding = new Thickness(9, 7, 9, 7);
+                if (box.AcceptsReturn)
+                {
+                    // В прежней вёрстке 48–54 px обрезали нижние выносные
+                    // элементы у «Р», «У» и «Д». Даём тексту дышать.
+                    if (double.IsNaN(box.Height) || box.Height < 120)
+                        box.Height = 120;
+                    box.MinHeight = box.Height;
+                }
+                else
+                {
+                    box.MinHeight = 36;
+                }
+            }
+            else if (root is ComboBox combo)
+            {
+                combo.FontFamily = font;
+                combo.FontSize = 13.5;
+                combo.MinHeight = 34;
+            }
+
+            int count = VisualTreeHelper.GetChildrenCount(root);
+            for (int i = 0; i < count; i++)
+                ApplyEditorFont(VisualTreeHelper.GetChild(root, i), font);
         }
 
         private TextBox ScoreField(int value)

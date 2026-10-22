@@ -497,6 +497,10 @@ namespace HMWT_MUI.Net
                         HandleMapTrail(conn, msg.As<MapTrailMessage>());
                         break;
 
+                    case MsgType.MapShape:
+                        ApplyMapShape(conn, msg.As<MapShapeRequest>());
+                        break;
+
                     case MsgType.MapImageRequest:
                         _ = SendMapImageToAsync(conn, msg.As<MapImageRequest>());
                         break;
@@ -1282,6 +1286,73 @@ namespace HMWT_MUI.Net
 
             MapTrailAdded?.Invoke(message.TokenId, points);
             _ = BroadcastMapTrailAsync(message.TokenId, points, conn.PlayerId);
+        }
+
+        /// <summary>Игрок создал/сдвинул/перекрасил/удалил фигуру.</summary>
+        private void ApplyMapShape(ClientConnection conn, MapShapeRequest request)
+        {
+            if (conn == null || request == null || request.Shape == null) return;
+
+            string action = (request.Action ?? "").ToLowerInvariant();
+            bool changed = false;
+
+            lock (_stateLock)
+            {
+                var scene = _map;
+                if (scene == null) return;
+
+                if (action == "create")
+                {
+                    var incoming = request.Shape;
+                    var shape = new MapShapeData
+                    {
+                        SceneId = scene.Id,
+                        Kind = string.IsNullOrWhiteSpace(incoming.Kind) ? "circle" : incoming.Kind,
+                        X = incoming.X,
+                        Y = incoming.Y,
+                        RadiusCells = Math.Max(0.5, Math.Min(20, incoming.RadiusCells)),
+                        Angle = incoming.Angle,
+                        Color = string.IsNullOrWhiteSpace(incoming.Color) ? "#FFB98BFF" : incoming.Color,
+                        Label = incoming.Label ?? ""
+                    };
+
+                    if (MapService.SaveShape(shape) > 0)
+                    {
+                        scene.Shapes.Add(shape);
+                        changed = true;
+                    }
+                }
+                else if (action == "delete")
+                {
+                    var existing = scene.Shapes.FirstOrDefault(s => s.Id == request.Shape.Id);
+                    if (existing != null)
+                    {
+                        MapService.DeleteShape(existing.Id);
+                        scene.Shapes.Remove(existing);
+                        changed = true;
+                    }
+                }
+                else
+                {
+                    var existing = scene.Shapes.FirstOrDefault(s => s.Id == request.Shape.Id);
+                    if (existing != null)
+                    {
+                        existing.X = request.Shape.X;
+                        existing.Y = request.Shape.Y;
+                        existing.RadiusCells = Math.Max(0.5, Math.Min(20, request.Shape.RadiusCells));
+                        existing.Angle = request.Shape.Angle;
+                        existing.Color = string.IsNullOrWhiteSpace(request.Shape.Color)
+                            ? existing.Color : request.Shape.Color;
+                        existing.Label = request.Shape.Label ?? existing.Label;
+                        MapService.SaveShape(existing);
+                        changed = true;
+                    }
+                }
+            }
+
+            if (!changed) return;
+            _ = BroadcastMapStateAsync();
+            MapChanged?.Invoke();
         }
 
         /// <summary>Ведущий прошёл жетоном — рассылаем путь остальным.</summary>

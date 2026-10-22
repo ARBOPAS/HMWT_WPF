@@ -93,6 +93,10 @@ namespace HMWT_MUI
         public CharacterInfoWindow(int characterId)
         {
             InitializeComponent();
+            System.Windows.Media.TextOptions.SetTextFormattingMode(this,
+                System.Windows.Media.TextFormattingMode.Display);
+            System.Windows.Media.TextOptions.SetTextRenderingMode(this,
+                System.Windows.Media.TextRenderingMode.ClearType);
 
             // Масштаб интерфейса: применяется ко всем окнам одинаково
             Services.UiScaleManager.Register(this);
@@ -3022,6 +3026,18 @@ namespace HMWT_MUI
             SwitchView("Room");
         }
 
+        /// <summary>Переход к готовой карточке заклинания из бестиария.</summary>
+        public void ShowSpellByName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Show();
+            Activate();
+            SwitchView("Spells");
+            if (_viewCache.TryGetValue("Spells", out var view) && view is Views.SpellsView spells)
+                spells.OpenSpellByName(name);
+        }
+
         /// <summary>
         /// Переключает вкладку и замеряет, сколько она открывается.
         ///
@@ -3918,6 +3934,14 @@ namespace HMWT_MUI
             }
             _toastTimer.Stop();
             _toastTimer.Start();
+
+            try
+            {
+                var mapType = typeof(CharacterInfoWindow).Assembly.GetType("HMWT_MUI.Controls.MapWebRenderer");
+                mapType?.GetMethod("ShowToast", System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.Static)?.Invoke(null, new object[] { message, isError });
+            }
+            catch { }
         }
         #endregion
 

@@ -58,6 +58,7 @@ namespace HMWT_MUI.Services
                         fog_on INTEGER DEFAULT 1,
                         fog_mode TEXT DEFAULT 'combined',
                         grid_color TEXT DEFAULT '#33FFFFFF',
+                        trail_color TEXT DEFAULT '#FF9B8BFF',
                         grid_thickness REAL DEFAULT 1,
                         rotation INTEGER DEFAULT 0,
                         flip_h INTEGER DEFAULT 0,
@@ -126,6 +127,7 @@ namespace HMWT_MUI.Services
 
                 // Колонки, которые могли не появиться в базе старше этой версии
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_color TEXT DEFAULT '#33FFFFFF'");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "trail_color TEXT DEFAULT '#FF9B8BFF'");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_thickness REAL DEFAULT 1");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_snap INTEGER DEFAULT 1");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "fog_mode TEXT DEFAULT 'combined'");
@@ -268,7 +270,8 @@ namespace HMWT_MUI.Services
                         name = @name, image_path = @image, image_hash = @hash,
                         width_px = @w, height_px = @h, grid_px = @grid, grid_on = @gridOn,
                         grid_offset_x = @gx, grid_offset_y = @gy, fog_on = @fog,
-                        grid_color = @gridColor, rotation = @rotation, flip_h = @flipH, flip_v = @flipV, fog_mode = @fogMode,
+                        grid_color = @gridColor, trail_color = @trailColor,
+                        rotation = @rotation, flip_h = @flipH, flip_v = @flipV, fog_mode = @fogMode,
                         updated_at = @now
                     WHERE id_scene = @id", conn);
                 cmd.Parameters.AddWithValue("@name", scene.Name ?? "");
@@ -283,6 +286,7 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@gy", scene.GridOffsetY);
                 cmd.Parameters.AddWithValue("@fog", scene.FogOn ? 1 : 0);
                 cmd.Parameters.AddWithValue("@gridColor", string.IsNullOrWhiteSpace(scene.GridColor) ? "#33FFFFFF" : scene.GridColor);
+                cmd.Parameters.AddWithValue("@trailColor", string.IsNullOrWhiteSpace(scene.TrailColor) ? "#FF9B8BFF" : scene.TrailColor);
                 cmd.Parameters.AddWithValue("@gridThickness", Math.Max(0.5, Math.Min(6, scene.GridThickness)));
                 cmd.Parameters.AddWithValue("@fogMode", string.IsNullOrWhiteSpace(scene.FogMode) ? "combined" : scene.FogMode);
                 cmd.Parameters.AddWithValue("@rotation", scene.Rotation);
@@ -336,6 +340,7 @@ namespace HMWT_MUI.Services
                 FogOn = Int(reader, "fog_on") != 0,
                 FogMode = Text(reader, "fog_mode") == "own" ? "own" : "combined",
                 GridColor = Text(reader, "grid_color"),
+                TrailColor = Text(reader, "trail_color"),
                 GridThickness = Double(reader, "grid_thickness", 1),
                 Rotation = Int(reader, "rotation"),
                 FlipH = Int(reader, "flip_h") != 0,
@@ -688,10 +693,12 @@ namespace HMWT_MUI.Services
                     }
                 }
 
-                // Держим последние 240: больше только раздувает туман.
+                // Держим запас с большим запасом: раньше лимит 240 срезал
+                // старые участки, и уже разведанная зона снова закрывалась
+                // туманом, как только добавлялся следующий сектор.
                 using (var trim = new SqliteCommand(
                     "DELETE FROM MapSeen WHERE id_scene = @id AND id_seen NOT IN " +
-                    "(SELECT id_seen FROM MapSeen WHERE id_scene = @id ORDER BY id_seen DESC LIMIT 240)", conn, tx))
+                    "(SELECT id_seen FROM MapSeen WHERE id_scene = @id ORDER BY id_seen DESC LIMIT 2000)", conn, tx))
                 {
                     trim.Parameters.AddWithValue("@id", sceneId);
                     trim.ExecuteNonQuery();

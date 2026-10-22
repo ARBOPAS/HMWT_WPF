@@ -150,7 +150,7 @@ namespace HMWT_MUI.Views
             _pickerHost.Children.Add(DmUiKit.Scroll(_pickerList));
 
             var pickerCard = DmUiKit.Panel(_pickerHost, new Thickness(16), DmUiKit.B("Panel"), DmUiKit.B("GoldEdge"), 10);
-            pickerCard.Width = 720;
+            pickerCard.Width = 900;
             pickerCard.MaxHeight = 560;
             pickerCard.HorizontalAlignment = HorizontalAlignment.Center;
             pickerCard.VerticalAlignment = VerticalAlignment.Center;

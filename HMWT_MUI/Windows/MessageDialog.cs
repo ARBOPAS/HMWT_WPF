@@ -34,6 +34,18 @@ namespace HMWT_MUI.Windows
         public static void Error(FrameworkElement host, string message, string title = "Ошибка")
             => Show(host, message, title, "Понятно", null, true);
 
+        private static void MapDialog(bool opened)
+        {
+            try
+            {
+                var type = typeof(MessageDialog).Assembly.GetType("HMWT_MUI.Controls.MapWebRenderer");
+                var method = type?.GetMethod(opened ? "DialogOpened" : "DialogClosed",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                method?.Invoke(null, null);
+            }
+            catch { }
+        }
+
         private static bool Show(FrameworkElement host, string message, string title,
             string yesText, string noText, bool danger)
         {
@@ -162,6 +174,7 @@ namespace HMWT_MUI.Windows
                 result = answer;
                 try { hostRoot.Children.Remove(overlay); } catch { }
                 Controls.ChatWebView.DialogClosed();
+                MapDialog(false);
                 if (frame != null) frame.Continue = false;
             };
 
@@ -193,6 +206,7 @@ namespace HMWT_MUI.Windows
 
             hostRoot.Children.Add(overlay);
             Controls.ChatWebView.DialogOpened();
+            MapDialog(true);
 
             // Корневой Grid окон разбит на строки и колонки: слева узкая рейка вкладок,
             // ниже шапка и содержимое. Без явного охвата оверлей попадает в ПЕРВУЮ

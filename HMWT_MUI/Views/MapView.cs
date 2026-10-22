@@ -2,6 +2,7 @@ using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
 using HMWT_MUI.Net;
 using HMWT_MUI.Services;
+using HMWT_MUI.Controls;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -46,6 +47,14 @@ namespace HMWT_MUI.Views
 
         private readonly Border _viewport = new Border();
         private readonly Canvas _world = new Canvas();
+        private readonly MapWebRenderer _webMap = new MapWebRenderer();
+        private System.Windows.Threading.DispatcherTimer _webSyncTimer;
+        private readonly Dictionary<string, string> _webDataUrls =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private int _webSeenVersion = -1;
+        private bool _webMapReady;
+        private string _webImageHash = "";
+        private readonly Dictionary<int, string> _webTokenPhotoKeys = new Dictionary<int, string>();
         private readonly Image _mapImage = new Image();
 
         /// <summary>Какой файл карты уже раскодирован: не перечитываем огромный PNG на каждый ход.</summary>
@@ -66,7 +75,7 @@ namespace HMWT_MUI.Views
         /// перетаскивания и туман пересобирался по тысячам полигонов.
         /// </summary>
         private readonly HashSet<string> _seenSet = new HashSet<string>(StringComparer.Ordinal);
-        private const int MaxSeenSectors = 240;
+        private const int MaxSeenSectors = 2000;
 
         /// <summary>Кэш геометрии разведанного: 240 полигонов не пересобираются на каждый кадр.</summary>
         private readonly Dictionary<string, Geometry> _seenGeometries =
@@ -90,6 +99,8 @@ namespace HMWT_MUI.Views
         /// одно от другого: при открытии нельзя заново начинать разведку.
         /// </summary>
         private bool _suppressFogEvents;
+
+        private Button _shapeButton;
 
         private readonly Canvas _drawLayer = new Canvas();
         private readonly Canvas _fovLayer = new Canvas();
@@ -193,7 +204,7 @@ namespace HMWT_MUI.Views
         private readonly Slider _gridThicknessSlider = new Slider { Width = 76, Minimum = 0.5, Maximum = 4, TickFrequency = 0.5, IsSnapToTickEnabled = true, Value = 1 };
         private readonly Slider _revealSlider = new Slider { Width = 100, Minimum = 1, Maximum = 20, TickFrequency = 1, IsSnapToTickEnabled = true, Value = 6 };
         private readonly TextBlock _revealLabel = new TextBlock { FontSize = 11 };
-        private readonly Slider _shapeSlider = new Slider { Width = 90, Minimum = 1, Maximum = 20, TickFrequency = 1, IsSnapToTickEnabled = true, Value = 4 };
+        private readonly TextBox _shapeField = DmUiKit.Field("4", 52, "Клетки");
         private readonly CheckBox _measureCheck = DmUiKit.Check("Линейка", false);
         private readonly CheckBox _pingCheck = DmUiKit.Check("Пинг", false);
         private readonly Canvas _measureLayer = new Canvas { IsHitTestVisible = false };
@@ -203,6 +214,7 @@ namespace HMWT_MUI.Views
         private Point? _measureStart;
         private readonly CheckBox _gridCheck = DmUiKit.Check("Сетка", true);
         private readonly CheckBox _snapCheck = DmUiKit.Check("Привязка", true);
+        private readonly CheckBox _showPlayersCheck = DmUiKit.Check("Токены отряда", false);
 
         private readonly ScaleTransform _zoom = new ScaleTransform(1, 1);
         private readonly TranslateTransform _shift = new TranslateTransform(0, 0);
@@ -237,12 +249,36 @@ namespace HMWT_MUI.Views
             _trailTimer.Tick += (s, e) => RemoveOldTrails();
 
             BuildShell();
+
+            _webMap.Ready += () =>
+            {
+                _webMapReady = true;
+                _webMap.Visibility = Visibility.Visible;
+                _world.Visibility = Visibility.Collapsed;
+                _webSyncTimer?.Start();
+                PushWebMap();
+            };
+            _webMap.Failed += () =>
+            {
+                _webMapReady = false;
+                _webMap.Visibility = Visibility.Collapsed;
+                _world.Visibility = Visibility.Visible;
+            };
+            _webMap.TokenMovedWithTrail += OnWebTokenMoved;
+
+            _webSyncTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(400)
+            };
+            _webSyncTimer.Tick += (s, e) => PushWebMap();
+
             Loaded += (s, e) =>
             {
                 SubscribeRoom();
                 Refresh();
                 _lastRoomActive = _inRoom;
                 _retryTimer.Start();
+                _webSyncTimer.Start();
             };
             Unloaded += (s, e) =>
             {
@@ -253,6 +289,7 @@ namespace HMWT_MUI.Views
                 _visualTimer.Stop();
                 _visualMoves.Clear();
                 _trailTimer.Stop();
+                _webSyncTimer?.Stop();
                 _trails.Clear();
                 _trailTouched.Clear();
                 _trailLayer.Children.Clear();
@@ -265,6 +302,7 @@ namespace HMWT_MUI.Views
                 SubscribeRoom();
                 Refresh();
                 _retryTimer.Start();
+                if (_webMapReady) _webSyncTimer?.Start();
             };
         }
 
@@ -406,6 +444,12 @@ namespace HMWT_MUI.Views
             };
             bar.Children.Add(_snapCheck);
 
+            _showPlayersCheck.Margin = new Thickness(0, 0, 8, 0);
+            _showPlayersCheck.ToolTip = "Показывать жетоны игроков даже вне вашего обзора";
+            _showPlayersCheck.Checked += (s, e) => RefreshTokenVisibility();
+            _showPlayersCheck.Unchecked += (s, e) => RefreshTokenVisibility();
+            bar.Children.Add(_showPlayersCheck);
+
             _cellSlider.Margin = new Thickness(0, 0, 6, 0);
             _cellSlider.VerticalAlignment = VerticalAlignment.Center;
             _cellSlider.ToolTip = "Размер клетки: тяните, чтобы подогнать под сетку карты";
@@ -510,18 +554,24 @@ namespace HMWT_MUI.Views
             bar.Children.Add(_fogCheck);
 
             // ── фигуры областей ──
-            Button shapeButton = null;
-            shapeButton = DmUiKit.Action("Фигура…", (s, e) => OpenShapeMenu(shapeButton), DmUiKit.ButtonKind.Ghost,
+            _shapeButton = DmUiKit.Action("Фигура…", (s, e) => OpenShapeMenu(_shapeButton), DmUiKit.ButtonKind.Ghost,
                 "Круг, квадрат, конус или линия: выберите тип, затем щёлкните по карте", 96, 30);
-            shapeButton.Margin = new Thickness(0, 0, 10, 0);
-            shapeButton.IsEnabled = _isDm;
-            bar.Children.Add(shapeButton);
+            _shapeButton.Margin = new Thickness(0, 0, 10, 0);
+            _shapeButton.IsEnabled = _isDm || _remote;
+            bar.Children.Add(_shapeButton);
 
-            _shapeSlider.Margin = new Thickness(0, 0, 10, 0);
-            _shapeSlider.VerticalAlignment = VerticalAlignment.Center;
-            _shapeSlider.ToolTip = "Размер новой фигуры в клетках";
-            _shapeSlider.IsEnabled = _isDm;
-            bar.Children.Add(_shapeSlider);
+            _shapeField.Margin = new Thickness(0, 0, 10, 0);
+            _shapeField.VerticalAlignment = VerticalAlignment.Center;
+            _shapeField.ToolTip = "Размер новой фигуры в клетках (число)";
+            _shapeField.IsEnabled = _isDm || _remote;
+            bar.Children.Add(_shapeField);
+
+            Button trailColor = null;
+            trailColor = DmUiKit.Action("Цвет следа", (s, e) => OpenTrailColorMenu(trailColor),
+                DmUiKit.ButtonKind.Ghost, "Цвет линии, остающейся за жетоном", 110, 30);
+            trailColor.Margin = new Thickness(0, 0, 10, 0);
+            trailColor.IsEnabled = _isDm;
+            bar.Children.Add(trailColor);
 
             // ── линейка: протяните мышью и увидите клетки/футы ──
             _measureCheck.Margin = new Thickness(0, 0, 10, 0);
@@ -697,8 +747,9 @@ namespace HMWT_MUI.Views
             _content.Children.Add(_drawLayer);
             _content.Children.Add(_fovLayer);
             _content.Children.Add(_trailLayer);
-            _content.Children.Add(_tokenLayer);
+            // Фигуры под жетонами: жетон игрока всегда можно схватить.
             _content.Children.Add(_shapeLayer);
+            _content.Children.Add(_tokenLayer);
             _world.Children.Add(_content);
 
             _fog.IsHitTestVisible = false;
@@ -716,6 +767,7 @@ namespace HMWT_MUI.Views
             viewportHost.Children.Add(_world);
             viewportHost.Children.Add(_measureLayer);
             viewportHost.Children.Add(_pingLayer);
+            viewportHost.Children.Add(_webMap);
             _viewport.Child = viewportHost;
             _viewport.SizeChanged += (s, e) => { if (!_userZoomed) FitToWindow(); };
             _viewport.MouseWheel += Viewport_MouseWheel;
@@ -748,6 +800,208 @@ namespace HMWT_MUI.Views
         }
 
         // ══════════════════════ ДАННЫЕ ══════════════════════
+
+        private void PushWebMap()
+        {
+            if (!_webMapReady || _scene == null) return;
+
+            try
+            {
+                string imagePath = string.IsNullOrWhiteSpace(_scene.ImageHash)
+                    ? null
+                    : (_remote ? RemoteImagePath(_scene.ImageHash) : MapService.ResolveImagePath(_scene));
+                string imageHash = _scene.ImageHash ?? "";
+                bool sendImage = !string.Equals(imageHash, _webImageHash, StringComparison.OrdinalIgnoreCase);
+                string image = sendImage ? WebAssetUrl(imagePath) : null;
+                bool includeSeen = _webSeenVersion != _seenVersion;
+
+                var tokens = new List<object>();
+                foreach (var t in _scene.Tokens)
+                {
+                    string photoPath = ResolveTokenPhoto(t);
+                    string photoKey = photoPath ?? "";
+                    bool sendPhoto = !_webTokenPhotoKeys.TryGetValue(t.Id, out var oldPhoto) ||
+                                     !string.Equals(oldPhoto, photoKey, StringComparison.OrdinalIgnoreCase);
+                    if (sendPhoto) _webTokenPhotoKeys[t.Id] = photoKey;
+
+                    tokens.Add(new
+                    {
+                        id = t.Id,
+                        label = t.Label ?? "",
+                        x = t.X,
+                        y = t.Y,
+                        sizeCells = t.SizeCells,
+                        color = t.Color ?? "",
+                        isPlayer = t.IsPlayer,
+                        hidden = t.Hidden,
+                        selected = t.Id == _selectedTokenId,
+                        canMove = CanMoveToken(t),
+                        // null — аватар не менялся; "" — аватара нет.
+                        photo = sendPhoto ? WebAssetUrl(photoPath) : null
+                    });
+                }
+
+                var payload = new
+                {
+                    type = "scene",
+                    sceneId = _scene.Id,
+                    width = _scene.WidthPx > 0 ? _scene.WidthPx : 1,
+                    height = _scene.HeightPx > 0 ? _scene.HeightPx : 1,
+                    imageHash,
+                    image,
+                    isDm = _isDm,
+                    grid = new
+                    {
+                        on = _scene.GridOn,
+                        px = _scene.GridPx,
+                        offsetX = _scene.GridOffsetX,
+                        offsetY = _scene.GridOffsetY,
+                        thickness = _scene.GridThickness,
+                        color = _scene.GridColor
+                    },
+                    fog = new
+                    {
+                        on = WebFogEnabled(),
+                        seen = includeSeen ? _seenPoints.ToList() : null
+                    },
+                    trailColor = string.IsNullOrWhiteSpace(_scene.TrailColor)
+                        ? "#FF9B8BFF" : _scene.TrailColor,
+                    trails = _trails.Select(pair => new
+                    {
+                        id = pair.Key,
+                        points = pair.Value.Select(p => new { x = p.X, y = p.Y }).ToList()
+                    }).ToList(),
+                    tokens,
+                    shapes = _scene.Shapes.Select(s => new
+                    {
+                        id = s.Id,
+                        kind = s.Kind,
+                        x = s.X,
+                        y = s.Y,
+                        radius = s.RadiusCells,
+                        angle = s.Angle,
+                        color = s.Color,
+                        label = s.Label ?? ""
+                    }).ToList(),
+                    walls = _scene.Walls.Select(w => new
+                    {
+                        id = w.Id,
+                        x1 = w.X1,
+                        y1 = w.Y1,
+                        x2 = w.X2,
+                        y2 = w.Y2,
+                        kind = w.Kind,
+                        isOpen = w.IsOpen
+                    }).ToList()
+                };
+
+                string json = System.Text.Json.JsonSerializer.Serialize(payload,
+                    new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    });
+
+                _webMap.SendState(json);
+                if (includeSeen) _webSeenVersion = _seenVersion;
+                if (sendImage) _webImageHash = imageHash;
+            }
+            catch (Exception ex)
+            {
+                WebLog("state error: " + ex);
+                Debug.WriteLine("[MapWeb] state: " + ex.Message);
+            }
+        }
+
+        private bool WebFogEnabled()
+        {
+#if DEBUG
+            if (Environment.GetEnvironmentVariable("HMWT_DEBUG_NOFOG") == "1") return false;
+#endif
+            return _scene != null && _scene.FogOn;
+        }
+
+        private static void WebLog(string text)
+        {
+            try
+            {
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "hmwt-map-web.log"),
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " " + text + Environment.NewLine);
+            }
+            catch { }
+        }
+
+        private string WebAssetUrl(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return "";
+            if (_webDataUrls.TryGetValue(path, out var cached)) return cached;
+
+            try
+            {
+                string root = Path.GetFullPath(PhotoHelper.GetWritableRoot());
+                string full = Path.GetFullPath(path);
+                if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    return "";
+
+                string relative = full.Substring(root.Length).TrimStart('\\', '/');
+                string url = "https://hmwt.assets/" + string.Join("/",
+                    relative.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(Uri.EscapeDataString));
+                _webDataUrls[path] = url;
+                return url;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("[MapWeb] asset: " + ex.Message);
+                return "";
+            }
+        }
+
+        private void OnWebTokenMoved(int tokenId, double x, double y, List<MapTrailPoint> trail)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebTokenMoved(tokenId, x, y, trail)));
+                return;
+            }
+
+            if (_scene == null) return;
+            var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
+            if (token == null || !CanMoveToken(token)) return;
+
+            if (trail != null && trail.Count >= 2)
+            {
+                _trails[tokenId] = trail
+                    .Where(p => p != null)
+                    .Select(p => new Point(p.X, p.Y))
+                    .ToList();
+                PublishLocalTrail(tokenId);
+            }
+
+            if (_scene.SnapToGrid)
+            {
+                double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
+                x = Math.Round((x - cell / 2) / cell) * cell + cell / 2;
+                y = Math.Round((y - cell / 2) / cell) * cell + cell / 2;
+            }
+
+            token.X = Math.Max(0, Math.Min(_scene.WidthPx, x));
+            token.Y = Math.Max(0, Math.Min(_scene.HeightPx, y));
+
+            if (_remote)
+            {
+                RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y);
+                RememberCurrentVision();
+            }
+            else
+            {
+                MapService.SaveToken(token);
+                PublishMap();
+                RememberCurrentVision();
+            }
+
+            PushWebMap();
+        }
 
         public void Refresh()
         {
@@ -784,6 +1038,15 @@ namespace HMWT_MUI.Views
                 foreach (var scene in _scenes) _sceneCombo.Items.Add(scene);
 
                 var target = _scenes.FirstOrDefault(s => s.Id == keepId) ?? _scenes.FirstOrDefault();
+#if DEBUG
+                try
+                {
+                    string debugScene = Environment.GetEnvironmentVariable("HMWT_DEBUG_SCENE");
+                    if (int.TryParse(debugScene, out int debugSceneId))
+                        target = _scenes.FirstOrDefault(s => s.Id == debugSceneId) ?? target;
+                }
+                catch { }
+#endif
                 if (target != null)
                 {
                     _sceneCombo.SelectedItem = target;
@@ -1290,6 +1553,8 @@ namespace HMWT_MUI.Views
             if (active == _lastRoomActive) return;
             _lastRoomActive = active;
             if (!active) _mapAssetAsked.Clear();
+            if (_shapeButton != null) _shapeButton.IsEnabled = _isDm || _remote;
+            if (_shapeField != null) _shapeField.IsEnabled = _isDm || _remote;
             Refresh();
         }
 
@@ -1667,6 +1932,34 @@ namespace HMWT_MUI.Views
             _cellSlider.Value = Math.Max(_cellSlider.Minimum, Math.Min(_cellSlider.Maximum, size));
         }
 
+        private void OpenTrailColorMenu(FrameworkElement target)
+        {
+            if (!_isDm || _scene == null) return;
+
+            var menu = new ContextMenu();
+            ApplyDarkStyle(menu, "DarkMenu");
+            foreach (var pair in new[]
+            {
+                ("Фиолетовый", "#FF9B8BFF"), ("Бирюзовый", "#FF5FD4DD"),
+                ("Золотой", "#FFE8C07F"), ("Красный", "#FFE06A63"),
+                ("Зелёный", "#FF7FD98A"), ("Серый", "#FF9AA4BF")
+            })
+            {
+                var item = new MenuItem { Header = pair.Item1 };
+                ApplyMenuItemStyle(item);
+                item.Click += (s, e) =>
+                {
+                    _scene.TrailColor = pair.Item2;
+                    MapService.SaveScene(_scene);
+                    PublishMap();
+                    PushWebMap();
+                };
+                menu.Items.Add(item);
+            }
+            menu.PlacementTarget = target;
+            menu.IsOpen = true;
+        }
+
         private void OpenGridColorMenu(FrameworkElement target, Border swatch)
         {
             if (!_isDm || _scene == null) return;
@@ -1719,6 +2012,7 @@ namespace HMWT_MUI.Views
 
         private void BuildGrid()
         {
+            if (_webMapReady) return;
             _gridLayer.Children.Clear();
             if (_scene == null || !_scene.GridOn || _scene.WidthPx <= 0) return;
 
@@ -1905,6 +2199,7 @@ namespace HMWT_MUI.Views
 
         private void RenderStrokes()
         {
+            if (_webMapReady) return;
             _drawLayer.Children.Clear();
             if (_scene == null) return;
 
@@ -2121,6 +2416,7 @@ namespace HMWT_MUI.Views
 
         private void RenderWalls()
         {
+            if (_webMapReady) return;
             _wallLayer.Children.Clear();
             if (_scene == null) return;
 
@@ -2578,6 +2874,7 @@ namespace HMWT_MUI.Views
 
         private void BuildFogMask()
         {
+            if (_webMapReady) return;
             var perfWatch = System.Diagnostics.Stopwatch.StartNew();
 
             if (_scene == null) return;
@@ -2618,20 +2915,23 @@ namespace HMWT_MUI.Views
             {
                 try
                 {
-                    Geometry union = null;
+                    // Не булево объединение, а группа: Combine на сотнях
+                    // полигонов мог потерять кусок и сам по себе стоил дорого.
+                    var group = new GeometryGroup { FillRule = FillRule.Nonzero };
                     foreach (var geometry in seenGeometries)
                     {
-                        if (geometry == null) continue;
-                        union = union == null ? geometry : Geometry.Combine(union, geometry,
-                            GeometryCombineMode.Union, null);
+                        if (geometry != null) group.Children.Add(geometry);
                     }
 
-                    if (union != null)
+                    if (group.Children.Count > 0)
                     {
-                        try { union.Freeze(); } catch { }
+                        try { group.Freeze(); } catch { }
+                        _seenUnion = group;
                     }
-
-                    _seenUnion = union;
+                    else
+                    {
+                        _seenUnion = null;
+                    }
                 }
                 catch
                 {
@@ -2791,6 +3091,7 @@ namespace HMWT_MUI.Views
         private bool IsTokenVisibleByLos(MapTokenData token, bool combined)
         {
             if (token == null || _scene == null) return true;
+            if (_showPlayersCheck.IsChecked == true && token.IsPlayer && !token.Hidden) return true;
             if (_isDm) return true;              // мастер видит всех
             if (CanMoveToken(token)) return true; // свой жетон виден всегда
 
@@ -2853,6 +3154,7 @@ namespace HMWT_MUI.Views
         /// <summary>Прячет чужие жетоны, закрытые стеной от всех своих жетонов.</summary>
         private void RefreshTokenVisibility()
         {
+            if (_webMapReady) return;
             if (_scene == null) return;
 
             bool combined = !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase);
@@ -2940,6 +3242,7 @@ namespace HMWT_MUI.Views
 
         private void RenderFov()
         {
+            if (_webMapReady) return;
             _fovLayer.Children.Clear();
             if (_scene == null) return;
 
@@ -3031,6 +3334,7 @@ namespace HMWT_MUI.Views
 
         private void RenderTrails()
         {
+            if (_webMapReady) return;
             var perfWatch = System.Diagnostics.Stopwatch.StartNew();
             _trailLayer.Children.Clear();
             if (_scene == null) return;
@@ -3174,10 +3478,11 @@ namespace HMWT_MUI.Views
 
         private void OpenShapeMenu(FrameworkElement target)
         {
-            if (!_isDm) return;
+            if (!_isDm && !_remote) return;
 
             var menu = new ContextMenu();
             ApplyDarkStyle(menu, "DarkMenu");
+            double radius = ParseShapeSize();
 
             foreach (var kind in ShapeKinds)
             {
@@ -3187,9 +3492,9 @@ namespace HMWT_MUI.Views
                 ApplyMenuItemStyle(item);
                 item.Click += (s, e) =>
                 {
-                    // размер берём с ползунка «Фигура» — фиксированных вариантов больше нет
-                    _pendingShape = new MapShapeData { Kind = kindKey, RadiusCells = Math.Max(1, _shapeSlider.Value) };
-                    DmRolls.Toast(this, $"{title} {_shapeSlider.Value:0} кл.: щёлкните по карте");
+                    // размер берём из числового поля, а не из ползунка
+                    _pendingShape = new MapShapeData { Kind = kindKey, RadiusCells = Math.Max(1, ParseShapeSize()) };
+                    DmRolls.Toast(this, $"{title} {_pendingShape.RadiusCells:0.#} кл.: щёлкните по карте");
                 };
                 menu.Items.Add(item);
             }
@@ -3198,9 +3503,22 @@ namespace HMWT_MUI.Views
             menu.IsOpen = true;
         }
 
+        private double ParseShapeSize()
+        {
+            string text = (_shapeField.Text ?? "").Trim().Replace(',', '.');
+            double value;
+            if (!double.TryParse(text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out value))
+                value = 4;
+            value = Math.Max(0.5, Math.Min(20, value));
+            _shapeField.Text = value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            return value;
+        }
+
         private void PlaceShape(Point point)
         {
             if (_scene == null || _pendingShape == null) return;
+            if (!_isDm && !_remote) return;
 
             var shape = new MapShapeData
             {
@@ -3218,6 +3536,13 @@ namespace HMWT_MUI.Views
                 double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
                 shape.X = Math.Round((shape.X - cell / 2) / cell) * cell + cell / 2;
                 shape.Y = Math.Round((shape.Y - cell / 2) / cell) * cell + cell / 2;
+            }
+
+            if (_remote)
+            {
+                RoomSession.Instance.SendMapShape("create", shape);
+                _pendingShape = null;
+                return;
             }
 
             if (MapService.SaveShape(shape) > 0)
@@ -3238,6 +3563,7 @@ namespace HMWT_MUI.Views
 
         private void RenderShapes()
         {
+            if (_webMapReady) return;
             _shapeLayer.Children.Clear();
             if (_scene == null) return;
 
@@ -3355,7 +3681,7 @@ namespace HMWT_MUI.Views
 
         private void AttachShapeEvents(FrameworkElement visual, MapShapeData shape)
         {
-            if (!_isDm) return;
+            if (!_isDm && !_remote) return;
 
             visual.Cursor = Cursors.SizeAll;
             visual.MouseLeftButtonDown += (s, e) =>
@@ -3387,8 +3713,7 @@ namespace HMWT_MUI.Views
             {
                 if (_dragShape == null) return;
                 visual.ReleaseMouseCapture();
-                MapService.SaveShape(shape);
-                PublishMap();
+                CommitShape(shape, "update");
                 _dragShape = null;
             };
             visual.MouseRightButtonUp += (s, e) =>
@@ -3398,46 +3723,95 @@ namespace HMWT_MUI.Views
             };
         }
 
+        /// <summary>Хост сохраняет фигуру сам, игрок отправляет изменение ведущему.</summary>
+        private void CommitShape(MapShapeData shape, string action)
+        {
+            if (shape == null) return;
+
+            if (_remote)
+            {
+                if (string.Equals(action, "delete", StringComparison.OrdinalIgnoreCase))
+                    _scene?.Shapes.RemoveAll(s => s.Id == shape.Id);
+                RoomSession.Instance.SendMapShape(action, shape);
+                RenderShapes();
+                return;
+            }
+
+            if (string.Equals(action, "delete", StringComparison.OrdinalIgnoreCase))
+                MapService.DeleteShape(shape.Id);
+            else
+                MapService.SaveShape(shape);
+
+            PublishMap();
+            RenderShapes();
+        }
+
         private void ShowShapeMenu(FrameworkElement target, MapShapeData shape)
         {
+            if (!_isDm && !_remote) return;
+
             var menu = new ContextMenu();
             ApplyDarkStyle(menu, "DarkMenu");
 
+            AddMenuItem(menu, $"Размер: {shape.RadiusCells:0.#} кл. — изменить…", () =>
+            {
+                string answer = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                    "Размер фигуры", "Радиус в клетках", shape.RadiusCells.ToString("0.#"),
+                    "Применить");
+                if (string.IsNullOrWhiteSpace(answer)) return;
+                double value;
+                if (!double.TryParse(answer.Trim().Replace(',', '.'),
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out value))
+                    return;
+                shape.RadiusCells = Math.Max(0.5, Math.Min(20, value));
+                CommitShape(shape, "update");
+            });
             AddMenuItem(menu, "Больше на 1 клетку", () =>
             {
                 shape.RadiusCells = Math.Min(20, shape.RadiusCells + 1);
-                MapService.SaveShape(shape);
-                PublishMap();
-                RenderShapes();
+                CommitShape(shape, "update");
             });
             AddMenuItem(menu, "Меньше на 1 клетку", () =>
             {
                 shape.RadiusCells = Math.Max(0.5, shape.RadiusCells - 1);
-                MapService.SaveShape(shape);
-                PublishMap();
-                RenderShapes();
+                CommitShape(shape, "update");
             });
+
+            var colorMenu = new MenuItem { Header = "Цвет фигуры" };
+            ApplyMenuItemStyle(colorMenu);
+            foreach (var pair in new[]
+            {
+                ("Фиолетовый", "#FFB98BFF"), ("Красный", "#FFE06A63"),
+                ("Зелёный", "#FF7FD98A"), ("Синий", "#FF6FA8FF"),
+                ("Золотой", "#FFE8C07F"), ("Серый", "#FF9AA4BF")
+            })
+            {
+                var colorItem = new MenuItem { Header = pair.Item1 };
+                ApplyMenuItemStyle(colorItem);
+                colorItem.Click += (s, e) =>
+                {
+                    shape.Color = pair.Item2;
+                    CommitShape(shape, "update");
+                };
+                colorMenu.Items.Add(colorItem);
+            }
+            menu.Items.Add(colorMenu);
+
             AddMenuItem(menu, "Повернуть ⟳", () =>
             {
                 shape.Angle = ((shape.Angle + 45) % 360 + 360) % 360;
-                MapService.SaveShape(shape);
-                PublishMap();
-                RenderShapes();
+                CommitShape(shape, "update");
             });
             AddMenuItem(menu, "Повернуть ⟲", () =>
             {
                 shape.Angle = ((shape.Angle - 45) % 360 + 360) % 360;
-                MapService.SaveShape(shape);
-                PublishMap();
-                RenderShapes();
+                CommitShape(shape, "update");
             });
             menu.Items.Add(BuildSeparator());
             AddMenuItem(menu, "Убрать фигуру", () =>
             {
-                MapService.DeleteShape(shape.Id);
-                PublishMap();
-                _scene.Shapes.RemoveAll(s => s.Id == shape.Id);
-                RenderShapes();
+                CommitShape(shape, "delete");
             });
 
             menu.PlacementTarget = target;
@@ -3571,6 +3945,7 @@ namespace HMWT_MUI.Views
 
         private void RebuildTokens()
         {
+            if (_webMapReady) return;
             _visualMoves.Clear();
             _visualTimer.Stop();
             _tokenLayer.Children.Clear();
@@ -4408,7 +4783,7 @@ namespace HMWT_MUI.Views
             if (e.OriginalSource is Border b && b.Tag is MapTokenData) return;
 
             // выбран тип фигуры — щелчок ставит её на карту
-            if (e.ChangedButton == MouseButton.Left && _pendingShape != null && _isDm && _scene != null)
+            if (e.ChangedButton == MouseButton.Left && _pendingShape != null && (_isDm || _remote) && _scene != null)
             {
                 PlaceShape(e.GetPosition(_shapeLayer));
                 _viewport.Cursor = Cursors.Arrow;

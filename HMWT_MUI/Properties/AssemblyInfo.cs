@@ -151,5 +151,5 @@ using System.Windows;
 // и рисуется порциями, полная карточка читается по выбору. Плюс обмен
 // бестиарием файлом .hmwtpack (существа и картинки) и видимая пометка
 // источника у существа.
-[assembly: AssemblyVersion("1.2.8.21")]
-[assembly: AssemblyFileVersion("1.2.8.21")]
+[assembly: AssemblyVersion("1.3.3.1")]
+[assembly: AssemblyFileVersion("1.3.3.1")]

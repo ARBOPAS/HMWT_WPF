@@ -913,6 +913,14 @@ namespace HMWT_MUI.Net
             _ = _client.SendMapTrailAsync(tokenId, points);
         }
 
+        /// <summary>Игрок меняет фигуру — хост применит и разошлёт всем.</summary>
+        public void SendMapShape(string action, MapShapeData shape)
+        {
+            if (!IsActive || IsHost || shape == null) return;
+            if (_client == null || !_client.IsConnected) return;
+            _ = _client.SendMapShapeAsync(action, shape);
+        }
+
         /// <summary>Игрок просит карту (например, только что открыл вкладку).</summary>
         public void RequestMap()
         {

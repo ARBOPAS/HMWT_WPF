@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Generic;
+using HMWT_MUI.Models;
 using System.Text.Json;
 using System.IO;
 using System.Text.Json.Serialization;
@@ -505,6 +505,13 @@ namespace HMWT_MUI.Net
     {
         [JsonPropertyName("id")] public int TokenId { get; set; }
         [JsonPropertyName("points")] public List<MapTrailPoint> Points { get; set; } = new List<MapTrailPoint>();
+    }
+
+    /// <summary>Игрок создаёт/двигает/красит/удаляет фигуру.</summary>
+    public sealed class MapShapeRequest
+    {
+        [JsonPropertyName("action")] public string Action { get; set; } = "create";
+        [JsonPropertyName("shape")] public MapShapeData Shape { get; set; }
     }
 
     /// <summary>

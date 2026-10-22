@@ -1511,6 +1511,48 @@ namespace HMWT_MUI.Views
         #endregion
 
         #region === ПОЛНЫЙ РЕДАКТОР ===
+        /// <summary>Открывает готовую карточку заклинания по имени.
+        /// Вызывается из бестиария, когда мастер щёлкает название заклинания.</summary>
+        public void OpenSpellByName(string name)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name)) return;
+                if (_prepared.Count == 0 && _known.Count == 0)
+                    LoadSpellsFromDb();
+
+                var spell = _prepared.Concat(_known)
+                    .FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+
+                if (spell == null)
+                {
+                    spell = SpellService.LoadSpellByName(name);
+                    if (spell == null)
+                    {
+                        ShowToast("Заклинание не найдено в справочнике", "?", B("B.Mute"));
+                        return;
+                    }
+
+                    _fullList = new List<SpellData>(_prepared);
+                    _fullList.AddRange(_known);
+                    if (!_fullList.Any(s => s.IdSpell == spell.IdSpell))
+                        _fullList.Insert(0, spell);
+                    _fullIndex = _fullList.FindIndex(s => s.IdSpell == spell.IdSpell);
+                    _creatingNew = false;
+                }
+                else
+                {
+                    BuildFullList(spell);
+                    _creatingNew = false;
+                }
+
+                _selectedSpell = spell;
+                FillFullEditor(spell);
+                if (FullEditorOverlay != null) FullEditorOverlay.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex) { Log("OpenSpellByName", ex); }
+        }
+
         private void BuildFullList(SpellData current)
         {
             ComputeVisible(out var prep, out var known);
@@ -1835,10 +1877,13 @@ namespace HMWT_MUI.Views
             if (FullSchool != null) FullSchool.Text = Blank(d.School);
             if (FullSource != null) FullSource.Text = Blank(d.Source);
             if (FullClasses != null) FullClasses.Text = Blank(d.Classes);
-            if (FullText != null) FullText.Text = string.IsNullOrWhiteSpace(d.Description) ? "Описание отсутствует." : d.Description;
+            if (FullText != null)
+                FillRollText(FullText,
+                    string.IsNullOrWhiteSpace(d.Description) ? "Описание отсутствует." : d.Description,
+                    "Описание", d);
             if (FullHigher != null)
             {
-                FullHigher.Text = d.AtHigherLevels ?? "";
+                FillRollText(FullHigher, d.AtHigherLevels, "На больших уровнях", d);
                 FullHigher.Visibility = string.IsNullOrWhiteSpace(d.AtHigherLevels) ? Visibility.Collapsed : Visibility.Visible;
             }
             if (FullModifiedBadge != null) FullModifiedBadge.Visibility = d.IsModified ? Visibility.Visible : Visibility.Collapsed;
@@ -1982,6 +2027,7 @@ namespace HMWT_MUI.Views
                         SaveNote = (EdSaveNote?.Text ?? "").Trim()
                     };
                     int newSpellId = SpellService.CreateNewSpell(newSpell, _characterId);
+                    Helpers.SpellTextLinker.Invalidate();
                     SpellService.SaveSpellTags(newSpellId, ReadChosenTags());
                     _creatingNew = false;
                     LoadSpellsFromDb();
@@ -2007,6 +2053,7 @@ namespace HMWT_MUI.Views
                 d.SaveNote = (EdSaveNote?.Text ?? "").Trim();
                 d.IsModified = rulebook || d.IsModified;
                 SpellService.SaveSpell(d);
+                Helpers.SpellTextLinker.Invalidate();
                 SpellService.SaveSpellTags(d.IdSpell, ReadChosenTags());
                 _spellTags = SpellService.LoadSpellTagMap();
                 FinalizeCardVisuals(d);

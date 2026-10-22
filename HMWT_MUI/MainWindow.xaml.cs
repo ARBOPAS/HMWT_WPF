@@ -43,6 +43,10 @@ namespace HMWT_MUI
         public MainWindow()
         {
             InitializeComponent();
+            System.Windows.Media.TextOptions.SetTextFormattingMode(this,
+                System.Windows.Media.TextFormattingMode.Display);
+            System.Windows.Media.TextOptions.SetTextRenderingMode(this,
+                System.Windows.Media.TextRenderingMode.ClearType);
             DatabaseHelper.Initialize();
             PhotoHelper.Initialize();
             SetupSettingsMenu();
@@ -127,10 +131,11 @@ namespace HMWT_MUI
 
                 if (txtAppVersionHint != null)
                 {
-                    txtAppVersionHint.Text = string.Equals(fileVersion, version, StringComparison.Ordinal)
+                    bool match = VersionsMatch(fileVersion, version);
+                    txtAppVersionHint.Text = match
                         ? "файл совпадает"
                         : $"в файле {fileVersion} — сборка устарела!";
-                    txtAppVersionHint.Foreground = string.Equals(fileVersion, version, StringComparison.Ordinal)
+                    txtAppVersionHint.Foreground = match
                         ? (Brush)FindResource("B.Mute")
                         : (Brush)FindResource("B.Danger");
                 }
@@ -143,6 +148,20 @@ namespace HMWT_MUI
             {
                 Debug.WriteLine($"[MainWindow] версия в подвале: {ex.Message}");
             }
+        }
+
+        private static bool VersionsMatch(string fileVersion, string appVersion)
+        {
+            if (string.Equals(fileVersion, appVersion, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!Version.TryParse(fileVersion, out var file) ||
+                !Version.TryParse(appVersion, out var app))
+                return false;
+
+            // AssemblyVersion часто хранит 1.3.0.0, а AppVersion — 1.3.0.
+            return file.Major == app.Major && file.Minor == app.Minor &&
+                   file.Build == Math.Max(0, app.Build) &&
+                   (app.Revision < 0 || file.Revision == Math.Max(0, app.Revision));
         }
 
         #region === ЗАГРУЗКА И ПОИСК ПЕРСОНАЖЕЙ ===
@@ -730,7 +749,7 @@ namespace HMWT_MUI
                 "Лицензия: GNU Affero General Public License v3.0 only (AGPL-3.0-only).\n" +
                 "Исходный код: https://github.com/ARBOPAS/HMWT_WPF\n\n" +
                 "Программа предоставляется без гарантий, как описано в разделах 15–16 AGPL-3.0.\n\n" +
-                "Название HMWT Гримуар и логотип не входят в лицензию кода.\n\n" +
+                "Название HMWT Гримуар, логотип и Help Me With That не входят в лицензию кода.\n\n" +
                 "Версия: " + Net.NetVersions.AppVersion + "\n\n" +
                 "Проект не связан с Wizards of the Coast и не одобрен ими. " +
                 "Имена, тексты и описания из книг принадлежат их издателям. " +

@@ -52,6 +52,9 @@ namespace HMWT_MUI.Models
         /// <summary>Цвет сетки строкой #AARRGGBB. По умолчанию белая полупрозрачная.</summary>
         public string GridColor { get; set; } = "#33FFFFFF";
 
+        /// <summary>Цвет следа, который остаётся за жетоном.</summary>
+        public string TrailColor { get; set; } = "#FF9B8BFF";
+
         /// <summary>Толщина линий сетки в точках картинки. 1 — тонкая, 3–4 — заметная.</summary>
         public double GridThickness { get; set; } = 1;
 

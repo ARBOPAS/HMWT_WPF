@@ -633,6 +633,13 @@ namespace HMWT_MUI.Net
                 Points = points ?? new List<MapTrailPoint>()
             }));
 
+        public Task SendMapShapeAsync(string action, MapShapeData shape)
+            => SendAsync(new NetMessage(MsgType.MapShape, new MapShapeRequest
+            {
+                Action = action ?? "update",
+                Shape = shape
+            }));
+
         /// <summary>Отправляет нарисованный штрих ведущему.</summary>
         public Task SendMapStrokeAsync(MapStrokeRequest stroke)
             => SendAsync(new NetMessage(MsgType.MapStroke, stroke));

@@ -1,6 +1,7 @@
 using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
 using HMWT_MUI.Services;
+using HMWT_MUI.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -155,7 +156,8 @@ namespace HMWT_MUI.Views
                     });
                 }
                 if (text.Length > 0)
-                    block.Children.Add(RollTextRenderer.Build(text, part => RollDicePart(source, monster, part, "Особенность", name), style));
+                    block.Children.Add(BuildSpellLinkedText(text, source, style,
+                        part => RollDicePart(source, monster, part, "Особенность", name)));
                 root.Children.Add(block);
             }
 
@@ -182,21 +184,18 @@ namespace HMWT_MUI.Views
 
                 if (section.Key == ActionSections.Lair && !string.IsNullOrWhiteSpace(monster.LairText))
                 {
-                    root.Children.Add(RollTextRenderer.Build(monster.LairText.Trim(),
-                        part => RollDicePart(source, monster, part, "Логово", "Логово"), style));
+                    root.Children.Add(BuildSpellLinkedText(monster.LairText.Trim(), source, style,
+                        part => RollDicePart(source, monster, part, "Логово", "Логово")));
                 }
 
                 foreach (var action in actions) root.Children.Add(BuildAction(monster, action, source, style));
             }
 
-            if (!string.IsNullOrWhiteSpace(monster.Spells))
-                root.Children.Add(BuildTextSection("ЗАКЛИНАНИЯ", monster.Spells, monster, source, style));
-
             if (!string.IsNullOrWhiteSpace(monster.Equipment))
                 root.Children.Add(BuildTextSection("СНАРЯЖЕНИЕ", monster.Equipment, monster, source, style));
 
             if (showDescription && !string.IsNullOrWhiteSpace(monster.Description))
-                root.Children.Add(BuildTextSection("ОПИСАНИЕ", monster.Description, monster, source, style));
+                root.Children.Add(BuildTextSection("ОПИСАНИЕ", monster.Description, monster, source, style, true));
 
             return root;
         }
@@ -508,20 +507,45 @@ namespace HMWT_MUI.Views
             }
 
             if (!string.IsNullOrWhiteSpace(action.Description))
-                panel.Children.Add(RollTextRenderer.Build(action.Description,
-                    part => RollDicePart(source, monster, part, "Действие", action.Name), style));
+                panel.Children.Add(BuildSpellLinkedText(action.Description, source, style,
+                    part => RollDicePart(source, monster, part, "Действие", action.Name)));
 
             return DmUiKit.Panel(panel, new Thickness(10, 8, 10, 8), DmUiKit.B("PanelHi"), DmUiKit.B("Line"), 6,
                 new Thickness(0, 2, 0, 2));
         }
 
+        private static TextBlock BuildSpellLinkedText(string text,
+            FrameworkElement source, RollTextStyle style, Action<FormulaPart> onDice)
+        {
+            var block = new TextBlock
+            {
+                FontFamily = style.Font,
+                FontSize = style.FontSize,
+                Foreground = style.Text,
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = Math.Max(16, style.FontSize * 1.35)
+            };
+            SpellTextLinker.BuildRich(block, text.Trim(), name =>
+            {
+                if (Window.GetWindow(source) is CharacterInfoWindow info)
+                    info.ShowSpellByName(name);
+                else
+                    SpellDetailWindow.Show(source, name);
+            }, onDice, style);
+            return block;
+        }
+
         private static UIElement BuildTextSection(string title, string text, MonsterData monster,
-            FrameworkElement source, RollTextStyle style)
+            FrameworkElement source, RollTextStyle style, bool linkSpells = false)
         {
             var panel = new StackPanel();
             panel.Children.Add(DmUiKit.SectionPanel(title));
-            panel.Children.Add(RollTextRenderer.Build(text.Trim(),
-                part => RollDicePart(source, monster, part, title, ""), style));
+            if (linkSpells)
+                panel.Children.Add(BuildSpellLinkedText(text, source, style,
+                    part => RollDicePart(source, monster, part, title, "")));
+            else
+                panel.Children.Add(RollTextRenderer.Build(text.Trim(),
+                    part => RollDicePart(source, monster, part, title, ""), style));
             return panel;
         }
 

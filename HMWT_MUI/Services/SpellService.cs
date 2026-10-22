@@ -110,6 +110,64 @@ namespace HMWT_MUI.Services
         /// <summary>
         /// Загружает все записи из справочника заклинаний.
         /// </summary>
+        /// <summary>Полная карточка заклинания из справочника по названию.
+        /// Нужна бестиарию: у монстра в тексте только имя, а показать надо описание.</summary>
+        public static SpellData LoadSpellByName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(@"
+                    SELECT * FROM SpellReference
+                    WHERE lower(name) = lower(@name)
+                    ORDER BY
+                        CASE
+                            WHEN lower(COALESCE(source,'')) LIKE '%phb%' THEN 0
+                            WHEN lower(COALESCE(source,'')) LIKE '%srd%' THEN 1
+                            WHEN COALESCE(source,'') = 'custom' THEN 3
+                            ELSE 2
+                        END,
+                        id_spell
+                    LIMIT 1", conn);
+                cmd.Parameters.AddWithValue("@name", name.Trim());
+                using var r = cmd.ExecuteReader();
+                if (!r.Read()) return null;
+
+                return new SpellData
+                {
+                    IdSpell = ReadInt(r, "id_spell"),
+                    Name = ReadText(r, "name"),
+                    Level = ReadInt(r, "level"),
+                    School = ReadText(r, "school"),
+                    CastingTime = ReadText(r, "casting_time"),
+                    Range = ReadText(r, "range"),
+                    Components = ReadText(r, "components"),
+                    Duration = ReadText(r, "duration"),
+                    Description = ReadText(r, "description"),
+                    AtHigherLevels = ReadText(r, "at_higher_levels"),
+                    Classes = ReadText(r, "classes"),
+                    Source = ReadText(r, "source"),
+                    Material = ReadText(r, "material"),
+                    Page = ReadText(r, "page"),
+                    Concentration = ReadInt(r, "concentration") != 0,
+                    Ritual = ReadInt(r, "ritual") != 0,
+                    DamageFormula = ReadText(r, "damage_formula"),
+                    DamageType = ReadText(r, "damage_type"),
+                    PerLevelDamage = ReadText(r, "per_level_damage"),
+                    HealFormula = ReadText(r, "heal_formula"),
+                    HealPerLevel = ReadText(r, "heal_per_level"),
+                    SaveNote = ReadText(r, "save_note")
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SpellService] LoadSpellByName: {ex.Message}");
+                return null;
+            }
+        }
+
         public static List<SpellRefRow> LoadSpellReference()
         {
             var rows = new List<SpellRefRow>();

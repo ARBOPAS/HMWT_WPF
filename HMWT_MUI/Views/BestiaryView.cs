@@ -154,8 +154,8 @@ namespace HMWT_MUI.Views
             _editor.Cancelled += CloseEditor;
             _editor.HorizontalAlignment = HorizontalAlignment.Center;
             _editor.VerticalAlignment = VerticalAlignment.Stretch;
-            _editor.Width = 1180;
-            _editor.MaxWidth = 1180;
+            _editor.Width = Math.Min(1520, Math.Max(1080, SystemParameters.WorkArea.Width - 80));
+            _editor.MaxWidth = _editor.Width;
 
             _editorLayer = new Border
             {
