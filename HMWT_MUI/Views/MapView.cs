@@ -1023,8 +1023,11 @@ namespace HMWT_MUI.Views
                     image,
                     isDm = _isDm,
                     // «Токены отряда»: показывать жетоны игроков даже вне обзора
-                    // Справочник состояний — тот же, что в окне персонажа
-                    conditionList = Services.DefenseCatalog.Conditions,
+                    // Справочник состояний: ключ + русское название. Ключи те же,
+                    // что в трекере инициативы («charmed»), поэтому состояние —
+                    // один объект на всё приложение, а не три разных списка.
+                    conditionList = Services.CharacterStateService.LoadConditions(0)
+                        .Select(c => new { key = c.Key, name = c.Name }).ToList(),
                     showParty = _showPlayersCheck.IsChecked == true,
                     rotation = _scene.Rotation,
                     flipH = _scene.FlipH,

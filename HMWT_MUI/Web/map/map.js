@@ -1113,8 +1113,11 @@
         node._hp.style.fill = (t.hp <= 0) ? 0x8a2030 : 0xffb3b3;
       }
 
-      // Показываем одно состояние и многоточие: полный список — в меню ПКМ.
-      const condAll = (t.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      // Состояния хранятся ключами («charmed»), показываем русские названия.
+      const condNames = {};
+      for (const o of ((state && state.conditionList) || [])) if (o && o.key) condNames[o.key.toLowerCase()] = o.name || o.key;
+      const condAll = (t.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean)
+        .map(k => condNames[k.toLowerCase()] || k);
       const condText = condAll.length > 1 ? condAll[0] + '…' : (condAll[0] || '');
       node._cond.text = condText;
       node._cond.visible = condText.length > 0;
@@ -1855,21 +1858,38 @@
         });
 
       items.push({ separator: true });
-      // Состояния из справочника: галочки, как в окне персонажа
+      // Состояния: ключи из трекера, подписи русские. Ведущий ставит любому
+      // жетону, игрок видит список своего (правка у игрока — следующим шагом).
       const condList = (state && state.conditionList) || [];
       const condHave = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
       if (condList.length) {
+        items.push({ separator: true });
         items.push({ text: 'Состояния', disabled: true });
-        for (const c of condList)
+        for (const c of condList) {
+          if (!c || !c.key) continue;
           items.push({
-            text: c,
-            check: condHave.some(x => x.toLowerCase() === c.toLowerCase()),
-            action: 'condition', value: c
+            text: c.name || c.key,
+            check: condHave.some(x => x.toLowerCase() === c.key.toLowerCase()),
+            action: 'condition', value: c.key, disabled: false
           });
+        }
       }
 
       items.push({ separator: true });
       items.push({ text: 'Убрать с карты', danger: true, action: 'remove', value: '' });
+    } else {
+      // Игрок: состояния своего жетона видны списком (пока только чтение)
+      const list = (state && state.conditionList) || [];
+      const have = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      if (list.length) {
+        items.push({ separator: true });
+        items.push({ text: 'Состояния', disabled: true });
+        for (const c of list) {
+          if (!c || !c.key) continue;
+          if (!have.some(x => x.toLowerCase() === c.key.toLowerCase())) continue;
+          items.push({ text: '• ' + (c.name || c.key), disabled: true });
+        }
+      }
     }
 
     renderMenu(e.clientX, e.clientY, items, item =>
@@ -2722,5 +2742,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.6.3');
+  log('renderer ready v1.3.6.4');
 })();
