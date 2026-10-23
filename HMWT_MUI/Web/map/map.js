@@ -1108,12 +1108,18 @@
 
       const custom = t.viewColor ? rgba(t.viewColor, null) : null;
       const color = custom ? custom.color : (t.isPlayer ? 0x5fd4dd : 0xa98bec);
-      fovG.beginFill(color, 0.14);
-      fovG.lineStyle(2, color, 0.75);
+
+      // У мастера заливка только у выбранного жетона: иначе конусы всех
+      // монстров накладываются и карта превращается в сплошное пятно.
+      // Жетоны игроков заливаются всегда — их немного.
+      const filled = !isDm || t.isPlayer || t.id === selectedTokenId;
+
+      if (filled) fovG.beginFill(color, 0.14);
+      fovG.lineStyle(2, color, filled ? 0.75 : 0.4);
       fovG.moveTo(v.pts[0], v.pts[1]);
       for (let i = 2; i < v.pts.length; i += 2) fovG.lineTo(v.pts[i], v.pts[i + 1]);
       fovG.closePath();
-      fovG.endFill();
+      if (filled) fovG.endFill();
     }
   }
 
@@ -1310,13 +1316,21 @@
     return screenToScene(screenPoint(e));
   }
 
-  function snapPoint(x, y) {
+  function snapPoint(x, y, prevX, prevY) {
     if (!state || !state.grid || !state.grid.snap) return { x, y };
     const c = cellPx();
-    return {
-      x: Math.round((x - c / 2) / c) * c + c / 2,
-      y: Math.round((y - c / 2) / c) * c + c / 2
+
+    // Гистерезис: жетон остаётся в текущей клетке, пока курсор не ушёл от её
+    // центра больше чем на 60%. Без этого оси округлялись по очереди и жетон
+    // «объезжал» клетку по сторонам вместо хода по диагонали.
+    const snapAxis = (v, prev) => {
+      const center = Math.round((v - c / 2) / c) * c + c / 2;
+      if (prev === undefined || prev === null) return center;
+      if (Math.abs(v - prev) < c * 0.6) return prev;
+      return center;
     };
+
+    return { x: snapAxis(x, prevX), y: snapAxis(y, prevY) };
   }
 
   function snapWall(x, y) {
@@ -1793,7 +1807,9 @@
     const t = drag.token;
     let x = sp.x - drag.offsetX;
     let y = sp.y - drag.offsetY;
-    const snapped = snapPoint(x, y);
+    // Опираемся на текущую клетку жетона: так ход по диагонали не «застревает»
+    // на углу, а смена клетки происходит целым шагом по обеим осям.
+    const snapped = snapPoint(x, y, t.x, t.y);
     x = snapped.x;
     y = snapped.y;
 
@@ -2171,5 +2187,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.4.0');
+  log('renderer ready v1.3.4.1');
 })();
