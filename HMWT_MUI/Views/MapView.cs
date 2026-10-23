@@ -2223,7 +2223,10 @@ namespace HMWT_MUI.Views
             }
 
             if (_scene.Tokens.Any(t => string.Equals(t.PhotoHash, hash, StringComparison.OrdinalIgnoreCase)))
+            {
                 RebuildTokens();
+                PushWebMap();   // портрет должен доехать и до WebGL-карты
+            }
         }
 
         /// <summary>
@@ -2647,6 +2650,22 @@ namespace HMWT_MUI.Views
                         string full = PhotoHelper.ResolvePhotoPath(player.AvatarPath);
                         if (!string.IsNullOrEmpty(full) && File.Exists(full)) return full;
                     }
+                }
+
+                // Клиент: бестиария и чужих путей у него нет, но файл мог прийти
+                // из комнаты по хешу — тогда берём скачанную копию. Без этого
+                // аватарки НПС у игроков не появлялись никогда.
+                if (!string.IsNullOrWhiteSpace(token.PhotoHash))
+                {
+                    string cached = RemoteImagePath(token.PhotoHash);
+                    if (!string.IsNullOrEmpty(cached) && File.Exists(cached)) return cached;
+                }
+
+                // Последний шанс: путь, записанный при создании жетона
+                if (!string.IsNullOrWhiteSpace(token.PhotoPath))
+                {
+                    string own = PhotoHelper.ResolvePhotoPath(token.PhotoPath);
+                    if (!string.IsNullOrEmpty(own) && File.Exists(own)) return own;
                 }
             }
             catch (Exception ex)
