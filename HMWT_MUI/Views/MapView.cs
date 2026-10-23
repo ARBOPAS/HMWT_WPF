@@ -1883,6 +1883,7 @@ namespace HMWT_MUI.Views
         /// <summary>Показывает карту, пришедшую от мастера.</summary>
         private void OpenRemoteScene(MapSceneData remote)
         {
+            int previousSceneId = _scene?.Id ?? 0;
             _pendingLiveMoves.Clear();
             _liveMoveTimer.Stop();
             ClearMeasure();
@@ -1955,6 +1956,18 @@ namespace HMWT_MUI.Views
             RenderTrails();
             DumpMapState("карта от мастера");
             ApplyOrientation();
+
+            // Сцена сменилась — заставляем WebView перерисовать всё с нуля:
+            // иначе он сравнивал хэши с прежней картой и оставлял старое.
+            if (previousSceneId != _scene.Id)
+            {
+                ResetWebCache();
+                _seenLoadedSceneId = 0;
+                LoadSeenPoints(_scene.Id);
+                WebLog($"scene switch {previousSceneId} -> {_scene.Id}");
+            }
+
+            PushWebMap();
         }
 
         private static string RemoteImagePath(string hash)
@@ -2640,6 +2653,11 @@ namespace HMWT_MUI.Views
                 _status.Text = path == null
                     ? (_isDm ? "Карта не загружена — «Открыть карту…»" : "Мастер ещё не загрузил карту")
                     : $"{_scene.Name}: {_scene.WidthPx}×{_scene.HeightPx}, жетонов {_scene.Tokens.Count}";
+
+                // Смена сцены у ведущего должна доехать до игроков: раньше
+                // карта уходила только при старте вкладки, и клиенты оставались
+                // на прежней сцене даже после перезахода.
+                if (_inRoom && !_remote) PublishMap();
             }
             catch (Exception ex)
             {
