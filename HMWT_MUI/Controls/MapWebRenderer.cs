@@ -31,6 +31,9 @@ namespace HMWT_MUI.Controls
 
         /// <summary>ПКМ по пустому месту: поставить точку интереса.</summary>
         public event Action<double, double> PointPlaced;
+
+        /// <summary>Перенос группы жетонов: пары (id, x, y) одним пакетом.</summary>
+        public event Action<List<(int Id, double X, double Y)>> TokensMoved;
         public event Action<double, double> Pinged;
 
         /// <summary>Жетон тянут: промежуточное положение без записи в базу.</summary>
@@ -291,6 +294,23 @@ namespace HMWT_MUI.Controls
                     root.TryGetProperty("y", out var py))
                 {
                     PointPlaced?.Invoke(px.GetDouble(), py.GetDouble());
+                    return;
+                }
+
+                // Перенос группы жетонов
+                if (type == "moveTokens" &&
+                    root.TryGetProperty("moves", out var moves) &&
+                    moves.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    var list = new List<(int, double, double)>();
+                    foreach (var m in moves.EnumerateArray())
+                    {
+                        if (!m.TryGetProperty("id", out var mid)) continue;
+                        if (!m.TryGetProperty("x", out var mx)) continue;
+                        if (!m.TryGetProperty("y", out var my)) continue;
+                        list.Add((mid.GetInt32(), mx.GetDouble(), my.GetDouble()));
+                    }
+                    if (list.Count > 0) TokensMoved?.Invoke(list);
                     return;
                 }
 

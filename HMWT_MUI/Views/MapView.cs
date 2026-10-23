@@ -321,6 +321,7 @@ namespace HMWT_MUI.Views
             _webMap.TokenMovedLive += OnWebTokenMovedLive;
             _webMap.ShapePlaced += OnWebShapePlaced;
             _webMap.PointPlaced += OnWebPointPlaced;
+            _webMap.TokensMoved += OnWebTokensMoved;
             _webMap.ShapeMoved += OnWebShapeMoved;
             _webMap.StrokeAdded += OnWebStroke;
             _webMap.WallAdded += OnWebWall;
@@ -1776,6 +1777,47 @@ namespace HMWT_MUI.Views
             }
             if (_scene == null || _pendingShape == null || (!_isDm && !_remote)) return;
             PlaceShape(new Point(x, y));
+            PushWebMap();
+        }
+
+        /// <summary>Перенос группы жетонов: сохраняем все разом и публикуем один раз.</summary>
+        private void OnWebTokensMoved(List<(int Id, double X, double Y)> moves)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebTokensMoved(moves)));
+                return;
+            }
+            if (_scene == null || moves == null || moves.Count == 0) return;
+
+            WebLog($"moveTokens {moves.Count}");
+
+            int moved = 0;
+            foreach (var move in moves)
+            {
+                var token = _scene.Tokens.FirstOrDefault(t => t.Id == move.Id);
+                if (token == null || !CanMoveToken(token)) continue;
+
+                token.X = Math.Max(0, Math.Min(_scene.WidthPx, move.X));
+                token.Y = Math.Max(0, Math.Min(_scene.HeightPx, move.Y));
+                if (_remote) continue;
+
+                MapService.SaveToken(token);
+                moved++;
+            }
+
+            if (_remote)
+            {
+                // у игрока своего файла нет: каждый шаг уходит хосту
+                foreach (var move in moves)
+                    RoomSession.Instance.SendMapMove(move.Id, move.X, move.Y);
+            }
+            else if (moved > 0)
+            {
+                PublishMap();
+            }
+
+            RememberCurrentVision();
             PushWebMap();
         }
 

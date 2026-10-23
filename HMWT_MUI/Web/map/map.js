@@ -1003,10 +1003,18 @@
 
   // Плавное движение: C# присылает позиции с задержкой (сеть + снимок карты),
   // поэтому жетоны и фигуры догоняют цель кадрами, а не прыгают рывками.
+  // Плавное движение токенов: времязависимое сглаживание (кадры могут быть
+  // 60 и 144 Гц) плюс небольшая задержка для чужих жетонов — движение
+  // приходит из сети рывками, а показываем его плавно.
+  let lastMoveFrame = performance.now();
   app.ticker.add(() => {
+    const frameNow = performance.now();
+    const frameDt = Math.min(0.1, Math.max(0.001, (frameNow - lastMoveFrame) / 1000));
+    lastMoveFrame = frameNow;
+
     for (const [id, node] of tokenNodes) {
       if (!node || node.destroyed || node._targetX === undefined) continue;
-      if (drag && drag.kind === 'token' && drag.id === id) continue;
+      if (drag && drag.kind === 'token' && (drag.id === id || (drag.group && drag.group.some(g => g.token && g.token.id === id)))) continue;
 
       const dx = node._targetX - node.x;
       const dy = node._targetY - node.y;
@@ -1014,7 +1022,12 @@
         if (dx !== 0 || dy !== 0) node.position.set(node._targetX, node._targetY);
         continue;
       }
-      node.position.set(node.x + dx * 0.3, node.y + dy * 0.3);
+
+      // Чужие шаги приходят из сети рывками: доводим их мягче (~0.12 с),
+      // своих — быстрее, чтобы не чувствовалось задержки под рукой.
+      const smooth = (drag && drag.kind === 'token') ? 0.05 : 0.12;
+      const k = 1 - Math.exp(-frameDt / smooth);
+      node.position.set(node.x + dx * k, node.y + dy * k);
     }
 
     // Плавный доворот конуса: цель приходит из C# ~30 раз в секунду,
@@ -1457,8 +1470,48 @@
 
   // ─────────────────────────── попадания ───────────────────────────
 
-  function hitToken(local) {
-    let found = null;
+  // ── выделение группы рамкой (Shift + ЛКМ по пустому месту) ──
+  const groupSel = new Set();
+  const groupG = new PIXI.Graphics();
+  shapeLayer.addChild(groupG);
+
+  function drawGroup() {
+    groupG.clear();
+    for (const id of groupSel) {
+      const node = tokenNodes.get(id);
+      const t = node && node._token;
+      if (!t) continue;
+      const size = Math.max(24, cellPx() * (t.sizeCells || 1));
+      groupG.lineStyle(2.5, 0x7fe3ff, 0.9);
+      groupG.drawCircle(t.x, t.y, size / 2 + 4);
+    }
+  }
+
+  function clearGroup() {
+    if (groupSel.size === 0) return;
+    groupSel.clear();
+    drawGroup();
+  }
+
+  function finishRubber() {
+    const a = drag.from, b = drag.to;
+    const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x);
+    const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+
+    groupSel.clear();
+    if (Math.abs(x2 - x1) > 6 || Math.abs(y2 - y1) > 6) {
+      for (const [id, node] of tokenNodes) {
+        const t = node && node._token;
+        if (!t) continue;
+        if (t.x >= x1 && t.x <= x2 && t.y >= y1 && t.y <= y2) groupSel.add(id);
+      }
+    }
+    previewG.clear();
+    drawGroup();
+    log('group select ' + groupSel.size);
+  }
+
+  function hitToken(local) {    let found = null;
     let best = Infinity;
     for (const [id, node] of tokenNodes) {
       const t = node._token;
@@ -1803,6 +1856,7 @@
       else if (drag.kind === 'stroke') finishStroke();
       else if (drag.kind === 'wall') finishWall();
       else if (drag.kind === 'ruler') finishRuler();
+      else if (drag.kind === 'rubber') finishRubber();
     }
     drag = null;
     try { app.view.releasePointerCapture(e.pointerId); } catch (_) { }
@@ -1893,6 +1947,16 @@
       selectedTokenId = tokenHit.t.id;
       post({ type: 'selectToken', id: tokenHit.t.id });
 
+      // Клик по одиночному жетону снимает выделение группы,
+      // Shift+клик — добавляет/убирает жетон из группы.
+      if (e.shiftKey) {
+        if (groupSel.has(tokenHit.t.id)) groupSel.delete(tokenHit.t.id);
+        else groupSel.add(tokenHit.t.id);
+        drawGroup();
+      } else if (groupSel.size > 0 && !groupSel.has(tokenHit.t.id)) {
+        clearGroup();
+      }
+
       if (tokenHit.t.canMove !== false) {
         startTokenDrag(tokenHit, sp);
         app.view.setPointerCapture(e.pointerId);
@@ -1922,7 +1986,15 @@
       return;
     }
 
-    // 9. Панорама
+    // 9. Панорама (Shift — выделение рамкой)
+    if (e.shiftKey) {
+      clearGroup();
+      drag = { kind: 'rubber', from: { x: sp.x, y: sp.y }, to: { x: sp.x, y: sp.y } };
+      app.view.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+
     drag = { kind: 'pan', sx: p.x, sy: p.y, wx: world.x, wy: world.y };
     app.view.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -1941,6 +2013,21 @@
       offsetX: sp.x - t.x, offsetY: sp.y - t.y,
       path: [{ x: t.x, y: t.y }]
     };
+
+    // Тянем один из выделенных — двигаем всю группу
+    if (groupSel.has(t.id) && groupSel.size > 1) {
+      drag.group = [];
+      for (const id of groupSel) {
+        const node = tokenNodes.get(id);
+        const g = node && node._token;
+        if (!g) continue;
+        drag.group.push({ token: g, node: node, x: g.x, y: g.y });
+        if (id !== t.id) post({ type: 'trailClear', id: id });
+      }
+      drag.groupStartX = t.x;
+      drag.groupStartY = t.y;
+    }
+
     lastLiveAt = 0;
     lastFogAt = 0;
   }
@@ -1960,6 +2047,22 @@
 
     t.x = x;
     t.y = y;
+
+    // Группа едет вместе с ведущим жетоном (тем же шагом, без своей привязки)
+    if (drag.group && drag.group.length > 1) {
+      const dx = x - (drag.groupStartX || t.x);
+      const dy = y - (drag.groupStartY || t.y);
+      for (const item of drag.group) {
+        if (item.token.id === t.id) continue;
+        item.token.x = Math.max(0, Math.min(mapW, item.x + dx));
+        item.token.y = Math.max(0, Math.min(mapH, item.y + dy));
+        if (item.node) {
+          item.node.position.set(item.token.x, item.token.y);
+          item.node._targetX = item.token.x;
+          item.node._targetY = item.token.y;
+        }
+      }
+    }
     drag.node.position.set(x, y);
     drag.node._targetX = x;
     drag.node._targetY = y;
@@ -1996,6 +2099,22 @@
   function finishTokenDrag() {
     const t = drag.token;
     if (!t) return;
+
+    // Группа: одним пакетом, чтобы ведущий сохранил и опубликовал один раз
+    if (drag.group && drag.group.length > 1) {
+      const moves = drag.group
+        .filter(item => item.token)
+        .map(item => ({
+          id: item.token.id,
+          x: Math.round(item.token.x * 100) / 100,
+          y: Math.round(item.token.y * 100) / 100
+        }));
+      post({ type: 'moveTokens', moves: moves });
+      buildFog();
+      buildFov();
+      drawGroup();
+      return;
+    }
 
     if (!drag.path || drag.path.length < 2) drag.path = [{ x: t.x, y: t.y }];
     trailMeasure(drag.path);
@@ -2057,6 +2176,19 @@
     }
 
     if (drag.kind === 'token') { moveToken(sp); return; }
+
+    if (drag.kind === 'rubber') {
+      drag.to = { x: sp.x, y: sp.y };
+      previewG.clear();
+      const a = sceneToScreen(drag.from.x, drag.from.y);
+      const b = sceneToScreen(drag.to.x, drag.to.y);
+      previewG.lineStyle(2, 0x7fe3ff, 0.9);
+      previewG.beginFill(0x7fe3ff, 0.08);
+      previewG.drawRect(Math.min(a.x, b.x), Math.min(a.y, b.y),
+        Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      previewG.endFill();
+      return;
+    }
 
     if (drag.kind === 'shape') {
       // Фигуры привязываем к перекрестьям сетки, а не к центрам клеток:
@@ -2410,5 +2542,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.4.6');
+  log('renderer ready v1.3.4.7');
 })();
