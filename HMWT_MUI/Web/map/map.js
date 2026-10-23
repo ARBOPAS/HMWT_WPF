@@ -150,7 +150,6 @@
   let lastLiveAt = 0;
   let viewLogs = 0;
   let sceneCount = 0;
-  let rotMaxStep = 0;
 
   // Угол обзора приходит из C# ~30 раз в секунду, а кадров больше. Показываем
   // плавно доводимый угол, иначе конус двигается рывками.
@@ -579,17 +578,6 @@
 
     setFovTokens(incoming);
 
-    // Конец поворота: цель окончательная, «додумывать» движение не нужно.
-    if (data.stop) {
-      for (const f of fovTokens) {
-        f._vel = 0;
-        f._target = f.facing || 0;
-      }
-      // Диагностика плавности: самый большой шаг конуса за кадр (градусы).
-      log('rot stop maxstep=' + rotMaxStep.toFixed(2));
-      rotMaxStep = 0;
-    }
-
     buildFov();
 
     const now = performance.now();
@@ -915,7 +903,6 @@
         continue;
       }
       f._shown = ((f._shown + d * 0.35) % 360 + 360) % 360;
-      if (Math.abs(d) * 0.35 > rotMaxStep) rotMaxStep = Math.abs(d) * 0.35;
       fovMoving = true;
     }
 
@@ -1926,17 +1913,17 @@
     if (key !== 'q' && key !== 'e') return;
     if (e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
 
-    startRotate(screenTurn(key === 'e' ? 1 : -1));
+    startRotateFromKeyboard(screenTurn(key === 'e' ? 1 : -1));
     e.preventDefault();
   });
 
   window.addEventListener('keyup', e => {
     const key = (e.key || '').toLowerCase();
-    if (key === 'q' || key === 'e') stopRotate(true);
+    if (key === 'q' || key === 'e') finishRotation();
   });
 
   // Потеряли фокус — перестаём крутить, иначе жетон будет вращаться вечно.
-  window.addEventListener('blur', () => stopRotate(true));
+  window.addEventListener('blur', () => finishRotation());
 
   function selectedToken() {
     const tokens = (state && state.tokens) || [];
@@ -1974,18 +1961,45 @@
   let rotateRaf = 0;
   let rotateLast = 0;
 
-  function startRotate(dir) {
+  /** Поворот с клавиатуры, когда фокус ввода всё-таки у WebView. */
+  function startRotateFromKeyboard(dir) {
     const token = selectedToken();
     if (!token || token.canMove === false) return;
-    if (rotateHold && rotateHold.token.id !== token.id) stopRotate(true);
+    beginRotation(token, dir, 75);
+  }
 
-    // Даже короткий тап должен повернуть на заметный шаг.
-    applyFacing(token, (token.facing || 0) + dir * 6);
+  function findToken(id) {
+    const tokens = (state && state.tokens) || [];
+    return tokens.find(t => t.id === id) || null;
+  }
 
-    rotateHold = { token: token, dir: dir, lastPost: 0 };
+  /**
+   * Начало поворота. C# присылает только «начали» и направление — саму
+   * анимацию ведёт WebGL-рендерер, поэтому она не зависит от загрузки
+   * UI-потока WPF и не дёргается.
+   */
+  function beginRotation(token, dir, speed, facing) {
+    if (!token) return;
+    if (rotateHold && rotateHold.token.id !== token.id) finishRotation();
+
+    // C# присылает текущий угол: начинаем ровно с него, без скачка.
+    if (typeof facing === 'number' && Number.isFinite(facing))
+      applyFacing(token, facing);
+
+    selectedTokenId = token.id;
+    rotateHold = {
+      token: token,
+      dir: dir || 1,
+      speed: speed > 0 ? speed : 75,
+      applied: 0,
+      lastPost: 0,
+      frames: 0,
+      maxDt: 0
+    };
+
     rotateLast = performance.now();
-    buildFog();
     buildFov();
+    buildFog();
 
     if (!rotateRaf) rotateRaf = requestAnimationFrame(rotateStep);
   }
@@ -1995,20 +2009,23 @@
 
     const dt = Math.min(0.12, (now - rotateLast) / 1000);
     rotateLast = now;
+    rotateHold.frames++;
+    if (dt * 1000 > rotateHold.maxDt) rotateHold.maxDt = dt * 1000;
 
     const token = rotateHold.token;
-    const speed = 75;                       // градусов в секунду
-    applyFacing(token, (token.facing || 0) + rotateHold.dir * speed * dt);
+    const step = rotateHold.dir * rotateHold.speed * dt;
+    rotateHold.applied += Math.abs(step);
+    applyFacing(token, (token.facing || 0) + step);
 
     buildFov();
-    if (now - lastFogAt >= 30) {
+    if (now - lastFogAt >= 40) {
       lastFogAt = now;
       buildFog();
     }
 
     // В C# — промежуточный угол (в базу пока не пишется), чтобы остальные
-    // видели плавный поворот.
-    if (now - rotateHold.lastPost >= 90) {
+    // видели поворот и запоминалось разведанное.
+    if (now - rotateHold.lastPost >= 100) {
       rotateHold.lastPost = now;
       post({ type: 'rotate', id: token.id, facing: token.facing, commit: false });
     }
@@ -2016,17 +2033,25 @@
     rotateRaf = requestAnimationFrame(rotateStep);
   }
 
-  function stopRotate(commit) {
+  function finishRotation() {
     if (!rotateHold) return;
     const token = rotateHold.token;
-    const facing = token.facing;
+    const applied = rotateHold.applied;
+    const dir = rotateHold.dir;
+    const frames = rotateHold.frames;
+    const maxDt = rotateHold.maxDt;
     rotateHold = null;
 
     if (rotateRaf) { cancelAnimationFrame(rotateRaf); rotateRaf = 0; }
-    if (!commit || !token) return;
+    if (!token) return;
 
+    // Короткий тап: доводим до заметного шага, иначе поворота почти не видно.
+    if (applied < 4) applyFacing(token, (token.facing || 0) + dir * (5 - applied));
+
+    const facing = token.facing;
     buildFog();
     buildFov();
+    log('rot stop frames=' + frames + ' maxdt=' + maxDt.toFixed(0) + 'ms');
     post({ type: 'rotate', id: token.id, facing: facing, commit: true });
   }
 
@@ -2063,6 +2088,8 @@
       if (data.type === 'scene') applyScene(data);
       else if (data.type === 'fog') applyFogUpdate(data);
       else if (data.type === 'facing') applyFacingUpdate(data);
+      else if (data.type === 'rotateStart') beginRotation(findToken(data.id), data.dir, data.speed, data.facing);
+      else if (data.type === 'rotateStop') finishRotation();
       else if (data.type === 'ping') addPing(data.x || 0, data.y || 0);
     } catch (err) {
       showError(err && err.stack || err);
@@ -2087,5 +2114,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.7');
+  log('renderer ready v1.3.3.8');
 })();

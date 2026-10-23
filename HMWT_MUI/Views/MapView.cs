@@ -209,12 +209,20 @@ namespace HMWT_MUI.Views
         private double _rotateMaxGap;
 
         /// <summary>
-        /// Плавный поворот взгляда: пока Q/E держат, угол идёт по таймеру,
-        /// а не шагами. Клавиши приходят в WPF (у WebView нет фокуса ввода),
-        /// поэтому поворот живёт здесь.
+        /// Плавный поворот взгляда. Клавиши приходят в WPF (у WebView нет
+        /// фокуса ввода), поэтому событие ловим здесь, но анимацию ведёт
+        /// WebGL-рендерер: ему уходит только «начали/закончили» и скорость.
+        /// Таймер ниже — резервный путь для WPF-карты, когда WebView не поднялся.
+        /// С приоритетом Normal: Background-таймер голодает, пока WebView
+        /// непрерывно шлёт сообщения, и поворот шёл рывками раз в секунду.
         /// </summary>
         private readonly System.Windows.Threading.DispatcherTimer _rotateTimer =
-            new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            new System.Windows.Threading.DispatcherTimer(
+                System.Windows.Threading.DispatcherPriority.Normal)
+            { Interval = TimeSpan.FromMilliseconds(16) };
+
+        private System.Windows.Threading.DispatcherTimer _rotateWatch;
+        private bool _rotating;
         private MapTokenData _rotateToken;
         private int _rotateDir;
         private DateTime _rotateLast = DateTime.UtcNow;
@@ -329,7 +337,7 @@ namespace HMWT_MUI.Views
             {
                 // Пока крутим обзор, полную сцену не шлём: она тяжёлая и
                 // сбивает плавность. Хватает лёгких пакетов с углом.
-                if (!_rotateTimer.IsEnabled) PushWebMap();
+                if (!_rotating) PushWebMap();
             };
 
             _rotateTimer.Tick += RotateTick;
@@ -1541,6 +1549,13 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            // Окончательный угол (WebView закончил анимацию и прислал его).
+            _rotating = false;
+            _rotateToken = null;
+            _rotateWatch?.Stop();
+
+            WebLog($"rotate done {token.Id} facing={token.Facing:0.0}");
+
             if (_remote)
                 RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing);
             else
@@ -1549,7 +1564,10 @@ namespace HMWT_MUI.Views
                 PublishMap();
             }
 
+            // persist = true: всё, что накопили за поворот, уходит в базу
+            // и в комнату одним пакетом
             RememberCurrentVision();
+            RenderFov();
             BuildFogMask();
             PushWebMap();
         }
@@ -4658,7 +4676,7 @@ namespace HMWT_MUI.Views
             var token = _dragToken ?? _scene.Tokens.FirstOrDefault(t => t.Id == _selectedTokenId);
             if (token == null || !CanMoveToken(token)) return;
 
-            if (_rotateTimer.IsEnabled && _rotateToken != null &&
+            if (_rotating && _rotateToken != null &&
                 _rotateToken.Id == token.Id && _rotateDir == direction)
                 return;
 
@@ -4667,8 +4685,63 @@ namespace HMWT_MUI.Views
             _rotateLast = DateTime.UtcNow;
             _lastRotatePush = DateTime.MinValue;
             _lastLiveFog = DateTime.MinValue;
+            _rotatePushes = 0;
+            _rotateMaxGap = 0;
+            _rotating = true;
+
+            if (_webMapReady)
+            {
+                // Анимацию ведёт WebGL-рендерер в своём процессе: 60 кадров
+                // в секунду, без зависимости от загрузки UI-потока WPF.
+                // C# получает только промежуточные углы (для сети и разведки)
+                // и окончательный — при отпускании.
+                SendWebRotate("rotateStart", token.Id, direction, token.Facing);
+                StartRotateWatchdog();
+                return;
+            }
 
             if (!_rotateTimer.IsEnabled) _rotateTimer.Start();
+        }
+
+        private void SendWebRotate(string type, int tokenId, int direction, double facing = 0)
+        {
+            try
+            {
+                // NaN в JSON не сериализуется — подстраховываемся.
+                if (double.IsNaN(facing) || double.IsInfinity(facing)) facing = 0;
+
+                _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    type,
+                    id = tokenId,
+                    dir = direction,
+                    speed = (int)RotateSpeed,
+                    facing
+                }, WebJsonOptions));
+            }
+            catch (Exception ex) { WebLog("rotate cmd: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Сторож: если фокус ушёл из окна во время поворота, KeyUp не придёт.
+        /// Проверяем раз в 250 мс, что клавиша всё ещё нажата.
+        /// </summary>
+        private void StartRotateWatchdog()
+        {
+            if (_rotateWatch == null)
+            {
+                _rotateWatch = new System.Windows.Threading.DispatcherTimer(
+                    System.Windows.Threading.DispatcherPriority.Normal)
+                { Interval = TimeSpan.FromMilliseconds(250) };
+                _rotateWatch.Tick += (s, e) =>
+                {
+                    if (!_rotating) { _rotateWatch.Stop(); return; }
+                    if (Keyboard.IsKeyDown(Key.Q) || Keyboard.IsKeyDown(Key.E)) return;
+                    StopRotateToken();
+                };
+            }
+
+            if (!_rotateWatch.IsEnabled) _rotateWatch.Start();
         }
 
         /// <summary>Шаг непрерывного поворота: угол, обзор и промежуточные сообщения.</summary>
@@ -4737,6 +4810,18 @@ namespace HMWT_MUI.Views
         private void StopRotateToken()
         {
             _rotateTimer.Stop();
+            _rotateWatch?.Stop();
+
+            if (_webMapReady)
+            {
+                // Рендерер сам доведёт угол до места и пришлёт окончательный
+                // (commit) — там и будет сохранение. Здесь только команда.
+                if (_rotating) SendWebRotate("rotateStop", 0, 0);
+                else _rotating = false;
+                return;
+            }
+
+            _rotating = false;
 
             var token = _rotateToken;
             _rotateToken = null;
