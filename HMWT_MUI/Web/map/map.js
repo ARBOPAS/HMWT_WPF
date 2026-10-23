@@ -2143,6 +2143,8 @@
       return;
     }
 
+    // Клик по пустому месту снимает выделение группы
+    clearGroup();
     drag = { kind: 'pan', sx: p.x, sy: p.y, wx: world.x, wy: world.y };
     app.view.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -2699,5 +2701,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.5.4');
+  log('renderer ready v1.3.5.5');
 })();

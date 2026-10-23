@@ -837,9 +837,24 @@ namespace HMWT_MUI.Views
             }, DmUiKit.ButtonKind.Ghost,
                 "Открыть инструменты мастера: картинка, сетка, фигуры, стены, кисть", 100, 30);
             dmToggle.Margin = new Thickness(16, 0, 6, 0);
-            dmToggle.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
+            dmToggle.Visibility = Visibility.Visible;
             bar.Children.Add(dmToggle);
             bar.Children.Add(_status);
+
+            // Вторая строка — общая: игроку доступны фигуры, кисть, ластик,
+            // очистка рисунков. Прячем у него только мастерское: картинку,
+            // сцены, сетку/клетку, стены, цвет следа и «Токены из боя».
+            if (!_isDm)
+            {
+                foreach (var el in new UIElement[]
+                {
+                    open, newScene, delScene, _cellSlider, _gridThicknessSlider,
+                    _cellField, gridColor, trailColor, _wallCheck, tokens
+                })
+                {
+                    if (el != null) el.Visibility = Visibility.Collapsed;
+                }
+            }
 
             // Обе строки живут в одной ячейке сетки: иначе вторая строка
             // накладывалась на первую и её не было видно.
@@ -1539,9 +1554,22 @@ namespace HMWT_MUI.Views
                 case "facing":
                     if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out double delta)) return;
-                    // В WebGL угол доводится плавно, а не прыжком на 45°
+                    // В WebGL угол доводится плавно, а не прыжком на 45°.
+                    // В модели угол фиксируем сразу: иначе ближайший снимок
+                    // карты приходит со старым углом и «отматывает» конус.
                     if (_webMapReady)
                     {
+                        token.Facing = NormalizeDeg(token.Facing + delta);
+                        if (_remote)
+                        {
+                            RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing);
+                        }
+                        else
+                        {
+                            MapService.SaveToken(token);
+                            PublishMap();
+                        }
+
                         try
                         {
                             _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(
