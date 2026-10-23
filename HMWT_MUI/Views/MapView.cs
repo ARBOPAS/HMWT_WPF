@@ -225,6 +225,8 @@ namespace HMWT_MUI.Views
             { Interval = TimeSpan.FromMilliseconds(16) };
 
         private System.Windows.Threading.DispatcherTimer _rotateWatch;
+        private Panel _overlayRoot;
+        private bool _webHiddenForOverlay;
         private bool _rotating;
         private MapTokenData _rotateToken;
         private int _rotateDir;
@@ -364,10 +366,22 @@ namespace HMWT_MUI.Views
                 _lastRoomActive = _inRoom;
                 _retryTimer.Start();
                 _webSyncTimer.Start();
+
+                // WebView2 — отдельное окно (HWND) и всегда рисуется поверх
+                // WPF. Поэтому, пока открыт любой оверлей (ZIndex ≥ 1000:
+                // диалоги, затемнения, меню), прячем WebView и возвращаем,
+                // когда его закрыли. Иначе оверлеи «уходили под карту».
+                try
+                {
+                    _overlayRoot = Window.GetWindow(this)?.Content as Panel;
+                    if (_overlayRoot != null) _overlayRoot.LayoutUpdated += WatchOverlays;
+                }
+                catch { }
             };
             Unloaded += (s, e) =>
             {
                 UnsubscribeRoom();
+                if (_overlayRoot != null) _overlayRoot.LayoutUpdated -= WatchOverlays;
                 _retryTimer.Stop();
                 _liveMoveTimer.Stop();
                 _pendingLiveMoves.Clear();
@@ -4491,7 +4505,8 @@ namespace HMWT_MUI.Views
             ("square", "Квадрат"),
             ("cone", "Конус"),
             ("line", "Линия"),
-            ("point", "Точка интереса")
+            ("point", "Точка интереса"),
+            ("darkzone", "Тёмная зона (только ДМ)")
         };
 
         private void OpenShapeMenu(FrameworkElement target)
@@ -4964,6 +4979,28 @@ namespace HMWT_MUI.Views
         /// Пинг по карте (TAB): круги расходятся от курсора и видны всем в
         /// комнате. Точку знает WebView — он присылает её в ответ на команду.
         /// </summary>
+        /// <summary>
+        /// Прикрывает WebView, пока поверх карты открыт оверлей. WebView2 —
+        /// отдельное окно, и WPF-слой его не перекрывает, поэтому диалоги
+        /// и меню «уходили под карту».
+        /// </summary>
+        private void WatchOverlays(object sender, EventArgs e)
+        {
+            if (_overlayRoot == null || _webMap == null) return;
+
+            bool covered = false;
+            foreach (UIElement child in _overlayRoot.Children)
+            {
+                if (child == null || child.Visibility != Visibility.Visible) continue;
+                if (child == _webMap || child.IsAncestorOf(this) || this.IsAncestorOf(child)) continue;
+                if (Panel.GetZIndex(child) >= 1000) { covered = true; break; }
+            }
+
+            if (covered == _webHiddenForOverlay) return;
+            _webHiddenForOverlay = covered;
+            _webMap.Visibility = covered ? Visibility.Hidden : Visibility.Visible;
+        }
+
         private void PingAtCursor()
         {
             if (!_webMapReady) return;
@@ -4972,8 +5009,7 @@ namespace HMWT_MUI.Views
             WebLog("ping at cursor");
         }
 
-        private void SendWebRotate(string type, int tokenId, int direction, double facing = 0)
-        {
+        private void SendWebRotate(string type, int tokenId, int direction, double facing = 0)        {
             try
             {
                 // NaN в JSON не сериализуется — подстраховываемся.

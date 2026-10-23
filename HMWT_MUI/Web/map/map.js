@@ -322,6 +322,81 @@
     mapSprite.height = mapH;
   }
 
+  // ── анимированная GIF-карта ──
+  // Chromium умеет декодировать GIF покадрово (ImageDecoder), поэтому
+  // анимация идёт из памяти: файл скачивается один раз, по сети кадры
+  // не гоняются. Для больших карт (150 МБ) это важно.
+  let gifDecoder = null;
+  let gifTimer = 0;
+  let gifUrl = '';
+
+  function stopMapGif() {
+    if (gifTimer) { clearTimeout(gifTimer); gifTimer = 0; }
+    if (gifDecoder) {
+      try { gifDecoder.close(); } catch (_) { }
+      gifDecoder = null;
+    }
+    gifUrl = '';
+  }
+
+  async function playMapGif(url) {
+    if (!('ImageDecoder' in window)) return false;
+    if (gifUrl === url) return true;
+    stopMapGif();
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return false;
+      const data = await response.arrayBuffer();
+      const decoder = new ImageDecoder({ data: data, type: 'image/gif' });
+      await decoder.tracks.ready;
+      const track = decoder.tracks.selectedTrack;
+      if (!track || track.frameCount <= 1) {
+        try { decoder.close(); } catch (_) { }
+        return false;
+      }
+
+      gifDecoder = decoder;
+      gifUrl = url;
+      log('gif map: frames=' + track.frameCount);
+
+      const showFrame = async index => {
+        if (!gifDecoder || gifUrl !== url) return;
+        try {
+          const { image } = await gifDecoder.decode({ frameIndex: index });
+          const canvas = document.createElement('canvas');
+          canvas.width = image.displayWidth;
+          canvas.height = image.displayHeight;
+          canvas.getContext('2d').drawImage(image, 0, 0);
+
+          const duration = Math.max(40, (image.duration || 100000) / 1000);
+          image.close();
+
+          if (!mapSprite || mapSprite.destroyed) return;
+          const old = mapSprite.texture;
+          mapSprite.texture = PIXI.Texture.from(canvas);
+          applyMapSpriteSize();
+          if (old && old !== mapSprite.texture) {
+            try { old.destroy(true); } catch (_) { }
+          }
+
+          const next = (index + 1) % track.frameCount;
+          gifTimer = setTimeout(() => showFrame(next), duration);
+        } catch (err) {
+          log('gif frame error: ' + err);
+          stopMapGif();
+        }
+      };
+
+      showFrame(0);
+      return true;
+    } catch (err) {
+      log('gif decode error: ' + err);
+      stopMapGif();
+      return false;
+    }
+  }
+
   function ensureMapSprite(url, hash) {
     // Один и тот же адрес — не пересоздаём спрайт на каждом кадре.
     if (mapSprite && url && url === mapImageUrl) { applyMapSpriteSize(); return; }
@@ -351,6 +426,13 @@
       base.on('loaded', applyMapSpriteSize);
       base.on('update', applyMapSpriteSize);
       base.on('error', () => log('map image error: ' + url));
+    }
+
+    // Если карта — анимированный GIF, включаем покадровое воспроизведение
+    if (/\.gif(\?|$)/i.test(url)) {
+      playMapGif(url).then(ok => { if (!ok) log('gif map: статичный первый кадр'); });
+    } else {
+      stopMapGif();
     }
   }
 
@@ -709,6 +791,10 @@
       const dragged = drag && drag.kind === 'shape' && drag.shape && drag.shape.id === id;
       const pos = dragged ? drag.shape : (shapeDisplay.get(id) || target);
       const s = Object.assign({}, target, { x: pos.x, y: pos.y });
+
+      // Тёмная зона — рабочий инструмент мастера: игрокам её не показываем.
+      if (s.kind === 'darkzone' && !isDm) continue;
+
       const col = rgba(s.color, { color: 0xb98bff, alpha: 1 });
       const radius = shapeRadius(s);
       seen.add(id);
@@ -722,6 +808,14 @@
         shapeG.endFill();
         shapeG.lineStyle(1.5, col.color, 0.5);
         shapeG.drawCircle(s.x, s.y, r * 2.4);
+      } else if (s.kind === 'darkzone') {
+        // Тёмная зона: плотное затемнение, игрок её не видит вообще
+        shapeG.lineStyle(2, 0x6b5bd6, 0.9);
+        shapeG.beginFill(0x05070f, 0.72);
+        shapeG.drawCircle(s.x, s.y, radius);
+        shapeG.endFill();
+        shapeG.lineStyle(1, 0x8f7dff, 0.55);
+        shapeG.drawCircle(s.x, s.y, radius * 0.94);
       } else {
         shapeG.lineStyle(3, col.color, 0.9);
         shapeG.beginFill(col.color, 0.16);
@@ -1736,7 +1830,8 @@
   }
 
   const SHAPE_TITLES = {
-    circle: 'Круг', square: 'Квадрат', cone: 'Конус', line: 'Линия', point: 'Точка интереса'
+    circle: 'Круг', square: 'Квадрат', cone: 'Конус', line: 'Линия',
+    point: 'Точка интереса', darkzone: 'Тёмная зона'
   };
 
   function openShapeMenu(e, shape) {
@@ -2542,5 +2637,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.4.8');
+  log('renderer ready v1.3.4.9');
 })();
