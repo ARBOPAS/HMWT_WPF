@@ -980,6 +980,13 @@ namespace HMWT_MUI.Views
                         hpMax = owner.Combatant.MaxHitPoints;
                         conditions = owner.Combatant.Conditions ?? "";
                     }
+                    else
+                    {
+                        // клиент: базы боёв нет, значения пришли с жетоном
+                        hp = t.Hp;
+                        hpMax = t.HpMax;
+                        conditions = t.Conditions ?? "";
+                    }
 
                     tokens.Add(new
                     {
@@ -993,6 +1000,8 @@ namespace HMWT_MUI.Views
                         hidden = t.Hidden,
                         selected = t.Id == _selectedTokenId,
                         canMove = CanMoveToken(t),
+                        // свой жетон виден всегда, даже с выключенным обзором
+                        mine = !_isDm && CanMoveToken(t),
                         frameColor = t.FrameColor ?? "",
                         viewColor = t.ViewColor ?? "",
                         revealCells = t.RevealCells,
@@ -2681,6 +2690,15 @@ namespace HMWT_MUI.Views
                     token.IsPlayer = isPlayer;
                     MapService.SaveToken(token);
                     changed = true;
+                }
+
+                // Хиты и состояния тоже едут с жетоном: у клиента нет базы
+                // боёв, и локально он их не посчитает.
+                if (owner.Combatant != null)
+                {
+                    token.Hp = owner.Combatant.HitPoints;
+                    token.HpMax = owner.Combatant.MaxHitPoints;
+                    token.Conditions = owner.Combatant.Conditions ?? "";
                 }
 
                 string path = ResolveTokenPhoto(token);

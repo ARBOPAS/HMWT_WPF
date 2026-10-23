@@ -216,5 +216,17 @@ namespace HMWT_MUI.Models
         /// у каждого игрока конус был своего цвета и не сливался с чужими.
         /// </summary>
         public string ViewColor { get; set; } = "";
+
+        /// <summary>
+        /// Хиты жетона на момент публикации карты. У клиента нет базы боёв,
+        /// поэтому значения едут вместе с жетоном, а не считаются на месте.
+        /// </summary>
+        public int Hp { get; set; }
+
+        /// <summary>Максимум хитов (0 — не показывать).</summary>
+        public int HpMax { get; set; }
+
+        /// <summary>Состояния жетона строкой (как в трекере инициативы).</summary>
+        public string Conditions { get; set; } = "";
     }
 }

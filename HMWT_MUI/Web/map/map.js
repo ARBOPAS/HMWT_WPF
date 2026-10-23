@@ -1132,6 +1132,8 @@
       }
 
       // Без тумана видно всех; «Токены отряда» показывают игроков всегда.
+      // Свой жетон виден всегда: иначе при выключенном обзоре пропадал
+      // и он сам, и его нельзя было вернуть без движения от ведущего.
       const seen = !fogOn || t.mine || (partyAlways && t.isPlayer) || inVision;
       if (t.hidden) {
         node.alpha = isDm ? 0.4 : 0;
@@ -2701,5 +2703,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.6.0');
+  log('renderer ready v1.3.6.1');
 })();
