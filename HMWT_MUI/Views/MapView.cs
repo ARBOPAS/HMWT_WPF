@@ -1606,10 +1606,11 @@ namespace HMWT_MUI.Views
                     SetTokenViewColor(token, value);
                     break;
 
-                // Состояние из справочника (галочка в меню): включаем/выключаем
+                // Состояние из справочника (галочка в меню): включаем/выключаем.
+                // Ведущий — любому жетону, игрок — только своему (проверка ниже).
                 case "condition":
                     {
-                        if (!_isDm) return;
+                        if (!_isDm && !CanMoveToken(token)) return;
                         if (token.CombatantId <= 0 ||
                             !_combatants.TryGetValue(token.CombatantId, out var cond) ||
                             cond.Combatant == null) return;
@@ -1628,12 +1629,23 @@ namespace HMWT_MUI.Views
                         else
                             list.Add(name);
 
-                        cond.Combatant.Conditions = string.Join(", ", list);
-                        token.Conditions = cond.Combatant.Conditions;
+                        string keys = string.Join(", ", list);
+                        cond.Combatant.Conditions = keys;
+                        token.Conditions = keys;
 
-                        Services.InitiativeService.SaveCombatant(cond.Encounter, cond.Combatant);
-                        MapService.SaveToken(token);
-                        PublishMap();
+                        if (_remote)
+                        {
+                            // у игрока своего файла нет: набор уезжает хосту
+                            RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing,
+                                conditions: keys);
+                        }
+                        else
+                        {
+                            Services.InitiativeService.SaveCombatant(cond.Encounter, cond.Combatant);
+                            MapService.SaveToken(token);
+                            PublishMap();
+                        }
+
                         PushWebMap();
                     }
                     break;
@@ -2257,6 +2269,26 @@ namespace HMWT_MUI.Views
                     _pendingLiveMoves.Clear();
                     _liveMoveTimer.Stop();
                     TrackTokenMoves(_scene, fromServer);
+
+                    // Игрок поменял состояния своего жетона — переносим их
+                    // в участника боя, чтобы трекер и карта не расходились.
+                    foreach (var incoming in fromServer.Tokens)
+                    {
+                        var local = _scene.Tokens.FirstOrDefault(t => t.Id == incoming.Id);
+                        if (local == null) continue;
+                        if (string.Equals(local.Conditions ?? "", incoming.Conditions ?? "",
+                                StringComparison.Ordinal)) continue;
+
+                        if (incoming.CombatantId > 0 &&
+                            _combatants.TryGetValue(incoming.CombatantId, out var cond) &&
+                            cond.Combatant != null)
+                        {
+                            cond.Combatant.Conditions = incoming.Conditions ?? "";
+                            try { Services.InitiativeService.SaveCombatant(cond.Encounter, cond.Combatant); }
+                            catch { }
+                        }
+                    }
+
                     _scene = fromServer;
                     BuildGrid();
                     RenderStrokes();

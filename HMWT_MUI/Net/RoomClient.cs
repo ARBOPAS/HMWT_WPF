@@ -596,7 +596,8 @@ namespace HMWT_MUI.Net
         /// перегрузки ломали поиск метода через reflection.
         /// </summary>
         public Task SendMapMoveEditAsync(int tokenId, double x, double y, double facing,
-            double viewAngle, int sizeCells, double revealCells = -1, string viewColor = null)
+            double viewAngle, int sizeCells, double revealCells = -1, string viewColor = null,
+            string conditions = null)
             => SendAsync(new NetMessage(MsgType.MapMove, new MapMoveRequest
             {
                 TokenId = tokenId,
@@ -606,7 +607,8 @@ namespace HMWT_MUI.Net
                 ViewAngle = viewAngle,
                 SizeCells = sizeCells,
                 RevealCells = revealCells,
-                ViewColor = viewColor
+                ViewColor = viewColor,
+                Conditions = conditions
             }));
 
         /// <summary>Просит картинку карты по хэшу (если файла ещё нет).</summary>

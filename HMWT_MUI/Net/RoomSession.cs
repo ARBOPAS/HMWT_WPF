@@ -871,12 +871,14 @@ namespace HMWT_MUI.Net
 
         /// <summary>Игрок подвинул своего жетона: отправляем хосту.</summary>
         public bool SendMapMove(int tokenId, double x, double y, double facing = double.NaN,
-            double viewAngle = -1, int sizeCells = -1, double revealCells = -1, string viewColor = null)
+            double viewAngle = -1, int sizeCells = -1, double revealCells = -1, string viewColor = null,
+            string conditions = null)
         {
             if (!IsActive || IsHost || _client == null || !_client.IsConnected) return false;
 
-            if (viewAngle >= 0 || sizeCells >= 1 || revealCells >= 0 || viewColor != null)
-                _ = _client.SendMapMoveEditAsync(tokenId, x, y, facing, viewAngle, sizeCells, revealCells, viewColor);
+            if (viewAngle >= 0 || sizeCells >= 1 || revealCells >= 0 || viewColor != null || conditions != null)
+                _ = _client.SendMapMoveEditAsync(tokenId, x, y, facing, viewAngle, sizeCells, revealCells,
+                    viewColor, conditions);
             else
                 _ = _client.SendMapMoveAsync(tokenId, x, y, facing);
             return true;

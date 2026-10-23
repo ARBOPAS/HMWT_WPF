@@ -1192,6 +1192,12 @@ namespace HMWT_MUI.Net
                             if (request.ViewColor != null)
                                 token.ViewColor = request.ViewColor.Trim();
 
+                            // состояния ключами (протокол 15): жетон и участник боя
+                            if (request.Conditions != null)
+                            {
+                                token.Conditions = request.Conditions.Trim();
+                            }
+
                             changedToken = token;
                             applied = true;
                         }

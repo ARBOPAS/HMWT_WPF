@@ -1878,16 +1878,23 @@
       items.push({ separator: true });
       items.push({ text: 'Убрать с карты', danger: true, action: 'remove', value: '' });
     } else {
-      // Игрок: состояния своего жетона видны списком (пока только чтение)
+      // Игрок: свой жетон — такие же галочки, чужие — только просмотр
       const list = (state && state.conditionList) || [];
       const have = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      const canEdit = token.canMove !== false;
       if (list.length) {
         items.push({ separator: true });
         items.push({ text: 'Состояния', disabled: true });
         for (const c of list) {
           if (!c || !c.key) continue;
-          if (!have.some(x => x.toLowerCase() === c.key.toLowerCase())) continue;
-          items.push({ text: '• ' + (c.name || c.key), disabled: true });
+          const on = have.some(x => x.toLowerCase() === c.key.toLowerCase());
+          if (!canEdit && !on) continue;
+          items.push({
+            text: canEdit ? (c.name || c.key) : ('• ' + (c.name || c.key)),
+            check: on,
+            action: 'condition', value: c.key,
+            disabled: !canEdit
+          });
         }
       }
     }
@@ -2742,5 +2749,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.6.4');
+  log('renderer ready v1.3.7.0');
 })();
