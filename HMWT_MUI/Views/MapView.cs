@@ -474,13 +474,17 @@ namespace HMWT_MUI.Views
 
             var bar = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
 
+            // Вторая строка — инструменты мастера. У игрока её нет совсем,
+            // а у ведущего она свёрнута: иначе панель занимает пол-экрана.
+            var dmBar = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            dmBar.Visibility = Visibility.Collapsed;
             bar.Children.Add(DmUiKit.Title("КАРТА"));
 
             var open = DmUiKit.Action("Открыть карту…", (s, e) => PickImage(), DmUiKit.ButtonKind.Primary,
                 "Загрузить PNG или JPEG в текущую сцену", 150, 30);
             open.Margin = new Thickness(14, 0, 8, 0);
             open.IsEnabled = _isDm;
-            bar.Children.Add(open);
+            dmBar.Children.Add(open);
 
             _sceneCombo.Height = 30;
             _sceneCombo.Margin = new Thickness(0, 0, 8, 0);
@@ -494,22 +498,24 @@ namespace HMWT_MUI.Views
             var newScene = DmUiKit.Icon("+", (s, e) => NewScene(), "Новая сцена", 30);
             newScene.IsEnabled = _isDm;
             newScene.Margin = new Thickness(0, 0, 6, 0);
-            bar.Children.Add(newScene);
+            dmBar.Children.Add(newScene);
 
             var delScene = DmUiKit.Icon("✕", (s, e) => DeleteScene(), "Удалить текущую сцену", 30, DmUiKit.ButtonKind.Soft);
             delScene.IsEnabled = _isDm;
             delScene.Margin = new Thickness(0, 0, 10, 0);
-            bar.Children.Add(delScene);
+            dmBar.Children.Add(delScene);
 
             // ── сетка: включение, размер клетки, цвет ──
             _gridCheck.Margin = new Thickness(0, 0, 8, 0);
             _gridCheck.IsEnabled = _isDm;
+            _gridCheck.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
             _gridCheck.Checked += (s, e) => { if (_scene != null) { _scene.GridOn = true; MapService.SaveScene(_scene); PublishMap(); BuildGrid(); } };
             _gridCheck.Unchecked += (s, e) => { if (_scene != null) { _scene.GridOn = false; MapService.SaveScene(_scene); PublishMap(); BuildGrid(); } };
             bar.Children.Add(_gridCheck);
 
             _snapCheck.Margin = new Thickness(0, 0, 8, 0);
             _snapCheck.IsEnabled = _isDm;
+            _snapCheck.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
             _snapCheck.ToolTip = "Привязывать жетоны к клеткам. Сетку можно оставить видимой и двигаться свободно.";
             _snapCheck.Checked += (s, e) =>
             {
@@ -550,7 +556,7 @@ namespace HMWT_MUI.Views
                 RebuildTokens();
                 BuildFogMask();
             };
-            bar.Children.Add(_cellSlider);
+            dmBar.Children.Add(_cellSlider);
 
             // Толщина линий сетки: на светлых картах тонкая линия почти не видна.
             _gridThicknessSlider.Margin = new Thickness(0, 0, 8, 0);
@@ -568,7 +574,7 @@ namespace HMWT_MUI.Views
                 PublishMap();
                 BuildGrid();
             };
-            bar.Children.Add(_gridThicknessSlider);
+            dmBar.Children.Add(_gridThicknessSlider);
 
             _cellField.Width = 58;
             _cellField.Margin = new Thickness(0, 0, 4, 0);
@@ -576,7 +582,7 @@ namespace HMWT_MUI.Views
             _cellField.ToolTip = "Размер клетки в точках картинки: подгоните под готовую сетку карты";
             _cellField.KeyDown += (s, e) => { if (e.Key == Key.Enter) { ApplyGridSize(); e.Handled = true; } };
             _cellField.LostFocus += (s, e) => ApplyGridSize();
-            bar.Children.Add(_cellField);
+            dmBar.Children.Add(_cellField);
 
             var gridColor = new Button
             {
@@ -602,7 +608,7 @@ namespace HMWT_MUI.Views
             gridColor.Template = FlatButtonTemplate();
             gridColor.IsEnabled = _isDm;
             gridColor.Click += (s, e) => OpenGridColorMenu(gridColor, swatch);
-            bar.Children.Add(gridColor);
+            dmBar.Children.Add(gridColor);
 
             bar.Children.Add(DmUiKit.Action("Вписать", (s, e) => FitToWindow(), DmUiKit.ButtonKind.Ghost,
                 "Показать карту целиком", 90, 30));
@@ -632,6 +638,7 @@ namespace HMWT_MUI.Views
 
             _fogCheck.Margin = new Thickness(0, 0, 10, 0);
             _fogCheck.IsEnabled = _isDm;
+            _fogCheck.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
             _fogCheck.Checked += (s, e) => { if (!_suppressFogEvents) SetFog(true); };
             _fogCheck.Unchecked += (s, e) => { if (!_suppressFogEvents) SetFog(false); };
             bar.Children.Add(_fogCheck);
@@ -641,20 +648,20 @@ namespace HMWT_MUI.Views
                 "Круг, квадрат, конус или линия: выберите тип, затем щёлкните по карте", 96, 30);
             _shapeButton.Margin = new Thickness(0, 0, 10, 0);
             _shapeButton.IsEnabled = _isDm || _remote;
-            bar.Children.Add(_shapeButton);
+            dmBar.Children.Add(_shapeButton);
 
             _shapeField.Margin = new Thickness(0, 0, 10, 0);
             _shapeField.VerticalAlignment = VerticalAlignment.Center;
             _shapeField.ToolTip = "Размер новой фигуры в клетках (число)";
             _shapeField.IsEnabled = _isDm || _remote;
-            bar.Children.Add(_shapeField);
+            dmBar.Children.Add(_shapeField);
 
             Button trailColor = null;
             trailColor = DmUiKit.Action("Цвет следа", (s, e) => OpenTrailColorMenu(trailColor),
                 DmUiKit.ButtonKind.Ghost, "Цвет линии, остающейся за жетоном", 110, 30);
             trailColor.Margin = new Thickness(0, 0, 10, 0);
             trailColor.IsEnabled = _isDm;
-            bar.Children.Add(trailColor);
+            dmBar.Children.Add(trailColor);
 
             // ── линейка: протяните мышью и увидите клетки/футы ──
             _measureCheck.Margin = new Thickness(0, 0, 10, 0);
@@ -737,19 +744,19 @@ namespace HMWT_MUI.Views
             _wallCheck.ToolTip = "Тяните мышью по карте, чтобы нарисовать стену. ПКМ по стене — убрать.";
             _wallCheck.Checked += (s, e) => { _wallStart = null; _viewport.Cursor = Cursors.Cross; };
             _wallCheck.Unchecked += (s, e) => { _wallStart = null; _viewport.Cursor = Cursors.Arrow; };
-            bar.Children.Add(_wallCheck);
+            dmBar.Children.Add(_wallCheck);
 
             // ── кисть ──
             _drawCheck.Margin = new Thickness(0, 0, 6, 0);
             _drawCheck.IsEnabled = _isDm || _remote;
             _drawCheck.Checked += (s, e) => { _strokePoints = null; _viewport.Cursor = Cursors.Pen; };
             _drawCheck.Unchecked += (s, e) => { _strokePoints = null; _eraserCheck.IsChecked = false; _viewport.Cursor = Cursors.Arrow; };
-            bar.Children.Add(_drawCheck);
+            dmBar.Children.Add(_drawCheck);
 
             _eraserCheck.Margin = new Thickness(0, 0, 6, 0);
             _eraserCheck.IsEnabled = _isDm || _remote;
             _eraserCheck.Checked += (s, e) => { if (_drawCheck.IsChecked != true) _drawCheck.IsChecked = true; };
-            bar.Children.Add(_eraserCheck);
+            dmBar.Children.Add(_eraserCheck);
 
             var brushColor = new Button
             {
@@ -777,34 +784,52 @@ namespace HMWT_MUI.Views
             brushColor.Click += (s, e) => OpenBrushColorMenu(brushColor);
             System.Windows.Automation.AutomationProperties.SetAutomationId(brushColor, "mapBrushColor");
             System.Windows.Automation.AutomationProperties.SetName(brushColor, "Цвет кисти");
-            bar.Children.Add(brushColor);
+            dmBar.Children.Add(brushColor);
 
             _brushField.Width = 50;
             _brushField.Margin = new Thickness(0, 0, 6, 0);
             _brushField.IsEnabled = _isDm || _remote;
             _brushField.ToolTip = "Толщина кисти в точках картинки";
-            bar.Children.Add(_brushField);
+            dmBar.Children.Add(_brushField);
 
             var clearDraw = DmUiKit.Action("Очистить", (s, e) => ClearStrokes(), DmUiKit.ButtonKind.Ghost,
                 "Убрать все рисунки с этой сцены", 96, 30);
             clearDraw.Margin = new Thickness(0, 0, 10, 0);
             clearDraw.IsEnabled = _isDm;
-            bar.Children.Add(clearDraw);
+            dmBar.Children.Add(clearDraw);
 
             var tokens = DmUiKit.Action("Токены из боя", (s, e) => SyncTokens(), DmUiKit.ButtonKind.Ghost,
                 "Поставить жетоны всех участников текущего боя", 150, 30);
             tokens.Margin = new Thickness(10, 0, 0, 0);
             tokens.IsEnabled = _isDm;
-            bar.Children.Add(tokens);
+            dmBar.Children.Add(tokens);
 
             _status.FontSize = 11;
             _status.Foreground = DmUiKit.B("Mute");
             _status.VerticalAlignment = VerticalAlignment.Center;
             _status.Margin = new Thickness(12, 0, 0, 0);
+            // «Мастер ⚙» — вкладыш с инструментами; игроку он не показывается
+            var dmToggle = DmUiKit.Action("Мастер ⚙", (s, e) =>
+            {
+                dmBar.Visibility = dmBar.Visibility == Visibility.Visible
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+                WebLog("dm panel " + dmBar.Visibility);
+            }, DmUiKit.ButtonKind.Ghost,
+                "Открыть инструменты мастера: картинка, сетка, фигуры, стены, кисть", 100, 30);
+            dmToggle.Margin = new Thickness(16, 0, 6, 0);
+            dmToggle.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
+            bar.Children.Add(dmToggle);
             bar.Children.Add(_status);
 
-            Grid.SetRow(bar, 0);
-            root.Children.Add(bar);
+            // Обе строки живут в одной ячейке сетки: иначе вторая строка
+            // накладывалась на первую и её не было видно.
+            var topBars = new StackPanel { Orientation = Orientation.Vertical };
+            topBars.Children.Add(bar);
+            topBars.Children.Add(dmBar);
+
+            Grid.SetRow(topBars, 0);
+            root.Children.Add(topBars);
 
             // ── полотно ──
             _viewport.Background = DmUiKit.B("Void");
