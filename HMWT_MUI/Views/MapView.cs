@@ -934,6 +934,18 @@ namespace HMWT_MUI.Views
                                      !string.Equals(oldPhoto, photoKey, StringComparison.OrdinalIgnoreCase);
                     if (sendPhoto) _webTokenPhotoKeys[t.Id] = photoKey;
 
+                    // Хиты и состояния берём у участника боя: на жетоне они
+                    // показываются сверху и снизу от имени.
+                    int hp = 0, hpMax = 0;
+                    string conditions = "";
+                    if (t.CombatantId > 0 && _combatants.TryGetValue(t.CombatantId, out var owner) &&
+                        owner.Combatant != null)
+                    {
+                        hp = owner.Combatant.HitPoints;
+                        hpMax = owner.Combatant.MaxHitPoints;
+                        conditions = owner.Combatant.Conditions ?? "";
+                    }
+
                     tokens.Add(new
                     {
                         id = t.Id,
@@ -949,6 +961,9 @@ namespace HMWT_MUI.Views
                         frameColor = t.FrameColor ?? "",
                         viewColor = t.ViewColor ?? "",
                         revealCells = t.RevealCells,
+                        hp,
+                        hpMax,
+                        conditions,
                         // null — аватар не менялся; "" — аватара нет.
                         photo = sendPhoto ? WebAssetUrl(photoPath) : null
                     });

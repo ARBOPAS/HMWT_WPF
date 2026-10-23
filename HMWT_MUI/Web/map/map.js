@@ -787,13 +787,36 @@
       align: 'center'
     });
     label.anchor.set(0.5, 0);
-    node.addChild(halo, photo, tokenMask, frame, label);
+    // Хиты сверху, состояния снизу — как на карточке бойца.
+    const hpLabel = new PIXI.Text('', {
+      fontFamily: 'Palatino Linotype, Georgia, Segoe UI',
+      fontSize: 14,
+      fill: 0xffb3b3,
+      stroke: 0x090c16,
+      strokeThickness: 4,
+      align: 'center'
+    });
+    hpLabel.anchor.set(0.5, 1);
+
+    const condLabel = new PIXI.Text('', {
+      fontFamily: 'Palatino Linotype, Georgia, Segoe UI',
+      fontSize: 12,
+      fill: 0xffd27a,
+      stroke: 0x090c16,
+      strokeThickness: 3,
+      align: 'center'
+    });
+    condLabel.anchor.set(0.5, 0);
+
+    node.addChild(halo, photo, tokenMask, frame, hpLabel, label, condLabel);
     photo.mask = tokenMask;
     node._halo = halo;
     node._photo = photo;
     node._tokenMask = tokenMask;
     node._frame = frame;
     node._label = label;
+    node._hp = hpLabel;
+    node._cond = condLabel;
     tokenLayer.addChild(node);
     return node;
   }
@@ -874,6 +897,27 @@
       node._label.style.strokeThickness = Math.max(3, Math.round(size * 0.05));
       node._label.y = size / 2 + 4;
       node._label.text = t.label || '';
+
+      // Хиты сверху, состояния — под именем.
+      const hpText = (t.hpMax > 0) ? (t.hp + '/' + t.hpMax) : '';
+      node._hp.text = hpText;
+      node._hp.visible = !!hpText;
+      if (hpText) {
+        node._hp.style.fontSize = Math.max(12, Math.round(size * 0.17));
+        node._hp.style.strokeThickness = Math.max(3, Math.round(size * 0.045));
+        node._hp.y = -size / 2 - 6;
+        // Хиты кончились — краснее, чтобы бросалось в глаза
+        node._hp.style.fill = (t.hp <= 0) ? 0x8a2030 : 0xffb3b3;
+      }
+
+      const condText = t.conditions || '';
+      node._cond.text = condText;
+      node._cond.visible = condText.length > 0;
+      if (node._cond.visible) {
+        node._cond.style.fontSize = Math.max(11, Math.round(size * 0.15));
+        node._cond.style.strokeThickness = Math.max(3, Math.round(size * 0.04));
+        node._cond.y = size / 2 + 4 + node._label.height;
+      }
 
       // Враг в зоне обзора — насыщенная рамка, чтобы было видно, кто попал
       // в радиус/фигуру. Вне обзора её не рисуем.
@@ -2277,5 +2321,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.4.4');
+  log('renderer ready v1.3.4.5');
 })();
