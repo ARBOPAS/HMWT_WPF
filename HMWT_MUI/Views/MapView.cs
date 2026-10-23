@@ -320,6 +320,7 @@ namespace HMWT_MUI.Views
             _webMap.TokenMovedWithTrail += OnWebTokenMoved;
             _webMap.TokenMovedLive += OnWebTokenMovedLive;
             _webMap.ShapePlaced += OnWebShapePlaced;
+            _webMap.PointPlaced += OnWebPointPlaced;
             _webMap.ShapeMoved += OnWebShapeMoved;
             _webMap.StrokeAdded += OnWebStroke;
             _webMap.WallAdded += OnWebWall;
@@ -1737,6 +1738,17 @@ namespace HMWT_MUI.Views
                     shape.RadiusCells = Math.Max(0.5, Math.Min(20, shape.RadiusCells + step));
                     break;
 
+                // Подпись фигуры или точки интереса
+                case "rename":
+                    {
+                        string current = shape.Label ?? "";
+                        string text = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                            "Подпись", "Название", current, "Сохранить");
+                        if (text == null) return;
+                        shape.Label = text.Trim();
+                    }
+                    break;
+
                 case "color":
                     if (string.IsNullOrWhiteSpace(value)) return;
                     shape.Color = value.Trim();
@@ -1763,6 +1775,21 @@ namespace HMWT_MUI.Views
                 return;
             }
             if (_scene == null || _pendingShape == null || (!_isDm && !_remote)) return;
+            PlaceShape(new Point(x, y));
+            PushWebMap();
+        }
+
+        /// <summary>ПКМ по пустому месту карты: поставить точку интереса.</summary>
+        private void OnWebPointPlaced(double x, double y)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebPointPlaced(x, y)));
+                return;
+            }
+            if (_scene == null || (!_isDm && !_remote)) return;
+
+            _pendingShape = new MapShapeData { Kind = "point", RadiusCells = 0 };
             PlaceShape(new Point(x, y));
             PushWebMap();
         }
@@ -4402,7 +4429,8 @@ namespace HMWT_MUI.Views
             ("circle", "Круг"),
             ("square", "Квадрат"),
             ("cone", "Конус"),
-            ("line", "Линия")
+            ("line", "Линия"),
+            ("point", "Точка интереса")
         };
 
         private void OpenShapeMenu(FrameworkElement target)
@@ -4421,9 +4449,13 @@ namespace HMWT_MUI.Views
                 ApplyMenuItemStyle(item);
                 item.Click += (s, e) =>
                 {
-                    // размер берём из числового поля, а не из ползунка
-                    _pendingShape = new MapShapeData { Kind = kindKey, RadiusCells = Math.Max(1, ParseShapeSize()) };
-                    DmRolls.Toast(this, $"{title} {_pendingShape.RadiusCells:0.#} кл.: щёлкните по карте");
+                    // размер берём из числового поля, а не из ползунка;
+                    // у точки интереса размера нет — это просто метка на карте
+                    double size = kindKey == "point" ? 0 : Math.Max(1, ParseShapeSize());
+                    _pendingShape = new MapShapeData { Kind = kindKey, RadiusCells = size };
+                    DmRolls.Toast(this, kindKey == "point"
+                        ? "Точка интереса: щёлкните по карте, затем подпишите её из меню ПКМ"
+                        : $"{title} {size:0.#} кл.: щёлкните по карте");
                 };
                 menu.Items.Add(item);
             }

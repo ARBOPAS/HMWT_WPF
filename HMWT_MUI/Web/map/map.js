@@ -685,7 +685,7 @@
     for (const s of (data.shapes || [])) {
       shapeTargets.set(s.id, {
         id: s.id, kind: s.kind, radius: s.radius, angle: s.angle,
-        color: s.color, x: s.x, y: s.y
+        color: s.color, x: s.x, y: s.y, label: s.label
       });
       if (!shapeDisplay.has(s.id)) shapeDisplay.set(s.id, { x: s.x, y: s.y });
     }
@@ -697,31 +697,84 @@
     shapeAnim = true;
   }
 
+  // Подписи фигур и точек интереса: отдельные тексты, чтобы их можно было
+  // читать поверх карты (Graphics текст не рисует).
+  const shapeLabels = new Map();
+
   function drawShapes() {
     shapeG.clear();
+
+    const seen = new Set();
     for (const [id, target] of shapeTargets) {
       const dragged = drag && drag.kind === 'shape' && drag.shape && drag.shape.id === id;
       const pos = dragged ? drag.shape : (shapeDisplay.get(id) || target);
       const s = Object.assign({}, target, { x: pos.x, y: pos.y });
       const col = rgba(s.color, { color: 0xb98bff, alpha: 1 });
       const radius = shapeRadius(s);
-      shapeG.lineStyle(3, col.color, 0.9);
-      shapeG.beginFill(col.color, 0.16);
-      if (s.kind === 'square') {
-        shapeG.drawRoundedRect(s.x - radius, s.y - radius, radius * 2, radius * 2, 6);
-      } else if (s.kind === 'cone') {
-        const a = ((s.angle || 0) * Math.PI) / 180;
-        shapeG.moveTo(s.x, s.y);
-        shapeG.arc(s.x, s.y, radius, a - Math.PI / 4, a + Math.PI / 4);
-        shapeG.lineTo(s.x, s.y);
-      } else if (s.kind === 'line') {
-        const end = shapeEndpoint(s);
-        shapeG.moveTo(s.x, s.y);
-        shapeG.lineTo(end.x, end.y);
+      seen.add(id);
+
+      if (s.kind === 'point') {
+        // Точка интереса: маленькая метка, ничего не заливает
+        const r = Math.max(4, cellPx() * 0.12);
+        shapeG.lineStyle(2.5, col.color, 0.95);
+        shapeG.beginFill(col.color, 0.85);
+        shapeG.drawCircle(s.x, s.y, r);
+        shapeG.endFill();
+        shapeG.lineStyle(1.5, col.color, 0.5);
+        shapeG.drawCircle(s.x, s.y, r * 2.4);
       } else {
-        shapeG.drawCircle(s.x, s.y, radius);
+        shapeG.lineStyle(3, col.color, 0.9);
+        shapeG.beginFill(col.color, 0.16);
+        if (s.kind === 'square') {
+          shapeG.drawRoundedRect(s.x - radius, s.y - radius, radius * 2, radius * 2, 6);
+        } else if (s.kind === 'cone') {
+          const a = ((s.angle || 0) * Math.PI) / 180;
+          shapeG.moveTo(s.x, s.y);
+          shapeG.arc(s.x, s.y, radius, a - Math.PI / 4, a + Math.PI / 4);
+          shapeG.lineTo(s.x, s.y);
+        } else if (s.kind === 'line') {
+          const end = shapeEndpoint(s);
+          shapeG.moveTo(s.x, s.y);
+          shapeG.lineTo(end.x, end.y);
+        } else {
+          shapeG.drawCircle(s.x, s.y, radius);
+        }
+        shapeG.endFill();
       }
-      shapeG.endFill();
+
+      // Подпись
+      const text = (s.label || '').trim();
+      let node = shapeLabels.get(id);
+      if (text.length > 0) {
+        if (!node) {
+          node = new PIXI.Text('', {
+            fontFamily: 'Palatino Linotype, Georgia, Segoe UI',
+            fontSize: 16,
+            fill: 0xf1f4ff,
+            stroke: 0x090c16,
+            strokeThickness: 4,
+            align: 'center'
+          });
+          node.anchor.set(0.5, 0);
+          shapeLayer.addChild(node);
+          shapeLabels.set(id, node);
+        }
+        node.text = text;
+        node.style.fontSize = Math.max(14, Math.round(cellPx() * 0.28));
+        node.position.set(
+          s.x,
+          s.kind === 'point' ? s.y - radius - 22 : s.y - 8
+        );
+        node.visible = true;
+      } else if (node) {
+        node.visible = false;
+      }
+    }
+
+    for (const [id, node] of [...shapeLabels]) {
+      if (seen.has(id)) continue;
+      shapeLabels.delete(id);
+      node.destroy();
     }
   }
 
@@ -1602,8 +1655,21 @@
       post({ type: 'tokenMenuAction', id: token.id, action: item.action, value: item.value }));
   }
 
-  function openWallMenu(e, wall) {
-    if (!isDm) return;
+  // Меню по правой кнопке на пустом месте карты (только ведущий).
+  function openMapMenu(e, sp) {
+    const items = [
+      { text: 'Точка интереса здесь', action: 'point' },
+      { text: 'Пинг здесь', action: 'ping' }
+    ];
+    renderMenu(e.clientX, e.clientY, items, item => {
+      if (item.action === 'point')
+        post({ type: 'placePoint', x: sp.x, y: sp.y });
+      else
+        post({ type: 'ping', x: Math.round(sp.x), y: Math.round(sp.y) });
+    });
+  }
+
+  function openWallMenu(e, wall) {    if (!isDm) return;
 
     const items = [];
     items.push({ text: wall.kind === 'door' ? 'Дверь' : 'Стена', disabled: true });
@@ -1616,15 +1682,30 @@
       post({ type: 'wallAction', id: wall.id, action: item.action }));
   }
 
-  const SHAPE_TITLES = { circle: 'Круг', square: 'Квадрат', cone: 'Конус', line: 'Линия' };
+  const SHAPE_TITLES = {
+    circle: 'Круг', square: 'Квадрат', cone: 'Конус', line: 'Линия', point: 'Точка интереса'
+  };
 
   function openShapeMenu(e, shape) {
     const items = [];
-    items.push({ text: (SHAPE_TITLES[shape.kind] || 'Фигура') + ' ' + (shape.radius || 0) + ' кл.', disabled: true });
+    const shapeTitle = shape.kind === 'point'
+      ? (SHAPE_TITLES.point || 'Точка')
+      : (SHAPE_TITLES[shape.kind] || 'Фигура') + ' ' + (shape.radius || 0) + ' кл.';
+    items.push({ text: shapeTitle, disabled: true });
     items.push({ separator: true });
 
     items.push({ text: 'Повернуть ⟳', action: 'rotate', value: '45' });
     items.push({ text: 'Повернуть ⟲', action: 'rotate', value: '-45' });
+
+    // Подпись: у точки интереса это главное, у фигуры — просто удобно
+    items.push({ separator: true });
+    items.push({
+      text: (shape.label || '').length ? 'Изменить подпись…' : 'Подписать…',
+      action: 'rename', value: ''
+    });
+    if ((shape.label || '').length)
+      items.push({ text: 'Убрать подпись', action: 'rename', value: '' });
+
     items.push({ separator: true });
     items.push({ text: 'Больше на 1 клетку', action: 'radius', value: '1' });
     items.push({ text: 'Меньше на 1 клетку', action: 'radius', value: '-1' });
@@ -1739,6 +1820,14 @@
       if (wallHit) { openWallMenu(e, wallHit); e.preventDefault(); return; }
       const shapeHit = hitShape(sp);
       if (shapeHit) { openShapeMenu(e, shapeHit); e.preventDefault(); return; }
+
+      // Пустое место: у мастера — быстрые действия по этой точке
+      if (isDm) {
+        openMapMenu(e, sp);
+        e.preventDefault();
+        return;
+      }
+
       e.preventDefault();
       return;
     }
@@ -2321,5 +2410,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.4.5');
+  log('renderer ready v1.3.4.6');
 })();

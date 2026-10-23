@@ -28,6 +28,9 @@ namespace HMWT_MUI.Controls
         public event Action<int, double, double> TokenMoved;
         public event Action<int, double, double, List<Net.MapTrailPoint>> TokenMovedWithTrail;
         public event Action<double, double> ShapePlaced;
+
+        /// <summary>ПКМ по пустому месту: поставить точку интереса.</summary>
+        public event Action<double, double> PointPlaced;
         public event Action<double, double> Pinged;
 
         /// <summary>Жетон тянут: промежуточное положение без записи в базу.</summary>
@@ -279,6 +282,15 @@ namespace HMWT_MUI.Controls
                     root.TryGetProperty("y", out var sy))
                 {
                     ShapePlaced?.Invoke(sx.GetDouble(), sy.GetDouble());
+                    return;
+                }
+
+                // Точка интереса по правой кнопке на карте
+                if (type == "placePoint" &&
+                    root.TryGetProperty("x", out var px) &&
+                    root.TryGetProperty("y", out var py))
+                {
+                    PointPlaced?.Invoke(px.GetDouble(), py.GetDouble());
                     return;
                 }
 
