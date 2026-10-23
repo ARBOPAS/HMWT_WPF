@@ -367,11 +367,13 @@
         if (t.id !== drag.token.id) continue;
         t.x = drag.token.x;
         t.y = drag.token.y;
-        t.facing = drag.token.facing;
+        // Угол берём из C#: пока жетон тащат, его могли повернуть Q/E, и
+        // старая копия в drag уже не соответствует настоящему взгляду.
+        drag.token.facing = t.facing;
       }
 
       // Снимок карты пришёл во время драга: в state.tokens держим те же
-      // координаты и угол, что и у перетаскиваемого жетона.
+      // координаты, что и у перетаскиваемого жетона.
       const fresh = (data.tokens || []).find(t => t.id === drag.id);
       if (fresh) {
         fresh.x = drag.token.x;
@@ -387,6 +389,9 @@
         fresh.facing = rotateHold.token.facing;
         rotateHold.token = fresh;
       }
+      if (drag && drag.kind === 'token' && drag.token && drag.token.id === rotateHold.token.id)
+        drag.token.facing = rotateHold.token.facing;
+
       for (const t of incomingFov) {
         if (t.id === rotateHold.token.id) t.facing = rotateHold.token.facing;
       }
@@ -488,11 +493,15 @@
         if (t.id !== drag.token.id) continue;
         t.x = drag.token.x;
         t.y = drag.token.y;
-        t.facing = drag.token.facing;
+        // Угол — из C#: его мог повернуть Q/E во время драга.
+        drag.token.facing = t.facing;
       }
     }
     // Пока Q/E держат, угол у нас свежее, чем в сообщении из C#.
     if (rotateHold && rotateHold.token) {
+      if (drag && drag.kind === 'token' && drag.token && drag.token.id === rotateHold.token.id)
+        drag.token.facing = rotateHold.token.facing;
+
       for (const t of incoming) {
         if (t.id === rotateHold.token.id) t.facing = rotateHold.token.facing;
       }
@@ -1910,5 +1919,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.4');
+  log('renderer ready v1.3.3.5');
 })();
