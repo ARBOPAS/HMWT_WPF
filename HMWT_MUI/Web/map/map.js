@@ -150,6 +150,7 @@
   let lastLiveAt = 0;
   let viewLogs = 0;
   let sceneCount = 0;
+  let rotMaxStep = 0;
 
   // Угол обзора приходит из C# ~30 раз в секунду, а кадров больше. Показываем
   // плавно доводимый угол, иначе конус двигается рывками.
@@ -157,14 +158,29 @@
     return t && t._shown !== undefined ? t._shown : ((t && t.facing) || 0);
   }
 
-  /** Новый набор областей обзора: сохраняем плавный угол по id. */
+  /** Новый набор областей обзора: сохраняем плавный угол и скорость по id. */
   function setFovTokens(list) {
+    const now = performance.now();
     const prev = new Map(fovTokens.map(f => [f.id, f]));
+
     for (const t of list) {
       const old = prev.get(t.id);
       t._shown = old && old._shown !== undefined ? old._shown : (t.facing || 0);
       t._target = t.facing || 0;
+      t._msgAt = now;
+
+      if (old && old._target !== undefined) {
+        // Скорость поворота в градусах на миллисекунду: по ней WebView
+        // продолжает движение, если следующий пакет задержался.
+        const d = ((t._target - old._target + 540) % 360) - 180;
+        const dt = Math.max(16, now - (old._msgAt || now));
+        const v = d / dt;
+        t._vel = Math.abs(v) > 0.4 ? 0 : (old._vel || 0) * 0.5 + v * 0.5;
+      } else {
+        t._vel = 0;
+      }
     }
+
     fovTokens = list;
   }
 
@@ -562,6 +578,18 @@
     }
 
     setFovTokens(incoming);
+
+    // Конец поворота: цель окончательная, «додумывать» движение не нужно.
+    if (data.stop) {
+      for (const f of fovTokens) {
+        f._vel = 0;
+        f._target = f.facing || 0;
+      }
+      // Диагностика плавности: самый большой шаг конуса за кадр (градусы).
+      log('rot stop maxstep=' + rotMaxStep.toFixed(2));
+      rotMaxStep = 0;
+    }
+
     buildFov();
 
     const now = performance.now();
@@ -870,25 +898,31 @@
 
     // Плавный доворот конуса: цель приходит из C# ~30 раз в секунду,
     // а рисуем каждый кадр — иначе поворот выглядит рывками.
+    const nowFov = performance.now();
     let fovMoving = false;
     for (const f of fovTokens) {
       if (f._target === undefined) f._target = f.facing || 0;
       if (f._shown === undefined) f._shown = f._target;
 
-      let d = ((f._target - f._shown + 540) % 360) - 180;
+      // Если пакет задержался (UI-поток занят), продолжаем ехать с последней
+      // скоростью: иначе конус замирает и следующий пакет даёт рывок.
+      const idle = Math.min(160, nowFov - (f._msgAt || nowFov));
+      const predicted = f._target + (f._vel || 0) * idle;
+
+      const d = ((predicted - f._shown + 540) % 360) - 180;
       if (Math.abs(d) < 0.05) {
-        f._shown = f._target;
+        f._shown = ((predicted % 360) + 360) % 360;
         continue;
       }
-      f._shown += d * 0.4;
+      f._shown = ((f._shown + d * 0.35) % 360 + 360) % 360;
+      if (Math.abs(d) * 0.35 > rotMaxStep) rotMaxStep = Math.abs(d) * 0.35;
       fovMoving = true;
     }
 
     if (fovMoving) {
       buildFov();
-      const now = performance.now();
-      if (now - lastFogAt >= 40) {
-        lastFogAt = now;
+      if (nowFov - lastFogAt >= 40) {
+        lastFogAt = nowFov;
         buildFog();
       }
     }
@@ -1074,6 +1108,49 @@
   const FOG_MAX = 1024;
   let fogCanvas = null, fogCtx = null, fogTex = null, fogSprite = null;
 
+  // Отдельный холст «разведанного»: перерисовывается только когда меняется
+  // список секторов. Иначе каждый кадр поворота обводил бы их все заново.
+  let fogBase = null, fogBaseCtx = null, fogBaseKey = '';
+
+  function buildFogBase(w, h) {
+    let sum = 0;
+    for (const s of fogSeen) sum += s.length;
+    const key = [w, h, isDm ? 1 : 0, mapW, mapH, fogSeen.length, sum, wallsSig].join('|');
+
+    if (fogBase && fogBase.width === w && fogBase.height === h && key === fogBaseKey) return;
+
+    if (!fogBase) {
+      fogBase = document.createElement('canvas');
+      fogBaseCtx = fogBase.getContext('2d');
+    }
+    if (fogBase.width !== w || fogBase.height !== h) {
+      fogBase.width = w;
+      fogBase.height = h;
+    }
+
+    fogBaseCtx.setTransform(1, 0, 0, 1, 0, 0);
+    fogBaseCtx.globalCompositeOperation = 'source-over';
+    fogBaseCtx.clearRect(0, 0, w, h);
+    fogBaseCtx.fillStyle = isDm ? 'rgba(5,7,15,0.62)' : 'rgba(5,7,15,0.985)';
+    fogBaseCtx.fillRect(0, 0, w, h);
+
+    fogBaseCtx.setTransform(w / mapW, 0, 0, h / mapH, 0, 0);
+    fogBaseCtx.globalCompositeOperation = 'destination-out';
+    fogBaseCtx.fillStyle = '#fff';
+    fogBaseCtx.beginPath();
+    for (const text of fogSeen) {
+      const pts = polygon(text);
+      if (pts.length < 6) continue;
+      fogBaseCtx.moveTo(pts[0], pts[1]);
+      for (let i = 2; i < pts.length; i += 2) fogBaseCtx.lineTo(pts[i], pts[i + 1]);
+      fogBaseCtx.closePath();
+    }
+    fogBaseCtx.fill();
+    fogBaseCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+    fogBaseKey = key;
+  }
+
   function ensureFogSurface() {
     const scale = Math.min(1, FOG_MAX / Math.max(mapW, mapH));
     const w = Math.max(1, Math.round(mapW * scale));
@@ -1121,24 +1198,22 @@
     fogKey = key;
 
     const w = fogCanvas.width, h = fogCanvas.height;
+
+    // Разведанные сектора перерисовываем только когда они изменились:
+    // их бывает больше двухсот, и заново обводить все на каждом кадре
+    // поворота — это и были те самые подтормаживания.
+    buildFogBase(w, h);
+
     fogCtx.setTransform(1, 0, 0, 1, 0, 0);
     fogCtx.globalCompositeOperation = 'source-over';
     fogCtx.clearRect(0, 0, w, h);
-    fogCtx.fillStyle = isDm ? 'rgba(5,7,15,0.62)' : 'rgba(5,7,15,0.985)';
-    fogCtx.fillRect(0, 0, w, h);
+    if (fogBase) fogCtx.drawImage(fogBase, 0, 0);
 
     // Дальше рисуем в координатах картинки — холст сам растянется.
     fogCtx.setTransform(w / mapW, 0, 0, h / mapH, 0, 0);
     fogCtx.globalCompositeOperation = 'destination-out';
     fogCtx.fillStyle = '#fff';
     fogCtx.beginPath();
-    for (const text of fogSeen) {
-      const pts = polygon(text);
-      if (pts.length < 6) continue;
-      fogCtx.moveTo(pts[0], pts[1]);
-      for (let i = 2; i < pts.length; i += 2) fogCtx.lineTo(pts[i], pts[i + 1]);
-      fogCtx.closePath();
-    }
 
     // Текущий обзор — те же полигоны видимости, что и у сектора на экране,
     // поэтому за стеной туман не вырезается. Мастеру режет туман любой конус
@@ -1890,6 +1965,8 @@
       // Поворот уже анимируем сами — доводить нечего.
       f._target = token.facing;
       f._shown = token.facing;
+      f._vel = 0;
+      f._msgAt = performance.now();
     }
   }
 
@@ -2010,5 +2087,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.6');
+  log('renderer ready v1.3.3.7');
 })();

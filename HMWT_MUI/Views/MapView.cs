@@ -201,6 +201,13 @@ namespace HMWT_MUI.Views
         /// <summary>Когда последний раз пересчитывали туман по чужому live-ходу.</summary>
         private DateTime _lastLiveFog = DateTime.MinValue;
 
+        /// <summary>Разведанное, ещё не записанное в базу (копится во время движения).</summary>
+        private readonly List<string> _pendingSeenWrites = new List<string>();
+
+        /// <summary>Диагностика поворота: сколько пакетов ушло и была ли пауза.</summary>
+        private int _rotatePushes;
+        private double _rotateMaxGap;
+
         /// <summary>
         /// Плавный поворот взгляда: пока Q/E держат, угол идёт по таймеру,
         /// а не шагами. Клавиши приходят в WPF (у WebView нет фокуса ввода),
@@ -318,7 +325,12 @@ namespace HMWT_MUI.Views
             {
                 Interval = TimeSpan.FromMilliseconds(400)
             };
-            _webSyncTimer.Tick += (s, e) => PushWebMap();
+            _webSyncTimer.Tick += (s, e) =>
+            {
+                // Пока крутим обзор, полную сцену не шлём: она тяжёлая и
+                // сбивает плавность. Хватает лёгких пакетов с углом.
+                if (!_rotateTimer.IsEnabled) PushWebMap();
+            };
 
             _rotateTimer.Tick += RotateTick;
             KeyUp += MapView_KeyUp;
@@ -1084,7 +1096,7 @@ namespace HMWT_MUI.Views
         /// уходит до 30 раз в секунду: поворот рисуется плавно, а тяжёлый
         /// список разведанных секторов не гоняется по мосту на каждый кадр.
         /// </summary>
-        private void PushWebFacing()
+        private void PushWebFacing(bool stop = false)
         {
             if (!_webMapReady || _scene == null) return;
 
@@ -1097,6 +1109,7 @@ namespace HMWT_MUI.Views
                     isDm = _isDm,
                     grid = new { px = _scene.GridPx },
                     fog = new { on = WebFogEnabled() },
+                    stop = stop,
                     fovTokens = WebFovTokens()
                 };
 
@@ -1181,7 +1194,9 @@ namespace HMWT_MUI.Views
                 _lastLiveFog = DateTime.UtcNow;
                 if (WebFogEnabled())
                 {
-                    RememberCurrentVision();
+                    // только в память: в базу и сеть уйдёт одним пакетом
+                    // при отпускании, иначе каждый шаг драга тормозит UI
+                    RememberCurrentVision(false);
                     PushWebFog();
                 }
             }
@@ -1521,7 +1536,7 @@ namespace HMWT_MUI.Views
                 if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 550)
                 {
                     _lastLiveFog = DateTime.UtcNow;
-                    if (WebFogEnabled()) RememberCurrentVision();
+                    if (WebFogEnabled()) RememberCurrentVision(false);
                 }
                 return;
             }
@@ -3422,8 +3437,13 @@ namespace HMWT_MUI.Views
             return geometry;
         }
 
-        /// <summary>Запоминает то, что игроки видят сейчас: эти области останутся открытыми.</summary>
-        private void RememberCurrentVision()
+        /// <summary>
+        /// Запоминает то, что игроки видят сейчас: эти области останутся открытыми.
+        /// persist = false — только в память (идёт поворот или драг): запись в
+        /// SQLite и рассылка сделаются одним пакетом в конце, иначе каждый шаг
+        /// тормозит UI-поток на диске и сети.
+        /// </summary>
+        private void RememberCurrentVision(bool persist = true)
         {
             var perfWatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -3464,12 +3484,6 @@ namespace HMWT_MUI.Views
                     // при каждом обновлении сцены от мастера
                     if (!AddSeenPoint(text)) continue;
                     newSeen.Add(text);
-
-                    // Общий туман: новый сектор сразу уходит ведущему и остальным.
-                    // В режиме «свой туман» разведанное остаётся личным.
-                    if (_inRoom &&
-                        !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase))
-                        RoomSession.Instance.ShareMapSeen(text);
                 }
                 catch (Exception ex)
                 {
@@ -3477,16 +3491,49 @@ namespace HMWT_MUI.Views
                 }
             }
 
-            // Одна запись в SQLite вместо отдельного открытия соединения на
-            // каждый из четырёх жетонов — это заметная часть фриза при драге.
-            if (newSeen.Count > 0)
+            if (!persist)
             {
-                try { MapService.AddSeenBatch(_scene.Id, newSeen); }
-                catch (Exception ex) { Debug.WriteLine($"[MapView] запись разведанного: {ex.Message}"); }
+                _pendingSeenWrites.AddRange(newSeen);
+
+                // Не копим бесконечно: при долгом движении сбрасываем порциями
+                if (_pendingSeenWrites.Count >= 24) FlushPendingSeen();
+            }
+            else
+            {
+                FlushPendingSeen();
+
+                if (newSeen.Count > 0)
+                {
+                    try { MapService.AddSeenBatch(_scene.Id, newSeen); }
+                    catch (Exception ex) { Debug.WriteLine($"[MapView] запись разведанного: {ex.Message}"); }
+
+                    // Общий туман: новый сектор уходит ведущему и остальным.
+                    // В режиме «свой туман» разведанное остаётся личным.
+                    if (_inRoom && combined)
+                        foreach (string text in newSeen) RoomSession.Instance.ShareMapSeen(text);
+                }
             }
 
             PerfLog("разведано", perfWatch.ElapsedMilliseconds,
                 $"всего={_seenPoints.Count}, жетонов={_scene.Tokens.Count}");
+        }
+
+        /// <summary>Сбрасывает накопленное разведанное в SQLite и в комнату.</summary>
+        private void FlushPendingSeen()
+        {
+            if (_pendingSeenWrites.Count == 0 || _scene == null) return;
+
+            var batch = _pendingSeenWrites.ToList();
+            _pendingSeenWrites.Clear();
+
+            try { MapService.AddSeenBatch(_scene.Id, batch); }
+            catch (Exception ex) { Debug.WriteLine($"[MapView] запись разведанного: {ex.Message}"); }
+
+            if (_inRoom && !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (string text in batch)
+                    RoomSession.Instance.ShareMapSeen(text);
+            }
         }
 
         // ══════════════════════ ТУМАН ВОЙНЫ ══════════════════════
@@ -4649,7 +4696,14 @@ namespace HMWT_MUI.Views
 
             if ((now - _lastRotatePush).TotalMilliseconds >= 33)
             {
+                if (_lastRotatePush != DateTime.MinValue)
+                {
+                    double gap = (now - _lastRotatePush).TotalMilliseconds;
+                    if (gap > _rotateMaxGap) _rotateMaxGap = gap;
+                }
                 _lastRotatePush = now;
+                _rotatePushes++;
+
                 if (_webMapReady) PushWebFacing();
                 else
                 {
@@ -4669,12 +4723,12 @@ namespace HMWT_MUI.Views
 
             // Разведанное собираем по ходу поворота: иначе быстрый разворот
             // перепрыгивает сектора и часть обзора не попадает в туман.
-            // Это тяжёлая операция (геометрия + SQLite + сеть), поэтому реже
-            // кадров: туман получит новые сектора отдельным пакетом.
+            // В базу и сеть пишем не здесь, а одним пакетом в конце — иначе
+            // каждый такой шаг подвешивает UI-поток на диске и сети.
             if (WebFogEnabled() && (now - _lastLiveFog).TotalMilliseconds >= 550)
             {
                 _lastLiveFog = now;
-                RememberCurrentVision();
+                RememberCurrentVision(false);
                 if (_webMapReady) PushWebFog();
             }
         }
@@ -4686,25 +4740,41 @@ namespace HMWT_MUI.Views
 
             var token = _rotateToken;
             _rotateToken = null;
-            if (token == null || _scene == null || !CanMoveToken(token)) return;
+            if (token == null || _scene == null || !CanMoveToken(token))
+            {
+                _rotatePushes = 0;
+                _rotateMaxGap = 0;
+                return;
+            }
+
+            WebLog($"rotate pushes={_rotatePushes} maxgap={_rotateMaxGap:0}ms");
 
             if (_remote)
             {
                 // У игрока своего файла сцены нет: поворот нужно отправить хосту,
                 // иначе он вернётся прежним со следующим снимком карты
                 RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing);
-                RememberCurrentVision();
             }
             else
             {
                 MapService.SaveToken(token);
                 PublishMap();
-                RememberCurrentVision();
             }
+
+            // persist = true: всё, что накопили за поворот, уходит в базу
+            // и в комнату одним пакетом
+            RememberCurrentVision();
+
+            // Последний угол с пометкой stop: WebView перестаёт «додумывать»
+            // движение и точно встаёт на сохранённое значение.
+            if (_webMapReady) PushWebFacing(true);
 
             RenderFov();
             BuildFogMask();
             PushWebMap();
+
+            _rotatePushes = 0;
+            _rotateMaxGap = 0;
         }
 
         /// <summary>
