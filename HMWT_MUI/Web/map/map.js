@@ -2292,12 +2292,17 @@
     if (drag.kind === 'rubber') {
       drag.to = { x: sp.x, y: sp.y };
       previewG.clear();
-      const a = sceneToScreen(drag.from.x, drag.from.y);
-      const b = sceneToScreen(drag.to.x, drag.to.y);
-      previewG.lineStyle(2, 0x7fe3ff, 0.9);
+      // previewG живёт в слое карты (sceneRoot), поэтому и координаты
+      // должны быть в координатах картинки, без sceneToScreen — иначе
+      // рамка уезжала вверх-вправо от курсора.
+      const zoom = Math.max(0.05, world.scale.x || 1);
+      const x1 = Math.min(drag.from.x, drag.to.x);
+      const y1 = Math.min(drag.from.y, drag.to.y);
+      const w = Math.abs(drag.to.x - drag.from.x);
+      const h = Math.abs(drag.to.y - drag.from.y);
+      previewG.lineStyle(2 / zoom, 0x7fe3ff, 0.9);
       previewG.beginFill(0x7fe3ff, 0.08);
-      previewG.drawRect(Math.min(a.x, b.x), Math.min(a.y, b.y),
-        Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      previewG.drawRect(x1, y1, w, h);
       previewG.endFill();
       return;
     }
@@ -2657,5 +2662,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.5.2');
+  log('renderer ready v1.3.5.3');
 })();

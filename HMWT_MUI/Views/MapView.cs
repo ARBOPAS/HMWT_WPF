@@ -1125,7 +1125,10 @@ namespace HMWT_MUI.Views
             var list = new List<object>();
             if (_scene?.Tokens == null) return list;
 
-            bool combined = !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase);
+            // «Токены отряда» управляет и обзором: выключили — виден только
+            // свой конус, включили — общий обзор отряда. У мастера всегда общий.
+            bool combined = !string.Equals(_scene.FogMode, "own", StringComparison.OrdinalIgnoreCase) &&
+                            (_isDm || _showPlayersCheck.IsChecked == true);
 
             foreach (var t in _scene.Tokens)
             {

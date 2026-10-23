@@ -91,8 +91,7 @@ namespace HMWT_MUI
         private bool _restApplied;
 
         public CharacterInfoWindow(int characterId)
-        {
-            InitializeComponent();
+        {            InitializeComponent();
             System.Windows.Media.TextOptions.SetTextFormattingMode(this,
                 System.Windows.Media.TextFormattingMode.Display);
             System.Windows.Media.TextOptions.SetTextRenderingMode(this,
@@ -108,6 +107,11 @@ namespace HMWT_MUI
             // Подписываем ТОЛЬКО то, чего нет в XAML
             btnCloseHPCalc.Click += (s, e) => HPCalcOverlay.Visibility = Visibility.Collapsed;
             btnCloseLevelManager.Click += (s, e) => LevelManagerOverlay.Visibility = Visibility.Collapsed;
+
+            // Оверлеи этого окна (калькулятор ХП, менеджер уровней, портрет,
+            // всплывающие подсказки) лежат в том же окне, что и карта, поэтому
+            // WebView2 их перекрывает. Пока оверлей открыт — прячем карту.
+            LayoutUpdated += (_, __) => SyncMapOverlays();
             btnHPHeal.Click += BtnHPHeal_Click;
             btnHPDamage.Click += BtnHPDamage_Click;
             btnHPRoll.Click += BtnHPRoll_Click;
@@ -4457,6 +4461,27 @@ namespace HMWT_MUI
         #endregion
 
         #region === 14. АДАПТИВНАЯ ВЕРСТКА ===
+        /// <summary>
+        /// Прячет WebGL-карту, пока поверх окна открыт оверлей. WebView2 —
+        /// отдельное окно и всегда выше WPF, поэтому оверлеи «уходили под карту».
+        /// </summary>
+        private void SyncMapOverlays()
+        {
+            bool open =
+                HPCalcOverlay.Visibility == Visibility.Visible ||
+                LevelManagerOverlay.Visibility == Visibility.Visible ||
+                PortraitOverlay.Visibility == Visibility.Visible ||
+                ProfPopLayer.Children.Count > 0;
+
+            if (open == _mapOverlayOpen) return;
+            _mapOverlayOpen = open;
+
+            if (open) Controls.MapWebRenderer.DialogOpened();
+            else Controls.MapWebRenderer.DialogClosed();
+        }
+
+        private bool _mapOverlayOpen;
+
         private void ApplyAdaptiveLayout()
         {
             double w = ActualWidth;
