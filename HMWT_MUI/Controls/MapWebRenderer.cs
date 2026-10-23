@@ -54,6 +54,9 @@ namespace HMWT_MUI.Controls
         /// <summary>Действие с фигурой: поворот, размер, цвет, удаление.</summary>
         public event Action<int, string, string> ShapeAction;
 
+        /// <summary>Поворот взгляда из WebView: абсолютный угол и признак «отпустили».</summary>
+        public event Action<int, double, bool> FacingChanged;
+
         /// <summary>Действие со стеной: открыть/закрыть дверь, убрать.</summary>
         public event Action<int, string> WallAction;
 
@@ -373,6 +376,16 @@ namespace HMWT_MUI.Controls
                         ? shapeValueEl.GetString() : "";
                     ShapeAction?.Invoke(shapeActionId.GetInt32(),
                         shapeActionEl.GetString() ?? "", value ?? "");
+                    return;
+                }
+
+                if (type == "rotate" &&
+                    root.TryGetProperty("id", out var rotateId) &&
+                    root.TryGetProperty("facing", out var facingEl))
+                {
+                    bool commit = root.TryGetProperty("commit", out var commitEl) &&
+                                  commitEl.ValueKind == JsonValueKind.True;
+                    FacingChanged?.Invoke(rotateId.GetInt32(), facingEl.GetDouble(), commit);
                     return;
                 }
 

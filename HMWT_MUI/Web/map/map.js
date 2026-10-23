@@ -379,6 +379,19 @@
         fresh.facing = drag.token.facing;
       }
     }
+
+    // Поворот Q/E: не даём снимку карты вернуть старый угол.
+    if (rotateHold && rotateHold.token) {
+      const fresh = (data.tokens || []).find(t => t.id === rotateHold.token.id);
+      if (fresh) {
+        fresh.facing = rotateHold.token.facing;
+        rotateHold.token = fresh;
+      }
+      for (const t of incomingFov) {
+        if (t.id === rotateHold.token.id) t.facing = rotateHold.token.facing;
+      }
+    }
+
     fovTokens = incomingFov;
 
     applyOrientation();
@@ -476,6 +489,12 @@
         t.x = drag.token.x;
         t.y = drag.token.y;
         t.facing = drag.token.facing;
+      }
+    }
+    // Пока Q/E держат, угол у нас свежее, чем в сообщении из C#.
+    if (rotateHold && rotateHold.token) {
+      for (const t of incoming) {
+        if (t.id === rotateHold.token.id) t.facing = rotateHold.token.facing;
       }
     }
     fovTokens = incoming;
@@ -920,7 +939,12 @@
   /** Видит ли этот зритель точку (учитывая только «развеивающие» жетоны). */
   function pointVisible(x, y, vision) {
     for (const f of fovTokens) {
-      if (f.reveals === false && !f.mine) continue;
+      if (!isDm && f.reveals === false && !f.mine) continue;
+
+      // Свой центр виден всегда: полигон начинается ровно в нём, и проверка
+      // «точка внутри» на вершине может дать ложное «нет».
+      if (Math.hypot(x - f.x, y - f.y) <= cellPx() * 0.6) return true;
+
       const v = vision.get(f.id);
       if (v && pointInPoly(x, y, v.pts)) return true;
     }
@@ -1022,10 +1046,11 @@
     }
 
     // Текущий обзор — те же полигоны видимости, что и у сектора на экране,
-    // поэтому за стеной туман не вырезается.
+    // поэтому за стеной туман не вырезается. Мастеру режет туман любой конус
+    // (так он видит, что увидит монстр), игрокам — только отрядный.
     const vision = ensureVision();
     for (const t of fovTokens) {
-      if (t.reveals === false && !t.mine) continue;
+      if (!isDm && t.reveals === false && !t.mine) continue;
       const v = vision.get(t.id);
       if (!v || v.pts.length < 6) continue;
       fogCtx.moveTo(v.pts[0], v.pts[1]);
@@ -1725,17 +1750,23 @@
       return;
     }
 
-    // Q/E — поворот обзора выделенного жетона, как было на WPF-карте.
+    // Q/E — поворот обзора выделенного жетона. Пока клавишу держат, угол
+    // идёт непрерывно, а не шагами по 15°.
     const key = (e.key || '').toLowerCase();
     if (key !== 'q' && key !== 'e') return;
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
 
-    const token = selectedToken();
-    if (!token || token.canMove === false) return;
-
-    rotateFacing(token, key === 'e' ? 15 : -15);
+    startRotate(key === 'e' ? 1 : -1);
     e.preventDefault();
   });
+
+  window.addEventListener('keyup', e => {
+    const key = (e.key || '').toLowerCase();
+    if (key === 'q' || key === 'e') stopRotate(true);
+  });
+
+  // Потеряли фокус — перестаём крутить, иначе жетон будет вращаться вечно.
+  window.addEventListener('blur', () => stopRotate(true));
 
   function selectedToken() {
     const tokens = (state && state.tokens) || [];
@@ -1748,13 +1779,11 @@
     return tokens.find(t => t.canMove) || null;
   }
 
-  /** Поворачивает взгляд сразу у себя и просит C# сохранить/разослать. */
-  function rotateFacing(token, delta) {
-    token.facing = (((token.facing || 0) + delta) % 360 + 360) % 360;
+  function applyFacing(token, facing) {
+    token.facing = ((facing % 360) + 360) % 360;
 
-    // Тот же жетон может быть сейчас в перетаскивании: у drag свой объект,
-    // и без синхронизации следующий снимок карты вернул бы старый угол —
-    // «при драге обзор снова смотрит на север».
+    // Тот же жетон может быть в перетаскивании: у drag свой объект, и без
+    // синхронизации следующий снимок карты вернул бы старый угол.
     if (drag && drag.kind === 'token' && drag.token && drag.token.id === token.id) {
       drag.token.facing = token.facing;
       drag.node._token = token;
@@ -1763,10 +1792,66 @@
     for (const f of fovTokens) {
       if (f.id === token.id) f.facing = token.facing;
     }
+  }
+
+  let rotateHold = null;
+  let rotateRaf = 0;
+  let rotateLast = 0;
+
+  function startRotate(dir) {
+    const token = selectedToken();
+    if (!token || token.canMove === false) return;
+    if (rotateHold && rotateHold.token.id !== token.id) stopRotate(true);
+
+    // Даже короткий тап должен повернуть на заметный шаг.
+    applyFacing(token, (token.facing || 0) + dir * 6);
+
+    rotateHold = { token: token, dir: dir, lastPost: 0 };
+    rotateLast = performance.now();
+    buildFog();
+    buildFov();
+
+    if (!rotateRaf) rotateRaf = requestAnimationFrame(rotateStep);
+  }
+
+  function rotateStep(now) {
+    if (!rotateHold) { rotateRaf = 0; return; }
+
+    const dt = Math.min(0.12, (now - rotateLast) / 1000);
+    rotateLast = now;
+
+    const token = rotateHold.token;
+    const speed = 75;                       // градусов в секунду
+    applyFacing(token, (token.facing || 0) + rotateHold.dir * speed * dt);
+
+    buildFov();
+    if (now - lastFogAt >= 30) {
+      lastFogAt = now;
+      buildFog();
+    }
+
+    // В C# — промежуточный угол (в базу пока не пишется), чтобы остальные
+    // видели плавный поворот.
+    if (now - rotateHold.lastPost >= 90) {
+      rotateHold.lastPost = now;
+      post({ type: 'rotate', id: token.id, facing: token.facing, commit: false });
+    }
+
+    rotateRaf = requestAnimationFrame(rotateStep);
+  }
+
+  function stopRotate(commit) {
+    if (!rotateHold) return;
+    const token = rotateHold.token;
+    const facing = token.facing;
+    rotateHold = null;
+
+    if (rotateRaf) { cancelAnimationFrame(rotateRaf); rotateRaf = 0; }
+    if (!commit || !token) return;
 
     buildFog();
     buildFov();
-    post({ type: 'tokenMenuAction', id: token.id, action: 'facing', value: String(delta) });
+    post({ type: 'rotate', id: token.id, facing: facing, commit: true });
   }
 
   window.addEventListener('contextmenu', e => e.preventDefault());
@@ -1825,5 +1910,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.3');
+  log('renderer ready v1.3.3.4');
 })();

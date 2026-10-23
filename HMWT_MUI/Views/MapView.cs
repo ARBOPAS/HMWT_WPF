@@ -200,6 +200,19 @@ namespace HMWT_MUI.Views
 
         /// <summary>Когда последний раз пересчитывали туман по чужому live-ходу.</summary>
         private DateTime _lastLiveFog = DateTime.MinValue;
+
+        /// <summary>
+        /// Плавный поворот взгляда: пока Q/E держат, угол идёт по таймеру,
+        /// а не шагами. Клавиши приходят в WPF (у WebView нет фокуса ввода),
+        /// поэтому поворот живёт здесь.
+        /// </summary>
+        private readonly System.Windows.Threading.DispatcherTimer _rotateTimer =
+            new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        private MapTokenData _rotateToken;
+        private int _rotateDir;
+        private DateTime _rotateLast = DateTime.UtcNow;
+        private DateTime _lastRotatePush = DateTime.MinValue;
+        private const double RotateSpeed = 75;   // градусов в секунду
         private readonly TextBlock _status = new TextBlock();
         private readonly ComboBox _sceneCombo = DmUiKit.Combo(new[] { "—" }, "—", false, 170);
         private readonly TextBox _cellField = DmUiKit.Field("70", 58, "Клетка, px");
@@ -297,6 +310,7 @@ namespace HMWT_MUI.Views
             _webMap.TokenSelected += OnWebTokenSelected;
             _webMap.TrailCleared += OnWebTrailCleared;
             _webMap.ShapeAction += OnWebShapeAction;
+            _webMap.FacingChanged += OnWebRotate;
             _webMap.ImageNeeded += OnWebImageNeeded;
             _webMap.Pinged += OnWebPinged;
 
@@ -305,6 +319,9 @@ namespace HMWT_MUI.Views
                 Interval = TimeSpan.FromMilliseconds(400)
             };
             _webSyncTimer.Tick += (s, e) => PushWebMap();
+
+            _rotateTimer.Tick += RotateTick;
+            KeyUp += MapView_KeyUp;
 
             Loaded += (s, e) =>
             {
@@ -1436,6 +1453,64 @@ namespace HMWT_MUI.Views
 
             // Пустой список — сигнал «след стёрт»: у клиентов он тоже убирается
             if (_inRoom) RoomSession.Instance.PublishMapTrail(tokenId, new List<MapTrailPoint>());
+            PushWebMap();
+        }
+
+        /// <summary>
+        /// Поворот взгляда из WebView: пока Q/E держат, угол приходит часто и
+        /// без записи в базу; при отпускании — окончательный, с сохранением.
+        /// </summary>
+        private void OnWebRotate(int tokenId, double facing, bool commit)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnWebRotate(tokenId, facing, commit)));
+                return;
+            }
+
+            if (_scene == null) return;
+            var token = _scene.Tokens.FirstOrDefault(t => t.Id == tokenId);
+            if (token == null || !CanMoveToken(token)) return;
+
+            token.Facing = NormalizeDeg(facing);
+
+            if (!commit)
+            {
+                // Промежуточный угол: остальным — лёгким live-сообщением.
+                if ((DateTime.UtcNow - _lastLiveMoveSent).TotalMilliseconds >= 120)
+                {
+                    _lastLiveMoveSent = DateTime.UtcNow;
+                    if (_remote)
+                        RoomSession.Instance.SendMapMoveLive(token.Id, token.X, token.Y, token.Facing);
+                    else if (_inRoom)
+                        RoomSession.Instance.PublishLiveTokenMove(token.Id, token.X, token.Y, token.Facing);
+                }
+
+                // Разведку запоминаем по ходу поворота, а не только в конце:
+                // иначе при быстром развороте сектор «перепрыгивает» и часть
+                // обзора вообще не попадает в разведанное.
+                if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 300)
+                {
+                    _lastLiveFog = DateTime.UtcNow;
+                    if (WebFogEnabled())
+                    {
+                        RememberCurrentVision();
+                        PushWebFog();
+                    }
+                }
+                return;
+            }
+
+            if (_remote)
+                RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing);
+            else
+            {
+                MapService.SaveToken(token);
+                PublishMap();
+            }
+
+            RememberCurrentVision();
+            BuildFogMask();
             PushWebMap();
         }
 
@@ -4481,15 +4556,105 @@ namespace HMWT_MUI.Views
             }
 
             if (e.Key != Key.Q && e.Key != Key.E) return;
-            if (_scene == null || _selectedTokenId <= 0) return;
+
+            // Автоповтор Windows не нужен: угол ведёт таймер, пока клавиша нажата.
+            if (e.IsRepeat)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            StartRotateToken(e.Key == Key.E ? 1 : -1);
+            e.Handled = true;
+        }
+
+        private void MapView_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Q || e.Key == Key.E) StopRotateToken();
+        }
+
+        /// <summary>Начали держать Q/E: запускаем непрерывный поворот.</summary>
+        private void StartRotateToken(int direction)
+        {
+            if (_scene == null) return;
 
             // во время перетаскивания крутим тот жетон, который держим
             var token = _dragToken ?? _scene.Tokens.FirstOrDefault(t => t.Id == _selectedTokenId);
-            if (token == null) return;
-            if (!CanMoveToken(token)) return;
+            if (token == null || !CanMoveToken(token)) return;
 
-            double delta = e.Key == Key.E ? 15 : -15;
-            token.Facing = ((token.Facing + delta) % 360 + 360) % 360;
+            if (_rotateTimer.IsEnabled && _rotateToken != null &&
+                _rotateToken.Id == token.Id && _rotateDir == direction)
+                return;
+
+            _rotateToken = token;
+            _rotateDir = direction;
+            _rotateLast = DateTime.UtcNow;
+            _lastRotatePush = DateTime.MinValue;
+            _lastLiveFog = DateTime.MinValue;
+
+            if (!_rotateTimer.IsEnabled) _rotateTimer.Start();
+        }
+
+        /// <summary>Шаг непрерывного поворота: угол, обзор и промежуточные сообщения.</summary>
+        private void RotateTick(object sender, EventArgs e)
+        {
+            // Клавишу могли отпустить вне окна — тогда KeyUp не придёт.
+            if (!Keyboard.IsKeyDown(Key.Q) && !Keyboard.IsKeyDown(Key.E))
+            {
+                StopRotateToken();
+                return;
+            }
+
+            if (_scene == null || _rotateToken == null || !CanMoveToken(_rotateToken))
+            {
+                StopRotateToken();
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            double dt = Math.Min(0.12, (now - _rotateLast).TotalSeconds);
+            _rotateLast = now;
+
+            var token = _rotateToken;
+            token.Facing = NormalizeDeg(token.Facing + _rotateDir * RotateSpeed * dt);
+
+            if ((now - _lastRotatePush).TotalMilliseconds >= 40)
+            {
+                _lastRotatePush = now;
+                if (_webMapReady) PushWebFog();
+                else
+                {
+                    RenderFov();
+                    BuildFogMask();
+                }
+            }
+
+            if ((now - _lastLiveMoveSent).TotalMilliseconds >= 150)
+            {
+                _lastLiveMoveSent = now;
+                if (_remote)
+                    RoomSession.Instance.SendMapMoveLive(token.Id, token.X, token.Y, token.Facing);
+                else if (_inRoom)
+                    RoomSession.Instance.PublishLiveTokenMove(token.Id, token.X, token.Y, token.Facing);
+            }
+
+            // Разведанное собираем по ходу поворота: иначе быстрый разворот
+            // перепрыгивает сектора и часть обзора не попадает в туман.
+            if (WebFogEnabled() && (now - _lastLiveFog).TotalMilliseconds >= 300)
+            {
+                _lastLiveFog = now;
+                RememberCurrentVision();
+            }
+        }
+
+        /// <summary>Отпустили Q/E: фиксируем угол в базе и рассылаем карту.</summary>
+        private void StopRotateToken()
+        {
+            _rotateTimer.Stop();
+
+            var token = _rotateToken;
+            _rotateToken = null;
+            if (token == null || _scene == null || !CanMoveToken(token)) return;
 
             if (_remote)
             {
@@ -4507,7 +4672,7 @@ namespace HMWT_MUI.Views
 
             RenderFov();
             BuildFogMask();
-            e.Handled = true;
+            PushWebMap();
         }
 
         /// <summary>
