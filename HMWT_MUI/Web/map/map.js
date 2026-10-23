@@ -2637,5 +2637,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.5.0');
+  log('renderer ready v1.3.5.1');
 })();

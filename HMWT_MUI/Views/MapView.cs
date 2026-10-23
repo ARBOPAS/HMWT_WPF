@@ -225,8 +225,8 @@ namespace HMWT_MUI.Views
             { Interval = TimeSpan.FromMilliseconds(16) };
 
         private System.Windows.Threading.DispatcherTimer _rotateWatch;
-        private Panel _overlayRoot;
-        private bool _webHiddenForOverlay;
+        private System.Windows.Threading.DispatcherTimer _overlayWatch;
+        private bool _coveredByWindow;
         private bool _rotating;
         private MapTokenData _rotateToken;
         private int _rotateDir;
@@ -366,10 +366,24 @@ namespace HMWT_MUI.Views
                 _lastRoomActive = _inRoom;
                 _retryTimer.Start();
                 _webSyncTimer.Start();
+
+                // WebView2 — отдельное окно (HWND) и всегда выше WPF-слоя,
+                // поэтому «перекрыть» его изнутри окна нельзя. Пока поверх
+                // карты открыто другое окно приложения (лист, заметки,
+                // справочник) — карту убираем, при закрытии возвращаем.
+                if (_overlayWatch == null)
+                {
+                    _overlayWatch = new System.Windows.Threading.DispatcherTimer(
+                        System.Windows.Threading.DispatcherPriority.Background)
+                    { Interval = TimeSpan.FromMilliseconds(300) };
+                    _overlayWatch.Tick += WatchAppWindows;
+                }
+                _overlayWatch.Start();
             };
             Unloaded += (s, e) =>
             {
                 UnsubscribeRoom();
+                _overlayWatch?.Stop();
                 _retryTimer.Stop();
                 _liveMoveTimer.Stop();
                 _pendingLiveMoves.Clear();
@@ -4968,25 +4982,29 @@ namespace HMWT_MUI.Views
         /// комнате. Точку знает WebView — он присылает её в ответ на команду.
         /// </summary>
         /// <summary>
-        /// Прикрывает WebView, пока поверх карты открыт оверлей. WebView2 —
-        /// отдельное окно, и WPF-слой его не перекрывает, поэтому диалоги
-        /// и меню «уходили под карту».
+        /// Прячет карту, пока поверх неё открыто другое окно приложения.
+        /// WebView2 — отдельное окно (HWND), и WPF-оверлеи оказываются под ним;
+        /// проще убрать карту на время и вернуть её при закрытии окна.
         /// </summary>
-        private void WatchOverlays(object sender, EventArgs e)
+        private void WatchAppWindows(object sender, EventArgs e)
         {
-            if (_overlayRoot == null || _webMap == null) return;
+            var app = Application.Current;
+            var own = Window.GetWindow(this);
+            if (app == null || own == null) return;
 
             bool covered = false;
-            foreach (UIElement child in _overlayRoot.Children)
+            foreach (Window window in app.Windows)
             {
-                if (child == null || child.Visibility != Visibility.Visible) continue;
-                if (child == _webMap || child.IsAncestorOf(this) || this.IsAncestorOf(child)) continue;
-                if (Panel.GetZIndex(child) >= 1000) { covered = true; break; }
+                if (window == null || ReferenceEquals(window, own)) continue;
+                if (!window.IsVisible) continue;
+                if (window.WindowState == WindowState.Minimized) continue;
+                covered = true;
+                break;
             }
 
-            if (covered == _webHiddenForOverlay) return;
-            _webHiddenForOverlay = covered;
-            _webMap.Visibility = covered ? Visibility.Hidden : Visibility.Visible;
+            if (covered == _coveredByWindow) return;
+            _coveredByWindow = covered;
+            Visibility = covered ? Visibility.Hidden : Visibility.Visible;
         }
 
         private void PingAtCursor()
