@@ -701,6 +701,7 @@ namespace HMWT_MUI.Views
             bar.Children.Add(_measureCheck);
 
             // ── пинг: точка, которую видят все в комнате ──
+            // Чекбокс убран: пинг ставится клавишей TAB, режим не нужен.
             _pingCheck.Margin = new Thickness(0, 0, 10, 0);
             _pingCheck.ToolTip = "Щёлкните по карте — все увидят пульс в этом месте";
             _pingCheck.Checked += (s, e) =>
@@ -712,7 +713,7 @@ namespace HMWT_MUI.Views
                 _viewport.Cursor = Cursors.Cross;
             };
             _pingCheck.Unchecked += (s, e) => _viewport.Cursor = Cursors.Arrow;
-            bar.Children.Add(_pingCheck);
+            _pingCheck.Visibility = Visibility.Collapsed;
 
             // ── стены: ломают обзор, за ними туман не рассеивается ──
             // ── дальность обзора выделенного жетона ──
@@ -827,7 +828,7 @@ namespace HMWT_MUI.Views
             _status.VerticalAlignment = VerticalAlignment.Center;
             _status.Margin = new Thickness(12, 0, 0, 0);
             // «Мастер ⚙» — вкладыш с инструментами; игроку он не показывается
-            var dmToggle = DmUiKit.Action("Мастер ⚙", (s, e) =>
+            var dmToggle = DmUiKit.Action("Инструменты", (s, e) =>
             {
                 dmBar.Visibility = dmBar.Visibility == Visibility.Visible
                     ? Visibility.Collapsed
@@ -1044,7 +1045,11 @@ namespace HMWT_MUI.Views
                         points = pair.Value.Select(p => new { x = p.X, y = p.Y }).ToList()
                     }).ToList(),
                     tokens,
-                    shapes = _scene.Shapes.Select(s => new
+                    // Тёмную зону игрокам не отправляем вовсе: это инструмент
+                    // мастера, и в чужом клиенте ей делать нечего.
+                    shapes = _scene.Shapes
+                        .Where(s => _isDm || !string.Equals(s.Kind, "darkzone", StringComparison.OrdinalIgnoreCase))
+                        .Select(s => new
                     {
                         id = s.Id,
                         kind = s.Kind,
@@ -1134,6 +1139,8 @@ namespace HMWT_MUI.Views
                     viewAngle = t.ViewAngle,
                     revealCells = t.RevealCells,
                     isPlayer = t.IsPlayer,
+                    // свой цвет сектора обзора
+                    viewColor = t.ViewColor ?? "",
                     // Развеивает ли этот жетон туман именно для смотрящего:
                     // у игрока — отряд или только свой, у мастера — отряд.
                     reveals = RevealsFog(t, combined),
@@ -4528,11 +4535,11 @@ namespace HMWT_MUI.Views
                 item.Click += (s, e) =>
                 {
                     // размер берём из числового поля, а не из ползунка;
-                    // у точки интереса размера нет — это просто метка на карте
+                    // у точки интереса размера нет — это метка «здесь»
                     double size = kindKey == "point" ? 0 : Math.Max(1, ParseShapeSize());
                     _pendingShape = new MapShapeData { Kind = kindKey, RadiusCells = size };
                     DmRolls.Toast(this, kindKey == "point"
-                        ? "Точка интереса: щёлкните по карте, затем подпишите её из меню ПКМ"
+                        ? "Точка интереса: щёлкните в нужном месте, затем подпишите её из меню ПКМ"
                         : $"{title} {size:0.#} кл.: щёлкните по карте");
                 };
                 menu.Items.Add(item);
@@ -4570,7 +4577,10 @@ namespace HMWT_MUI.Views
                 Color = _brushColor
             };
 
-            if (_scene.SnapToGrid)
+            // Точку интереса ставим ровно туда, где курсор: она метит место,
+            // а привязка к перекрестьям уводила её «куда попало».
+            if (_scene.SnapToGrid &&
+                !string.Equals(shape.Kind, "point", StringComparison.OrdinalIgnoreCase))
             {
                 double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
                 // Фигуры ставим на перекрестья сетки, а не в центр клетки
@@ -4740,7 +4750,8 @@ namespace HMWT_MUI.Views
                 shape.X = point.X - _shapeOffset.X;
                 shape.Y = point.Y - _shapeOffset.Y;
 
-                if (_scene.SnapToGrid)
+                if (_scene.SnapToGrid &&
+                    !string.Equals(shape.Kind, "point", StringComparison.OrdinalIgnoreCase))
                 {
                     double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
                     // перекрестья сетки, как и при создании фигуры

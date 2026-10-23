@@ -262,10 +262,16 @@
 
   function texture(src) {
     if (!src) return null;
-    if (textureCache.has(src)) return textureCache.get(src);
+
+    // Уничтоженная текстура в кэше — причина падения «Cannot read properties
+    // of null (reading 'valid')» при смене сцены: спрайту отдавали битую.
+    const cached = textureCache.get(src);
+    if (cached && !cached.destroyed && cached.baseTexture) return cached;
+    if (cached) textureCache.delete(src);
+
     let t = null;
     try { t = PIXI.Texture.from(src); } catch (e) { t = null; }
-    textureCache.set(src, t);
+    if (t && t.baseTexture) textureCache.set(src, t);
     return t;
   }
 
@@ -413,9 +419,15 @@
     if (!url) return;
 
     const tex = texture(url);
-    if (!tex) return;
+    if (!tex || !tex.baseTexture) return;
 
-    mapSprite = new PIXI.Sprite(tex);
+    try {
+      mapSprite = new PIXI.Sprite(tex);
+    } catch (err) {
+      log('map sprite error: ' + err);
+      mapSprite = null;
+      return;
+    }
     mapSprite.anchor.set(0, 0);
     mapSprite.position.set(0, 0);
     mapLayer.addChild(mapSprite);
@@ -978,6 +990,11 @@
         tokenNodes.set(t.id, node);
       }
 
+      // Пока крутим обзор из меню, снимок из C# может прийти со старым
+      // углом — он «отматывал» конус назад. Держим локальный угол.
+      if (rotateHold && rotateHold.token && rotateHold.token.id === t.id)
+        t.facing = rotateHold.token.facing;
+
       node._token = t;
       node._targetX = t.x;
       node._targetY = t.y;
@@ -1005,7 +1022,7 @@
       if (t.photo !== null && t.photo !== undefined) {
         node._photo.visible = false;
         const tex = t.photo ? texture(t.photo) : null;
-        if (tex) {
+        if (tex && tex.baseTexture) {
           node._photo.texture = tex;
           node._photo.visible = true;
           node._photo.anchor.set(0.5);
@@ -2286,9 +2303,12 @@
     }
 
     if (drag.kind === 'shape') {
-      // Фигуры привязываем к перекрестьям сетки, а не к центрам клеток:
-      // так конус/круг/линия ставятся «по линейке».
-      const snapped = snapCross(sp.x - drag.dx, sp.y - drag.dy);
+      // Точка интереса идёт точно за курсором (она метит место), остальные
+      // фигуры — по перекрестьям, чтобы стояли «по линейке».
+      const isPoint = drag.shape.kind === 'point';
+      const snapped = isPoint
+        ? { x: sp.x - drag.dx, y: sp.y - drag.dy }
+        : snapCross(sp.x - drag.dx, sp.y - drag.dy);
       drag.shape.x = Math.max(0, Math.min(mapW, snapped.x));
       drag.shape.y = Math.max(0, Math.min(mapH, snapped.y));
       shapeDisplay.set(drag.shape.id, { x: drag.shape.x, y: drag.shape.y });
@@ -2637,5 +2657,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.5.1');
+  log('renderer ready v1.3.5.2');
 })();
