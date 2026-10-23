@@ -841,7 +841,7 @@
       const s = Object.assign({}, target, { x: pos.x, y: pos.y });
 
       // Тёмная зона — рабочий инструмент мастера: игрокам её не показываем.
-      if (s.kind === 'darkzone' && !isDm) continue;
+      if (s.kind && s.kind.indexOf('darkzone') === 0 && !isDm) continue;
 
       const col = rgba(s.color, { color: 0xb98bff, alpha: 1 });
       const radius = shapeRadius(s);
@@ -856,14 +856,17 @@
         shapeG.endFill();
         shapeG.lineStyle(1.5, col.color, 0.5);
         shapeG.drawCircle(s.x, s.y, r * 2.4);
-      } else if (s.kind === 'darkzone') {
+      } else if (s.kind && s.kind.indexOf('darkzone') === 0) {
         // Тёмная зона: плотное затемнение, игрок её не видит вообще
         shapeG.lineStyle(2, 0x6b5bd6, 0.9);
         shapeG.beginFill(0x05070f, 0.72);
-        shapeG.drawCircle(s.x, s.y, radius);
+        if (s.kind === 'darkzone_square')
+          shapeG.drawRoundedRect(s.x - radius, s.y - radius, radius * 2, radius * 2, 6);
+        else
+          shapeG.drawCircle(s.x, s.y, radius);
         shapeG.endFill();
         shapeG.lineStyle(1, 0x8f7dff, 0.55);
-        shapeG.drawCircle(s.x, s.y, radius * 0.94);
+        if (s.kind !== 'darkzone_square') shapeG.drawCircle(s.x, s.y, radius * 0.94);
       } else {
         shapeG.lineStyle(3, col.color, 0.9);
         shapeG.beginFill(col.color, 0.16);
@@ -1110,7 +1113,9 @@
         node._hp.style.fill = (t.hp <= 0) ? 0x8a2030 : 0xffb3b3;
       }
 
-      const condText = t.conditions || '';
+      // Показываем одно состояние и многоточие: полный список — в меню ПКМ.
+      const condAll = (t.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      const condText = condAll.length > 1 ? condAll[0] + '…' : (condAll[0] || '');
       node._cond.text = condText;
       node._cond.visible = condText.length > 0;
       if (node._cond.visible) {
@@ -1850,6 +1855,14 @@
         });
 
       items.push({ separator: true });
+      items.push({
+        text: (token.conditions || '').length ? 'Состояния: изменить…' : 'Состояния…',
+        action: 'conditions', value: ''
+      });
+      for (const c of (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean))
+        items.push({ text: '• ' + c, disabled: true });
+
+      items.push({ separator: true });
       items.push({ text: 'Убрать с карты', danger: true, action: 'remove', value: '' });
     }
 
@@ -1886,7 +1899,7 @@
 
   const SHAPE_TITLES = {
     circle: 'Круг', square: 'Квадрат', cone: 'Конус', line: 'Линия',
-    point: 'Точка интереса', darkzone: 'Тёмная зона'
+    point: 'Точка интереса', darkzone: 'Тёмная зона', darkzone_square: 'Тёмная зона (квадрат)'
   };
 
   function openShapeMenu(e, shape) {
@@ -2703,5 +2716,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.6.1');
+  log('renderer ready v1.3.6.2');
 })();

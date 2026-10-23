@@ -1073,7 +1073,7 @@ namespace HMWT_MUI.Views
                     // Тёмную зону игрокам не отправляем вовсе: это инструмент
                     // мастера, и в чужом клиенте ей делать нечего.
                     shapes = _scene.Shapes
-                        .Where(s => _isDm || !string.Equals(s.Kind, "darkzone", StringComparison.OrdinalIgnoreCase))
+                        .Where(s => _isDm || !(s.Kind ?? "").StartsWith("darkzone", StringComparison.OrdinalIgnoreCase))
                         .Select(s => new
                     {
                         id = s.Id,
@@ -1601,6 +1601,28 @@ namespace HMWT_MUI.Views
                     SetTokenViewColor(token, value);
                     break;
 
+                // Состояния жетона: строка как в трекере инициативы
+                case "conditions":
+                    {
+                        if (!_isDm) return;
+                        if (token.CombatantId <= 0 ||
+                            !_combatants.TryGetValue(token.CombatantId, out var cond) ||
+                            cond.Combatant == null) return;
+
+                        string current = cond.Combatant.Conditions ?? "";
+                        string text = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
+                            "Состояния", "Через запятую: отравлен, сбит ног", current, "Сохранить");
+                        if (text == null) return;
+
+                        cond.Combatant.Conditions = text.Trim();
+                        token.Conditions = text.Trim();
+                        Services.InitiativeService.SaveCombatant(cond.Encounter, cond.Combatant);
+                        MapService.SaveToken(token);
+                        PublishMap();
+                        PushWebMap();
+                    }
+                    break;
+
                 case "reveal":
                     if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out double reveal)) return;
@@ -1819,6 +1841,7 @@ namespace HMWT_MUI.Views
                     if (string.IsNullOrWhiteSpace(value)) return;
                     shape.Color = value.Trim();
                     break;
+
 
                 case "delete":
                     CommitShape(shape, "delete");
@@ -4590,7 +4613,8 @@ namespace HMWT_MUI.Views
             ("cone", "Конус"),
             ("line", "Линия"),
             ("point", "Точка интереса"),
-            ("darkzone", "Тёмная зона (только ДМ)")
+            ("darkzone", "Тёмная зона (только ДМ)"),
+            ("darkzone_square", "Тёмная зона, квадрат (только ДМ)")
         };
 
         private void OpenShapeMenu(FrameworkElement target)
