@@ -174,5 +174,5 @@ using System.Windows;
 // заливка конуса у мастера только у выбранного жетона.
 // 1.3.4.2 — плавный поворот из меню ПКМ, пинг по TAB тремя волнами 3 секунды.
 // 1.3.4.3 — смена сцены у ведущего доезжает до игроков, клиент перерисовывает карту.
-[assembly: AssemblyVersion("1.3.5.3")]
-[assembly: AssemblyFileVersion("1.3.5.3")]
+[assembly: AssemblyVersion("1.3.5.4")]
+[assembly: AssemblyFileVersion("1.3.5.4")]

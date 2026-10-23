@@ -2343,6 +2343,22 @@ namespace HMWT_MUI.Views
             if (_webMapReady) PushWebMap();
         }
 
+        /// <summary>
+        /// Лёгкое сообщение «жетон поехал» для WebGL. Полный снимок карты
+        /// приходит редко (раз в 0.4 с), поэтому без этого чужой жетон
+        /// «стоял» до отпускания мыши.
+        /// </summary>
+        private void PushWebTokenLive(int id, double x, double y, double facing)
+        {
+            if (!_webMapReady) return;
+            try
+            {
+                _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(
+                    new { type = "tokenLive", id, x, y, facing }, WebJsonOptions));
+            }
+            catch { }
+        }
+
         private void ApplyRemoteLiveMove(int tokenId, double x, double y, double facing)
         {
             if (_scene == null) return;
@@ -2375,6 +2391,10 @@ namespace HMWT_MUI.Views
                 _lastLiveFog = DateTime.UtcNow;
                 BuildFogMask();
             }
+
+            // И в WebGL: без этого чужой жетон двигался только по полному
+            // снимку, то есть «оживал» при отпускании мыши.
+            PushWebTokenLive(tokenId, x, y, facing);
         }
 
         /// <summary>Передвигает уже нарисованный жетон, не пересобирая слой.</summary>

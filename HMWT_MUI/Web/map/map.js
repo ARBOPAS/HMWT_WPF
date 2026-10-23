@@ -703,6 +703,42 @@
     buildFog();
   }
 
+  // Чужой жетон поехал (лёгкое сообщение, без полного снимка карты).
+  function applyTokenLive(d) {
+    if (!state || !state.tokens) return;
+    const t = state.tokens.find(x => x.id === d.id);
+    if (!t) return;
+
+    t.x = d.x;
+    t.y = d.y;
+    if (typeof d.facing === 'number' && d.facing >= 0) t.facing = d.facing;
+
+    const node = tokenNodes.get(d.id);
+    if (node && !(drag && drag.kind === 'token' && drag.id === d.id)) {
+      node._targetX = d.x;
+      node._targetY = d.y;
+    }
+
+    for (const f of fovTokens) {
+      if (f.id !== d.id) continue;
+      f.x = d.x;
+      f.y = d.y;
+      if (typeof d.facing === 'number' && d.facing >= 0) {
+        f.facing = d.facing;
+        f._target = d.facing;
+        f._msgAt = performance.now();
+        f._vel = 0;
+      }
+    }
+
+    buildFov();
+    const now = performance.now();
+    if (now - lastFogAt >= 60) {
+      lastFogAt = now;
+      buildFog();
+    }
+  }
+
   function requestImage() {
     const now = Date.now();
     if (now - needImageAt < 2500) return;
@@ -2630,6 +2666,7 @@
       else if (data.type === 'fog') applyFogUpdate(data);
       else if (data.type === 'facing') applyFacingUpdate(data);
       else if (data.type === 'seenAdd') applySeenAdd(data);
+      else if (data.type === 'tokenLive') applyTokenLive(data);
       else if (data.type === 'rotateStart') beginRotation(findToken(data.id), data.dir, data.speed, data.facing);
       else if (data.type === 'rotateStop') finishRotation();
       else if (data.type === 'rotateBy') rotateBy(findToken(data.id), data.deg || 0);
@@ -2662,5 +2699,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.5.3');
+  log('renderer ready v1.3.5.4');
 })();
