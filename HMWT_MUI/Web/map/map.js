@@ -587,6 +587,20 @@
     }
   }
 
+  // Новые разведанные сектора (обычно 1–3 штуки): дописываем к туману без
+  // полного списка. Так разведка видна прямо во время поворота и драга.
+  function applySeenAdd(data) {
+    if (!state) return;
+    if (data.sceneId && state.sceneId && data.sceneId !== state.sceneId) return;
+    if (!Array.isArray(data.seen) || data.seen.length === 0) return;
+
+    for (const text of data.seen) {
+      if (typeof text === 'string' && text.length > 0) fogSeen.push(text);
+    }
+
+    buildFog();
+  }
+
   function requestImage() {
     const now = Date.now();
     if (now - needImageAt < 2500) return;
@@ -2088,6 +2102,7 @@
       if (data.type === 'scene') applyScene(data);
       else if (data.type === 'fog') applyFogUpdate(data);
       else if (data.type === 'facing') applyFacingUpdate(data);
+      else if (data.type === 'seenAdd') applySeenAdd(data);
       else if (data.type === 'rotateStart') beginRotation(findToken(data.id), data.dir, data.speed, data.facing);
       else if (data.type === 'rotateStop') finishRotation();
       else if (data.type === 'ping') addPing(data.x || 0, data.y || 0);
@@ -2114,5 +2129,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.8');
+  log('renderer ready v1.3.3.9');
 })();

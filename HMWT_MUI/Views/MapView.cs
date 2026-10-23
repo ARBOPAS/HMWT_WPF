@@ -52,6 +52,9 @@ namespace HMWT_MUI.Views
         private readonly Dictionary<string, string> _webDataUrls =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private int _webSeenVersion = -1;
+
+        /// <summary>Сколько разведанных секторов уже отправлено в WebView.</summary>
+        private int _webSeenSent;
         private bool _webMapReady;
         private string _webImageHash = "";
         private readonly Dictionary<int, string> _webTokenPhotoKeys = new Dictionary<int, string>();
@@ -1001,7 +1004,11 @@ namespace HMWT_MUI.Views
                     });
 
                 _webMap.SendState(json);
-                if (includeSeen) _webSeenVersion = _seenVersion;
+                if (includeSeen)
+                {
+                    _webSeenVersion = _seenVersion;
+                    _webSeenSent = _seenPoints.Count;
+                }
                 if (sendImage) _webImageHash = imageHash;
             }
             catch (Exception ex)
@@ -1092,10 +1099,45 @@ namespace HMWT_MUI.Views
 
                 _webMap.SendState(System.Text.Json.JsonSerializer.Serialize(payload, WebJsonOptions));
                 _webSeenVersion = _seenVersion;
+                _webSeenSent = _seenPoints.Count;
             }
             catch (Exception ex)
             {
                 WebLog("fog state error: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Досылает только новые разведанные сектора (обычно 1–3 полигона).
+        /// Полный список на каждом шаге поворота или драга — это десятки
+        /// килобайт и заметная нагрузка; а без досылки туман «развеивался»
+        /// только после отпускания мыши.
+        /// </summary>
+        private void PushWebSeen()
+        {
+            if (!_webMapReady || _scene == null) return;
+
+            // Очистка «разведанного» могла уменьшить список — тогда шлём заново
+            if (_webSeenSent > _seenPoints.Count) _webSeenSent = 0;
+            if (_webSeenSent == _seenPoints.Count) return;
+
+            try
+            {
+                var fresh = _seenPoints.Skip(_webSeenSent).ToList();
+                _webSeenSent = _seenPoints.Count;
+
+                var payload = new
+                {
+                    type = "seenAdd",
+                    sceneId = _scene.Id,
+                    seen = fresh
+                };
+
+                _webMap.SendState(System.Text.Json.JsonSerializer.Serialize(payload, WebJsonOptions));
+            }
+            catch (Exception ex)
+            {
+                WebLog("seen add error: " + ex.Message);
             }
         }
 
@@ -1136,6 +1178,7 @@ namespace HMWT_MUI.Views
             _webTokenPhotoKeys.Clear();
             _webDataUrls.Clear();
             _webSeenVersion = -1;
+            _webSeenSent = 0;
         }
 
         /// <summary>Полотно WebView переехало или изменило размер — пишем его экранные координаты.</summary>
@@ -1205,7 +1248,7 @@ namespace HMWT_MUI.Views
                     // только в память: в базу и сеть уйдёт одним пакетом
                     // при отпускании, иначе каждый шаг драга тормозит UI
                     RememberCurrentVision(false);
-                    PushWebFog();
+                    PushWebSeen();
                 }
             }
 
@@ -1544,7 +1587,11 @@ namespace HMWT_MUI.Views
                 if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 550)
                 {
                     _lastLiveFog = DateTime.UtcNow;
-                    if (WebFogEnabled()) RememberCurrentVision(false);
+                    if (WebFogEnabled())
+                    {
+                        RememberCurrentVision(false);
+                        PushWebSeen();
+                    }
                 }
                 return;
             }
@@ -4802,7 +4849,7 @@ namespace HMWT_MUI.Views
             {
                 _lastLiveFog = now;
                 RememberCurrentVision(false);
-                if (_webMapReady) PushWebFog();
+                if (_webMapReady) PushWebSeen();
             }
         }
 
