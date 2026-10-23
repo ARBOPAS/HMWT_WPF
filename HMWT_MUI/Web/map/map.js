@@ -109,17 +109,25 @@
     pingActive = true;
   }
 
+  // Пинг держится ~3 секунды и расходится тремя волнами, как круги на воде.
+  const PING_MS = 3200;
+  const PING_WAVES = 3;
+
   app.ticker.add(() => {
     if (!pingActive) return;
     const now = performance.now();
     for (let i = pings.length - 1; i >= 0; i--)
-      if (now - pings[i].t0 > 1100) pings.splice(i, 1);
+      if (now - pings[i].t0 > PING_MS + 500) pings.splice(i, 1);
 
     pingG.clear();
     for (const p of pings) {
-      const k = (now - p.t0) / 1100;
-      pingG.lineStyle(1 + 3 * (1 - k), 0x5fd4dd, 0.9 * (1 - k));
-      pingG.drawCircle(p.x, p.y, cellPx() * (0.5 + 2.2 * k));
+      const k = Math.min(1, (now - p.t0) / PING_MS);
+      for (let w = 0; w < PING_WAVES; w++) {
+        const kw = k - w * 0.18;
+        if (kw <= 0 || kw >= 1) continue;
+        pingG.lineStyle(2 + 3 * (1 - kw), 0x5fd4dd, 0.85 * (1 - kw));
+        pingG.drawCircle(p.x, p.y, cellPx() * (0.4 + 6.5 * kw));
+      }
     }
     if (pings.length === 0) pingActive = false;
   });
@@ -1677,6 +1685,7 @@
 
   app.view.addEventListener('pointerdown', e => {
     hideMenu();
+    try { lastScenePointer = toScene(e); } catch (_) { }
 
     if (e.button === 2) {
       const sp = toScene(e);
@@ -1900,7 +1909,11 @@
     hideMeasureLater(6000);
   }
 
+  // Последняя позиция курсора в координатах картинки: по ней TAB ставит пинг.
+  let lastScenePointer = { x: 0, y: 0 };
+
   app.view.addEventListener('pointermove', e => {
+    try { lastScenePointer = toScene(e); } catch (_) { }
     if (!drag) return;
     const sp = toScene(e);
 
@@ -1982,6 +1995,15 @@
     // Q/E — поворот обзора выделенного жетона. Пока клавишу держат, угол
     // идёт непрерывно, а не шагами по 15°.
     const key = (e.key || '').toLowerCase();
+
+    // TAB — пинг по карте в точке курсора (когда фокус у WebView,
+    // до WPF эта клавиша не доходит).
+    if (key === 'tab') {
+      post({ type: 'ping', x: Math.round(lastScenePointer.x), y: Math.round(lastScenePointer.y) });
+      e.preventDefault();
+      return;
+    }
+
     if (key !== 'q' && key !== 'e') return;
     if (e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
 
@@ -2038,6 +2060,68 @@
     const token = selectedToken();
     if (!token || token.canMove === false) return;
     beginRotation(token, dir, 75);
+  }
+
+  /**
+   * Поворот на заданный угол с анимацией — для пунктов меню ПКМ.
+   * Раньше такой поворот просто переставлял угол, и конус прыгал.
+   */
+  function rotateBy(token, deg) {
+    if (!token || !deg) return;
+    if (rotateHold) finishRotation();
+
+    const from = token.facing || 0;
+    const dur = Math.max(240, Math.min(700, Math.abs(deg) * 8));
+
+    rotateHold = {
+      token: token,
+      dir: deg > 0 ? 1 : -1,
+      speed: 0,
+      applied: Math.abs(deg),
+      lastPost: 0,
+      frames: 0,
+      maxDt: 0,
+      by: { from: from, to: from + deg, dur: dur, t0: performance.now() }
+    };
+
+    rotateLast = performance.now();
+    if (!rotateRaf) rotateRaf = requestAnimationFrame(rotateByStep);
+  }
+
+  function rotateByStep(now) {
+    const h = rotateHold;
+    if (!h || !h.by) { rotateRaf = 0; return; }
+
+    h.frames++;
+    if (now - rotateLast > h.maxDt) h.maxDt = now - rotateLast;
+    rotateLast = now;
+
+    const k = Math.min(1, (now - h.by.t0) / h.by.dur);
+    const e = 1 - Math.pow(1 - k, 3);              // плавное торможение
+    applyFacing(h.token, h.by.from + (h.by.to - h.by.from) * e);
+
+    buildFov();
+    if (now - lastFogAt >= 40) {
+      lastFogAt = now;
+      buildFog();
+    }
+
+    if (now - h.lastPost >= 100) {
+      h.lastPost = now;
+      post({ type: 'rotate', id: h.token.id, facing: h.token.facing, commit: false });
+    }
+
+    if (k >= 1) {
+      const facing = h.token.facing;
+      rotateHold = null;
+      rotateRaf = 0;
+      buildFog();
+      buildFov();
+      post({ type: 'rotate', id: h.token.id, facing: facing, commit: true });
+      return;
+    }
+
+    rotateRaf = requestAnimationFrame(rotateByStep);
   }
 
   function findToken(id) {
@@ -2163,6 +2247,12 @@
       else if (data.type === 'seenAdd') applySeenAdd(data);
       else if (data.type === 'rotateStart') beginRotation(findToken(data.id), data.dir, data.speed, data.facing);
       else if (data.type === 'rotateStop') finishRotation();
+      else if (data.type === 'rotateBy') rotateBy(findToken(data.id), data.deg || 0);
+      else if (data.type === 'pingAtCursor') {
+        // Пинг от TAB: точку берём у курсора, отправляем в C# — он разошлёт
+        // всем в комнате и вернёт эхо, которое и нарисует круги.
+        post({ type: 'ping', x: Math.round(lastScenePointer.x), y: Math.round(lastScenePointer.y) });
+      }
       else if (data.type === 'ping') addPing(data.x || 0, data.y || 0);
     } catch (err) {
       showError(err && err.stack || err);
@@ -2187,5 +2277,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.4.1');
+  log('renderer ready v1.3.4.2');
 })();

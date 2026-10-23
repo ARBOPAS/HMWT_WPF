@@ -172,5 +172,6 @@ using System.Windows;
 // работающая кнопка «Токены отряда».
 // 1.3.4.1 — привязка с гистерезисом (диагональ без «объезда» клетки),
 // заливка конуса у мастера только у выбранного жетона.
-[assembly: AssemblyVersion("1.3.4.1")]
-[assembly: AssemblyFileVersion("1.3.4.1")]
+// 1.3.4.2 — плавный поворот из меню ПКМ, пинг по TAB тремя волнами 3 секунды.
+[assembly: AssemblyVersion("1.3.4.2")]
+[assembly: AssemblyFileVersion("1.3.4.2")]

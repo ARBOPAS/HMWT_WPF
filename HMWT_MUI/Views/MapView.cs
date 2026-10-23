@@ -346,6 +346,15 @@ namespace HMWT_MUI.Views
             _rotateTimer.Tick += RotateTick;
             KeyUp += MapView_KeyUp;
 
+            // TAB — навигационная клавиша: до KeyDown она не доходит,
+            // её перехватывает WPF. Поэтому ловим на туннелировании.
+            PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key != Key.Tab) return;
+                PingAtCursor();
+                e.Handled = true;
+            };
+
             Loaded += (s, e) =>
             {
                 SubscribeRoom();
@@ -1462,7 +1471,17 @@ namespace HMWT_MUI.Views
                 case "facing":
                     if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out double delta)) return;
-                    if (_isDm) RotateFacing(token, delta);
+                    // В WebGL угол доводится плавно, а не прыжком на 45°
+                    if (_webMapReady)
+                    {
+                        try
+                        {
+                            _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(
+                                new { type = "rotateBy", id = token.Id, deg = delta }, WebJsonOptions));
+                        }
+                        catch { }
+                    }
+                    else if (_isDm) RotateFacing(token, delta);
                     else RotateFacingRemote(token, delta);
                     break;
 
@@ -4725,6 +4744,13 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            if (e.Key == Key.Tab)
+            {
+                PingAtCursor();
+                e.Handled = true;
+                return;
+            }
+
             if (e.Key != Key.Q && e.Key != Key.E) return;
 
             // Автоповтор Windows не нужен: угол ведёт таймер, пока клавиша нажата.
@@ -4781,6 +4807,18 @@ namespace HMWT_MUI.Views
             }
 
             if (!_rotateTimer.IsEnabled) _rotateTimer.Start();
+        }
+
+        /// <summary>
+        /// Пинг по карте (TAB): круги расходятся от курсора и видны всем в
+        /// комнате. Точку знает WebView — он присылает её в ответ на команду.
+        /// </summary>
+        private void PingAtCursor()
+        {
+            if (!_webMapReady) return;
+            try { _webMap.SendEphemeral("{\"type\":\"pingAtCursor\"}"); }
+            catch { }
+            WebLog("ping at cursor");
         }
 
         private void SendWebRotate(string type, int tokenId, int direction, double facing = 0)
