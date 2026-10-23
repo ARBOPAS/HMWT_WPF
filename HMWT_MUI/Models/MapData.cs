@@ -210,5 +210,11 @@ namespace HMWT_MUI.Models
         /// Настраивается из меню по правой кнопке на карте WebGL.
         /// </summary>
         public string FrameColor { get; set; } = "";
+
+        /// <summary>
+        /// Цвет сектора обзора этого жетона (пусто — по стороне). Нужен, чтобы
+        /// у каждого игрока конус был своего цвета и не сливался с чужими.
+        /// </summary>
+        public string ViewColor { get; set; } = "";
     }
 }

@@ -861,12 +861,26 @@
         node._frame.drawCircle(0, 0, size / 2 + 3);
       }
 
+      // Имя должно читаться и на жетоне в 4 клетки: масштабируем к размеру.
+      node._label.style.fontSize = Math.max(13, Math.round(size * 0.2));
+      node._label.style.strokeThickness = Math.max(3, Math.round(size * 0.05));
       node._label.y = size / 2 + 4;
       node._label.text = t.label || '';
 
-      // Чужой жетон вне обзора игрок не должен видеть. У мастера он остаётся,
-      // но приглушённым — чтобы было понятно, что игроки его не видят.
-      const seen = t.mine || pointVisible(t.x, t.y, ensureVision());
+      // Враг в зоне обзора — насыщенная рамка, чтобы было видно, кто попал
+      // в радиус/фигуру. Вне обзора её не рисуем.
+      const fogOn = !!(state && state.fog && state.fog.on);
+      const partyAlways = !!(state && state.showParty);
+      const inVision = fogOn ? pointVisible(t.x, t.y, ensureVision()) : true;
+      if (!t.isPlayer && !t.hidden && inVision) {
+        node._frame.lineStyle(2.5, 0xff5a5a, 0.95);
+        node._frame.drawCircle(0, 0, size / 2 + 2);
+        node._frame.lineStyle(1, 0xff5a5a, 0.35);
+        node._frame.drawCircle(0, 0, size / 2 + 5);
+      }
+
+      // Без тумана видно всех; «Токены отряда» показывают игроков всегда.
+      const seen = !fogOn || t.mine || (partyAlways && t.isPlayer) || inVision;
       if (t.hidden) {
         node.alpha = isDm ? 0.4 : 0;
       } else {
@@ -1092,7 +1106,8 @@
       const v = vision.get(t.id);
       if (!v || v.pts.length < 6) continue;
 
-      const color = t.isPlayer ? 0x5fd4dd : 0xa98bec;
+      const custom = t.viewColor ? rgba(t.viewColor, null) : null;
+      const color = custom ? custom.color : (t.isPlayer ? 0x5fd4dd : 0xa98bec);
       fovG.beginFill(color, 0.14);
       fovG.lineStyle(2, color, 0.75);
       fovG.moveTo(v.pts[0], v.pts[1]);
@@ -1305,12 +1320,16 @@
   }
 
   function snapWall(x, y) {
+    return snapCross(x, y);
+  }
+
+  /** Привязка к перекрестьям сетки (линиям), а не к центрам клеток. */
+  function snapCross(x, y) {
     const c = cellPx();
     const isGrid = !!(state && state.grid && state.grid.on);
     const sx = isGrid ? Math.round(x / c) * c : x;
     const sy = isGrid ? Math.round(y / c) * c : y;
-    // Стена не должна уезжать за картинку: за её пределами туман и обзор
-    // считаются по другим координатам и стена «теряется».
+    // Не уезжаем за картинку: там туман и обзор считаются иначе.
     return {
       x: Math.max(0, Math.min(mapW, sx)),
       y: Math.max(0, Math.min(mapH, sy))
@@ -1471,6 +1490,27 @@
         text: 'Радиус обзора: ' + r + ' кл.',
         check: Math.abs((token.revealCells || 0) - r) < 0.5,
         action: 'reveal', value: String(r)
+      });
+
+    // У каждого игрока свой обзор: можно выключить совсем.
+    const visionOn = (token.revealCells || 0) > 0;
+    items.push({
+      text: visionOn ? 'Обзор: выключить' : 'Обзор: включить (6 кл.)',
+      action: 'reveal', value: visionOn ? '0' : '6'
+    });
+
+    items.push({ separator: true });
+    items.push({
+      text: 'Цвет обзора: по умолчанию',
+      check: !token.viewColor,
+      action: 'viewcolor', value: ''
+    });
+    for (const c of FRAME_COLORS)
+      items.push({
+        text: 'Цвет обзора: ' + c.name,
+        color: c.hex,
+        check: sameColor(token.viewColor, c.hex),
+        action: 'viewcolor', value: c.hex
       });
 
     if (isDm) {
@@ -1857,7 +1897,9 @@
     if (drag.kind === 'token') { moveToken(sp); return; }
 
     if (drag.kind === 'shape') {
-      const snapped = snapPoint(sp.x - drag.dx, sp.y - drag.dy);
+      // Фигуры привязываем к перекрестьям сетки, а не к центрам клеток:
+      // так конус/круг/линия ставятся «по линейке».
+      const snapped = snapCross(sp.x - drag.dx, sp.y - drag.dy);
       drag.shape.x = Math.max(0, Math.min(mapW, snapped.x));
       drag.shape.y = Math.max(0, Math.min(mapH, snapped.y));
       shapeDisplay.set(drag.shape.id, { x: drag.shape.x, y: drag.shape.y });
@@ -2129,5 +2171,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.9');
+  log('renderer ready v1.3.4.0');
 })();

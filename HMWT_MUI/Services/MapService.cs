@@ -81,7 +81,8 @@ namespace HMWT_MUI.Services
                         photo_path TEXT DEFAULT '',
                         facing REAL DEFAULT 0,
                         view_angle REAL DEFAULT 360,
-                        frame_color TEXT DEFAULT ''
+                        frame_color TEXT DEFAULT '',
+                        view_color TEXT DEFAULT ''
                     );
                     CREATE TABLE IF NOT EXISTS MapStroke (
                         id_stroke INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,6 +144,7 @@ namespace HMWT_MUI.Services
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "facing REAL DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "view_angle REAL DEFAULT 360");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "frame_color TEXT DEFAULT ''");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "view_color TEXT DEFAULT ''");
 
                 // Версия формы «разведанного». До 1.2.5 полигон сохранялся без
                 // центра сектора и выглядел обрезанными кусками, а не конусом.
@@ -472,7 +474,8 @@ namespace HMWT_MUI.Services
                     PhotoPath = Text(reader, "photo_path"),
                     Facing = Double(reader, "facing", 0),
                     ViewAngle = Double(reader, "view_angle", 360),
-                    FrameColor = Text(reader, "frame_color")
+                    FrameColor = Text(reader, "frame_color"),
+                    ViewColor = Text(reader, "view_color")
                 });
             }
 
@@ -493,10 +496,10 @@ namespace HMWT_MUI.Services
                 string sql = token.Id > 0
                     ? @"UPDATE MapToken SET id_combatant = @combatant, label = @label, x = @x, y = @y,
                               size_cells = @size, color = @color, hidden = @hidden, facing = @facing, view_angle = @angle, reveal_cells = @reveal, is_player = @isPlayer,
-                              photo_hash = @photoHash, photo_path = @photoPath, frame_color = @frameColor
+                              photo_hash = @photoHash, photo_path = @photoPath, frame_color = @frameColor, view_color = @viewColor
                         WHERE id_token = @id"
-                    : @"INSERT INTO MapToken (id_scene, id_combatant, label, x, y, size_cells, color, hidden, facing, view_angle, reveal_cells, is_player, photo_hash, photo_path, frame_color)
-                        VALUES (@scene, @combatant, @label, @x, @y, @size, @color, @hidden, @facing, @angle, @reveal, @isPlayer, @photoHash, @photoPath, @frameColor)";
+                    : @"INSERT INTO MapToken (id_scene, id_combatant, label, x, y, size_cells, color, hidden, facing, view_angle, reveal_cells, is_player, photo_hash, photo_path, frame_color, view_color)
+                        VALUES (@scene, @combatant, @label, @x, @y, @size, @color, @hidden, @facing, @angle, @reveal, @isPlayer, @photoHash, @photoPath, @frameColor, @viewColor)";
 
                 using var cmd = new SqliteCommand(sql, conn);
                 if (token.Id > 0) cmd.Parameters.AddWithValue("@id", token.Id);
@@ -510,11 +513,13 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@hidden", token.Hidden ? 1 : 0);
                 cmd.Parameters.AddWithValue("@facing", token.Facing);
                 cmd.Parameters.AddWithValue("@angle", token.ViewAngle);
-                cmd.Parameters.AddWithValue("@reveal", token.RevealCells <= 0 ? 6 : token.RevealCells);
+                // 0 — обзор выключен (жетон не развеивает туман), это не «по умолчанию 6»
+                cmd.Parameters.AddWithValue("@reveal", Math.Max(0, token.RevealCells));
                 cmd.Parameters.AddWithValue("@isPlayer", token.IsPlayer ? 1 : 0);
                 cmd.Parameters.AddWithValue("@photoHash", token.PhotoHash ?? "");
                 cmd.Parameters.AddWithValue("@photoPath", token.PhotoPath ?? "");
                 cmd.Parameters.AddWithValue("@frameColor", token.FrameColor ?? "");
+                cmd.Parameters.AddWithValue("@viewColor", token.ViewColor ?? "");
                 cmd.ExecuteNonQuery();
 
                 if (token.Id <= 0)

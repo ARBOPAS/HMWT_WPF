@@ -520,8 +520,8 @@ namespace HMWT_MUI.Views
 
             _showPlayersCheck.Margin = new Thickness(0, 0, 8, 0);
             _showPlayersCheck.ToolTip = "Показывать жетоны игроков даже вне вашего обзора";
-            _showPlayersCheck.Checked += (s, e) => RefreshTokenVisibility();
-            _showPlayersCheck.Unchecked += (s, e) => RefreshTokenVisibility();
+            _showPlayersCheck.Checked += (s, e) => { RefreshTokenVisibility(); PushWebMap(); };
+            _showPlayersCheck.Unchecked += (s, e) => { RefreshTokenVisibility(); PushWebMap(); };
             bar.Children.Add(_showPlayersCheck);
 
             _cellSlider.Margin = new Thickness(0, 0, 6, 0);
@@ -913,6 +913,8 @@ namespace HMWT_MUI.Views
                         selected = t.Id == _selectedTokenId,
                         canMove = CanMoveToken(t),
                         frameColor = t.FrameColor ?? "",
+                        viewColor = t.ViewColor ?? "",
+                        revealCells = t.RevealCells,
                         // null — аватар не менялся; "" — аватара нет.
                         photo = sendPhoto ? WebAssetUrl(photoPath) : null
                     });
@@ -927,6 +929,8 @@ namespace HMWT_MUI.Views
                     imageHash,
                     image,
                     isDm = _isDm,
+                    // «Токены отряда»: показывать жетоны игроков даже вне обзора
+                    showParty = _showPlayersCheck.IsChecked == true,
                     rotation = _scene.Rotation,
                     flipH = _scene.FlipH,
                     flipV = _scene.FlipV,
@@ -1467,10 +1471,16 @@ namespace HMWT_MUI.Views
                     SetTokenFrame(token, value);
                     break;
 
+                // Цвет сектора обзора: у каждого игрока свой, иначе все синие
+                case "viewcolor":
+                    SetTokenViewColor(token, value);
+                    break;
+
                 case "reveal":
                     if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out double reveal)) return;
-                    reveal = Math.Max(1, Math.Min(40, reveal));
+                    // 0 — обзор выключен совсем (у каждого игрока свой)
+                    reveal = Math.Max(0, Math.Min(40, reveal));
                     if (_isDm)
                     {
                         SetRevealCells(token, reveal);
@@ -1511,6 +1521,26 @@ namespace HMWT_MUI.Views
                 MapService.SaveToken(token);
                 PublishMap();
             }
+            PushWebMap();
+        }
+
+        /// <summary>Свой цвет сектора обзора у жетона (пусто — по стороне).</summary>
+        private void SetTokenViewColor(MapTokenData token, string color)
+        {
+            if (token == null) return;
+            token.ViewColor = string.IsNullOrWhiteSpace(color) ? "" : color.Trim();
+
+            if (!_remote)
+            {
+                MapService.SaveToken(token);
+                PublishMap();
+            }
+            else
+            {
+                // у игрока своего файла нет: цвет уедет вместе с ходом
+                RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing);
+            }
+
             PushWebMap();
         }
 
@@ -3428,7 +3458,8 @@ namespace HMWT_MUI.Views
         /// <summary>Радиус обзора жетона: сколько видно и какой круг рассеивает туман.</summary>
         private void SetRevealCells(MapTokenData token, double cells)
         {
-            token.RevealCells = Math.Max(1, Math.Min(40, cells));
+            // 0 — «обзор выключен»: жетон не развеивает туман и не рисует сектор
+            token.RevealCells = Math.Max(0, Math.Min(40, cells));
             MapService.SaveToken(token);
             RenderFov();
             RememberCurrentVision();
@@ -4355,8 +4386,9 @@ namespace HMWT_MUI.Views
             if (_scene.SnapToGrid)
             {
                 double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
-                shape.X = Math.Round((shape.X - cell / 2) / cell) * cell + cell / 2;
-                shape.Y = Math.Round((shape.Y - cell / 2) / cell) * cell + cell / 2;
+                // Фигуры ставим на перекрестья сетки, а не в центр клетки
+                shape.X = Math.Round(shape.X / cell) * cell;
+                shape.Y = Math.Round(shape.Y / cell) * cell;
             }
 
             if (_remote)
@@ -4524,8 +4556,9 @@ namespace HMWT_MUI.Views
                 if (_scene.SnapToGrid)
                 {
                     double cell = _scene.GridPx > 4 ? _scene.GridPx : 70;
-                    shape.X = Math.Round((shape.X - cell / 2) / cell) * cell + cell / 2;
-                    shape.Y = Math.Round((shape.Y - cell / 2) / cell) * cell + cell / 2;
+                    // перекрестья сетки, как и при создании фигуры
+                    shape.X = Math.Round(shape.X / cell) * cell;
+                    shape.Y = Math.Round(shape.Y / cell) * cell;
                 }
 
                 RenderShapes();
