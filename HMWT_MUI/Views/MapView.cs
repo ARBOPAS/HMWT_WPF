@@ -1023,6 +1023,8 @@ namespace HMWT_MUI.Views
                     image,
                     isDm = _isDm,
                     // «Токены отряда»: показывать жетоны игроков даже вне обзора
+                    // Справочник состояний — тот же, что в окне персонажа
+                    conditionList = Services.DefenseCatalog.Conditions,
                     showParty = _showPlayersCheck.IsChecked == true,
                     rotation = _scene.Rotation,
                     flipH = _scene.FlipH,
@@ -1601,21 +1603,31 @@ namespace HMWT_MUI.Views
                     SetTokenViewColor(token, value);
                     break;
 
-                // Состояния жетона: строка как в трекере инициативы
-                case "conditions":
+                // Состояние из справочника (галочка в меню): включаем/выключаем
+                case "condition":
                     {
                         if (!_isDm) return;
                         if (token.CombatantId <= 0 ||
                             !_combatants.TryGetValue(token.CombatantId, out var cond) ||
                             cond.Combatant == null) return;
 
-                        string current = cond.Combatant.Conditions ?? "";
-                        string text = Windows.NotePromptWindow.AskText(Window.GetWindow(this),
-                            "Состояния", "Через запятую: отравлен, сбит ног", current, "Сохранить");
-                        if (text == null) return;
+                        string name = (value ?? "").Trim();
+                        if (name.Length == 0) return;
 
-                        cond.Combatant.Conditions = text.Trim();
-                        token.Conditions = text.Trim();
+                        var list = (cond.Combatant.Conditions ?? "")
+                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(x => x.Trim())
+                            .Where(x => x.Length > 0)
+                            .ToList();
+
+                        if (list.Any(x => string.Equals(x, name, StringComparison.CurrentCultureIgnoreCase)))
+                            list.RemoveAll(x => string.Equals(x, name, StringComparison.CurrentCultureIgnoreCase));
+                        else
+                            list.Add(name);
+
+                        cond.Combatant.Conditions = string.Join(", ", list);
+                        token.Conditions = cond.Combatant.Conditions;
+
                         Services.InitiativeService.SaveCombatant(cond.Encounter, cond.Combatant);
                         MapService.SaveToken(token);
                         PublishMap();
@@ -5108,6 +5120,12 @@ namespace HMWT_MUI.Views
                 if (window == null || ReferenceEquals(window, own)) continue;
                 if (!window.IsVisible) continue;
                 if (window.WindowState == WindowState.Minimized) continue;
+
+                // Всплывающие уведомления (тосты) — безрамочные окна без кнопки
+                // на панели задач. Их не считаем «перекрытием»: иначе на время
+                // каждого уведомления карта чернела.
+                if (window.WindowStyle == WindowStyle.None && !window.ShowInTaskbar) continue;
+
                 covered = true;
                 break;
             }

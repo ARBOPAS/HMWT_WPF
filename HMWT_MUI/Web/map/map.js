@@ -1855,12 +1855,18 @@
         });
 
       items.push({ separator: true });
-      items.push({
-        text: (token.conditions || '').length ? 'Состояния: изменить…' : 'Состояния…',
-        action: 'conditions', value: ''
-      });
-      for (const c of (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean))
-        items.push({ text: '• ' + c, disabled: true });
+      // Состояния из справочника: галочки, как в окне персонажа
+      const condList = (state && state.conditionList) || [];
+      const condHave = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      if (condList.length) {
+        items.push({ text: 'Состояния', disabled: true });
+        for (const c of condList)
+          items.push({
+            text: c,
+            check: condHave.some(x => x.toLowerCase() === c.toLowerCase()),
+            action: 'condition', value: c
+          });
+      }
 
       items.push({ separator: true });
       items.push({ text: 'Убрать с карты', danger: true, action: 'remove', value: '' });
@@ -2716,5 +2722,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.6.2');
+  log('renderer ready v1.3.6.3');
 })();
