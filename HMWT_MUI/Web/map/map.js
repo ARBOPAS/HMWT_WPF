@@ -151,6 +151,31 @@
   let viewLogs = 0;
   let sceneCount = 0;
 
+  // Угол обзора приходит из C# ~30 раз в секунду, а кадров больше. Показываем
+  // плавно доводимый угол, иначе конус двигается рывками.
+  function shownFacing(t) {
+    return t && t._shown !== undefined ? t._shown : ((t && t.facing) || 0);
+  }
+
+  /** Новый набор областей обзора: сохраняем плавный угол по id. */
+  function setFovTokens(list) {
+    const prev = new Map(fovTokens.map(f => [f.id, f]));
+    for (const t of list) {
+      const old = prev.get(t.id);
+      t._shown = old && old._shown !== undefined ? old._shown : (t.facing || 0);
+      t._target = t.facing || 0;
+    }
+    fovTokens = list;
+  }
+
+  /**
+   * Поворот в координатах картинки. На экране E — по часовой, Q — против,
+   * но у отражённой карты направление зеркалится.
+   */
+  function screenTurn(delta) {
+    return (mapFlipH !== mapFlipV) ? -delta : delta;
+  }
+
   const tools = {
     shape: null, shapeRadius: 0, ping: false, measure: false,
     brush: false, eraser: false, wall: false,
@@ -397,7 +422,7 @@
       }
     }
 
-    fovTokens = incomingFov;
+    setFovTokens(incomingFov);
 
     applyOrientation();
 
@@ -506,10 +531,44 @@
         if (t.id === rotateHold.token.id) t.facing = rotateHold.token.facing;
       }
     }
-    fovTokens = incoming;
+    setFovTokens(incoming);
 
     buildFog();
     buildFov();
+  }
+
+  // Лёгкое сообщение «только угол»: без списка разведанных секторов.
+  function applyFacingUpdate(data) {
+    if (!state) return;
+    if (data.sceneId && state.sceneId && data.sceneId !== state.sceneId) return;
+
+    isDm = !!data.isDm;
+    if (data.grid && data.grid.px > 4) cell = data.grid.px;
+    if (data.fog && typeof data.fog.on === 'boolean') state.fog = { on: data.fog.on };
+
+    const incoming = (data.fovTokens || []).map(t => Object.assign({}, t));
+    if (drag && drag.kind === 'token' && drag.token) {
+      for (const t of incoming) {
+        if (t.id !== drag.token.id) continue;
+        t.x = drag.token.x;
+        t.y = drag.token.y;
+        drag.token.facing = t.facing;
+      }
+    }
+    if (rotateHold && rotateHold.token) {
+      for (const t of incoming) {
+        if (t.id === rotateHold.token.id) t.facing = rotateHold.token.facing;
+      }
+    }
+
+    setFovTokens(incoming);
+    buildFov();
+
+    const now = performance.now();
+    if (now - lastFogAt >= 40) {
+      lastFogAt = now;
+      buildFog();
+    }
   }
 
   function requestImage() {
@@ -809,6 +868,31 @@
       node.position.set(node.x + dx * 0.3, node.y + dy * 0.3);
     }
 
+    // Плавный доворот конуса: цель приходит из C# ~30 раз в секунду,
+    // а рисуем каждый кадр — иначе поворот выглядит рывками.
+    let fovMoving = false;
+    for (const f of fovTokens) {
+      if (f._target === undefined) f._target = f.facing || 0;
+      if (f._shown === undefined) f._shown = f._target;
+
+      let d = ((f._target - f._shown + 540) % 360) - 180;
+      if (Math.abs(d) < 0.05) {
+        f._shown = f._target;
+        continue;
+      }
+      f._shown += d * 0.4;
+      fovMoving = true;
+    }
+
+    if (fovMoving) {
+      buildFov();
+      const now = performance.now();
+      if (now - lastFogAt >= 40) {
+        lastFogAt = now;
+        buildFog();
+      }
+    }
+
     if (!shapeAnim) return;
     let moving = false;
     for (const [id, target] of shapeTargets) {
@@ -876,7 +960,9 @@
     const half = full
       ? Math.PI
       : Math.min(Math.PI, Math.max((2.5 * Math.PI) / 180, (((t.viewAngle || 360) / 2) * Math.PI) / 180));
-    const facing = ((t.facing || 0) * Math.PI) / 180;
+    // Для отрисовки берём плавно доводимый угол: из C# он приходит 30 раз
+    // в секунду, а кадров больше — иначе поворот выглядит рывками.
+    const facing = ((shownFacing(t)) * Math.PI) / 180;
 
     const rel = [];
     const pushPoint = (px, py) => {
@@ -912,7 +998,7 @@
 
   function visionKey(t) {
     return [t.id, Math.round(t.x), Math.round(t.y),
-      Math.round((t.facing || 0) * 10), Math.round((t.viewAngle || 360) * 10),
+      Math.round(shownFacing(t) * 10), Math.round((t.viewAngle || 360) * 10),
       Math.round((t.revealCells || 0) * 10), wallsSig].join('|');
   }
 
@@ -985,7 +1071,7 @@
   // на картинку карты (mapW×mapH). Холст создаётся один раз на размер карты:
   // если менять canvas.width у уже созданной текстуры, PIXI продолжает
   // считать её прежней 1024×1024 — туман уезжает и превращается в овалы.
-  const FOG_MAX = 1536;
+  const FOG_MAX = 1024;
   let fogCanvas = null, fogCtx = null, fogTex = null, fogSprite = null;
 
   function ensureFogSurface() {
@@ -1015,7 +1101,7 @@
   function fogSignature() {
     const fov = fovTokens.map(t =>
       [t.id, Math.round(t.x * 2), Math.round(t.y * 2),
-       Math.round((t.facing || 0) * 10), Math.round((t.viewAngle || 360) * 10),
+       Math.round(shownFacing(t) * 10), Math.round((t.viewAngle || 360) * 10),
        Math.round((t.revealCells || 0) * 10), t.reveals === false ? 0 : 1].join(',')).join(';');
     const seenSig = fogSeen.length + ':' +
       (fogSeen.length ? fogSeen[0].length + ':' + fogSeen[fogSeen.length - 1].length : '0');
@@ -1299,8 +1385,8 @@
         action: 'viewAngle', value: String(a)
       });
 
-    items.push({ text: 'Повернуть взгляд ⟳', action: 'facing', value: '45' });
-    items.push({ text: 'Повернуть взгляд ⟲', action: 'facing', value: '-45' });
+    items.push({ text: 'Повернуть взгляд ⟳', action: 'facing', value: String(screenTurn(45)) });
+    items.push({ text: 'Повернуть взгляд ⟲', action: 'facing', value: String(screenTurn(-45)) });
     items.push({ text: 'Поворот: Q / E на клавиатуре', disabled: true });
 
     items.push({ separator: true });
@@ -1765,7 +1851,7 @@
     if (key !== 'q' && key !== 'e') return;
     if (e.ctrlKey || e.altKey || e.metaKey || e.repeat) return;
 
-    startRotate(key === 'e' ? 1 : -1);
+    startRotate(screenTurn(key === 'e' ? 1 : -1));
     e.preventDefault();
   });
 
@@ -1799,7 +1885,11 @@
     }
 
     for (const f of fovTokens) {
-      if (f.id === token.id) f.facing = token.facing;
+      if (f.id !== token.id) continue;
+      f.facing = token.facing;
+      // Поворот уже анимируем сами — доводить нечего.
+      f._target = token.facing;
+      f._shown = token.facing;
     }
   }
 
@@ -1895,6 +1985,7 @@
     try {
       if (data.type === 'scene') applyScene(data);
       else if (data.type === 'fog') applyFogUpdate(data);
+      else if (data.type === 'facing') applyFacingUpdate(data);
       else if (data.type === 'ping') addPing(data.x || 0, data.y || 0);
     } catch (err) {
       showError(err && err.stack || err);
@@ -1919,5 +2010,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.3.5');
+  log('renderer ready v1.3.3.6');
 })();

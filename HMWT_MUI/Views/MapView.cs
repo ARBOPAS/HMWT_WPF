@@ -1072,11 +1072,39 @@ namespace HMWT_MUI.Views
 
                 _webMap.SendState(System.Text.Json.JsonSerializer.Serialize(payload, WebJsonOptions));
                 _webSeenVersion = _seenVersion;
-                WebLog($"fog push seen={_seenPoints.Count} fov={fov.Count}");
             }
             catch (Exception ex)
             {
                 WebLog("fog state error: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Только угол обзора — без «разведанного». Такой пакет маленький и
+        /// уходит до 30 раз в секунду: поворот рисуется плавно, а тяжёлый
+        /// список разведанных секторов не гоняется по мосту на каждый кадр.
+        /// </summary>
+        private void PushWebFacing()
+        {
+            if (!_webMapReady || _scene == null) return;
+
+            try
+            {
+                var payload = new
+                {
+                    type = "facing",
+                    sceneId = _scene.Id,
+                    isDm = _isDm,
+                    grid = new { px = _scene.GridPx },
+                    fog = new { on = WebFogEnabled() },
+                    fovTokens = WebFovTokens()
+                };
+
+                _webMap.SendState(System.Text.Json.JsonSerializer.Serialize(payload, WebJsonOptions));
+            }
+            catch (Exception ex)
+            {
+                WebLog("facing state error: " + ex.Message);
             }
         }
 
@@ -1488,15 +1516,12 @@ namespace HMWT_MUI.Views
 
                 // Разведку запоминаем по ходу поворота, а не только в конце:
                 // иначе при быстром развороте сектор «перепрыгивает» и часть
-                // обзора вообще не попадает в разведанное.
-                if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 300)
+                // обзора вообще не попадает в разведанное. Сам угол обратно
+                // не шлём: в WebView он уже новее нашего (там идёт анимация).
+                if ((DateTime.UtcNow - _lastLiveFog).TotalMilliseconds >= 550)
                 {
                     _lastLiveFog = DateTime.UtcNow;
-                    if (WebFogEnabled())
-                    {
-                        RememberCurrentVision();
-                        PushWebFog();
-                    }
+                    if (WebFogEnabled()) RememberCurrentVision();
                 }
                 return;
             }
@@ -4564,7 +4589,11 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            StartRotateToken(e.Key == Key.E ? 1 : -1);
+            // На экране E — по часовой стрелке, Q — против. У отражённой карты
+            // направление зеркалится, поэтому переводим его в угол картинки.
+            int screenDir = e.Key == Key.E ? 1 : -1;
+            bool mirrored = _scene != null && _scene.FlipH != _scene.FlipV;
+            StartRotateToken(mirrored ? -screenDir : screenDir);
             e.Handled = true;
         }
 
@@ -4618,10 +4647,10 @@ namespace HMWT_MUI.Views
             var token = _rotateToken;
             token.Facing = NormalizeDeg(token.Facing + _rotateDir * RotateSpeed * dt);
 
-            if ((now - _lastRotatePush).TotalMilliseconds >= 40)
+            if ((now - _lastRotatePush).TotalMilliseconds >= 33)
             {
                 _lastRotatePush = now;
-                if (_webMapReady) PushWebFog();
+                if (_webMapReady) PushWebFacing();
                 else
                 {
                     RenderFov();
@@ -4640,10 +4669,13 @@ namespace HMWT_MUI.Views
 
             // Разведанное собираем по ходу поворота: иначе быстрый разворот
             // перепрыгивает сектора и часть обзора не попадает в туман.
-            if (WebFogEnabled() && (now - _lastLiveFog).TotalMilliseconds >= 300)
+            // Это тяжёлая операция (геометрия + SQLite + сеть), поэтому реже
+            // кадров: туман получит новые сектора отдельным пакетом.
+            if (WebFogEnabled() && (now - _lastLiveFog).TotalMilliseconds >= 550)
             {
                 _lastLiveFog = now;
                 RememberCurrentVision();
+                if (_webMapReady) PushWebFog();
             }
         }
 
