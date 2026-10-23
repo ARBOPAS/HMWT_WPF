@@ -366,22 +366,10 @@ namespace HMWT_MUI.Views
                 _lastRoomActive = _inRoom;
                 _retryTimer.Start();
                 _webSyncTimer.Start();
-
-                // WebView2 — отдельное окно (HWND) и всегда рисуется поверх
-                // WPF. Поэтому, пока открыт любой оверлей (ZIndex ≥ 1000:
-                // диалоги, затемнения, меню), прячем WebView и возвращаем,
-                // когда его закрыли. Иначе оверлеи «уходили под карту».
-                try
-                {
-                    _overlayRoot = Window.GetWindow(this)?.Content as Panel;
-                    if (_overlayRoot != null) _overlayRoot.LayoutUpdated += WatchOverlays;
-                }
-                catch { }
             };
             Unloaded += (s, e) =>
             {
                 UnsubscribeRoom();
-                if (_overlayRoot != null) _overlayRoot.LayoutUpdated -= WatchOverlays;
                 _retryTimer.Stop();
                 _liveMoveTimer.Stop();
                 _pendingLiveMoves.Clear();
