@@ -596,7 +596,7 @@ namespace HMWT_MUI.Net
         /// перегрузки ломали поиск метода через reflection.
         /// </summary>
         public Task SendMapMoveEditAsync(int tokenId, double x, double y, double facing,
-            double viewAngle, int sizeCells, double revealCells = -1)
+            double viewAngle, int sizeCells, double revealCells = -1, string viewColor = null)
             => SendAsync(new NetMessage(MsgType.MapMove, new MapMoveRequest
             {
                 TokenId = tokenId,
@@ -605,7 +605,8 @@ namespace HMWT_MUI.Net
                 Facing = double.IsNaN(facing) ? -1 : facing,
                 ViewAngle = viewAngle,
                 SizeCells = sizeCells,
-                RevealCells = revealCells
+                RevealCells = revealCells,
+                ViewColor = viewColor
             }));
 
         /// <summary>Просит картинку карты по хэшу (если файла ещё нет).</summary>

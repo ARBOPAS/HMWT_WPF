@@ -227,6 +227,7 @@ namespace HMWT_MUI.Views
         private System.Windows.Threading.DispatcherTimer _rotateWatch;
         private System.Windows.Threading.DispatcherTimer _overlayWatch;
         private bool _coveredByWindow;
+        private int _liveMoveLog;
         private bool _rotating;
         private MapTokenData _rotateToken;
         private int _rotateDir;
@@ -1652,8 +1653,9 @@ namespace HMWT_MUI.Views
             }
             else
             {
-                // у игрока своего файла нет: цвет уедет вместе с ходом
-                RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing);
+                // у игрока своего файла нет: цвет уезжает хосту вместе с ходом
+                RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing,
+                    viewColor: token.ViewColor ?? "");
             }
 
             PushWebMap();
@@ -2423,6 +2425,10 @@ namespace HMWT_MUI.Views
             // И в WebGL: без этого чужой жетон двигался только по полному
             // снимку, то есть «оживал» при отпускании мыши.
             PushWebTokenLive(tokenId, x, y, facing);
+
+            // Редкая отметка в логе: по ней видно, доходят ли живые шаги.
+            if (++_liveMoveLog % 20 == 0)
+                WebLog($"live move #{_liveMoveLog} token={tokenId} -> web");
         }
 
         /// <summary>Передвигает уже нарисованный жетон, не пересобирая слой.</summary>

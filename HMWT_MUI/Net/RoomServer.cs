@@ -1186,8 +1186,11 @@ namespace HMWT_MUI.Net
                                 token.ViewAngle = request.ViewAngle;
                             if (request.SizeCells >= 1 && request.SizeCells <= 4)
                                 token.SizeCells = request.SizeCells;
-                            if (request.RevealCells >= 1 && request.RevealCells <= 40)
+                            if (request.RevealCells >= 0 && request.RevealCells <= 40)
                                 token.RevealCells = request.RevealCells;
+                            // свой цвет сектора обзора (протокол 14)
+                            if (request.ViewColor != null)
+                                token.ViewColor = request.ViewColor.Trim();
 
                             changedToken = token;
                             applied = true;
