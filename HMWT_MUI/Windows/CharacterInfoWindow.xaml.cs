@@ -4036,6 +4036,22 @@ namespace HMWT_MUI
             txtConditions.Text = CharacterStateService.DescribeConditions(
                 selected.Select(o => o.Key), _conditionOptions);
 
+            // Если персонаж есть в трекере боёв — показываем то же, что на карте:
+            // состояния живут у участника боя, лист лишь отражает их.
+            var linked = Services.InitiativeService.FindByCharacterName(txtName.Text);
+            if (linked != null)
+            {
+                string fromCombatant = linked.Value.Combatant.Conditions ?? "";
+                if (!string.IsNullOrWhiteSpace(fromCombatant))
+                {
+                    var names = CharacterStateService.DescribeConditions(
+                        fromCombatant.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(x => x.Trim()),
+                        CharacterStateService.LoadConditions(0));
+                    txtConditions.Text = names;
+                }
+            }
+
             // Пусто — серым, отмечено — золотым: состояние видно с одного взгляда
             txtConditions.Foreground = ThemeBrush(selected.Count == 0 ? "B.Mute" : "B.Accent");
 
@@ -4059,8 +4075,18 @@ namespace HMWT_MUI
         {
             try
             {
-                CharacterStateService.SaveConditionKeys(
-                    _characterId, _conditionOptions.Where(o => o.IsSelected).Select(o => o.Key));
+                var keys = _conditionOptions.Where(o => o.IsSelected).Select(o => o.Key).ToList();
+                CharacterStateService.SaveConditionKeys(_characterId, keys);
+
+                // Та же функция в трёх местах: карта, трекер и лист персонажа.
+                // Пишем и участнику боя, иначе состояния на карте не увидят.
+                var linked = Services.InitiativeService.FindByCharacterName(txtName.Text);
+                if (linked != null)
+                {
+                    linked.Value.Combatant.Conditions = string.Join(", ", keys);
+                    Services.InitiativeService.SaveCombatant(linked.Value.Encounter, linked.Value.Combatant);
+                }
+
                 UpdateConditionsDisplay();
             }
             catch (Exception ex)

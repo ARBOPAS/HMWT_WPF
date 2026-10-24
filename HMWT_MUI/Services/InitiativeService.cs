@@ -331,6 +331,30 @@ namespace HMWT_MUI.Services
 
         /// <summary>Сохраняет жетон (новый или изменённый).</summary>
         /// <summary>
+        /// Ищет участника боя по имени персонажа: через него карта и лист
+        /// персонажа говорят об одних и тех же состояниях.
+        /// </summary>
+        public static (EncounterData Encounter, CombatantData Combatant)? FindByCharacterName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            string wanted = name.Trim();
+
+            try
+            {
+                foreach (var encounter in LoadEncounters())
+                {
+                    var combatant = encounter.Combatants.FirstOrDefault(c =>
+                        c != null && !string.IsNullOrWhiteSpace(c.Name) &&
+                        string.Equals(c.Name.Trim(), wanted, StringComparison.CurrentCultureIgnoreCase));
+                    if (combatant != null) return (encounter, combatant);
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        /// <summary>
         /// Боец изменили (например, состояния на карте) — окно трекера
         /// должно перерисоваться, не дожидаясь переоткрытия.
         /// </summary>
