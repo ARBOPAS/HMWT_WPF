@@ -41,6 +41,13 @@ namespace HMWT_MUI.Models
         /// <summary>Ссылка на существо в бестиарии (0 — жетон создан вручную).</summary>
         public int MonsterId { get; set; }
 
+        /// <summary>
+        /// Персонаж игрока, которому принадлежит жетон (CharacterInfo.id_character).
+        /// 0 — связь неизвестна. По этому ключу карта, трекер и лист персонажа
+        /// говорят об одном участнике, не сверяя имена.
+        /// </summary>
+        public int CharacterId { get; set; }
+
         public CombatantKind Kind { get; set; } = CombatantKind.Creature;
 
         /// <summary>Задел на будущее: интерактивный бой с хитами.</summary>
@@ -79,10 +86,12 @@ namespace HMWT_MUI.Models
             InitiativeTotal = InitiativeTotal,
             HasRolled = HasRolled,
             MonsterId = MonsterId,
+            CharacterId = CharacterId,
             Kind = Kind,
             HitPoints = HitPoints,
             MaxHitPoints = MaxHitPoints,
             Note = Note,
+            Conditions = Conditions,
             IsCurrent = IsCurrent
         };
     }

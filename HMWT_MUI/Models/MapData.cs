@@ -172,6 +172,14 @@ namespace HMWT_MUI.Models
         /// <summary>Участник боя (EncounterCombatant); 0 — метка без связи.</summary>
         public int CombatantId { get; set; }
 
+        /// <summary>
+        /// Персонаж игрока, которому принадлежит жетон (CharacterInfo.id_character),
+        /// 0 — не игрок или связь неизвестна. Едет вместе с картой: у клиента нет
+        /// базы боёв, и «свой жетон» он определяет по этому id, а не по имени.
+        /// Протокол 16.
+        /// </summary>
+        public int OwnerCharacterId { get; set; }
+
         public string Label { get; set; } = "";
 
         /// <summary>Положение центра жетона в координатах картинки.</summary>
@@ -179,7 +187,10 @@ namespace HMWT_MUI.Models
 
         public double Y { get; set; }
 
-        /// <summary>Размер в клетках: 1 — обычное существо, 2 — большое, 3 — огромное.</summary>
+        /// <summary>
+        /// Размер в клетках: 1 — обычное существо, 2 — большое, 3–4 — огромное,
+        /// до 10 — для особо крупных (меню жетона даёт выбор 1–10).
+        /// </summary>
         public double SizeCells { get; set; } = 1;
 
         /// <summary>Цвет кольца: пусто — по стороне (игрок/монстр).</summary>

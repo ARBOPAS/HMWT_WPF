@@ -986,8 +986,9 @@
         <!-- ОВЕРЛЕЙ: МЕНЮ ВЫБОРА КУБИКОВ -->
         <Border x:Name="DiceMenuOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
         Background="{StaticResource B.Scrim}" Visibility="Collapsed" Panel.ZIndex="250" MouseLeftButtonUp="OverlayBackground_Click">
-            <Border Background="{StaticResource B.Panel}" Width="400" Height="500" HorizontalAlignment="Center" 
+            <Border Background="{StaticResource B.Panel}" Width="400" MinHeight="440" MaxHeight="700" HorizontalAlignment="Center" 
                     VerticalAlignment="Center" CornerRadius="12" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <Grid Margin="24">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -1053,9 +1054,10 @@
 
                     <StackPanel Grid.Row="3" Margin="0,0,0,16">
                         <TextBlock Text="Формула (можно вручную):" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,6"/>
-                        <TextBox x:Name="txtDiceFormula" Height="34" FontSize="14" FontWeight="Bold"
+                        <TextBox x:Name="txtDiceFormula" MinHeight="42" FontSize="14" FontWeight="Bold"
                                  Foreground="{StaticResource B.Ink}" Background="{StaticResource B.Slate}"
-                                 BorderThickness="0" Padding="10" TextAlignment="Center"
+                                 BorderThickness="0" Padding="10,6" TextAlignment="Center"
+                                 VerticalContentAlignment="Center"
                                  ToolTip="Например: 9d20, 2к6+3, 1d20-2, 1d20+СИЛ, 3d8+ЛОВ"
                                  TextChanged="TxtDiceFormula_TextChanged"/>
                         <TextBlock Text="9d20 · 2к6+3 · 1d20-2 · 1d20+СИЛ (СИЛ, ЛОВ, ТЕЛ, ИНТ, МДР, ХАР)"
@@ -1077,15 +1079,20 @@
                                 Click="BtnRollFormula_Click"/>
                     </Grid>
                 </Grid>
+                </ScrollViewer>
             </Border>
         </Border>
 
-        <!-- ПАНЕЛЬ РЕЗУЛЬТАТОВ БРОСКОВ -->
-        <Border x:Name="DiceResultsPanel" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"
-                Width="400" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="20,0,0,60" 
-                Panel.ZIndex="150" Background="Transparent">
-            <StackPanel x:Name="spDiceResults"/>
-        </Border>
+        <!-- ПАНЕЛЬ РЕЗУЛЬТАТОВ БРОСКОВ.
+             Только Popup: WebView2 (карта, чат) — отдельное окно и всегда выше
+             WPF-слоя окна, поэтому обычная панель оказывалась под ним. -->
+        <Popup x:Name="DiceResultsPopup" Placement="Relative"
+               PlacementTarget="{Binding ElementName=RootGrid}"
+               StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade" IsOpen="False">
+            <Border x:Name="DiceResultsPanel" Width="400" Background="Transparent" Visibility="Collapsed">
+                <StackPanel x:Name="spDiceResults"/>
+            </Border>
+        </Popup>
 
         <!-- ОВЕРЛЕЙ: ОТДЫХ -->
         <Border x:Name="RestOverlay" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Grid.RowSpan="4"

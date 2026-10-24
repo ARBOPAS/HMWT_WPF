@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Data.Sqlite;
 using HMWT_MUI.Controls;
+using HMWT_MUI.Models;
 using HMWT_MUI.Net;
 using HMWT_MUI.Services;
 using HMWT_MUI.Views;
@@ -396,6 +397,16 @@ namespace HMWT_MUI.RoomUiTests
             Say("═══ ВЕРСИЯ ПРИЛОЖЕНИЯ ═══");
             CheckVersionConsistency();
 
+            // ── Связка «персонаж ↔ участник боя ↔ жетон» по character_id ──
+            //
+            // Это ключ, по которому карта, трекер и лист персонажа должны
+            // говорить об одном участнике. Проверяем модель, JSON (по нему
+            // карта уходит клиенту) и настоящую колонку в базе: одной
+            // CREATE TABLE IF NOT EXISTS для старых баз мало.
+            Say("");
+            Say("═══ СВЯЗКА ПЕРСОНАЖ ↔ УЧАСТНИК БОЯ ═══");
+            CheckCharacterLink();
+
 
             // ── Вкладка без подключения ──
             Say("");
@@ -440,6 +451,37 @@ namespace HMWT_MUI.RoomUiTests
                 Check("хост стал ведущим", session.AmIGameMaster);
                 Check("адрес определён", session.HostAddress.Contains("."), session.HostAddress);
 
+                // Состав боя (для листа персонажа у клиента) должен пережить
+                // публикацию через сервер: копия состояния раньше теряла
+                // roster, и до игрока он не доезжал вовсе.
+                session.PublishInitiative(new InitiativeState
+                {
+                    IsActive = true,
+                    Roster = new List<InitiativeCombatantDto>
+                    {
+                        new InitiativeCombatantDto
+                        {
+                            Id = 1, Name = "Гром", CharacterId = 987654, Conditions = "prone"
+                        }
+                    }
+                });
+                System.Threading.Thread.Sleep(250);
+                var iniBack = session.GetInitiative();
+                Check("состав боя переживает публикацию",
+                    iniBack?.Roster != null && iniBack.Roster.Count == 1 &&
+                    iniBack.Roster[0].CharacterId == 987654 &&
+                    iniBack.Roster[0].Conditions == "prone",
+                    iniBack?.Roster == null ? "состава нет" : $"участников: {iniBack.Roster.Count}");
+
+                // ── Состояния из трекера сразу попадают в жетон карты ──
+                //
+                // Раньше у клиента они «не доезжали» до следующего случайного
+                // обновления сцены. Теперь SaveCombatant поднимает Changed,
+                // сервер обновляет жетоны и рассылает карту.
+                Say("");
+                Say("═══ СОСТОЯНИЯ ИЗ ТРЕКЕРА → КАРТА ═══");
+                CheckTrackerToMap(session);
+
                 Say("  подключаю второго участника по сети…");
                 var guest = new RoomClient("127.0.0.1", 47777, session.Key, session.RoomId, "");
 
@@ -451,7 +493,10 @@ namespace HMWT_MUI.RoomUiTests
                 bool joined = guest.ConnectAsync(new PlayerInfo
                 {
                     Name = "Лиза", CharacterName = "Тишь", CharacterClass = "Плут",
-                    CharacterRace = "Полурослик", Level = 3, Hp = 7, MaxHp = 18, ArmorClass = 14
+                    CharacterRace = "Полурослик", Level = 3, Hp = 7, MaxHp = 18, ArmorClass = 14,
+                    // Связка с жетоном карты из проверки «состояния из трекера»:
+                    // по character_id сервер понимает, что ход разрешён.
+                    CharacterId = 987654
                 }).GetAwaiter().GetResult();
                 Check("второй участник подключился", joined, guest.LastError);
 
@@ -463,6 +508,14 @@ namespace HMWT_MUI.RoomUiTests
                 Check("видны класс, уровень и здоровье второго",
                     players.Any(p => p.CharacterName == "Тишь" && p.CharacterClass == "Плут"
                                      && p.Hp == 7 && p.MaxHp == 18 && p.ArmorClass == 14));
+
+                // ── Живой ход жетона клиента ──
+                // Во время перетаскивания должны идти лёгкие сообщения, а не
+                // только итоговый ход: иначе у ведущего жетон «оживает» лишь
+                // при отпускании мыши.
+                Say("");
+                Say("═══ ЖИВОЙ ХОД ЖЕТОНА ═══");
+                CheckLiveTokenMove(session, guest);
 
                 session.PublishChat("Все в сборе? Начинаем спуск в подземелье.");
                 session.PublishRoll("1d20+5", "Проверка Восприятия", 22, new List<int> { 17 });
@@ -1446,6 +1499,45 @@ namespace HMWT_MUI.RoomUiTests
         #region === ПРОВЕРКА СЧЁТЧИКА ПРИ ПОДКЛЮЧЕНИИ ===
 
         /// <summary>
+        /// Живой ход клиента: лёгкое сообщение map_move(live) должно дойти до
+        /// ведущего событием и обновить позицию жетона в его копии карты.
+        /// Раньше жетон у остальных «оживал» только при отпускании мыши.
+        /// </summary>
+        private static void CheckLiveTokenMove(RoomSession session, RoomClient guest)
+        {
+            bool received = false;
+            Action<int, double, double, double> handler = (id, x, y, f) =>
+            {
+                if (id == 1) received = true;
+            };
+
+            session.TokenMovedLive += handler;
+            try
+            {
+                // Жетон 1 создан в проверке «состояния из трекера», его
+                // владелец — персонаж 987654 (гость вошёл с этим id).
+                guest.SendMapMoveLiveAsync(1, 140, 140, 0).GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(600);
+
+                Check("живой ход клиента доходит до ведущего", received,
+                    received ? "" : "событие TokenMovedLive не пришло");
+
+                var token = session.GetMapScene()?.Tokens?.FirstOrDefault(t => t.Id == 1);
+                Check("живой ход обновил позицию на карте ведущего",
+                    token != null && Math.Abs(token.X - 140) < 0.5 && Math.Abs(token.Y - 140) < 0.5,
+                    token == null ? "жетона нет" : $"({token.X:0},{token.Y:0})");
+            }
+            catch (Exception ex)
+            {
+                Check("живой ход жетона", false, ex.Message);
+            }
+            finally
+            {
+                session.TokenMovedLive -= handler;
+            }
+        }
+
+        /// <summary>
         /// Проверяет, что сразу после входа через RoomSession в статусе стоит
         /// верное число участников, а не «0/8».
         ///
@@ -2116,6 +2208,181 @@ namespace HMWT_MUI.RoomUiTests
             }
 
             Check("версия не ниже первого выпуска (1.0.0.0)", atLeastFirstRelease, asmVersion);
+        }
+
+        #endregion
+
+        #region === СВЯЗКА ПЕРСОНАЖ ↔ УЧАСТНИК БОЯ ===
+
+        /// <summary>
+        /// character_id — ключ, по которому карта, трекер и лист персонажа
+        /// должны говорить об одном участнике. Проверяем модель, JSON (по нему
+        /// карта уходит клиенту) и настоящую колонку в базе: одной
+        /// CREATE TABLE IF NOT EXISTS для старых баз мало — нужна миграция.
+        /// </summary>
+        private static void CheckCharacterLink()
+        {
+            const int characterId = 987654;
+
+            var combatant = new CombatantData
+            {
+                Id = 7,
+                Name = "Гром",
+                Kind = CombatantKind.Player,
+                CharacterId = characterId,
+                Conditions = "prone, charmed",
+                HitPoints = 17,
+                MaxHitPoints = 30
+            };
+
+            var clone = combatant.Clone();
+            Check("Clone переносит character_id", clone.CharacterId == characterId, $"id={clone.CharacterId}");
+            Check("Clone переносит состояния", clone.Conditions == "prone, charmed", clone.Conditions);
+
+            // Карта уезжает клиенту как JSON: владелец жетона должен пережить
+            // сериализацию, иначе клиент не узнает свой жетон.
+            var token = new MapTokenData { Id = 3, CombatantId = 7, OwnerCharacterId = characterId };
+            var tokenBack = NetJson.FromElement<MapTokenData>(NetJson.ToElement(token));
+            Check("карта: ownerCharacterId доезжает до клиента",
+                tokenBack != null && tokenBack.OwnerCharacterId == characterId,
+                tokenBack == null ? "null" : $"id={tokenBack.OwnerCharacterId}");
+
+            // Снимок комнаты несёт состав боя: по нему лист персонажа у клиента
+            // находит своего участника, даже если инициатива ещё не брошена.
+            var state = new InitiativeState
+            {
+                IsActive = true,
+                Roster = new List<InitiativeCombatantDto>
+                {
+                    new InitiativeCombatantDto
+                    {
+                        Id = 7, Name = "Гром", CharacterId = characterId, Conditions = "prone"
+                    }
+                }
+            };
+            var stateBack = NetJson.FromElement<InitiativeState>(NetJson.ToElement(state));
+            Check("снимок: состав боя с character_id и состояниями",
+                stateBack?.Roster != null && stateBack.Roster.Count == 1 &&
+                stateBack.Roster[0].CharacterId == characterId &&
+                stateBack.Roster[0].Conditions == "prone",
+                stateBack?.Roster == null ? "состава нет" : $"участников: {stateBack.Roster.Count}");
+
+            // Настоящая база: сохранение, чтение и поиск по character_id.
+            EncounterData encounter = null;
+            try
+            {
+                encounter = InitiativeService.CreateEncounter("Проверка связи");
+                var saved = InitiativeService.AddByName(encounter, "Проверка связи",
+                    0, CombatantKind.Player, 0, characterId);
+                Check("участник боя сохраняется с character_id",
+                    saved != null && saved.CharacterId == characterId,
+                    saved == null ? "не сохранён" : $"id={saved.CharacterId}");
+
+                if (saved != null)
+                {
+                    saved.Conditions = "blinded";
+                    InitiativeService.SaveCombatant(encounter, saved);
+
+                    var fresh = InitiativeService.LoadEncounter(encounter.Id)?.Combatants
+                        .FirstOrDefault(c => c != null && c.Id == saved.Id);
+                    Check("character_id и состояния читаются из базы",
+                        fresh != null && fresh.CharacterId == characterId && fresh.Conditions == "blinded",
+                        fresh == null ? "участник не найден"
+                            : $"char={fresh.CharacterId}, состояния «{fresh.Conditions}»");
+
+                    var byId = InitiativeService.FindForCharacter(characterId, null);
+                    Check("поиск участника по character_id",
+                        byId != null && byId.Value.Combatant.Id == saved.Id,
+                        byId == null ? "не найден" : $"id={byId.Value.Combatant.Id}");
+
+                    var updated = InitiativeService.UpdateCombatantConditions(saved.Id, "poisoned");
+                    Check("состояния пишутся по id участника",
+                        updated != null &&
+                        InitiativeService.LoadEncounter(encounter.Id).Combatants
+                            .Any(c => c != null && c.Id == saved.Id && c.Conditions == "poisoned"),
+                        updated == null ? "группа не найдена" : "сохранено");
+                }
+            }
+            catch (Exception ex)
+            {
+                Check("база: связка персонажа", false, ex.Message);
+            }
+            finally
+            {
+                try { if (encounter != null) InitiativeService.DeleteEncounter(encounter.Id); }
+                catch { }
+            }
+        }
+
+        #endregion
+
+        #region === СОСТОЯНИЯ ИЗ ТРЕКЕРА НА КАРТУ ===
+
+        /// <summary>
+        /// SaveCombatant (трекер, лист, карта) поднимает Changed — сервер
+        /// переносит состояния в жетоны и рассылает карту. Проверяем, что
+        /// жетон получает новый набор без отдельного «обновления сцены».
+        /// </summary>
+        private static void CheckTrackerToMap(RoomSession session)
+        {
+            const int characterId = 987654;
+            EncounterData encounter = null;
+
+            try
+            {
+                encounter = InitiativeService.CreateEncounter("Проверка карты");
+                var combatant = InitiativeService.AddByName(encounter, "Гром", 0,
+                    CombatantKind.Player, 0, characterId);
+                Check("участник боя для карты создан", combatant != null);
+                if (combatant == null) return;
+
+                var scene = new MapSceneData
+                {
+                    Id = 777,
+                    CharacterId = 1,
+                    Name = "Проверка карты",
+                    WidthPx = 700,
+                    HeightPx = 700
+                };
+                scene.Tokens.Add(new MapTokenData
+                {
+                    Id = 1,
+                    SceneId = 777,
+                    CombatantId = combatant.Id,
+                    Label = "Гром",
+                    X = 70,
+                    Y = 70,
+                    SizeCells = 1,
+                    RevealCells = 6
+                });
+
+                session.PublishMapScene(scene);
+                System.Threading.Thread.Sleep(250);
+
+                combatant.Conditions = "prone, charmed";
+                InitiativeService.SaveCombatant(encounter, combatant);
+                System.Threading.Thread.Sleep(500);
+
+                var token = session.GetMapScene()?.Tokens?.FirstOrDefault(t => t.Id == 1);
+                Check("жетон на карте получил состояния из трекера",
+                    token != null && token.Conditions == "prone, charmed",
+                    token == null ? "жетона нет" : $"«{token.Conditions}»");
+
+                var back = InitiativeService.LoadEncounter(encounter.Id)?.Combatants
+                    .FirstOrDefault(c => c != null && c.Id == combatant.Id);
+                Check("состояния остались у участника боя",
+                    back != null && back.Conditions == "prone, charmed",
+                    back == null ? "участник не найден" : $"«{back.Conditions}»");
+            }
+            catch (Exception ex)
+            {
+                Check("состояния из трекера на карту", false, ex.Message);
+            }
+            finally
+            {
+                try { if (encounter != null) InitiativeService.DeleteEncounter(encounter.Id); }
+                catch { }
+            }
         }
 
         #endregion

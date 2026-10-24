@@ -27,6 +27,9 @@ namespace HMWT_MUI.Net
         /// <summary>Жетон сдвинулся во время чужого перетаскивания: (id, x, y, поворот).</summary>
         public Action<int, double, double, double> TokenLiveReceived { get; set; }
 
+        /// <summary>Фигуру ведут мышью: (id, x, y). Лёгкое обновление без карты.</summary>
+        public Action<int, double, double> ShapeLiveReceived { get; set; }
+
         /// <summary>Пришёл путь жетона от другого участника.</summary>
         public Action<int, List<MapTrailPoint>> MapTrailReceived { get; set; }
 
@@ -449,6 +452,12 @@ namespace HMWT_MUI.Net
                             Events?.TokenLiveReceived?.Invoke(live.TokenId, live.X, live.Y, live.Facing);
                         break;
 
+                    case MsgType.MapShapeLive:
+                        var shapeLive = msg.As<MapShapeLive>();
+                        if (shapeLive != null)
+                            Events?.ShapeLiveReceived?.Invoke(shapeLive.ShapeId, shapeLive.X, shapeLive.Y);
+                        break;
+
                     case MsgType.MapTrail:
                         var trail = msg.As<MapTrailMessage>();
                         if (trail?.Points != null)
@@ -641,6 +650,15 @@ namespace HMWT_MUI.Net
             {
                 Action = action ?? "update",
                 Shape = shape
+            }));
+
+        /// <summary>Ведём фигуру: только координаты, без полной карты.</summary>
+        public Task SendShapeLiveAsync(int shapeId, double x, double y)
+            => SendAsync(new NetMessage(MsgType.MapShapeLive, new MapShapeLive
+            {
+                ShapeId = shapeId,
+                X = x,
+                Y = y
             }));
 
         /// <summary>Отправляет нарисованный штрих ведущему.</summary>

@@ -142,6 +142,13 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("charId")] public int CharacterId { get; set; }
 
         /// <summary>
+        /// Состояния персонажа ключами через запятую — часть листа, нужная
+        /// хосту для трекера и карты (и обратно клиенту для листа).
+        /// Протокол 16.
+        /// </summary>
+        [JsonPropertyName("conditions")] public string Conditions { get; set; } = "";
+
+        /// <summary>
         /// Модификатор инициативы с листа персонажа. Нужен мастеру, чтобы
         /// добавить игроков в трекер инициативы одним нажатием.
         /// </summary>
@@ -395,12 +402,31 @@ namespace HMWT_MUI.Net
     /// </summary>
     public sealed class InitiativeCombatantDto
     {
+        [JsonPropertyName("id")] public int Id { get; set; }
         [JsonPropertyName("name")] public string Name { get; set; } = "";
         [JsonPropertyName("roll")] public int Roll { get; set; }
         [JsonPropertyName("mod")] public int Modifier { get; set; }
         [JsonPropertyName("total")] public int Total { get; set; }
         [JsonPropertyName("player")] public bool IsPlayer { get; set; }
         [JsonPropertyName("current")] public bool IsCurrent { get; set; }
+
+        /// <summary>
+        /// Персонаж игрока, которому принадлежит жетон (0 — неизвестно).
+        /// По нему лист персонажа у клиента находит своего участника боя,
+        /// не сверяя имена. Протокол 16.
+        /// </summary>
+        [JsonPropertyName("charId")] public int CharacterId { get; set; }
+
+        /// <summary>
+        /// Состояния участника ключами (как на карте и в трекере).
+        /// Протокол 16.
+        /// </summary>
+        [JsonPropertyName("conditions")] public string Conditions { get; set; } = "";
+
+        /// <summary>Хиты участника — клиенту не из чего их взять кроме снимка.</summary>
+        [JsonPropertyName("hp")] public int HitPoints { get; set; }
+
+        [JsonPropertyName("maxHp")] public int MaxHitPoints { get; set; }
     }
 
     /// <summary>Состояние трекера инициативы: порядок хода, раунд, чей ход.</summary>
@@ -410,6 +436,14 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("name")] public string Name { get; set; } = "";
         [JsonPropertyName("round")] public int Round { get; set; } = 1;
         [JsonPropertyName("order")] public List<InitiativeCombatantDto> Combatants { get; set; }
+            = new List<InitiativeCombatantDto>();
+
+        /// <summary>
+        /// Все участники боя, включая тех, кому ещё не бросили инициативу.
+        /// Нужно листу персонажа у клиента: состояния и хиты приходят только
+        /// по сети, своей базы боёв у него нет. Протокол 16.
+        /// </summary>
+        [JsonPropertyName("roster")] public List<InitiativeCombatantDto> Roster { get; set; }
             = new List<InitiativeCombatantDto>();
 
         /// <summary>Есть ли что показывать (пустое состояние ничего не рисует).</summary>
@@ -526,6 +560,17 @@ namespace HMWT_MUI.Net
     {
         [JsonPropertyName("action")] public string Action { get; set; } = "create";
         [JsonPropertyName("shape")] public MapShapeData Shape { get; set; }
+    }
+
+    /// <summary>
+    /// Лёгкое сообщение: фигуру ведут мышью (протокол 16). Полная карта на
+    /// каждый шаг не нужна — остальные дорисовывают движение плавно.
+    /// </summary>
+    public sealed class MapShapeLive
+    {
+        [JsonPropertyName("id")] public int ShapeId { get; set; }
+        [JsonPropertyName("x")] public double X { get; set; }
+        [JsonPropertyName("y")] public double Y { get; set; }
     }
 
     /// <summary>

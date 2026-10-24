@@ -232,7 +232,8 @@ namespace HMWT_MUI.Controls
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; background: #0B0D16; }
   body { font-family: 'Segoe UI', sans-serif; color: #E6EAF5; font-size: 13px; }
-  #feed { padding: 6px 8px 14px 8px; display: flex; flex-direction: column; gap: 7px; }
+  #feed { padding: 6px 8px 22px 8px; display: flex; flex-direction: column; gap: 7px; }
+  #bottom { height: 2px; }
   .row { border: 1px solid #2B3352; background: #151B2E; border-radius: 8px; padding: 8px 10px; }
   .row.me { border-color: #2A6A74; }
   .head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #8B95B4; margin-bottom: 3px; }
@@ -246,13 +247,37 @@ namespace HMWT_MUI.Controls
   .missing { color: #E06A63; font-size: 11px; margin-top: 6px; }
   .empty { color: #8B95B4; text-align: center; padding: 14px 8px; }
 </style></head>
-<body><div id=""feed""></div>
+<body><div id=""feed""></div><div id=""bottom""></div>
 <script>
 const feed = document.getElementById('feed');
+const bottom = document.getElementById('bottom');
 let autoScroll = true;
-document.addEventListener('scroll', () => {
-  autoScroll = (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - 30);
-});
+
+function atBottom() {
+  const el = document.scrollingElement || document.documentElement;
+  return (el.scrollTop + window.innerHeight) >= (el.scrollHeight - 40);
+}
+document.addEventListener('scroll', () => { autoScroll = atBottom(); }, { passive: true });
+
+// Прокрутка вниз после добавления записи. requestAnimationFrame нужен,
+// чтобы браузер успел пересчитать высоту: иначе последний бросок
+// оказывался под нижним краем окна.
+function scrollToBottom() {
+  if (!autoScroll) return;
+  requestAnimationFrame(() => {
+    if (!autoScroll) return;
+    try { bottom.scrollIntoView({ block: 'end' }); }
+    catch (_) { window.scrollTo(0, document.body.scrollHeight); }
+  });
+}
+
+// Лента изменила высоту (пришла картинка, показалась инициатива, окно
+// поменяло размер) — держим низ в поле зрения.
+if (window.ResizeObserver) {
+  new ResizeObserver(() => scrollToBottom()).observe(document.body);
+}
+window.addEventListener('resize', () => scrollToBottom());
+
 window.chrome.webview.addEventListener('message', (e) => {
   const m = e.data;
   if (!m) return;
@@ -288,17 +313,21 @@ function rowFor(e) {
   } else {
     if (e.text) row.appendChild(el('div', 'text', e.text));
     if (e.kind === 3 && e.image) {
-      const img = document.createElement('img');
-      img.className = 'image';
-      const ext = (e.ext || '.png').replace('.', '');
-      img.src = 'data:image/' + (ext === 'jpg' ? 'jpeg' : ext) + ';base64,' + e.image;
-      img.alt = e.name || 'картинка';
-      row.appendChild(img);
+      row.appendChild(makeImage(e.image, e.ext, e.name));
     } else if (e.kind === 3) {
       row.appendChild(el('div', 'missing', 'Картинка недоступна в истории'));
     }
   }
   return row;
+}
+function makeImage(base64, ext, name) {
+  const img = document.createElement('img');
+  img.className = 'image';
+  const e2 = (ext || '.png').replace('.', '');
+  img.src = 'data:image/' + (e2 === 'jpg' ? 'jpeg' : e2) + ';base64,' + base64;
+  img.alt = name || 'картинка';
+  img.addEventListener('load', () => scrollToBottom());
+  return img;
 }
 function updateImage(m) {
   if (!m || !m.id) return;
@@ -314,19 +343,21 @@ function updateImage(m) {
   }
   const ext = (m.ext || '.png').replace('.', '');
   img.src = 'data:image/' + (ext === 'jpg' ? 'jpeg' : ext) + ';base64,' + m.image;
+  img.addEventListener('load', () => scrollToBottom());
 }
 function append(entries) {
   for (const e of entries) feed.appendChild(rowFor(e));
-  if (autoScroll) window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottom();
 }
 function render(entries) {
   feed.innerHTML = '';
+  autoScroll = true;
   if (!entries.length) {
     feed.appendChild(el('div', 'empty', 'Лента пуста. Броски и сообщения появятся здесь.'));
     return;
   }
   for (const e of entries) feed.appendChild(rowFor(e));
-  window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottom();
 }</script></body></html>";
         }
     }

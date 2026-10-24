@@ -499,7 +499,15 @@ namespace HMWT_MUI.Views
                     StaysOpenOnClick = true
                 };
                 if (style != null) item.Style = style;
-                item.Click += (s, e) => ToggleCondition(combatant, key);
+                // Галочка должна меняться сразу, не закрывая меню: раньше
+                // отметка появлялась только после повторного открытия, и
+                // казалось, что состояние не поставилось.
+                item.Click += (s, e) =>
+                {
+                    ToggleCondition(combatant, key);
+                    item.IsChecked = ParseConditions(combatant.Conditions)
+                        .Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+                };
                 menu.Items.Add(item);
             }
 

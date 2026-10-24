@@ -202,6 +202,9 @@ namespace HMWT_MUI.Net
         /// <summary>Жетон сдвинулся во время перетаскивания: (id, x, y, поворот).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
 
+        /// <summary>Фигуру ведут мышью: (id, x, y).</summary>
+        public event Action<int, double, double> ShapeMovedLive;
+
         /// <summary>Пришёл пройденный путь жетона от другого участника.</summary>
         public event Action<int, List<MapTrailPoint>> MapTrailReceived;
 
@@ -273,6 +276,7 @@ namespace HMWT_MUI.Net
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+                _server.ShapeMovedLive += (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
@@ -391,6 +395,7 @@ namespace HMWT_MUI.Net
                     ChatImageReceived?.Invoke(id, b64, ext);
                 };
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+                _client.Events.ShapeLiveReceived = (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
                 _client.Events.MapTrailReceived = (id, points) => MapTrailReceived?.Invoke(id, points);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -656,6 +661,7 @@ namespace HMWT_MUI.Net
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
+                _server.ShapeMovedLive += (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
@@ -924,6 +930,21 @@ namespace HMWT_MUI.Net
             if (!IsActive || IsHost || shape == null) return;
             if (_client == null || !_client.IsConnected) return;
             _ = _client.SendMapShapeAsync(action, shape);
+        }
+
+        /// <summary>Игрок ведёт фигуру мышью — остальные видят её плавно.</summary>
+        public void SendShapeMoveLive(int shapeId, double x, double y)
+        {
+            if (!IsActive || IsHost || shapeId <= 0) return;
+            if (_client == null || !_client.IsConnected) return;
+            _ = _client.SendShapeLiveAsync(shapeId, x, y);
+        }
+
+        /// <summary>Ведущий ведёт фигуру мышью: рассылаем только координаты.</summary>
+        public void PublishShapeMoveLive(int shapeId, double x, double y)
+        {
+            if (!IsActive || !IsHost || _server == null || shapeId <= 0) return;
+            _server.BroadcastShapeLive(shapeId, x, y);
         }
 
         /// <summary>Игрок просит карту (например, только что открыл вкладку).</summary>
@@ -1351,7 +1372,7 @@ namespace HMWT_MUI.Net
 
         /// <summary>Короткая подпись значимых полей: по ней видно, менялись ли данные.</summary>
         private static string SignatureOf(PlayerInfo p)
-            => $"{p.CharacterName}|{p.Name}|{p.CharacterClass}|{p.CharacterRace}|{p.Level}|{p.Hp}|{p.MaxHp}|{p.ArmorClass}|{p.AvatarPath}";
+            => $"{p.CharacterName}|{p.Name}|{p.CharacterClass}|{p.CharacterRace}|{p.Level}|{p.Hp}|{p.MaxHp}|{p.ArmorClass}|{p.AvatarPath}|{p.Conditions}";
 
         /// <summary>
         /// Отправляет свои данные заново (например, включили имя из профиля).

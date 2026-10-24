@@ -392,11 +392,28 @@ namespace HMWT_MUI.Views
                     ? player.CharacterName
                     : player.Name ?? "").Trim();
                 if (name.Length == 0) continue;
-                bool exists = encounter.Combatants.Any(c => c != null &&
-                    string.Equals(c.Name, name, StringComparison.CurrentCultureIgnoreCase));
-                if (exists) continue;
+                // Сначала ищем уже добавленного по character_id: имя могли
+                // поправить, и раньше участник дублировался.
+                if (player.CharacterId > 0 &&
+                    encounter.Combatants.Any(c => c != null && c.CharacterId == player.CharacterId))
+                    continue;
 
-                var combatant = InitiativeService.AddByName(encounter, name, player.Initiative, CombatantKind.Player);
+                // Старый участник, добавленный по имени: дописываем ему id,
+                // чтобы дальше карта и лист находили его без сверки имён.
+                var byName = encounter.Combatants.FirstOrDefault(c => c != null &&
+                    string.Equals(c.Name, name, StringComparison.CurrentCultureIgnoreCase));
+                if (byName != null)
+                {
+                    if (player.CharacterId > 0 && byName.CharacterId != player.CharacterId)
+                    {
+                        byName.CharacterId = player.CharacterId;
+                        InitiativeService.SaveCombatant(encounter, byName);
+                    }
+                    continue;
+                }
+
+                var combatant = InitiativeService.AddByName(encounter, name, player.Initiative,
+                    CombatantKind.Player, 0, player.CharacterId);
                 if (combatant != null)
                 {
                     // хиты и броня берутся у персонажа игрока: без этого в трекере

@@ -102,7 +102,10 @@ namespace HMWT_MUI
             _characterId = characterId;
             PhotoHelper.MigrateLegacyPhotos();
             Loaded += (_, __) => ApplyAdaptiveLayout();
-            SizeChanged += (_, __) => ApplyAdaptiveLayout();
+            SizeChanged += (_, __) => { ApplyAdaptiveLayout(); PositionDiceResultsPopup(); };
+
+            // Высота стопки результатов меняется — держим попап у нижнего края.
+            spDiceResults.SizeChanged += (_, __) => PositionDiceResultsPopup();
 
             // Подписываем ТОЛЬКО то, чего нет в XAML
             btnCloseHPCalc.Click += (s, e) => HPCalcOverlay.Visibility = Visibility.Collapsed;
@@ -2156,6 +2159,7 @@ namespace HMWT_MUI
                 spDiceResults.Children.RemoveAt(0);
 
             DiceResultsPanel.Visibility = Visibility.Visible;
+            ShowDiceResultsPopup();
 
             var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
             timer.Tick += (s, e) => { timer.Stop(); RemoveResultPanel(resultPanel); };
@@ -2733,8 +2737,52 @@ namespace HMWT_MUI
             {
                 spDiceResults.Children.Remove(panel);
                 if (spDiceResults.Children.Count == 0)
+                {
                     DiceResultsPanel.Visibility = Visibility.Collapsed;
+                    DiceResultsPopup.IsOpen = false;
+                }
+                else
+                {
+                    PositionDiceResultsPopup();
+                }
             }
+        }
+
+        /// <summary>
+        /// Показывает панель результатов поверх WebView2. Панель живёт в Popup:
+        /// карта и чат — отдельные окна движка, и обычный WPF-элемент всегда
+        /// оказывался под ними.
+        /// </summary>
+        private void ShowDiceResultsPopup()
+        {
+            try
+            {
+                // Примерная высота до первого измерения: иначе первая же
+                // отрисовка была бы в левом верхнем углу.
+                DiceResultsPopup.HorizontalOffset = 20;
+                DiceResultsPopup.VerticalOffset = Math.Max(8, RootGrid.ActualHeight - 60 - 420);
+                DiceResultsPopup.IsOpen = true;
+                PositionDiceResultsPopup();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CharacterInfoWindow] результаты бросков: {ex.Message}");
+            }
+        }
+
+        /// <summary>Ставит попап результатов к нижнему левому краю окна.</summary>
+        private void PositionDiceResultsPopup()
+        {
+            if (DiceResultsPopup == null || !DiceResultsPopup.IsOpen) return;
+            try
+            {
+                DiceResultsPanel.UpdateLayout();
+                DiceResultsPopup.PlacementTarget = RootGrid;
+                DiceResultsPopup.HorizontalOffset = 20;
+                DiceResultsPopup.VerticalOffset = Math.Max(8,
+                    RootGrid.ActualHeight - 60 - DiceResultsPanel.ActualHeight);
+            }
+            catch { }
         }
 
         public void ShowDiceMenu(string rollType, string skillName, int bonus)
@@ -3793,6 +3841,12 @@ namespace HMWT_MUI
                 int maxHp = GetMaxHpFromSettings();
                 if (maxHp <= 0) maxHp = hp;
 
+                // Состояния — часть листа: у клиента нет базы боёв, и ведущий
+                // узнаёт о них только из этих данных.
+                string conditions = "";
+                try { conditions = string.Join(", ", CharacterStateService.LoadConditionKeys(_characterId)); }
+                catch { }
+
                 return new PlayerInfo
                 {
                     CharacterId = _characterId,
@@ -3804,7 +3858,8 @@ namespace HMWT_MUI
                     ArmorClass = armor,
                     Level = level,
                     AvatarPath = avatar,
-                    Name = display
+                    Name = display,
+                    Conditions = conditions
                 };
             }
             catch (Exception ex)
@@ -3849,6 +3904,9 @@ namespace HMWT_MUI
                 UpdateRoomIndicator();
                 UpdateDmToolsVisibility();
                 UpdateInitiativeIndicator();
+                // Состояния приходят из снимка комнаты: у клиента своей базы
+                // боёв нет, и плитка обновлялась только при открытии окна.
+                RefreshConditionsFromRoom();
             }));
         }
 
@@ -4021,6 +4079,16 @@ namespace HMWT_MUI
                 CharacterStateService.LoadConditionKeys(_characterId), StringComparer.OrdinalIgnoreCase);
             foreach (var option in _conditionOptions) option.IsSelected = chosen.Contains(option.Key);
 
+            // Состояния живут у участника боя: если персонаж есть в трекере
+            // (или в отряде у клиента), показываем именно его набор. У клиента
+            // своей базы боёв нет — набор приходит снимком комнаты.
+            if (TryGetCombatantConditions(out string fromCombatant))
+            {
+                var keys = new HashSet<string>(
+                    SplitConditions(fromCombatant), StringComparer.OrdinalIgnoreCase);
+                foreach (var option in _conditionOptions) option.IsSelected = keys.Contains(option.Key);
+            }
+
             // Список пересобирается заново, поэтому источник назначаем в два шага:
             // ItemsControl иначе оставил бы в флажках прежние объекты
             listConditions.ItemsSource = null;
@@ -4034,38 +4102,134 @@ namespace HMWT_MUI
             UpdateConcentrationDisplay();
         }
 
+        private static IEnumerable<string> SplitConditions(string text)
+            => (text ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim()).Where(x => x.Length > 0);
+
         /// <summary>Кисть темы по ключу: цвет плиток меняется вместе с отметками.</summary>
         private Brush ThemeBrush(string key) => (Brush)FindResource(key);
+
+        /// <summary>
+        /// Состояния участника боя: сначала из своей базы (мастер и хозяйский
+        /// лист), потом из состава боя в комнате. У клиента базы боёв нет, и
+        /// раньше лист искал участника по имени в пустой таблице — состояния
+        /// с карты до листа не доезжали.
+        /// </summary>
+        private bool TryGetCombatantConditions(out string conditions)
+        {
+            conditions = "";
+            try
+            {
+                var linked = Services.InitiativeService.FindForCharacter(_characterId, txtName.Text);
+                if (linked != null)
+                {
+                    conditions = linked.Value.Combatant.Conditions ?? "";
+                    return true;
+                }
+
+                var session = RoomSession.Instance;
+                if (session == null || !session.IsActive) return false;
+
+                var roster = session.GetInitiative()?.Roster;
+                if (roster == null || roster.Count == 0) return false;
+
+                var mine = roster.FirstOrDefault(c => c != null && _characterId > 0 &&
+                                                      c.CharacterId == _characterId);
+                if (mine == null)
+                {
+                    string name = (txtName.Text ?? "").Trim();
+                    if (name.Length == 0) return false;
+                    mine = roster.FirstOrDefault(c => c != null && NameMatch.SamePerson(c.Name, name));
+                }
+
+                if (mine == null) return false;
+                conditions = mine.Conditions ?? "";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CharacterInfoWindow] состояния участника: {ex.Message}");
+                return false;
+            }
+        }
 
         /// <summary>Подпись плитки состояний: перечисление отметок или «нет».</summary>
         private void UpdateConditionsDisplay()
         {
             var selected = _conditionOptions.Where(o => o.IsSelected).ToList();
-            txtConditions.Text = CharacterStateService.DescribeConditions(
-                selected.Select(o => o.Key), _conditionOptions);
+            var shownKeys = selected.Select(o => o.Key).ToList();
 
-            // Если персонаж есть в трекере боёв — показываем то же, что на карте:
-            // состояния живут у участника боя, лист лишь отражает их.
-            var linked = Services.InitiativeService.FindByCharacterName(txtName.Text);
-            if (linked != null)
+            if (TryGetCombatantConditions(out string fromCombatant))
             {
-                string fromCombatant = linked.Value.Combatant.Conditions ?? "";
-                if (!string.IsNullOrWhiteSpace(fromCombatant))
-                {
-                    var names = CharacterStateService.DescribeConditions(
-                        fromCombatant.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(x => x.Trim()),
-                        CharacterStateService.LoadConditions(0));
-                    txtConditions.Text = names;
-                }
+                var keys = SplitConditions(fromCombatant).ToList();
+                shownKeys = keys;   // участник боя важнее локальных отметок
             }
 
-            // Пусто — серым, отмечено — золотым: состояние видно с одного взгляда
-            txtConditions.Foreground = ThemeBrush(selected.Count == 0 ? "B.Mute" : "B.Accent");
+            // Справочник читаем один раз: DescribeConditions нужен и для
+            // подписи, и для подсказки.
+            var options = CharacterStateService.LoadConditions(0);
+            string text = CharacterStateService.DescribeConditions(shownKeys, options);
+            txtConditions.Text = text;
 
-            btnConditions.ToolTip = selected.Count == 0
+            // Пусто — серым, отмечено — золотым: состояние видно с одного взгляда
+            txtConditions.Foreground = ThemeBrush(shownKeys.Count == 0 ? "B.Mute" : "B.Accent");
+
+            btnConditions.ToolTip = shownKeys.Count == 0
                 ? "Отметьте состояния, которые сейчас действуют на персонажа"
-                : "Сейчас действует:\n" + string.Join("\n", selected.Select(o => "• " + o.Name));
+                : "Сейчас действует:\n" + string.Join("\n",
+                    text.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(x => "• " + x));
+        }
+
+        /// <summary>Подпись состояний из комнаты, чтобы не перечитывать базу на каждый снимок.</summary>
+        private string _roomConditionsSignature = "";
+
+        /// <summary>
+        /// Снимок комнаты пришёл: перерисовываем плитку, только если состояния
+        /// участника действительно изменились. Иначе каждый снимок (раз в
+        /// несколько секунд) зря читал бы справочники из базы.
+        /// </summary>
+        private void RefreshConditionsFromRoom()
+        {
+            try
+            {
+                var session = RoomSession.Instance;
+                if (session == null || !session.IsActive) return;
+
+                var roster = session.GetInitiative()?.Roster;
+                if (roster == null || roster.Count == 0) return;
+
+                var mine = roster.FirstOrDefault(c => c != null && _characterId > 0 &&
+                                                      c.CharacterId == _characterId);
+                if (mine == null)
+                {
+                    string name = (txtName.Text ?? "").Trim();
+                    if (name.Length > 0)
+                        mine = roster.FirstOrDefault(c => c != null && NameMatch.SamePerson(c.Name, name));
+                }
+                if (mine == null) return;
+
+                string signature = mine.Conditions ?? "";
+                if (string.Equals(signature, _roomConditionsSignature, StringComparison.Ordinal)) return;
+                _roomConditionsSignature = signature;
+
+                // Флажки приводим к тому же набору: иначе закрытие списка
+                // записало бы старые отметки и стёрло состояния с карты.
+                var keys = new HashSet<string>(SplitConditions(signature), StringComparer.OrdinalIgnoreCase);
+                foreach (var option in _conditionOptions) option.IsSelected = keys.Contains(option.Key);
+
+                // Локальную копию тоже выравниваем: иначе периодическая
+                // отправка профиля унесла бы ведущему устаревший набор, и он
+                // выглядел бы как «игрок сам поменял состояния».
+                try { CharacterStateService.SaveConditionKeys(_characterId, keys); }
+                catch { }
+
+                UpdateConditionsDisplay();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CharacterInfoWindow] состояния из комнаты: {ex.Message}");
+            }
         }
 
         private void BtnConditions_Click(object sender, RoutedEventArgs e)
@@ -4088,18 +4252,71 @@ namespace HMWT_MUI
 
                 // Та же функция в трёх местах: карта, трекер и лист персонажа.
                 // Пишем и участнику боя, иначе состояния на карте не увидят.
-                var linked = Services.InitiativeService.FindByCharacterName(txtName.Text);
+                var linked = Services.InitiativeService.FindForCharacter(_characterId, txtName.Text);
                 if (linked != null)
                 {
                     linked.Value.Combatant.Conditions = string.Join(", ", keys);
                     Services.InitiativeService.SaveCombatant(linked.Value.Encounter, linked.Value.Combatant);
+
+                    // Ведущий: рассылаем состав боя игрокам, чтобы их лист
+                    // и трекер увидели те же состояния.
+                    if (RoomSession.Instance.IsActive)
+                        RoomSession.Instance.PublishInitiative(
+                            Services.InitiativeService.BuildState(linked.Value.Encounter));
                 }
+
+                // Клиент: своей базы боёв у него нет. Состояния уходят
+                // ведущему ходом своего жетона — тем же проверенным путём,
+                // что и меню ПКМ на карте. PlayerInfo.Conditions остаётся
+                // только начальным заполнением: сервер не перезаписывает ими
+                // уже выставленные ведущим состояния (иначе устаревший лист
+                // затирал трекер).
+                if (linked == null) SendConditionsToHost(keys);
+
+                // И профиль обновляем: сервер применит состояния, только если
+                // они реально отличаются от прошлой отправки (не сотрёт
+                // отметки ведущего), зато путь работает и без открытой карты.
+                PublishCharacterToRoom();
 
                 UpdateConditionsDisplay();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[CharacterInfoWindow] состояния: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Отправляет ведущему состояния своего жетона. Ищем жетон по
+        /// character_id (у клиента он приезжает с картой), иначе по имени.
+        /// </summary>
+        private void SendConditionsToHost(IEnumerable<string> keys)
+        {
+            try
+            {
+                var session = RoomSession.Instance;
+                if (session == null || !session.IsActive || session.IsHost) return;
+
+                var scene = session.GetMapScene();
+                var tokens = scene?.Tokens;
+                if (tokens == null || tokens.Count == 0) return;
+
+                var token = tokens.FirstOrDefault(t => t != null && _characterId > 0 &&
+                                                       t.OwnerCharacterId == _characterId);
+                if (token == null)
+                {
+                    string name = (txtName.Text ?? "").Trim();
+                    if (name.Length > 0)
+                        token = tokens.FirstOrDefault(t => t != null && NameMatch.SamePerson(t.Label, name));
+                }
+                if (token == null) return;
+
+                string value = string.Join(", ", keys);
+                session.SendMapMove(token.Id, token.X, token.Y, token.Facing, conditions: value);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CharacterInfoWindow] отправка состояний: {ex.Message}");
             }
         }
 

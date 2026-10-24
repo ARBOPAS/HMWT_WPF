@@ -44,6 +44,31 @@ namespace HMWT_MUI.Views
         private string _selfNameCache;
         private string SelfName => _selfNameCache ??= ResolveSelfName();
 
+        /// <summary>
+        /// Персонаж, которым играю (id). В комнате — из отряда, иначе — лист
+        /// этого окна. По нему карта понимает, какой жетон «свой».
+        /// </summary>
+        private int SelfCharacterId
+        {
+            get
+            {
+                try
+                {
+                    var session = RoomSession.Instance;
+                    if (session != null && session.IsActive)
+                    {
+                        var me = session.GetPlayers().FirstOrDefault(p => p != null && p.Id == session.MyPlayerId);
+                        if (me != null && me.CharacterId > 0) return me.CharacterId;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MapView] свой персонаж: {ex.Message}");
+                }
+                return _characterId;
+            }
+        }
+
 
         private readonly Border _viewport = new Border();
         private readonly Canvas _world = new Canvas();
@@ -195,8 +220,21 @@ namespace HMWT_MUI.Views
         private readonly System.Windows.Threading.DispatcherTimer _trailTimer =
             new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
 
+        /// <summary>
+        /// Жетоны подтягивают хиты/состояния из трекера: SaveCombatant зовут
+        /// пачками (броски, отметки), поэтому обновляем карту с задержкой.
+        /// </summary>
+        private readonly System.Windows.Threading.DispatcherTimer _combatantRefreshTimer =
+            new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
+
         /// <summary>Когда последний раз отправляли промежуточное движение при перетаскивании.</summary>
         private DateTime _lastLiveMoveSent = DateTime.MinValue;
+
+        /// <summary>Когда последний раз отправляли положение фигуры при перетаскивании.</summary>
+        private DateTime _lastShapeLiveSent = DateTime.MinValue;
+
+        /// <summary>Редкая отметка в логе: по ней видно, уходят ли живые шаги жетона.</summary>
+        private DateTime _lastLiveMoveLog = DateTime.MinValue;
 
         /// <summary>Когда последний раз запоминали обзор по пути (не чаще 3 раз в секунду).</summary>
         private DateTime _lastSeenMemory = DateTime.MinValue;
@@ -227,6 +265,7 @@ namespace HMWT_MUI.Views
         private System.Windows.Threading.DispatcherTimer _rotateWatch;
         private System.Windows.Threading.DispatcherTimer _overlayWatch;
         private bool _coveredByWindow;
+        private bool _combatantHooked;
         private int _liveMoveLog;
         private bool _rotating;
         private MapTokenData _rotateToken;
@@ -284,6 +323,16 @@ namespace HMWT_MUI.Views
             _liveMoveTimer.Tick += ApplyPendingLiveMoves;
             _visualTimer.Tick += ApplyVisualMoves;
             _trailTimer.Tick += (s, e) => RemoveOldTrails();
+            _combatantRefreshTimer.Tick += (s, e) =>
+            {
+                _combatantRefreshTimer.Stop();
+                RefreshCombatantStateOnMap();
+            };
+
+            // Трекер, карта и лист пишут одного участника боя: любое изменение
+            // (хиты, состояния) сразу отражаем на жетонах, не дожидаясь, пока
+            // придёт следующий снимок сцены. Подписка — в Loaded/Unloaded:
+            // статическое событие иначе держало бы закрытые окна.
 
             BuildShell();
 
@@ -363,6 +412,11 @@ namespace HMWT_MUI.Views
             Loaded += (s, e) =>
             {
                 SubscribeRoom();
+                if (!_combatantHooked)
+                {
+                    _combatantHooked = true;
+                    Services.InitiativeService.Changed += OnCombatantChanged;
+                }
                 Refresh();
                 _lastRoomActive = _inRoom;
                 _retryTimer.Start();
@@ -384,6 +438,12 @@ namespace HMWT_MUI.Views
             Unloaded += (s, e) =>
             {
                 UnsubscribeRoom();
+                if (_combatantHooked)
+                {
+                    _combatantHooked = false;
+                    Services.InitiativeService.Changed -= OnCombatantChanged;
+                }
+                _combatantRefreshTimer.Stop();
                 _overlayWatch?.Stop();
                 _retryTimer.Stop();
                 _liveMoveTimer.Stop();
@@ -420,6 +480,7 @@ namespace HMWT_MUI.Views
             room.MapSeenSynced += OnMapSeenSynced;
             room.Pinged += OnMapPing;
             room.TokenMovedLive += OnTokenMovedLive;
+            room.ShapeMovedLive += OnRemoteShapeMoved;
             room.MapTrailReceived += OnMapTrailReceived;
             room.StateChanged += OnRoomStateChanged;
         }
@@ -436,6 +497,7 @@ namespace HMWT_MUI.Views
             room.MapSeenSynced -= OnMapSeenSynced;
             room.Pinged -= OnMapPing;
             room.TokenMovedLive -= OnTokenMovedLive;
+            room.ShapeMovedLive -= OnRemoteShapeMoved;
             room.MapTrailReceived -= OnMapTrailReceived;
             room.StateChanged -= OnRoomStateChanged;
         }
@@ -896,7 +958,11 @@ namespace HMWT_MUI.Views
             viewportHost.Children.Add(_pingLayer);
             viewportHost.Children.Add(_webMap);
             _viewport.Child = viewportHost;
-            _viewport.SizeChanged += (s, e) => { if (!_userZoomed) FitToWindow(); };
+            // Подгонка по размеру — только для нативного WPF-слоя. Когда карту
+            // рисует WebGL, масштаб и панорама принадлежат ему: любой viewFit
+            // здесь сбрасывал вид игрока при каждом изменении размера (окно
+            // состояний, оверлеи, возврат на вкладку).
+            _viewport.SizeChanged += (s, e) => { if (!_webMapReady && !_userZoomed) FitToWindow(); };
             _viewport.MouseWheel += Viewport_MouseWheel;
             _viewport.MouseLeftButtonDown += (s, e) => Focus();
             _viewport.MouseLeftButtonDown += Viewport_MouseDown;
@@ -987,6 +1053,9 @@ namespace HMWT_MUI.Views
                         frameColor = t.FrameColor ?? "",
                         viewColor = t.ViewColor ?? "",
                         revealCells = t.RevealCells,
+                        // Меню ПКМ ставит галочку на текущем угле обзора:
+                        // без этого поля любая сборка показывала «круговой 360».
+                        viewAngle = t.ViewAngle,
                         hp,
                         hpMax,
                         conditions,
@@ -1320,16 +1389,32 @@ namespace HMWT_MUI.Views
             token.X = Math.Max(0, Math.Min(_scene.WidthPx, x));
             token.Y = Math.Max(0, Math.Min(_scene.HeightPx, y));
 
-            AppendTrail(token, new Point(token.X, token.Y));
-
-            if ((DateTime.UtcNow - _lastLiveMoveSent).TotalMilliseconds >= 200)
+            // Отправку делаем ПЕРВОЙ и в try: след и туман — украшение, а
+            // из-за исключения в них живой ход раньше мог не уйти вовсе.
+            try
             {
-                _lastLiveMoveSent = DateTime.UtcNow;
-                if (_remote)
-                    RoomSession.Instance.SendMapMoveLive(token.Id, token.X, token.Y, token.Facing);
-                else if (_inRoom)
-                    RoomSession.Instance.PublishLiveTokenMove(token.Id, token.X, token.Y, token.Facing);
+                if ((DateTime.UtcNow - _lastLiveMoveSent).TotalMilliseconds >= 50)
+                {
+                    _lastLiveMoveSent = DateTime.UtcNow;
+                    if (_remote)
+                    {
+                        RoomSession.Instance.SendMapMoveLive(token.Id, token.X, token.Y, token.Facing);
+                        if ((DateTime.UtcNow - _lastLiveMoveLog).TotalSeconds >= 1)
+                        {
+                            _lastLiveMoveLog = DateTime.UtcNow;
+                            WebLog($"live send token={token.Id} -> host");
+                        }
+                    }
+                    else if (_inRoom)
+                    {
+                        RoomSession.Instance.PublishLiveTokenMove(token.Id, token.X, token.Y, token.Facing);
+                    }
+                }
             }
+            catch (Exception ex) { WebLog("live send error: " + ex.Message); }
+
+            try { AppendTrail(token, new Point(token.X, token.Y)); }
+            catch (Exception ex) { Debug.WriteLine($"[MapView] след: {ex.Message}"); }
 
             // Разведка «на ходу»: новый сектор появляется сразу, а не после
             // отпускания кнопки. В базу и сеть пишем не чаще 3 раз в секунду.
@@ -1370,10 +1455,65 @@ namespace HMWT_MUI.Views
             shape.X = x;
             shape.Y = y;
             RenderShapes();
-            if (!commit) return;
+            if (!commit)
+            {
+                // Фигуру ведут: остальным уходят только координаты, чтобы она
+                // ехала плавно, а не прыгала при отпускании.
+                SendShapeLive(shape);
+                return;
+            }
 
             CommitShape(shape, "update");
             PushWebMap();
+        }
+
+        /// <summary>Шлёт текущее положение фигуры (не чаще ~25 раз в секунду).</summary>
+        private void SendShapeLive(MapShapeData shape)
+        {
+            if (shape == null || shape.Id <= 0) return;
+            if ((DateTime.UtcNow - _lastShapeLiveSent).TotalMilliseconds < 35) return;
+            _lastShapeLiveSent = DateTime.UtcNow;
+
+            try
+            {
+                if (_remote) RoomSession.Instance.SendShapeMoveLive(shape.Id, shape.X, shape.Y);
+                else if (_inRoom) RoomSession.Instance.PublishShapeMoveLive(shape.Id, shape.X, shape.Y);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MapView] ход фигуры: {ex.Message}");
+            }
+        }
+
+        /// <summary>Другой участник ведёт фигуру — показываем сразу и плавно.</summary>
+        private void OnRemoteShapeMoved(int shapeId, double x, double y)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnRemoteShapeMoved(shapeId, x, y)));
+                return;
+            }
+
+            if (_scene == null) return;
+            var shape = _scene.Shapes.FirstOrDefault(s => s.Id == shapeId);
+            if (shape == null) return;
+
+            shape.X = x;
+            shape.Y = y;
+
+            if (_webMapReady)
+            {
+                try
+                {
+                    _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(
+                        new { type = "shapeLive", id = shapeId, x, y }, WebJsonOptions));
+                }
+                catch { }
+            }
+            else
+            {
+                RenderShapes();
+            }
         }
 
         private void OnWebStroke(List<MapTrailPoint> points, string color, double thickness, bool eraser)
@@ -1535,7 +1675,9 @@ namespace HMWT_MUI.Views
             {
                 case "size":
                     if (!int.TryParse(value, out int cells)) return;
-                    cells = Math.Max(1, Math.Min(8, cells));
+                    // До 10 клеток: огромные существа в D&D занимают и больше,
+                    // ограничение в 4 клетки обрезало их «на глаз».
+                    cells = Math.Max(1, Math.Min(10, cells));
                     if (_remote) SetRemoteTokenSize(token, cells);
                     else SetTokenSize(token, cells);
                     break;
@@ -1590,38 +1732,56 @@ namespace HMWT_MUI.Views
 
                 // Состояние из справочника (галочка в меню): включаем/выключаем.
                 // Ведущий — любому жетону, игрок — только своему (проверка ниже).
-                // Состояния: одно окно с галочками из справочника трекера.
-                // Ведущий — любому жетону, игрок — только своему.
+                // Состояния: подменю в меню ПКМ (WebGL). Один ключ за клик,
+                // можно отметить несколько подряд, не закрывая меню.
+                case "condition":
+                    {
+                        if (!_isDm && !CanMoveToken(token)) return;
+
+                        string key = (value ?? "").Trim();
+                        if (key.Length == 0) return;
+
+                        var keys = ParseTokenConditions(token.Conditions);
+                        int removed = keys.RemoveAll(k =>
+                            string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+                        if (removed == 0) keys.Add(key);
+
+                        ApplyTokenConditions(token, string.Join(", ", keys));
+                    }
+                    break;
+
+                case "conditionsclear":
+                    {
+                        if (!_isDm && !CanMoveToken(token)) return;
+                        ApplyTokenConditions(token, "");
+                    }
+                    break;
+
+                // Старый путь — окно с галочками. Меню WebGL теперь показывает
+                // подменю и сюда не обращается; оставлено для совместимости.
                 case "conditions":
                     {
                         if (!_isDm && !CanMoveToken(token)) return;
-                        if (token.CombatantId <= 0 ||
-                            !_combatants.TryGetValue(token.CombatantId, out var cond) ||
-                            cond.Combatant == null) return;
+
+                        CombatantData condCombatant = null;
+                        EncounterData condEncounter = null;
+                        string current = token.Conditions ?? "";
+                        if (!_remote && token.CombatantId > 0 &&
+                            _combatants.TryGetValue(token.CombatantId, out var cond) &&
+                            cond.Combatant != null)
+                        {
+                            condCombatant = cond.Combatant;
+                            condEncounter = cond.Encounter;
+                            current = condCombatant.Conditions ?? "";
+                        }
 
                         var picked = Windows.ConditionsWindow.Pick(Window.GetWindow(this),
                             "Состояния: " + (token.Label ?? ""),
-                            (cond.Combatant.Conditions ?? "").Split(new[] { ',', ';' },
+                            current.Split(new[] { ',', ';' },
                                 StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()));
                         if (picked == null) return;
 
-                        string keys = string.Join(", ", picked);
-                        cond.Combatant.Conditions = keys;
-                        token.Conditions = keys;
-
-                        if (_remote)
-                        {
-                            RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing,
-                                conditions: keys);
-                        }
-                        else
-                        {
-                            Services.InitiativeService.SaveCombatant(cond.Encounter, cond.Combatant);
-                            MapService.SaveToken(token);
-                            PublishMap();
-                        }
-
-                        PushWebMap();
+                        ApplyTokenConditions(token, string.Join(", ", picked));
                     }
                     break;
 
@@ -1656,6 +1816,62 @@ namespace HMWT_MUI.Views
 
                 default:
                     return;
+            }
+
+            PushWebMap();
+        }
+
+        private static List<string> ParseTokenConditions(string text)
+        {
+            var list = new List<string>();
+            foreach (string part in (text ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string key = part.Trim();
+                if (key.Length == 0) continue;
+                if (!list.Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase)))
+                    list.Add(key);
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Пишет набор состояний жетону и связанному участнику боя. Ведущий —
+        /// в базу и в комнату, игрок — хостy сообщением хода: у клиента своей
+        /// базы боёв нет, и состояния на карте/в трекере/листе должны совпасть.
+        /// </summary>
+        private void ApplyTokenConditions(MapTokenData token, string keys)
+        {
+            if (token == null) return;
+
+            CombatantData combatant = null;
+            EncounterData encounter = null;
+            if (!_remote && token.CombatantId > 0 &&
+                _combatants.TryGetValue(token.CombatantId, out var linked) &&
+                linked.Combatant != null)
+            {
+                combatant = linked.Combatant;
+                encounter = linked.Encounter;
+                combatant.Conditions = keys;
+                Services.InitiativeService.SaveCombatant(encounter, combatant);
+            }
+
+            token.Conditions = keys;
+
+            if (_remote)
+            {
+                RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing,
+                    conditions: keys);
+            }
+            else
+            {
+                MapService.SaveToken(token);
+                if (_inRoom)
+                {
+                    if (encounter != null)
+                        RoomSession.Instance.PublishInitiative(
+                            Services.InitiativeService.BuildState(encounter));
+                    PublishMap();
+                }
             }
 
             PushWebMap();
@@ -2343,6 +2559,10 @@ namespace HMWT_MUI.Views
         /// Чужой жетон сдвинулся во время перетаскивания. Двигаем только его
         /// визуал и обзор — без пересборки всей карты: иначе десять обновлений
         /// в секунду превращаются в слайд-шоу.
+        ///
+        /// Применяем сразу, без очереди задержки: сглаживание делает WebGL,
+        /// а очередь только добавляла лаг и могла теряться при обновлении
+        /// сцены (в итоге жетон «оживал» лишь при отпускании мыши).
         /// </summary>
         private void OnTokenMovedLive(int tokenId, double x, double y, double facing)
         {
@@ -2352,24 +2572,12 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            if (!IsVisible) return;
             if (_scene == null) return;
 
             // Свой жетон уже двигает сама мышь — второй раз не трогаем
             if (_dragToken != null && _dragToken.Id == tokenId) return;
 
-            PendingLiveMove pending;
-            if (!_pendingLiveMoves.TryGetValue(tokenId, out pending))
-            {
-                pending = new PendingLiveMove();
-                _pendingLiveMoves[tokenId] = pending;
-            }
-            pending.X = x;
-            pending.Y = y;
-            pending.Facing = facing;
-            pending.ReceivedAt = DateTime.UtcNow;
-
-            if (!_liveMoveTimer.IsEnabled) _liveMoveTimer.Start();
+            ApplyRemoteLiveMove(tokenId, x, y, facing);
         }
 
         private void ApplyPendingLiveMoves(object sender, EventArgs e)
@@ -2746,6 +2954,11 @@ namespace HMWT_MUI.Views
                     token.Conditions = owner.Combatant.Conditions ?? "";
                 }
 
+                // Чей это персонаж: у клиента нет базы боёв, поэтому
+                // «свой жетон» он определяет по character_id из карты,
+                // а не по имени (его могли сменить или дополнить номером).
+                token.OwnerCharacterId = owner.Combatant != null ? owner.Combatant.CharacterId : 0;
+
                 string path = ResolveTokenPhoto(token);
                 if (string.IsNullOrWhiteSpace(path)) continue;
 
@@ -2761,6 +2974,74 @@ namespace HMWT_MUI.Views
             }
 
             if (changed) MapService.SaveScene(_scene);
+        }
+
+        /// <summary>Участника боя изменили — обновим карту чуть позже (пачкой).</summary>
+        private void OnCombatantChanged()
+        {
+            try
+            {
+                if (!Dispatcher.CheckAccess())
+                {
+                    Dispatcher.BeginInvoke(new Action(OnCombatantChanged));
+                    return;
+                }
+                _combatantRefreshTimer.Stop();
+                _combatantRefreshTimer.Start();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MapView] обновление участника: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Переносит хиты, состояния и владельца из участников боя в жетоны.
+        /// Раньше карта узнавала об изменениях трекера только случайно — со
+        /// следующим снимком сцены, поэтому у клиента состояния «не доезжали».
+        /// </summary>
+        private void RefreshCombatantStateOnMap()
+        {
+            if (_scene?.Tokens == null) return;
+
+            LoadCombatants();
+
+            bool changed = false;
+            foreach (var token in _scene.Tokens)
+            {
+                if (token.CombatantId <= 0) continue;
+                if (!_combatants.TryGetValue(token.CombatantId, out var linked) ||
+                    linked.Combatant == null) continue;
+
+                var combatant = linked.Combatant;
+                if (token.Hp != combatant.HitPoints) { token.Hp = combatant.HitPoints; changed = true; }
+                if (token.HpMax != combatant.MaxHitPoints) { token.HpMax = combatant.MaxHitPoints; changed = true; }
+                if (!string.Equals(token.Conditions ?? "", combatant.Conditions ?? "",
+                        StringComparison.Ordinal))
+                {
+                    token.Conditions = combatant.Conditions ?? "";
+                    changed = true;
+                }
+                if (token.OwnerCharacterId != combatant.CharacterId)
+                {
+                    token.OwnerCharacterId = combatant.CharacterId;
+                    changed = true;
+                }
+                bool isPlayer = combatant.Kind == CombatantKind.Player;
+                if (token.IsPlayer != isPlayer) { token.IsPlayer = isPlayer; changed = true; }
+            }
+
+            if (!changed) return;
+
+            if (_webMapReady)
+            {
+                PushWebMap();
+                if (_inRoom && !_remote) PublishMap();
+            }
+            else
+            {
+                RebuildTokens();
+            }
         }
 
         /// <summary>Картинка жетона: портрет монстра из бестиария или аватар игрока.</summary>
@@ -3269,8 +3550,15 @@ namespace HMWT_MUI.Views
 
             BuildFogMask();
 
-            _userZoomed = false;
-            FitToWindow();
+            // Подгонку делает WebGL-рендерер сам: он знает, что игрок уже
+            // приблизил карту, и не должен сбрасывать вид при каждом снимке
+            // сцены (именно из-за этого у клиента «прыгал» масштаб при любом
+            // ходе ведущего). Нативному слою подгонка нужна по-прежнему.
+            if (!_webMapReady)
+            {
+                _userZoomed = false;
+                FitToWindow();
+            }
         }
         // ══════════════════════ РИСОВАНИЕ ══════════════════════
 
@@ -4885,6 +5173,7 @@ namespace HMWT_MUI.Views
                 }
 
                 RenderShapes();
+                SendShapeLive(shape);
             };
             visual.MouseLeftButtonUp += (s, e) =>
             {
@@ -5360,12 +5649,25 @@ namespace HMWT_MUI.Views
             if (_isDm) return true;
 
             if (_remote)
-                return token.CombatantId > 0 &&
-                       NameMatch.SamePerson(token.Label, SelfName);
+            {
+                // У клиента нет базы боёв: владелец жетона приезжает вместе с
+                // картой (ownerCharacterId, протокол 16). Имя — только запасной
+                // путь для старых сцен, потому что у клиента имя персонажа
+                // могло не совпасть с подписью жетона.
+                int self = SelfCharacterId;
+                if (token.OwnerCharacterId > 0 && self > 0)
+                    return token.OwnerCharacterId == self;
+
+                return token.CombatantId > 0 && NameMatch.SamePerson(token.Label, SelfName);
+            }
 
             if (!_combatants.TryGetValue(token.CombatantId, out var linked)) return false;
             if (linked.Combatant == null) return false;
             if (linked.Combatant.Kind != CombatantKind.Player) return false;
+
+            int myId = SelfCharacterId;
+            if (linked.Combatant.CharacterId > 0 && myId > 0)
+                return linked.Combatant.CharacterId == myId;
 
             return NameMatch.SamePerson(linked.Combatant.Name, SelfName);
         }
@@ -5744,14 +6046,7 @@ namespace HMWT_MUI.Views
                     AddMenuItem(menu, "Повернуть взгляд ⟲", () => RotateFacingRemote(token, -45));
                     menu.Items.Add(BuildSeparator());
 
-                    AddCheckItem(menu, "Размер: 1 клетка", Math.Abs(token.SizeCells - 1) < 0.1,
-                        () => SetRemoteTokenSize(token, 1));
-                    AddCheckItem(menu, "Размер: 2 клетки", Math.Abs(token.SizeCells - 2) < 0.1,
-                        () => SetRemoteTokenSize(token, 2));
-                    AddCheckItem(menu, "Размер: 3 клетки", Math.Abs(token.SizeCells - 3) < 0.1,
-                        () => SetRemoteTokenSize(token, 3));
-                    AddCheckItem(menu, "Размер: 4 клетки", Math.Abs(token.SizeCells - 4) < 0.1,
-                        () => SetRemoteTokenSize(token, 4));
+                    menu.Items.Add(BuildSizeMenu(token, true));
                 }
 
                 menu.PlacementTarget = host;
@@ -5802,10 +6097,7 @@ namespace HMWT_MUI.Views
             AddMenuItem(menu, "Повернуть взгляд ⟲", () => RotateFacing(token, -45));
             menu.Items.Add(BuildSeparator());
 
-            AddMenuItem(menu, "Размер: 1 клетка", () => SetTokenSize(token, 1));
-            AddMenuItem(menu, "Размер: 2 клетки", () => SetTokenSize(token, 2));
-            AddMenuItem(menu, "Размер: 3 клетки", () => SetTokenSize(token, 3));
-            AddMenuItem(menu, "Размер: 4 клетки", () => SetTokenSize(token, 4));
+            menu.Items.Add(BuildSizeMenu(token, false));
             menu.Items.Add(BuildSeparator());
 
             if (_scene != null && _scene.FogOn)
@@ -5854,9 +6146,10 @@ namespace HMWT_MUI.Views
             RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, double.NaN, angle);
         }
 
-        /// <summary>Игрок меняет размер своего жетона.</summary>
+        /// <summary>Игрок меняет размер своего жетона (1–10 клеток).</summary>
         private void SetRemoteTokenSize(MapTokenData token, int cells)
         {
+            cells = Math.Max(1, Math.Min(10, cells));
             token.SizeCells = cells;
             RebuildTokens();
             RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, double.NaN, -1, cells);
@@ -5874,6 +6167,7 @@ namespace HMWT_MUI.Views
 
         private void SetTokenSize(MapTokenData token, double cells)
         {
+            cells = Math.Max(1, Math.Min(10, cells));
             double before = token.SizeCells;
             PushUndo(() =>
             {
@@ -5909,6 +6203,39 @@ namespace HMWT_MUI.Views
             var separator = new Separator();
             ApplyDarkStyle(separator, "DarkMenuSeparator");
             return separator;
+        }
+
+        /// <summary>
+        /// Подменю «Размер»: 1–10 клеток одним списком. Раньше десять пунктов
+        /// подряд растягивали всё меню жетона на пол-экрана.
+        /// </summary>
+        private MenuItem BuildSizeMenu(MapTokenData token, bool remote)
+        {
+            var size = new MenuItem { Header = "Размер" };
+            ApplyMenuItemStyle(size);
+
+            for (int n = 1; n <= 10; n++)
+            {
+                string word = n == 1 ? "клетка" : (n < 5 ? "клетки" : "клеток");
+                int chosen = n;
+                bool selected = Math.Abs(token.SizeCells - n) < 0.1;
+
+                var item = new MenuItem
+                {
+                    Header = n + " " + word,
+                    IsCheckable = false,
+                    IsChecked = selected
+                };
+                ApplyMenuItemStyle(item);
+                item.Click += (s, e) =>
+                {
+                    if (remote) SetRemoteTokenSize(token, chosen);
+                    else SetTokenSize(token, chosen);
+                };
+                size.Items.Add(item);
+            }
+
+            return size;
         }
 
         private ContextMenu BuildConditionMenu(CombatantData combatant)

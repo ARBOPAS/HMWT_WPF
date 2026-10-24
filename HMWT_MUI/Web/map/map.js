@@ -142,7 +142,14 @@
   let mapRot = 0, mapFlipH = false, mapFlipV = false;
   let boundsW = 1, boundsH = 1;
   let hasFit = false;
+  // Автоподгонка должна срабатывать ровно один раз на сцену и на новую
+  // картинку. Раньше здесь был только хэш картинки, но при снимке без
+  // адреса картинки («ещё не скачана») хэш сбрасывался в пустую строку, и
+  // следующий снимок снова считался «новой картой» — отсюда прыжок
+  // масштаба у клиента при любом изменении сцены.
   let lastFitHash = "";
+  let lastFitSceneId = -1;
+  let lastViewSize = { w: 0, h: 0 };
   let isDm = false;
   let cell = 70;
   let fovTokens = [];
@@ -408,6 +415,11 @@
     // Один и тот же адрес — не пересоздаём спрайт на каждом кадре.
     if (mapSprite && url && url === mapImageUrl) { applyMapSpriteSize(); return; }
 
+    // Пустой адрес при непустом хэше — это «картинка ещё не скачана», а не
+    // «карты нет»: старый спрайт и хэш трогать нельзя, иначе следующий
+    // снимок выглядит как смена карты и сбрасывает масштаб.
+    if (!url && hash) { if (!mapSprite) requestImage(); return; }
+
     mapImageUrl = url || '';
     mapImageHash = hash || '';
 
@@ -544,8 +556,11 @@
 
     applyOrientation();
 
-    if (data.image !== null && data.image !== undefined)
-      ensureMapSprite(data.image || '', data.imageHash || '');
+    // Картинку меняем только когда C# действительно прислал адрес: null —
+    // «эта карта уже отправлена», "" — «файл ещё не скачан». Пустую строку в
+    // ensureMapSprite не отдаём, иначе спрайт уничтожался бы на каждом снимке.
+    if (data.image) ensureMapSprite(data.image, data.imageHash || '');
+    else if (!data.imageHash && mapSprite) ensureMapSprite('', '');
     applyMapSpriteSize();
 
     buildGrid(data);
@@ -558,17 +573,31 @@
     buildFov();
     updateHint();
 
-    // Автоподгонку делаем только при первой загрузке и при смене картинки:
-    // раньше она срабатывала на каждом снимке, и после отпускания жетона
-    // масштаб у клиента сбрасывался.
-    if (!hasFit || mapImageHash !== lastFitHash) {
+    // Автоподгонку делаем только при первой загрузке, смене сцены и смене
+    // картинки. Масштаб и позиция, выставленные игроком, между снимками
+    // сохраняются: снимок сцены не должен «прыгать».
+    const fitSceneId = data.sceneId || 0;
+    const fitHash = data.imageHash || '';
+    const fitNeeded = !hasFit ||
+      (fitSceneId !== lastFitSceneId) ||
+      (!!mapSprite && fitHash && fitHash !== lastFitHash);
+    if (fitNeeded) {
       hasFit = true;
-      lastFitHash = mapImageHash;
-      fit();
-      // На первом кадре app.screen иногда ещё нулевой — повторяем после
-      // раскладки, иначе карта уезжает в угол и выглядит чёрной.
-      requestAnimationFrame(fit);
-      setTimeout(fit, 120);
+      lastFitSceneId = fitSceneId;
+      // Хэш запоминаем только когда картинка уже есть: иначе первый снимок
+      // «без файла» запомнил бы хэш, и приход картинки не подогнал бы вид.
+      lastFitHash = mapSprite ? fitHash : '';
+
+      // Если страница перезагрузилась, у неё нет ни масштаба, ни панорамы —
+      // возвращаем то, что было до перезагрузки. На новую сцену/картинку
+      // сохранённый вид не подходит (ключ другой) — подгоняем как обычно.
+      if (!restoreView(fitSceneId, fitHash)) {
+        fit();
+        // На первом кадре app.screen иногда ещё нулевой — повторяем после
+        // раскладки, иначе карта уезжает в угол и выглядит чёрной.
+        requestAnimationFrame(fit);
+        setTimeout(fit, 120);
+      }
     }
 
     if (!mapSprite && mapImageHash) requestImage();
@@ -721,6 +750,9 @@
     if (node && !(drag && drag.kind === 'token' && drag.id === d.id)) {
       node._targetX = d.x;
       node._targetY = d.y;
+      // Отметка «пакет только что был»: снимок сцены, собранный раньше,
+      // не должен откатывать жетон назад.
+      node._liveAt = performance.now();
     }
 
     for (const f of fovTokens) {
@@ -740,6 +772,22 @@
     if (now - lastFogAt >= 60) {
       lastFogAt = now;
       buildFog();
+    }
+  }
+
+  // Фигуру ведёт другой участник: обновляем только цель, а дорисовывает
+  // плавно тот же тикер, что и для жетонов (см. shapeDisplay).
+  function applyShapeLive(d) {
+    if (!d || !d.id) return;
+    const shapes = (state && state.shapes) || [];
+    for (const s of shapes) {
+      if (s.id === d.id) { s.x = d.x; s.y = d.y; break; }
+    }
+    const target = shapeTargets.get(d.id);
+    if (target) {
+      target.x = d.x;
+      target.y = d.y;
+      shapeAnim = true;
     }
   }
 
@@ -964,11 +1012,39 @@
 
     for (const trail of all) {
       if (!trail.points || trail.points.length < 2) continue;
+
+      // След невидимого жетона — это утечка: по нему видно, где прошёл
+      // чужой токен, хотя самого токена на карте нет. Рисуем только след
+      // тех жетонов, которые игрок действительно видит.
+      if (!trailIdVisible(trail.id)) continue;
+
       trailG.lineStyle(thickness, col.color, 0.8);
       trailG.moveTo(trail.points[0].x, trail.points[0].y);
       for (let i = 1; i < trail.points.length; i++)
         trailG.lineTo(trail.points[i].x, trail.points[i].y);
     }
+  }
+
+  /**
+   * Виден ли игроку жетон с этим id: та же логика, что у самих жетонов
+   * (без тумана — все, свой — всегда, «Токены отряда» — игроки, иначе
+   * только в собственном обзоре). Мастер видит всё.
+   */
+  function trailIdVisible(id) {
+    if (isDm) return true;
+    const t = (state.tokens || []).find(x => x && x.id === id);
+    if (!t) return false;
+    return tokenSeenByPlayer(t);
+  }
+
+  function tokenSeenByPlayer(t) {
+    if (!t) return false;
+    if (t.mine) return true;              // свой жетон виден всегда
+    if (t.hidden) return false;           // скрытый чужой не выдаёт себя
+    const fogOn = !!(state && state.fog && state.fog.on);
+    if (!fogOn) return true;
+    if (state && state.showParty && t.isPlayer) return true;
+    return pointVisible(t.x, t.y, ensureVision());
   }
 
   // ─────────────────────────── жетоны ───────────────────────────
@@ -1039,9 +1115,19 @@
         t.facing = rotateHold.token.facing;
 
       node._token = t;
-      node._targetX = t.x;
-      node._targetY = t.y;
       if (t.selected) selectedTokenId = t.id;
+
+      // Свежий live-пакет важнее снимка: снимок мог быть собран раньше и
+      // «отмотал» бы жетон назад — это и давало рывки при каждом ходе.
+      const liveRecent = node._liveAt && (performance.now() - node._liveAt < 900);
+      if (liveRecent && node._targetX !== undefined) {
+        t.x = node._targetX;
+        t.y = node._targetY;
+      } else {
+        node._targetX = t.x;
+        node._targetY = t.y;
+      }
+
       if (node._placed !== true ||
           Math.hypot(t.x - node.x, t.y - node.y) > cellPx() * 12) {
         node.position.set(t.x, t.y);
@@ -1053,7 +1139,6 @@
       }
 
       const size = Math.max(24, cellPx() * (t.sizeCells || 1));
-      node.position.set(t.x, t.y);
       node.zIndex = t.isPlayer ? 1000 : 100;
       node._size = size;
 
@@ -1100,7 +1185,9 @@
       }
 
       // Имя должно читаться и на жетоне в 4 клетки: масштабируем к размеру.
-      node._label.style.fontSize = Math.max(13, Math.round(size * 0.2));
+      // Верхний предел нужен для жетонов до 10 клеток — иначе подпись
+      // занимала пол-карты.
+      node._label.style.fontSize = Math.min(40, Math.max(13, Math.round(size * 0.2)));
       node._label.style.strokeThickness = Math.max(3, Math.round(size * 0.05));
       node._label.y = size / 2 + 4;
       node._label.text = t.label || '';
@@ -1110,7 +1197,7 @@
       node._hp.text = hpText;
       node._hp.visible = !!hpText;
       if (hpText) {
-        node._hp.style.fontSize = Math.max(12, Math.round(size * 0.17));
+        node._hp.style.fontSize = Math.min(30, Math.max(12, Math.round(size * 0.17)));
         node._hp.style.strokeThickness = Math.max(3, Math.round(size * 0.045));
         node._hp.y = -size / 2 - 6;
         // Хиты кончились — краснее, чтобы бросалось в глаза
@@ -1126,7 +1213,7 @@
       node._cond.text = condText;
       node._cond.visible = condText.length > 0;
       if (node._cond.visible) {
-        node._cond.style.fontSize = Math.max(11, Math.round(size * 0.15));
+        node._cond.style.fontSize = Math.min(24, Math.max(11, Math.round(size * 0.15)));
         node._cond.style.strokeThickness = Math.max(3, Math.round(size * 0.04));
         node._cond.y = size / 2 + 4 + node._label.height;
       }
@@ -1184,9 +1271,12 @@
         continue;
       }
 
-      // Чужие шаги приходят из сети рывками: доводим их мягче (~0.12 с),
-      // своих — быстрее, чтобы не чувствовалось задержки под рукой.
-      const smooth = (drag && drag.kind === 'token') ? 0.05 : 0.12;
+      // Чужие шаги приходят из сети рывками (10 Гц, а снимки — 2.5 Гц):
+      // доводим их мягче, свои — быстрее, чтобы не чувствовалось задержки
+      // под рукой. Задержка ~0.2 с и есть та «плавность с отставанием»,
+      // из-за которой движение перестаёт дёргаться.
+      const mine = node._token && (node._token.canMove === true || node._token.mine === true);
+      const smooth = (drag && drag.kind === 'token') ? 0.05 : (mine ? 0.07 : 0.2);
       const k = 1 - Math.exp(-frameDt / smooth);
       node.position.set(node.x + dx * k, node.y + dy * k);
     }
@@ -1223,6 +1313,9 @@
 
     if (!shapeAnim) return;
     let moving = false;
+    // Тот же принцип, что и у жетонов: время, а не кадры — иначе на 144 Гц
+    // фигура догоняет вдвое быстрее, чем на 60.
+    const shapeK = 1 - Math.exp(-frameDt / 0.16);
     for (const [id, target] of shapeTargets) {
       if (drag && drag.kind === 'shape' && drag.shape && drag.shape.id === id) continue;
       const d = shapeDisplay.get(id);
@@ -1233,8 +1326,8 @@
         if (dx !== 0 || dy !== 0) { d.x = target.x; d.y = target.y; moving = true; }
         continue;
       }
-      d.x += dx * 0.3;
-      d.y += dy * 0.3;
+      d.x += dx * shapeK;
+      d.y += dy * shapeK;
       moving = true;
     }
 
@@ -1382,6 +1475,9 @@
       // Мастер видит конусы всех, игрок — только свои и отряда.
       if (!isDm && t.reveals === false && !t.mine) continue;
 
+      // Скрытый жетон не должен выдавать себя сектором обзора.
+      if (!isDm && !t.mine && !tokenSeenByPlayer(t)) continue;
+
       const v = vision.get(t.id);
       if (!v || v.pts.length < 6) continue;
 
@@ -1483,7 +1579,8 @@
        Math.round((t.revealCells || 0) * 10), t.reveals === false ? 0 : 1].join(',')).join(';');
     const seenSig = fogSeen.length + ':' +
       (fogSeen.length ? fogSeen[0].length + ':' + fogSeen[fogSeen.length - 1].length : '0');
-    return [isDm ? 1 : 0, mapW, mapH, cell, fogSeen.length, seenSig, wallsSig, fov].join('|');
+    return [isDm ? 1 : 0, (state && state.showParty) ? 1 : 0,
+      mapW, mapH, cell, fogSeen.length, seenSig, wallsSig, fov].join('|');
   }
 
   function buildFog() {
@@ -1522,6 +1619,12 @@
     const vision = ensureVision();
     for (const t of fovTokens) {
       if (!isDm && t.reveals === false && !t.mine) continue;
+
+      // Если «Токены отряда» выключены и чужой жетон вне обзора, его зрение
+      // не должно рассеивать туман: иначе игрок видит разведанный коридор
+      // от токена, которого сам не видит. Свой жетон режет туман всегда.
+      if (!isDm && !t.mine && !tokenSeenByPlayer(t)) continue;
+
       const v = vision.get(t.id);
       if (!v || v.pts.length < 6) continue;
       fogCtx.moveTo(v.pts[0], v.pts[1]);
@@ -1554,6 +1657,76 @@
     const s = Math.max(0.02, Math.min(sx, sy));
     world.scale.set(s);
     world.position.set((w - boundsW * s) / 2, (h - boundsH * s) / 2);
+    lastViewSize = { w: w, h: h };
+    saveView(true);
+  }
+
+  // ── вид переживает перезагрузку страницы ──
+  // WebView2 может пересоздать страницу (спрятали под оверлей, обновили
+  // сборку) — без запоминания масштаба карта возвращалась «отдалённой по
+  // умолчанию». Ключ — сцена + картинка: на новую карту вид не переносим.
+  const VIEW_KEY = 'hmwt.map.view';
+  let viewSavedAt = 0;
+
+  function saveView(force) {
+    const now = Date.now();
+    if (!force && now - viewSavedAt < 400) return;
+    viewSavedAt = now;
+    try {
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify({
+        scene: (state && state.sceneId) || 0,
+        hash: mapImageHash || '',
+        s: world.scale.x,
+        x: world.position.x,
+        y: world.position.y
+      }));
+    } catch (_) { }
+  }
+
+  function restoreView(sceneId, hash) {
+    try {
+      const raw = sessionStorage.getItem(VIEW_KEY);
+      if (!raw) return false;
+      const v = JSON.parse(raw);
+      if (!v || v.scene !== sceneId) return false;
+      if (hash && v.hash && v.hash !== hash) return false;
+      if (!(v.s > 0.01 && v.s < 9)) return false;
+
+      world.scale.set(v.s);
+      world.position.set(v.x, v.y);
+      const w = (app.view && app.view.clientWidth) || window.innerWidth || 800;
+      const h = (app.view && app.view.clientHeight) || window.innerHeight || 600;
+      lastViewSize = { w: w, h: h };
+      log('view restored s=' + v.s.toFixed(4) +
+        ' pos=' + Math.round(v.x) + ',' + Math.round(v.y));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Окно изменило размер (в том числе WebView спрятался под оверлей и
+   * вернулся). Масштаб и точку в центре сохраняем: автоподгонка здесь
+   * недопустима — из-за неё карта «прыгала» при каждом открытии окна.
+   */
+  function keepViewOnResize() {
+    const host = document.getElementById('stage');
+    const w = (app.view && app.view.clientWidth) || (host && host.clientWidth) ||
+      document.documentElement.clientWidth || window.innerWidth || 0;
+    const h = (app.view && app.view.clientHeight) || (host && host.clientHeight) ||
+      document.documentElement.clientHeight || window.innerHeight || 0;
+    if (w < 20 || h < 20) return;
+
+    const prev = lastViewSize;
+    lastViewSize = { w: w, h: h };
+    if (!hasFit || prev.w < 20 || prev.h < 20) return;
+
+    // Что было в центре экрана — то и остаётся в центре.
+    const s = world.scale.x || 1;
+    const wx = (prev.w / 2 - world.position.x) / s;
+    const wy = (prev.h / 2 - world.position.y) / s;
+    world.position.set(w / 2 - wx * s, h / 2 - wy * s);
   }
 
   /** Зум вокруг центра экрана — кнопки «+» и «−» панели. */
@@ -1567,6 +1740,7 @@
     const wy = (cy - world.y) / cur;
     world.scale.set(next);
     world.position.set(cx - wx * next, cy - wy * next);
+    saveView();
   }
 
   function screenPoint(e) {
@@ -1741,24 +1915,72 @@
   // ─────────────────────────── меню (ПКМ) ───────────────────────────
 
   let menuEl = null;
+  let menuSubEl = null;
+  let submenuTimer = 0;
+
+  function hideSubmenu() {
+    if (submenuTimer) { clearTimeout(submenuTimer); submenuTimer = 0; }
+    if (menuSubEl) menuSubEl.style.display = 'none';
+  }
 
   function hideMenu() {
     if (menuEl) menuEl.style.display = 'none';
+    hideSubmenu();
   }
 
-  function renderMenu(x, y, items, onPick) {
+  function scheduleSubmenuHide() {
+    if (submenuTimer) clearTimeout(submenuTimer);
+    submenuTimer = setTimeout(hideSubmenu, 260);
+  }
+
+  function ensureMenuEls() {
     if (!menuEl) {
       menuEl = document.createElement('div');
       menuEl.className = 'hmwt-menu';
       document.body.appendChild(menuEl);
     }
+    if (!menuSubEl) {
+      menuSubEl = document.createElement('div');
+      menuSubEl.className = 'hmwt-menu hmwt-submenu';
+      document.body.appendChild(menuSubEl);
+      // Пока курсор в подменю — не закрываем: по состояниям кликают подряд.
+      menuSubEl.addEventListener('pointerenter', () => {
+        if (submenuTimer) { clearTimeout(submenuTimer); submenuTimer = 0; }
+      });
+      menuSubEl.addEventListener('pointerleave', () => scheduleSubmenuHide());
+    }
+    return menuEl;
+  }
 
-    menuEl.innerHTML = '';
+  /** Открывает подменю рядом с пунктом (наведение или клик). */
+  function openSubmenu(row, children, onPick) {
+    ensureMenuEls();
+    if (submenuTimer) { clearTimeout(submenuTimer); submenuTimer = 0; }
+
+    menuSubEl.innerHTML = '';
+    buildMenuItems(menuSubEl, children, onPick);
+    menuSubEl.style.display = 'block';
+    menuSubEl.style.left = '0px';
+    menuSubEl.style.top = '0px';
+
+    const r = row.getBoundingClientRect();
+    const rect = menuSubEl.getBoundingClientRect();
+    let left = r.right - 3;
+    if (left + rect.width > window.innerWidth - 8)
+      left = Math.max(8, r.left - rect.width + 3);
+    let top = r.top - 4;
+    if (top + rect.height > window.innerHeight - 8)
+      top = Math.max(8, window.innerHeight - rect.height - 8);
+    menuSubEl.style.left = left + 'px';
+    menuSubEl.style.top = top + 'px';
+  }
+
+  function buildMenuItems(host, items, onPick) {
     for (const item of items) {
       if (item.separator) {
         const sep = document.createElement('div');
         sep.className = 'hmwt-sep';
-        menuEl.appendChild(sep);
+        host.appendChild(sep);
         continue;
       }
 
@@ -1766,7 +1988,14 @@
       row.className = 'hmwt-item' +
         (item.disabled ? ' hmwt-disabled' : '') +
         (item.danger ? ' hmwt-danger' : '') +
-        (item.check ? ' hmwt-check' : '');
+        (item.check ? ' hmwt-check' : '') +
+        (item.children ? ' hmwt-parent' : '');
+
+      // Место под галочку есть у всех строк — текст пунктов не «пляшет».
+      const tick = document.createElement('span');
+      tick.className = 'hmwt-tick';
+      tick.textContent = item.check ? '\u2713' : '';
+      row.appendChild(tick);
 
       if (item.color) {
         const sw = document.createElement('span');
@@ -1776,21 +2005,51 @@
       }
 
       const text = document.createElement('span');
+      text.className = 'hmwt-text';
       text.textContent = item.text || '';
       row.appendChild(text);
 
-      if (!item.disabled && item.action) {
+      if (item.children && item.children.length) {
+        const arrow = document.createElement('span');
+        arrow.className = 'hmwt-arrow';
+        arrow.textContent = '\u25B8';
+        row.appendChild(arrow);
+
+        row.addEventListener('pointerenter', () => openSubmenu(row, item.children, onPick));
+        row.addEventListener('pointerleave', () => scheduleSubmenuHide());
+        // Тач и «нажал, а не навёл»: то же подменю открывается кликом.
         row.addEventListener('pointerdown', ev => {
           ev.preventDefault();
           ev.stopPropagation();
-          hideMenu();
+          openSubmenu(row, item.children, onPick);
+        });
+      } else if (!item.disabled && item.action) {
+        row.addEventListener('pointerdown', ev => {
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          // Состояния переключаются подряд, не закрывая меню: галочка
+          // должна появиться сразу, а не после повторного открытия.
+          if (item.toggle) {
+            item.check = !item.check;
+            tick.textContent = item.check ? '\u2713' : '';
+            row.classList.toggle('hmwt-check', !!item.check);
+          }
+          if (!item.keepOpen) hideMenu();
           onPick(item);
         });
       }
 
-      menuEl.appendChild(row);
+      host.appendChild(row);
     }
+  }
 
+  function renderMenu(x, y, items, onPick) {
+    ensureMenuEls();
+    hideSubmenu();
+
+    menuEl.innerHTML = '';
+    buildMenuItems(menuEl, items, onPick);
     menuEl.style.display = 'block';
     menuEl.style.left = '0px';
     menuEl.style.top = '0px';
@@ -1803,10 +2062,38 @@
     menuEl.style.top = top + 'px';
   }
 
+  /** Список состояний для подменю жетона: галочки по текущему набору. */
+  function conditionItems(token) {
+    const list = (state && state.conditionList) || [];
+    const have = new Set(String(token.conditions || '')
+      .split(/[,;]/).map(x => x.trim().toLowerCase()).filter(Boolean));
+    const items = [];
+
+    for (const o of list) {
+      if (!o || !o.key) continue;
+      items.push({
+        text: o.name || o.key,
+        check: have.has(String(o.key).toLowerCase()),
+        toggle: true,
+        keepOpen: true,
+        action: 'condition',
+        value: o.key
+      });
+    }
+
+    if (have.size > 0)
+      items.push({ separator: true }, { text: 'Снять все состояния', keepOpen: true, action: 'conditionsClear', value: '' });
+
+    return items;
+  }
+
   function openTokenMenu(e, token) {
     if (!token) return;
-    // Игрок может посмотреть любой жетон; править — только свой.
-    if (!isDm && token.canMove === false) {
+    // Игрок может посмотреть любой жетон; править — только свой. Признак
+    // своего жетона приходит из C# (canMove/mine): у клиента нет базы боёв,
+    // и сравнивать имя здесь не с чем.
+    const own = token.canMove === true || token.mine === true;
+    if (!isDm && !own) {
       const items = [];
       items.push({ text: token.label || 'Жетон', disabled: true });
       if (token.hpMax > 0) items.push({ text: 'Хиты: ' + token.hp + ' / ' + token.hpMax, disabled: true });
@@ -1825,12 +2112,18 @@
     items.push({ text: token.label || 'Жетон', disabled: true });
     items.push({ separator: true });
 
-    for (const n of [1, 2, 3, 4])
-      items.push({
-        text: 'Размер: ' + n + ' кл.',
+    // Размер — отдельным подменю: 10 пунктов в общем списке растягивали меню
+    // на весь экран. От 1 до 10 клеток: большие существа бывают и «огромными».
+    const sizeItems = [];
+    for (let n = 1; n <= 10; n++) {
+      const word = n === 1 ? 'клетка' : (n < 5 ? 'клетки' : 'клеток');
+      sizeItems.push({
+        text: n + ' ' + word,
         check: Math.abs((token.sizeCells || 1) - n) < 0.1,
         action: 'size', value: String(n)
       });
+    }
+    items.push({ text: 'Размер', children: sizeItems });
 
     items.push({ separator: true });
     for (const a of [360, 120, 90, 60])
@@ -1889,11 +2182,13 @@
         });
 
       items.push({ separator: true });
-      // Состояния — одной кнопкой: открывается окно с галочками
-      const condN = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean).length;
+      // Состояния — подменю с галочками: окно с картой поверх WebGL прятало
+      // карту и сбрасывало масштаб, а галочка появлялась только после
+      // повторного открытия.
+      const dmConditions = conditionItems(token);
       items.push({
-        text: condN ? ('Состояния (' + condN + ')…') : 'Состояния…',
-        action: 'conditions', value: ''
+        text: 'Состояния',
+        children: dmConditions.length ? dmConditions : [{ text: 'Справочник пуст', disabled: true }]
       });
 
       items.push({ separator: true });
@@ -1901,20 +2196,20 @@
     } else {
       // Игрок: своему жетону — та же кнопка, что у ведущего; чужому —
       // только список уже выставленных состояний.
-      const n2 = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean).length;
       const names = {};
       for (const o of ((state && state.conditionList) || [])) if (o && o.key) names[o.key.toLowerCase()] = o.name || o.key;
       const have2 = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean)
         .map(k => names[k.toLowerCase()] || k);
 
       items.push({ separator: true });
-      if (token.canMove !== false)
+      if (token.canMove !== false) {
+        const myConditions = conditionItems(token);
         items.push({
-          text: n2 ? ('Состояния (' + n2 + ')…') : 'Состояния…',
-          action: 'conditions', value: ''
+          text: 'Состояния',
+          children: myConditions.length ? myConditions : [{ text: 'Справочник пуст', disabled: true }]
         });
-      else {
-        items.push({ text: n2 ? ('Состояния: ' + have2.join(', ')) : 'Состояний нет', disabled: true });
+      } else {
+        items.push({ text: have2.length ? ('Состояния: ' + have2.join(', ')) : 'Состояний нет', disabled: true });
       }
     }
 
@@ -2312,7 +2607,7 @@
       buildFov();
     }
 
-    if (Date.now() - lastLiveAt >= 70) {
+    if (Date.now() - lastLiveAt >= 50) {
       lastLiveAt = Date.now();
       post({ type: 'moveTokenLive', id: t.id, x, y });
     }
@@ -2394,6 +2689,7 @@
     if (drag.kind === 'pan') {
       const p = screenPoint(e);
       world.position.set(drag.wx + (p.x - drag.sx), drag.wy + (p.y - drag.sy));
+      saveView();
       return;
     }
 
@@ -2428,6 +2724,14 @@
       drag.shape.y = Math.max(0, Math.min(mapH, snapped.y));
       shapeDisplay.set(drag.shape.id, { x: drag.shape.x, y: drag.shape.y });
       drawShapes();
+
+      // Фигуру ведём: остальные получают только координаты и дорисовывают
+      // движение плавно. Раньше она прыгала в новое место при отпускании.
+      const nowLive = performance.now();
+      if (!drag.lastLive || nowLive - drag.lastLive > 40) {
+        drag.lastLive = nowLive;
+        post({ type: 'moveShape', id: drag.shape.id, x: drag.shape.x, y: drag.shape.y, commit: false });
+      }
       return;
     }
 
@@ -2477,6 +2781,7 @@
     const after = world.toGlobal(local);
     world.position.set(world.position.x + (p.x - after.x),
       world.position.y + (p.y - after.y));
+    saveView();
     e.preventDefault();
   }, { passive: false });
 
@@ -2708,21 +3013,28 @@
 
   window.addEventListener('contextmenu', e => e.preventDefault());
   window.addEventListener('pointerdown', e => {
+    // Подменю — отдельный элемент поверх страницы, клик по нему не должен
+    // закрывать меню (иначе состояния не переключить подряд).
     if (menuEl && menuEl.style.display === 'block' &&
-        !menuEl.contains(e.target) && e.target !== app.view) hideMenu();
+        !menuEl.contains(e.target) &&
+        !(menuSubEl && menuSubEl.contains(e.target)) &&
+        e.target !== app.view) hideMenu();
   }, true);
 
   window.addEventListener('resize', () => {
     try { app.renderer.resize(window.innerWidth, window.innerHeight); } catch (_) { }
-    if (hasFit) fit();
+    // Не fit(): масштаб и панорама — выбор игрока, размер окна их не сбрасывает.
+    keepViewOnResize();
   });
   setTimeout(() => {
     try { app.renderer.resize(window.innerWidth, window.innerHeight); } catch (_) { }
-    if (hasFit) fit();
+    if (hasFit) keepViewOnResize();
   }, 50);
 
   if (window.ResizeObserver) {
-    new ResizeObserver(() => { if (hasFit) fit(); })
+    // WebView прячется под оверлеями окна персонажа и возвращается — размер
+    // при этом меняется. Автоподгонка тут сбрасывала зум у клиента.
+    new ResizeObserver(() => { if (hasFit) keepViewOnResize(); })
       .observe(document.getElementById('stage'));
   }
 
@@ -2741,6 +3053,7 @@
       else if (data.type === 'facing') applyFacingUpdate(data);
       else if (data.type === 'seenAdd') applySeenAdd(data);
       else if (data.type === 'tokenLive') applyTokenLive(data);
+      else if (data.type === 'shapeLive') applyShapeLive(data);
       else if (data.type === 'viewFit') fit();
       else if (data.type === 'viewZoom') zoomBy(data.factor || 1);
       else if (data.type === 'rotateStart') beginRotation(findToken(data.id), data.dir, data.speed, data.facing);
@@ -2775,5 +3088,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.7.6');
+  log('renderer ready v1.3.8.2');
 })();

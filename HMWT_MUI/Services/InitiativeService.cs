@@ -1,3 +1,4 @@
+using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
 using HMWT_MUI.Net;
 using Microsoft.Data.Sqlite;
@@ -58,7 +59,8 @@ namespace HMWT_MUI.Services
                         max_hp INTEGER DEFAULT 0,
                         note TEXT DEFAULT '',
                         is_current INTEGER DEFAULT 0,
-                        conditions TEXT DEFAULT ''
+                        conditions TEXT DEFAULT '',
+                        id_character INTEGER DEFAULT 0
                     );
                     CREATE INDEX IF NOT EXISTS idx_combatant_encounter ON EncounterCombatant(id_encounter);", conn, tx);
                 cmd.ExecuteNonQuery();
@@ -66,6 +68,10 @@ namespace HMWT_MUI.Services
                 // Базы, созданные до 1.1.1.0, колонку не получат: CREATE TABLE
                 // IF NOT EXISTS к готовой таблице колонки не добавляет.
                 DatabaseHelper.EnsureColumn(conn, tx, "EncounterCombatant", "conditions TEXT DEFAULT ''");
+                // Связка «персонаж ↔ участник боя» по id (1.3.8.0). Старые
+                // базы догоняются, иначе лист, карта и трекер сверялись бы
+                // только по имени.
+                DatabaseHelper.EnsureColumn(conn, tx, "EncounterCombatant", "id_character INTEGER DEFAULT 0");
 
                 tx.Commit();
                 _tablesChecked = true;
@@ -178,6 +184,7 @@ namespace HMWT_MUI.Services
                         InitiativeTotal = ReadInt(reader, "initiative_total"),
                         HasRolled = ReadInt(reader, "has_rolled") != 0,
                         MonsterId = ReadInt(reader, "id_monster"),
+                        CharacterId = ReadInt(reader, "id_character"),
                         Kind = ReadInt(reader, "kind") == 1 ? CombatantKind.Player : CombatantKind.Creature,
                         HitPoints = ReadInt(reader, "hp"),
                         MaxHitPoints = ReadInt(reader, "max_hp"),
@@ -355,6 +362,112 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>
+        /// Ищет участника боя по персонажу: сначала по character_id, затем по
+        /// имени. Идентификатор надёжнее — имя могли сменить или дописать к
+        /// нему номер, а лист и карта должны остаться на одном участнике.
+        /// </summary>
+        public static (EncounterData Encounter, CombatantData Combatant)? FindForCharacter(int characterId, string name)
+        {
+            try
+            {
+                var encounters = LoadEncounters();
+                if (characterId > 0)
+                {
+                    // Сначала идущий бой, потом остальные: состояния важнее
+                    // всего там, где сейчас ход.
+                    foreach (var encounter in encounters.OrderByDescending(e => e.IsActive))
+                    {
+                        var byId = encounter.Combatants.FirstOrDefault(c =>
+                            c != null && c.CharacterId == characterId);
+                        if (byId != null) return (encounter, byId);
+                    }
+                }
+
+                return FindByCharacterName(name);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Участник боя по id персонажа (0 — не найден).</summary>
+        public static CombatantData FindCombatantByCharacterId(int characterId)
+        {
+            if (characterId <= 0) return null;
+            var found = FindForCharacter(characterId, null);
+            return found?.Combatant;
+        }
+
+        /// <summary>
+        /// Связывает участника боя с персонажем игрока, вошедшего в комнату:
+        /// сначала по уже записанному character_id, затем по имени (участник,
+        /// добавленный в трекер до входа игрока). Возвращает true, если связь
+        /// есть или появилась.
+        /// </summary>
+        public static bool LinkCombatantToCharacter(string name, int characterId)
+        {
+            if (characterId <= 0) return false;
+
+            try
+            {
+                foreach (var encounter in LoadEncounters().OrderByDescending(e => e.IsActive))
+                {
+                    foreach (var combatant in encounter.Combatants ?? new List<CombatantData>())
+                    {
+                        if (combatant == null) continue;
+                        if (combatant.CharacterId == characterId) return true;
+                        if (combatant.CharacterId != 0) continue;
+                        if (combatant.Kind != CombatantKind.Player) continue;
+                        if (string.IsNullOrWhiteSpace(name) || !NameMatch.SamePerson(combatant.Name, name)) continue;
+
+                        combatant.CharacterId = characterId;
+                        SaveCombatant(encounter, combatant);
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[InitiativeService] LinkCombatantToCharacter: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Записывает состояния участнику боя по его id и возвращает группу,
+        /// в которой он состоит (null — не найден). Так сетевое сообщение с
+        /// карты или из листа персонажа попадает в ту же запись, которую
+        /// читают трекер и карта.
+        /// </summary>
+        public static EncounterData UpdateCombatantConditions(int combatantId, string conditions)
+        {
+            if (combatantId <= 0) return null;
+            try
+            {
+                foreach (var encounter in LoadEncounters())
+                {
+                    var combatant = encounter.Combatants.FirstOrDefault(c => c != null && c.Id == combatantId);
+                    if (combatant == null) continue;
+
+                    string next = conditions ?? "";
+                    if (string.Equals(combatant.Conditions ?? "", next, StringComparison.Ordinal))
+                        return encounter;
+
+                    combatant.Conditions = next;
+                    SaveCombatant(encounter, combatant);
+                    return encounter;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[InitiativeService] UpdateCombatantConditions: {ex.Message}");
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Боец изменили (например, состояния на карте) — окно трекера
         /// должно перерисоваться, не дожидаясь переоткрытия.
         /// </summary>
@@ -377,11 +490,14 @@ namespace HMWT_MUI.Services
                     ? @"UPDATE EncounterCombatant SET name = @name, initiative_mod = @mod,
                               initiative_roll = @roll, initiative_total = @total, has_rolled = @rolled,
                               id_monster = @monster, kind = @kind, hp = @hp, max_hp = @maxhp,
-                              note = @note, is_current = @current, conditions = @conditions
+                              note = @note, is_current = @current, conditions = @conditions,
+                              id_character = @char
                         WHERE id_combatant = @id"
                     : @"INSERT INTO EncounterCombatant (id_encounter, name, initiative_mod, initiative_roll,
-                              initiative_total, has_rolled, id_monster, kind, hp, max_hp, note, is_current, conditions)
-                        VALUES (@enc, @name, @mod, @roll, @total, @rolled, @monster, @kind, @hp, @maxhp, @note, @current, @conditions)";
+                              initiative_total, has_rolled, id_monster, kind, hp, max_hp, note, is_current, conditions,
+                              id_character)
+                        VALUES (@enc, @name, @mod, @roll, @total, @rolled, @monster, @kind, @hp, @maxhp, @note, @current, @conditions,
+                              @char)";
 
                 using var cmd = new SqliteCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@enc", encounter.Id);
@@ -391,6 +507,7 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@total", combatant.InitiativeTotal);
                 cmd.Parameters.AddWithValue("@rolled", combatant.HasRolled ? 1 : 0);
                 cmd.Parameters.AddWithValue("@monster", combatant.MonsterId);
+                cmd.Parameters.AddWithValue("@char", combatant.CharacterId);
                 cmd.Parameters.AddWithValue("@kind", combatant.Kind == CombatantKind.Player ? 1 : 0);
                 cmd.Parameters.AddWithValue("@hp", combatant.HitPoints);
                 cmd.Parameters.AddWithValue("@maxhp", combatant.MaxHitPoints);
@@ -438,7 +555,7 @@ namespace HMWT_MUI.Services
 
         /// <summary>Добавляет жетон по имени. Возвращает созданный жетон или null.</summary>
         public static CombatantData AddByName(EncounterData encounter, string name, int modifier,
-            CombatantKind kind = CombatantKind.Creature, int monsterId = 0)
+            CombatantKind kind = CombatantKind.Creature, int monsterId = 0, int characterId = 0)
         {
             if (encounter == null || string.IsNullOrWhiteSpace(name)) return null;
 
@@ -448,7 +565,8 @@ namespace HMWT_MUI.Services
                 Name = name.Trim(),
                 InitiativeModifier = Math.Max(-20, Math.Min(30, modifier)),
                 Kind = kind,
-                MonsterId = monsterId
+                MonsterId = monsterId,
+                CharacterId = characterId
             };
 
             if (SaveCombatant(encounter, combatant) <= 0) return null;
@@ -651,16 +769,28 @@ namespace HMWT_MUI.Services
 
             foreach (var combatant in encounter.Ordered())
             {
-                if (!combatant.HasRolled) continue;   // не брошено — игрокам показывать нечего
-                state.Combatants.Add(new InitiativeCombatantDto
+                var dto = new InitiativeCombatantDto
                 {
+                    Id = combatant.Id,
                     Name = combatant.Name,
                     Roll = combatant.InitiativeRoll,
                     Modifier = combatant.InitiativeModifier,
                     Total = combatant.InitiativeTotal,
                     IsPlayer = combatant.Kind == CombatantKind.Player,
-                    IsCurrent = combatant.IsCurrent
-                });
+                    IsCurrent = combatant.IsCurrent,
+                    CharacterId = combatant.CharacterId,
+                    Conditions = combatant.Conditions ?? "",
+                    HitPoints = combatant.HitPoints,
+                    MaxHitPoints = combatant.MaxHitPoints
+                };
+
+                // Состав боя — целиком: клиент по нему находит своего
+                // участника для листа персонажа, даже если инициатива ещё
+                // не брошена (в порядке хода таких не показываем).
+                state.Roster.Add(dto);
+
+                if (!combatant.HasRolled) continue;   // не брошено — игрокам показывать нечего
+                state.Combatants.Add(dto);
             }
 
             return state;

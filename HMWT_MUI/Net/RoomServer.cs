@@ -96,6 +96,13 @@ namespace HMWT_MUI.Net
         /// </summary>
         private InitiativeState _initiative = new InitiativeState();
 
+        /// <summary>
+        /// Отложенная синхронизация жетонов с трекером: SaveCombatant зовут
+        /// пачками (броски инициативы, состояния), а карту на каждый вызов
+        /// рассылать незачем.
+        /// </summary>
+        private System.Threading.Timer _combatantSyncTimer;
+
         /// <summary>Карта боя, которую видит комната. Снимок делается на хосте.</summary>
         private MapSceneData _map;
 
@@ -110,6 +117,9 @@ namespace HMWT_MUI.Net
 
         /// <summary>Жетон сдвинулся во время перетаскивания (лёгкое обновление).</summary>
         public event Action<int, double, double, double> TokenMovedLive;
+
+        /// <summary>Фигуру ведут мышью: (id, x, y). Полную карту не шлём.</summary>
+        public event Action<int, double, double> ShapeMovedLive;
 
         /// <summary>Игрок прислал пройденный путь жетона.</summary>
         public event Action<int, List<MapTrailPoint>> MapTrailAdded;
@@ -164,6 +174,15 @@ namespace HMWT_MUI.Net
                 _acceptTask = Task.Run(() => AcceptLoopAsync(_cts.Token));
                 _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(_cts.Token));
 
+                // Состояния и хиты меняют трекер, карта и лист персонажа. Как
+                // только меняется участник боя — переносим это в жетоны карты
+                // и рассылаем игрокам, иначе у клиента состояния «не доезжают»
+                // до следующего случайного обновления карты. Подписка здесь,
+                // а не в конструкторе: неудачный Start не должен оставлять
+                // обработчик на статическом событии.
+                Services.InitiativeService.Changed -= OnInitiativeChanged;
+                Services.InitiativeService.Changed += OnInitiativeChanged;
+
                 Log($"Комната запущена на порту {_port}");
                 Events?.StateChanged?.Invoke();
                 return true;
@@ -186,6 +205,10 @@ namespace HMWT_MUI.Net
 
         public void Stop()
         {
+            try { Services.InitiativeService.Changed -= OnInitiativeChanged; } catch { }
+            try { _combatantSyncTimer?.Dispose(); } catch { }
+            _combatantSyncTimer = null;
+
             try { _cts?.Cancel(); } catch { }
             try { _listener?.Stop(); } catch { }
 
@@ -335,6 +358,14 @@ namespace HMWT_MUI.Net
                 });
 
                 Events?.PlayerChanged?.Invoke(player);
+
+                // Связка «персонаж ↔ участник боя» при входе игрока: если
+                // ведущий уже добавил его в трекер по имени, дописываем id,
+                // чтобы карта и лист нашли участника без сверки имён (А).
+                // Заодно подхватываем состояния листа, если у участника их нет.
+                try { SyncPlayerConditions(player); }
+                catch (Exception ex) { Debug.WriteLine("[RoomServer] связка с персонажем: " + ex.Message); }
+
                 await BroadcastSnapshotAsync().ConfigureAwait(false);
 
                 // ── 4.5. Просим у нового игрока его аватар ──
@@ -499,6 +530,10 @@ namespace HMWT_MUI.Net
 
                     case MsgType.MapShape:
                         ApplyMapShape(conn, msg.As<MapShapeRequest>());
+                        break;
+
+                    case MsgType.MapShapeLive:
+                        ApplyMapShapeLive(msg.As<MapShapeLive>(), conn?.PlayerId);
                         break;
 
                     case MsgType.MapImageRequest:
@@ -950,6 +985,17 @@ namespace HMWT_MUI.Net
         /// <summary>Собирает снимок текущего состояния комнаты.</summary>
         private RoomSnapshot BuildSnapshot()
         {
+            // Если ведущий ещё ничего не публиковал, состав боя собираем из
+            // базы: иначе у клиента лист персонажа не нашёл бы своего
+            // участника, а снимок приходил бы с пустым трекером.
+            InitiativeState initiative = CloneInitiative(_initiative);
+            if (initiative == null ||
+                ((initiative.Roster == null || initiative.Roster.Count == 0) &&
+                 (initiative.Combatants == null || initiative.Combatants.Count == 0)))
+            {
+                initiative = BuildLocalInitiative() ?? initiative ?? new InitiativeState();
+            }
+
             lock (_stateLock)
             {
                 return new RoomSnapshot
@@ -979,8 +1025,42 @@ namespace HMWT_MUI.Net
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,
-                    Initiative = CloneInitiative(_initiative)
+                    Initiative = initiative
                 };
+            }
+        }
+
+        /// <summary>
+        /// Состав боя из локальной базы ведущего — на случай, когда он ещё не
+        /// открывал трекер и ничего не публиковал. Клиенту нужны character_id
+        /// и состояния участников (у него своей базы боёв нет).
+        ///
+        /// Результат кэшируется на пару секунд: снимок собирается часто, а
+        /// чтение всех групп боя каждый раз — лишняя работа с базой.
+        /// </summary>
+        private static InitiativeState _localInitiativeCache;
+        private static DateTime _localInitiativeAt;
+
+        private static InitiativeState BuildLocalInitiative()
+        {
+            if (_localInitiativeCache != null &&
+                (DateTime.UtcNow - _localInitiativeAt).TotalSeconds < 3)
+                return _localInitiativeCache;
+
+            try
+            {
+                var encounter = InitiativeService.ActiveEncounter() ??
+                                InitiativeService.LoadEncounters().FirstOrDefault();
+                _localInitiativeCache = encounter == null
+                    ? new InitiativeState()
+                    : InitiativeService.BuildState(encounter);
+                _localInitiativeAt = DateTime.UtcNow;
+                return _localInitiativeCache;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] состав боя из базы: {ex.Message}");
+                return null;
             }
         }
 
@@ -1172,7 +1252,12 @@ namespace HMWT_MUI.Net
                         string nickname = (conn.Player.Name ?? "").Trim();
                         string label = (token.Label ?? "").Trim();
 
-                        bool mine = NameMatch.SamePerson(label, character) ||
+                        // Главная проверка — по character_id (протокол 16):
+                        // владелец жетона записан ведущим при публикации карты.
+                        // Имя остаётся запасным путём для старых сцен.
+                        bool mine = (token.OwnerCharacterId > 0 &&
+                                     token.OwnerCharacterId == conn.Player.CharacterId) ||
+                                    NameMatch.SamePerson(label, character) ||
                                     NameMatch.SamePerson(label, nickname);
                         if (mine)
                         {
@@ -1184,7 +1269,7 @@ namespace HMWT_MUI.Net
                             // раньше такие правки оставались только у него на экране
                             if (request.ViewAngle >= 0 && request.ViewAngle <= 360)
                                 token.ViewAngle = request.ViewAngle;
-                            if (request.SizeCells >= 1 && request.SizeCells <= 4)
+                            if (request.SizeCells >= 1 && request.SizeCells <= 10)
                                 token.SizeCells = request.SizeCells;
                             if (request.RevealCells >= 0 && request.RevealCells <= 40)
                                 token.RevealCells = request.RevealCells;
@@ -1220,6 +1305,17 @@ namespace HMWT_MUI.Net
                 // Итоговый ход сохраняем: промежуточные (live) не пишем, иначе
                 // перетаскивание било бы по базе десятки раз в секунду
                 try { MapService.SaveToken(changedToken); } catch { }
+
+                // Состояния, присланные игроком из меню жетона, — это те же
+                // состояния участника боя: пишем в трекер и рассылаем всем,
+                // чтобы лист персонажа у клиента увидел их сразу.
+                if (request.Conditions != null && changedToken.CombatantId > 0)
+                {
+                    var encounter = InitiativeService.UpdateCombatantConditions(
+                        changedToken.CombatantId, changedToken.Conditions);
+                    if (encounter != null)
+                        SetInitiative(InitiativeService.BuildState(encounter));
+                }
             }
 
             if (!applied)
@@ -1362,6 +1458,43 @@ namespace HMWT_MUI.Net
             if (!changed) return;
             _ = BroadcastMapStateAsync();
             MapChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Фигуру ведут мышью: обновляем координаты у хоста и рассылаем только
+        /// их. Полная карта на каждый шаг заставляла фигуру прыгать у всех.
+        /// </summary>
+        private void ApplyMapShapeLive(MapShapeLive request, string exceptPlayerId)
+        {
+            if (request == null || request.ShapeId <= 0) return;
+
+            bool changed = false;
+            lock (_stateLock)
+            {
+                var shape = _map?.Shapes?.FirstOrDefault(s => s.Id == request.ShapeId);
+                if (shape != null && (shape.X != request.X || shape.Y != request.Y))
+                {
+                    shape.X = request.X;
+                    shape.Y = request.Y;
+                    changed = true;
+                }
+            }
+            if (!changed) return;
+
+            var message = new NetMessage(MsgType.MapShapeLive, request);
+            foreach (var c in _clients.Values.Where(c => c.HandshakeDone &&
+                         !string.Equals(c.PlayerId, exceptPlayerId, StringComparison.Ordinal)).ToList())
+            {
+                _ = SendSafeAsync(c, message);
+            }
+
+            ShapeMovedLive?.Invoke(request.ShapeId, request.X, request.Y);
+        }
+
+        /// <summary>Ведущий ведёт фигуру: обновляем копию и рассылаем игрокам.</summary>
+        public void BroadcastShapeLive(int shapeId, double x, double y)
+        {
+            ApplyMapShapeLive(new MapShapeLive { ShapeId = shapeId, X = x, Y = y }, null);
         }
 
         /// <summary>Ведущий прошёл жетоном — рассылаем путь остальным.</summary>
@@ -1601,7 +1734,8 @@ namespace HMWT_MUI.Net
                 IsActive = source.IsActive,
                 Name = source.Name ?? "",
                 Round = source.Round,
-                Combatants = new List<InitiativeCombatantDto>()
+                Combatants = new List<InitiativeCombatantDto>(),
+                Roster = new List<InitiativeCombatantDto>()
             };
 
             if (source.Combatants != null)
@@ -1609,19 +1743,41 @@ namespace HMWT_MUI.Net
                 foreach (var combatant in source.Combatants)
                 {
                     if (combatant == null) continue;
-                    copy.Combatants.Add(new InitiativeCombatantDto
-                    {
-                        Name = combatant.Name ?? "",
-                        Roll = combatant.Roll,
-                        Modifier = combatant.Modifier,
-                        Total = combatant.Total,
-                        IsPlayer = combatant.IsPlayer,
-                        IsCurrent = combatant.IsCurrent
-                    });
+                    copy.Combatants.Add(CloneCombatant(combatant));
+                }
+            }
+
+            // Состав боя — отдельный список: по нему клиент находит своего
+            // участника для листа персонажа. Без копирования он терялся бы
+            // прямо на сервере при каждом SetInitiative.
+            if (source.Roster != null)
+            {
+                foreach (var member in source.Roster)
+                {
+                    if (member == null) continue;
+                    copy.Roster.Add(CloneCombatant(member));
                 }
             }
 
             return copy;
+        }
+
+        private static InitiativeCombatantDto CloneCombatant(InitiativeCombatantDto source)
+        {
+            return new InitiativeCombatantDto
+            {
+                Id = source.Id,
+                Name = source.Name ?? "",
+                Roll = source.Roll,
+                Modifier = source.Modifier,
+                Total = source.Total,
+                IsPlayer = source.IsPlayer,
+                IsCurrent = source.IsCurrent,
+                CharacterId = source.CharacterId,
+                Conditions = source.Conditions ?? "",
+                HitPoints = source.HitPoints,
+                MaxHitPoints = source.MaxHitPoints
+            };
         }
 
         /// <summary>
@@ -1959,6 +2115,7 @@ namespace HMWT_MUI.Net
         {
             if (data == null) return;
             bool found = false;
+            string previousConditions = null;
             lock (_stateLock)
             {
                 var existing = _players.FirstOrDefault(p => p.Id == playerId);
@@ -1967,6 +2124,7 @@ namespace HMWT_MUI.Net
                     data.Id = existing.Id;
                     data.Role = existing.Role;
                     data.State = existing.State;
+                    previousConditions = existing.Conditions;
 
                     // Уже принятый файл аватара важнее локального пути из
                     // карточки: иначе каждое сохранение профиля сбрасывало
@@ -1981,8 +2139,145 @@ namespace HMWT_MUI.Net
             }
             if (found)
             {
+                // Связку «персонаж ↔ участник боя» восстанавливаем при каждом
+                // обновлении профиля: игрок мог войти раньше, чем ведущий
+                // добавил его в трекер. Состояния применяем, только если сам
+                // игрок их изменил в листе (иначе периодическая отправка
+                // профиля затирала бы отметки ведущего).
+                bool conditionsChanged = !string.Equals(previousConditions ?? "",
+                    data.Conditions ?? "", StringComparison.Ordinal);
+                SyncPlayerConditions(data, conditionsChanged);
                 Events?.PlayerChanged?.Invoke(data);
                 _ = BroadcastSnapshotAsync();
+            }
+        }
+
+        /// <summary>
+        /// Начальное заполнение состояний из листа персонажа и восстановление
+        /// связки по character_id.
+        ///
+        /// Состояния применяем только к пустому участнику: если писать из
+        /// листа на каждом обновлении профиля, устаревшая копия у игрока
+        /// затирала бы отметки, которые ведущий поставил в трекере/на карте.
+        /// Хиты не трогаем вовсе: их ведёт мастер.
+        /// </summary>
+        private void SyncPlayerConditions(PlayerInfo data, bool explicitChange = false)
+        {
+            if (data == null || data.CharacterId <= 0) return;
+
+            try
+            {
+                string name = string.IsNullOrWhiteSpace(data.CharacterName)
+                    ? (data.Name ?? "") : data.CharacterName;
+
+                InitiativeService.LinkCombatantToCharacter(name, data.CharacterId);
+
+                var found = InitiativeService.FindForCharacter(data.CharacterId, name);
+                if (found == null) return;
+
+                var encounter = found.Value.Encounter;
+                var combatant = found.Value.Combatant;
+                string conditions = (data.Conditions ?? "").Trim();
+                bool changed = false;
+
+                if (explicitChange)
+                {
+                    // Игрок сам поменял отметки в листе — переносим их.
+                    if (!string.Equals(combatant.Conditions ?? "", conditions, StringComparison.Ordinal))
+                    {
+                        combatant.Conditions = conditions;
+                        changed = true;
+                    }
+                }
+                else if (string.IsNullOrWhiteSpace(combatant.Conditions) && conditions.Length > 0)
+                {
+                    // Первый вход: у участника боя ещё нет состояний.
+                    combatant.Conditions = conditions;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    InitiativeService.SaveCombatant(encounter, combatant);
+                    SetInitiative(InitiativeService.BuildState(encounter));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] состояния участника: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Участника боя изменили (трекер, карта, лист) — переносим хиты и
+        /// состояния в жетоны карты и рассылаем игрокам. Так изменения видны
+        /// сразу, а не после следующего случайного обновления сцены.
+        /// </summary>
+        private void OnInitiativeChanged()
+        {
+            try
+            {
+                if (_combatantSyncTimer == null)
+                {
+                    _combatantSyncTimer = new System.Threading.Timer(
+                        _ => SyncMapTokenStates(), null,
+                        System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                }
+                _combatantSyncTimer.Change(120, System.Threading.Timeout.Infinite);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] план синхронизации: {ex.Message}");
+            }
+        }
+
+        private void SyncMapTokenStates()
+        {
+            try
+            {
+                var byId = new Dictionary<int, CombatantData>();
+                foreach (var encounter in InitiativeService.LoadEncounters())
+                {
+                    foreach (var combatant in encounter.Combatants ?? new List<CombatantData>())
+                    {
+                        if (combatant != null && combatant.Id > 0) byId[combatant.Id] = combatant;
+                    }
+                }
+
+                bool changed = false;
+                lock (_stateLock)
+                {
+                    var tokens = _map?.Tokens;
+                    if (tokens == null) return;
+
+                    foreach (var token in tokens)
+                    {
+                        if (token.CombatantId <= 0) continue;
+                        if (!byId.TryGetValue(token.CombatantId, out var combatant)) continue;
+
+                        if (token.Hp != combatant.HitPoints) { token.Hp = combatant.HitPoints; changed = true; }
+                        if (token.HpMax != combatant.MaxHitPoints) { token.HpMax = combatant.MaxHitPoints; changed = true; }
+                        if (!string.Equals(token.Conditions ?? "", combatant.Conditions ?? "",
+                                StringComparison.Ordinal))
+                        {
+                            token.Conditions = combatant.Conditions ?? "";
+                            changed = true;
+                        }
+                        if (token.OwnerCharacterId != combatant.CharacterId)
+                        {
+                            token.OwnerCharacterId = combatant.CharacterId;
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (!changed) return;
+                _ = BroadcastMapStateAsync();
+                MapChanged?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] синхронизация состояний: {ex.Message}");
             }
         }
 
@@ -2000,7 +2295,8 @@ namespace HMWT_MUI.Net
             AvatarPath = p.AvatarPath,
             Role = p.Role,
             State = p.State,
-            CharacterId = p.CharacterId
+            CharacterId = p.CharacterId,
+            Conditions = p.Conditions ?? ""
         };
 
         /// <summary>Понятное имя участника: персонаж, иначе имя игрока.</summary>

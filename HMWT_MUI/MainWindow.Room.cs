@@ -719,31 +719,52 @@ namespace HMWT_MUI
                 using var r = cmd.ExecuteReader();
                 if (!r.Read()) return new PlayerInfo { Name = "Игрок", CharacterId = characterId };
 
-                int hp = r.IsDBNull(3) ? 0 : r.GetInt32(3);
-                string characterName = r.IsDBNull(0) ? "" : r.GetString(0);
+                // Колонки читаем ДО Close(): у закрытого reader'а IsDBNull
+                // бросает исключение, и раньше отсюда всегда возвращался
+                // запасной «Игрок» — ведущий в отряде был безымянным.
+                // Числа берём через Convert: SQLite отдаёт INTEGER как Int64,
+                // а GetInt32 на нём падает и ронял весь метод в catch.
+                int hp = r.IsDBNull(3) ? 0 : Convert.ToInt32(r.GetValue(3));
+                string characterName = r.IsDBNull(0) ? "" : Convert.ToString(r.GetValue(0));
                 if (string.IsNullOrWhiteSpace(characterName)) characterName = "Игрок";
+                string charClass = r.IsDBNull(1) ? "" : Convert.ToString(r.GetValue(1));
+                string race = r.IsDBNull(2) ? "" : Convert.ToString(r.GetValue(2));
+                int armor = r.IsDBNull(4) ? 0 : Convert.ToInt32(r.GetValue(4));
+                string avatar = r.IsDBNull(5) ? "" : Convert.ToString(r.GetValue(5));
+                int level = r.IsDBNull(6) ? 1 : Convert.ToInt32(r.GetValue(6));
+                r.Close();
 
                 // В отряде у всех имя персонажа: личного профиля больше нет
                 string display = characterName;
 
                 // Максимум HP — из настроек персонажа, а не из колонки HP:
                 // иначе в отряд уходит «185/185» вместо «185/210»
-                r.Close();
                 int maxHp = Services.RestService.LoadMaxHp(characterId);
                 if (maxHp <= 0) maxHp = hp;
+
+                // Состояния — часть листа: по ним ведущий понимает, что
+                // действует на персонажа, не открывая чужой лист.
+                string conditions = "";
+                try
+                {
+                    conditions = string.Join(", ",
+                        Services.CharacterStateService.LoadConditionKeys(characterId));
+                }
+                catch { }
 
                 return new PlayerInfo
                 {
                     CharacterId = characterId,
                     CharacterName = characterName,
-                    CharacterClass = r.IsDBNull(1) ? "" : r.GetString(1),
-                    CharacterRace = r.IsDBNull(2) ? "" : r.GetString(2),
+                    CharacterClass = charClass,
+                    CharacterRace = race,
                     Hp = hp,
                     MaxHp = maxHp,
-                    ArmorClass = r.IsDBNull(4) ? 0 : r.GetInt32(4),
-                    Level = r.IsDBNull(6) ? 1 : r.GetInt32(6),
-                    AvatarPath = r.IsDBNull(5) ? "" : r.GetString(5),
-                    Name = display
+                    ArmorClass = armor,
+                    Level = level,
+                    AvatarPath = avatar,
+                    Name = display,
+                    Conditions = conditions
                 };
             }
             catch (Exception ex)
