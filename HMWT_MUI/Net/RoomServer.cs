@@ -1096,6 +1096,8 @@ namespace HMWT_MUI.Net
             Broadcast(MsgType.AudioGain, updated);
         }
 
+        private static void LogAudio(string text) => LogRoomLine("аудио: " + text);
+
         private void HandleAudioPlay(ClientConnection conn, AudioPlayRequest request)
         {
             if (conn == null || request == null || string.IsNullOrWhiteSpace(request.Hash)) return;
@@ -1117,7 +1119,7 @@ namespace HMWT_MUI.Net
                 _pendingAudioFrom = conn.PlayerId;
                 _ = SendSafeAsync(conn, new NetMessage(MsgType.AudioNeed,
                     new AudioNeedRequest { Hash = state.Hash }));
-                Log($"аудио: файла нет у ведущего, просим у {conn.Player?.CharacterName ?? "игрока"}");
+                LogAudio($"файла нет, просим у {conn.Player?.CharacterName ?? "игрока"}");
                 return;
             }
 

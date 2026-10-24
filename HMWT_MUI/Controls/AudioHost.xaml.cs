@@ -29,6 +29,7 @@ namespace HMWT_MUI.Controls
         public AudioHost()
         {
             InitializeComponent();
+            AudioLog.Write($"audio host v{HMWT_MUI.Net.NetVersions.AppVersion}");
 
             _player.MediaOpened += (_, __) =>
             {
@@ -164,16 +165,6 @@ namespace HMWT_MUI.Controls
         /// <summary>Публичный журнал: окно аудио и сервис пишут сюда же.</summary>
         public static void LogLine(string message) => Log(message);
 
-        private static void Log(string message)
-        {
-            try
-            {
-                string path = Path.Combine(Path.GetTempPath(), "hmwt-audio.log");
-                File.AppendAllText(path,
-                    $"{DateTime.Now:HH:mm:ss.fff} {message}{Environment.NewLine}",
-                    new System.Text.UTF8Encoding(false));
-            }
-            catch { }
-        }
+        private static void Log(string message) => AudioLog.Write(message);
     }
 }

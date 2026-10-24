@@ -106,16 +106,7 @@ namespace HMWT_MUI.Services
             Start(path, state);
         }
 
-        private static void Log(string message)
-        {
-            try
-            {
-                string path = Path.Combine(Path.GetTempPath(), "hmwt-audio.log");
-                File.AppendAllText(path, $"{DateTime.Now:HH:mm:ss.fff} [playback] {message}{Environment.NewLine}",
-                    new System.Text.UTF8Encoding(false));
-            }
-            catch { }
-        }
+        private static void Log(string message) => AudioLog.Write("[playback] " + message);
 
         private static void OnUi(Action action)
         {
