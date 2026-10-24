@@ -14,6 +14,10 @@ namespace HMWT_MUI.Windows
     /// </summary>
     public sealed class ConditionsWindow : Window
     {
+        private static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xF5));
+        private static readonly Brush Bg = new SolidColorBrush(Color.FromRgb(0x0E, 0x12, 0x1F));
+        private static readonly Brush ButtonBg = new SolidColorBrush(Color.FromRgb(0x22, 0x2B, 0x45));
+
         private readonly List<(string Key, CheckBox Box)> _boxes = new List<(string, CheckBox)>();
         private List<string> _result;
 
@@ -24,8 +28,8 @@ namespace HMWT_MUI.Windows
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
-            Background = new SolidColorBrush(Color.FromRgb(0x0E, 0x12, 0x1F));
-            Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xF5));
+            Background = Bg;
+            Foreground = Ink;
         }
 
         /// <summary>Выбранные ключи или null, если окно закрыли без сохранения.</summary>
@@ -50,8 +54,10 @@ namespace HMWT_MUI.Windows
                 {
                     Content = option.Name,
                     IsChecked = current.Contains(option.Key),
-                    Margin = new Thickness(0, 4, 0, 4),
-                    FontSize = 13
+                    Margin = new Thickness(0, 5, 0, 5),
+                    FontSize = 13,
+                    Foreground = Ink,
+                    Cursor = System.Windows.Input.Cursors.Hand
                 };
                 window._boxes.Add((option.Key, box));
                 list.Children.Add(box);
@@ -64,13 +70,7 @@ namespace HMWT_MUI.Windows
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
 
-            var ok = new Button
-            {
-                Content = "Сохранить",
-                MinWidth = 110,
-                Margin = new Thickness(0, 0, 8, 0),
-                Padding = new Thickness(10, 4, 10, 4)
-            };
+            var ok = MakeButton("Сохранить", 110);
             ok.Click += (s, e) =>
             {
                 window._result = window._boxes
@@ -80,12 +80,7 @@ namespace HMWT_MUI.Windows
                 window.DialogResult = true;
             };
 
-            var cancel = new Button
-            {
-                Content = "Отмена",
-                MinWidth = 90,
-                Padding = new Thickness(10, 4, 10, 4)
-            };
+            var cancel = MakeButton("Отмена", 90);
             cancel.Click += (s, e) => window.DialogResult = false;
 
             var buttons = new StackPanel
@@ -104,5 +99,17 @@ namespace HMWT_MUI.Windows
 
             return window.ShowDialog() == true ? (window._result ?? new List<string>()) : null;
         }
+
+        private static Button MakeButton(string text, double width) => new Button
+        {
+            Content = text,
+            MinWidth = width,
+            Padding = new Thickness(10, 5, 10, 5),
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = ButtonBg,
+            Foreground = Ink,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x46, 0x68)),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
     }
 }

@@ -142,6 +142,7 @@
   let mapRot = 0, mapFlipH = false, mapFlipV = false;
   let boundsW = 1, boundsH = 1;
   let hasFit = false;
+  let lastFitHash = "";
   let isDm = false;
   let cell = 70;
   let fovTokens = [];
@@ -557,9 +558,12 @@
     buildFov();
     updateHint();
 
-    if (!hasFit || oldW !== mapW || oldH !== mapH || oldRot !== mapRot ||
-        oldFlipH !== mapFlipH || oldFlipV !== mapFlipV) {
+    // Автоподгонку делаем только при первой загрузке и при смене картинки:
+    // раньше она срабатывала на каждом снимке, и после отпускания жетона
+    // масштаб у клиента сбрасывался.
+    if (!hasFit || mapImageHash !== lastFitHash) {
       hasFit = true;
+      lastFitHash = mapImageHash;
       fit();
       // На первом кадре app.screen иногда ещё нулевой — повторяем после
       // раскладки, иначе карта уезжает в угол и выглядит чёрной.
@@ -1801,7 +1805,21 @@
 
   function openTokenMenu(e, token) {
     if (!token) return;
-    if (!isDm && !token.canMove) return;   // игроку — только свой жетон
+    // Игрок может посмотреть любой жетон; править — только свой.
+    if (!isDm && token.canMove === false) {
+      const items = [];
+      items.push({ text: token.label || 'Жетон', disabled: true });
+      if (token.hpMax > 0) items.push({ text: 'Хиты: ' + token.hp + ' / ' + token.hpMax, disabled: true });
+
+      const names = {};
+      for (const o of ((state && state.conditionList) || [])) if (o && o.key) names[o.key.toLowerCase()] = o.name || o.key;
+      const have = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean)
+        .map(k => names[k.toLowerCase()] || k);
+      items.push({ text: have.length ? ('Состояния: ' + have.join(', ')) : 'Состояний нет', disabled: true });
+      renderMenu(e.clientX, e.clientY, items, () => { });
+      e.preventDefault();
+      return;
+    }
 
     const items = [];
     items.push({ text: token.label || 'Жетон', disabled: true });
@@ -2757,5 +2775,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.7.4');
+  log('renderer ready v1.3.7.5');
 })();
