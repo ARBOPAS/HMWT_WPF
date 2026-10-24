@@ -128,7 +128,7 @@ namespace HMWT_MUI.Windows
             root.Children.Add(scroll);
 
             string roomText = !RoomSession.Instance.IsActive
-                ? "Комната не активна — трек играет только у вас."
+                ? "ВНИМАНИЕ: комната не активна — трек слышите только вы. Подключитесь к отряду и включите снова."
                 : (RoomSession.Instance.IsHost
                     ? "Комната: вы ведущий — трек слышат все."
                     : "Комната: вы игрок — трек уйдёт ведущему и разойдётся всем.");
@@ -136,7 +136,9 @@ namespace HMWT_MUI.Windows
             var hint = new TextBlock
             {
                 Text = roomText + " Плейлисты — следующий шаг.",
-                FontSize = 11, Foreground = Mute, Margin = new Thickness(0, 10, 0, 0),
+                FontSize = 11,
+                Foreground = RoomSession.Instance.IsActive ? Mute : new SolidColorBrush(Color.FromRgb(0xE0, 0x7A, 0x6A)),
+                Margin = new Thickness(0, 10, 0, 0),
                 TextWrapping = TextWrapping.Wrap
             };
             Grid.SetRow(hint, 2);

@@ -161,6 +161,9 @@ namespace HMWT_MUI.Controls
             catch { return "?"; }
         }
 
+        /// <summary>Публичный журнал: окно аудио и сервис пишут сюда же.</summary>
+        public static void LogLine(string message) => Log(message);
+
         private static void Log(string message)
         {
             try
