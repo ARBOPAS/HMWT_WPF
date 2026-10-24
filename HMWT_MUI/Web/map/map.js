@@ -3206,5 +3206,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.9.1');
+  log('renderer ready v1.3.9.2');
 })();

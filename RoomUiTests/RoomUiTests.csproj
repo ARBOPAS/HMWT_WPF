@@ -154,6 +154,7 @@
     <!-- RoomServer связывает участника боя с персонажем по character_id
          (протокол 16): сервис нужен и тестовой сборке сетевого слоя. -->
     <Compile Include="..\HMWT_MUI\Services\InitiativeService.cs"><Link>App\InitiativeService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SchemaMigrator.cs"><Link>App\SchemaMigrator.cs</Link></Compile>
 
     <!-- Проверяемый интерфейс -->
     <Compile Include="..\HMWT_MUI\Controls\DmProfileEditor.xaml.cs">

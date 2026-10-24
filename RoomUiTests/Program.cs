@@ -407,6 +407,13 @@ namespace HMWT_MUI.RoomUiTests
             Say("═══ СВЯЗКА ПЕРСОНАЖ ↔ УЧАСТНИК БОЯ ═══");
             CheckCharacterLink();
 
+            // ── Версия схемы и миграции ──
+            // База игрока обновляется шагами SchemaMigrator, а не только
+            // EnsureColumn: проверяем, что версия доехала и новый индекс есть.
+            Say("");
+            Say("═══ СХЕМА БАЗЫ ═══");
+            CheckSchemaVersion();
+
 
             // ── Вкладка без подключения ──
             Say("");
@@ -2455,6 +2462,38 @@ namespace HMWT_MUI.RoomUiTests
             {
                 try { if (encounter != null) InitiativeService.DeleteEncounter(encounter.Id); }
                 catch { }
+            }
+        }
+
+        #endregion
+
+        #region === СХЕМА БАЗЫ ===
+
+        /// <summary>
+        /// Версия схемы и миграции: база должна быть доведена до CurrentVersion,
+        /// а индекс по character_id — существовать (его создаёт миграция 2).
+        /// </summary>
+        private static void CheckSchemaVersion()
+        {
+            try
+            {
+                int version = Services.SchemaMigrator.GetVersion();
+                Check("версия схемы базы актуальна",
+                    version == Services.SchemaMigrator.CurrentVersion,
+                    $"версия {version} из {Services.SchemaMigrator.CurrentVersion}");
+
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_combatant_character'",
+                    conn);
+                Check("индекс по character_id создан", Convert.ToInt32(cmd.ExecuteScalar()) == 1);
+
+                Check("быстрая проверка базы", Services.SchemaMigrator.QuickCheck(out string report), report);
+            }
+            catch (Exception ex)
+            {
+                Check("схема базы", false, ex.Message);
             }
         }
 

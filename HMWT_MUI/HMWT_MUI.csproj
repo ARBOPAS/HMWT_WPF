@@ -258,6 +258,7 @@
     <Compile Include="Services\DiceFormulaParser.cs" />
     <Compile Include="Services\CharacterStateService.cs" />
     <Compile Include="Services\ZoneRollService.cs" />
+    <Compile Include="Services\SchemaMigrator.cs" />
     <Compile Include="Services\SkillCatalog.cs" />
     <Compile Include="Services\RestService.cs" />
     <Compile Include="Services\UiPreferences.cs" />
@@ -277,6 +278,7 @@
     <Compile Include="Helpers\DmRolls.cs" />
     <Compile Include="Views\MonsterCardRenderer.cs" />
     <Compile Include="Views\MapView.cs" />
+    <Compile Include="Views\MapView.Web.cs" />
     <Compile Include="Views\MonsterEditor.cs" />
     <Compile Include="Views\BestiaryView.cs" />
     <Compile Include="Views\InitiativePanel.cs" />

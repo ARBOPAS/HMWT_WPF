@@ -104,6 +104,18 @@ namespace HMWT_MUI
 
             Debug.WriteLine($"[DB] <<< ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА >>>\n");
             _initializedFile = dbFileName;
+
+            // Версия схемы и миграции: базовая версия уже создана DDL выше,
+            // дальше — только нумерованные шаги (SchemaMigrator).
+            try
+            {
+                Services.SchemaMigrator.Ensure();
+                Services.SchemaMigrator.LogHealth();
+            }
+            catch (Exception schemaEx)
+            {
+                Debug.WriteLine($"[DB] схема: {schemaEx.Message}");
+            }
         }
 
         /// <summary>
