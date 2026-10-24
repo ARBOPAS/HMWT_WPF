@@ -635,25 +635,7 @@ namespace HMWT_MUI.Views
             bar.Children.Add(DmUiKit.Icon("+", (s, e) => ZoomAtCenter(1.2), "Приблизить", 30, DmUiKit.ButtonKind.Soft));
 
             // ── ориентация вида: файл не трогаем, поворачиваем показ ──
-            var rotLeft = DmUiKit.Icon("⟲", (s, e) => RotateView(-90), "Повернуть вид влево", 30, DmUiKit.ButtonKind.Soft);
-            rotLeft.Margin = new Thickness(10, 0, 4, 0);
-            rotLeft.IsEnabled = _isDm;
-            bar.Children.Add(rotLeft);
-
-            var rotRight = DmUiKit.Icon("⟳", (s, e) => RotateView(90), "Повернуть вид вправо", 30, DmUiKit.ButtonKind.Soft);
-            rotRight.Margin = new Thickness(0, 0, 4, 0);
-            rotRight.IsEnabled = _isDm;
-            bar.Children.Add(rotRight);
-
-            var flipH = DmUiKit.Icon("⇋", (s, e) => FlipView(true), "Отразить по горизонтали", 30, DmUiKit.ButtonKind.Soft);
-            flipH.Margin = new Thickness(0, 0, 4, 0);
-            flipH.IsEnabled = _isDm;
-            bar.Children.Add(flipH);
-
-            var flipV = DmUiKit.Icon("⇅", (s, e) => FlipView(false), "Отразить по вертикали", 30, DmUiKit.ButtonKind.Soft);
-            flipV.Margin = new Thickness(0, 0, 10, 0);
-            flipV.IsEnabled = _isDm;
-            bar.Children.Add(flipV);
+             // поворот и отражение карты в WebGL не поддержаны — кнопки убраны
 
             _fogCheck.Margin = new Thickness(0, 0, 10, 0);
             _fogCheck.IsEnabled = _isDm;
@@ -4674,6 +4656,10 @@ namespace HMWT_MUI.Views
 
             foreach (var kind in ShapeKinds)
             {
+                // Тёмные зоны — инструмент мастера, игроку их в списке нет
+                if (!_isDm && kind.Kind.StartsWith("darkzone", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 string kindKey = kind.Kind;
                 string title = kind.Title;
                 var item = new MenuItem { Header = title, IsCheckable = false };
@@ -6041,11 +6027,32 @@ namespace HMWT_MUI.Views
             ApplyTransform();
         }
 
-        private void ZoomAtCenter(double factor) =>
+        private void ZoomAtCenter(double factor)
+        {
+            // Карту рисует WebGL, поэтому масштаб меняем там же: раньше кнопки
+            // «+»/«−» двигали невидимый WPF-слой и не давали эффекта.
+            if (_webMapReady)
+            {
+                try
+                {
+                    _webMap.SendEphemeral(System.Text.Json.JsonSerializer.Serialize(
+                        new { type = "viewZoom", factor = factor }, WebJsonOptions));
+                }
+                catch { }
+                return;
+            }
+
             ZoomAt(new Point(_viewport.ActualWidth / 2, _viewport.ActualHeight / 2), factor);
+        }
 
         private void FitToWindow()
         {
+            if (_webMapReady)
+            {
+                try { _webMap.SendEphemeral("{\"type\":\"viewFit\"}"); }
+                catch { }
+                return;
+            }
             if (_scene == null || _scene.WidthPx <= 0 || _scene.HeightPx <= 0) return;
             if (_viewport.ActualWidth < 10 || _viewport.ActualHeight < 10) return;
 

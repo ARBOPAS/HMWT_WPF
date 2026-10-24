@@ -1552,6 +1552,19 @@
     world.position.set((w - boundsW * s) / 2, (h - boundsH * s) / 2);
   }
 
+  /** Зум вокруг центра экрана — кнопки «+» и «−» панели. */
+  function zoomBy(factor) {
+    const w = (app.view && app.view.clientWidth) || window.innerWidth || 800;
+    const h = (app.view && app.view.clientHeight) || window.innerHeight || 600;
+    const cx = w / 2, cy = h / 2;
+    const cur = world.scale.x || 1;
+    const next = Math.max(0.02, Math.min(8, cur * (factor || 1)));
+    const wx = (cx - world.x) / cur;
+    const wy = (cy - world.y) / cur;
+    world.scale.set(next);
+    world.position.set(cx - wx * next, cy - wy * next);
+  }
+
   function screenPoint(e) {
     const r = app.view.getBoundingClientRect();
     return new PIXI.Point(e.clientX - r.left, e.clientY - r.top);
@@ -1943,8 +1956,11 @@
     items.push({ text: shapeTitle, disabled: true });
     items.push({ separator: true });
 
-    items.push({ text: 'Повернуть ⟳', action: 'rotate', value: '45' });
-    items.push({ text: 'Повернуть ⟲', action: 'rotate', value: '-45' });
+    // У точки интереса нет ни поворота, ни размера: это просто метка
+    if (shape.kind !== 'point') {
+      items.push({ text: 'Повернуть ⟳', action: 'rotate', value: '45' });
+      items.push({ text: 'Повернуть ⟲', action: 'rotate', value: '-45' });
+    }
 
     // Подпись: у точки интереса это главное, у фигуры — просто удобно
     items.push({ separator: true });
@@ -1956,8 +1972,10 @@
       items.push({ text: 'Убрать подпись', action: 'rename', value: '' });
 
     items.push({ separator: true });
-    items.push({ text: 'Больше на 1 клетку', action: 'radius', value: '1' });
-    items.push({ text: 'Меньше на 1 клетку', action: 'radius', value: '-1' });
+    if (shape.kind !== 'point') {
+      items.push({ text: 'Больше на 1 клетку', action: 'radius', value: '1' });
+      items.push({ text: 'Меньше на 1 клетку', action: 'radius', value: '-1' });
+    }
     items.push({ separator: true });
 
     for (const c of SHAPE_COLORS)
@@ -2717,6 +2735,8 @@
       else if (data.type === 'facing') applyFacingUpdate(data);
       else if (data.type === 'seenAdd') applySeenAdd(data);
       else if (data.type === 'tokenLive') applyTokenLive(data);
+      else if (data.type === 'viewFit') fit();
+      else if (data.type === 'viewZoom') zoomBy(data.factor || 1);
       else if (data.type === 'rotateStart') beginRotation(findToken(data.id), data.dir, data.speed, data.facing);
       else if (data.type === 'rotateStop') finishRotation();
       else if (data.type === 'rotateBy') rotateBy(findToken(data.id), data.deg || 0);
@@ -2749,5 +2769,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.7.0');
+  log('renderer ready v1.3.7.1');
 })();
