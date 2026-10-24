@@ -33,6 +33,14 @@ namespace HMWT_MUI.Net
         /// <summary>Ведущий просит бросить спас/проверку (скрипт тёмной зоны).</summary>
         public Action<ZoneRollRequest> ZoneRollReceived { get; set; }
 
+        /// <summary>Аудио: ведущий включил трек / остановил / поправил громкость.</summary>
+        public Action<AudioState> AudioPlayed { get; set; }
+        public Action AudioStopped { get; set; }
+        public Action<AudioState> AudioGainChanged { get; set; }
+
+        /// <summary>Кусок аудиофайла для локального кэша.</summary>
+        public Action<AudioChunk> AudioChunkReceived { get; set; }
+
         /// <summary>Пришёл путь жетона от другого участника.</summary>
         public Action<int, List<MapTrailPoint>> MapTrailReceived { get; set; }
 
@@ -466,6 +474,25 @@ namespace HMWT_MUI.Net
                         if (zoneRoll != null) Events?.ZoneRollReceived?.Invoke(zoneRoll);
                         break;
 
+                    case MsgType.AudioPlay:
+                        var audioPlay = msg.As<AudioState>();
+                        if (audioPlay != null) Events?.AudioPlayed?.Invoke(audioPlay);
+                        break;
+
+                    case MsgType.AudioStop:
+                        Events?.AudioStopped?.Invoke();
+                        break;
+
+                    case MsgType.AudioGain:
+                        var audioGain = msg.As<AudioState>();
+                        if (audioGain != null) Events?.AudioGainChanged?.Invoke(audioGain);
+                        break;
+
+                    case MsgType.AudioChunk:
+                        var audioChunk = msg.As<AudioChunk>();
+                        if (audioChunk != null) Events?.AudioChunkReceived?.Invoke(audioChunk);
+                        break;
+
                     case MsgType.MapTrail:
                         var trail = msg.As<MapTrailMessage>();
                         if (trail?.Points != null)
@@ -596,6 +623,30 @@ namespace HMWT_MUI.Net
         /// <summary>Просит у хоста текущую карту боя.</summary>
         public Task SendMapRequestAsync()
             => SendAsync(new NetMessage(MsgType.MapRequest, new { }));
+
+        /// <summary>Ведущий включает трек для всех.</summary>
+        public Task SendAudioPlayAsync(AudioState state)
+            => SendAsync(new NetMessage(MsgType.AudioPlay, new AudioPlayRequest
+            {
+                Hash = state?.Hash ?? "",
+                Extension = state?.Extension ?? ".mp3",
+                Name = state?.Name ?? "",
+                Gain = state?.Gain ?? 1
+            }));
+
+        public Task SendAudioStopAsync()
+            => SendAsync(new NetMessage(MsgType.AudioStop, new AudioStopRequest()));
+
+        public Task SendAudioGainAsync(string hash, double gain)
+            => SendAsync(new NetMessage(MsgType.AudioGain, new AudioGainRequest
+            {
+                Hash = hash ?? "",
+                Gain = gain
+            }));
+
+        /// <summary>Игрок просит файл, которого нет в кэше.</summary>
+        public Task SendAudioNeedAsync(string hash)
+            => SendAsync(new NetMessage(MsgType.AudioNeed, new AudioNeedRequest { Hash = hash ?? "" }));
 
         /// <summary>Сообщает хосту, что игрок подвинул своего жетона.</summary>
         public Task SendMapMoveAsync(int tokenId, double x, double y, double facing = double.NaN)

@@ -107,6 +107,10 @@ namespace HMWT_MUI
                 // игрок бросает от своего имени. Подписка живёт всё приложение,
                 // поэтому работает и со свёрнутым окном.
                 Net.RoomSession.Instance.ZoneRollRequested += OnZoneRollRequested;
+
+                // Аудио из комнаты: ведущий включил трек — играем у себя,
+                // недостающий файл докачиваем по хэшу.
+                Services.AudioPlayback.Initialize();
             }
             catch (Exception ex)
             {

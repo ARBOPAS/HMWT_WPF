@@ -531,6 +531,13 @@ namespace HMWT_MUI.RoomUiTests
                 Say("═══ СКРИПТ ТЁМНОЙ ЗОНЫ ═══");
                 CheckZoneScriptTrigger(session, guest);
 
+                // ── Аудио в комнате ──
+                // Ведущий включает трек, игрок получает команду; файл
+                // передаётся кусками и должен собраться байт в байт.
+                Say("");
+                Say("═══ АУДИО В КОМНАТЕ ═══");
+                CheckAudioRoom(session, guest);
+
                 session.PublishChat("Все в сборе? Начинаем спуск в подземелье.");
                 session.PublishRoll("1d20+5", "Проверка Восприятия", 22, new List<int> { 17 });
                 session.PublishRoll("2d6+3", "Урон кинжалом", 10, new List<int> { 3, 4 });
@@ -2462,6 +2469,118 @@ namespace HMWT_MUI.RoomUiTests
             {
                 try { if (encounter != null) InitiativeService.DeleteEncounter(encounter.Id); }
                 catch { }
+            }
+        }
+
+        #endregion
+
+        #region === АУДИО В КОМНАТЕ ===
+
+        /// <summary>
+        /// Аудио в комнате: команда ведущего доходит до игрока, а файл
+        /// передаётся кусками и собирается без потерь. Это проверяет и
+        /// протокол, и хранилище библиотеки.
+        /// </summary>
+        private static void CheckAudioRoom(RoomSession session, RoomClient guest)
+        {
+            string hash = "test" + Guid.NewGuid().ToString("N");
+            string relative = Path.Combine("Library", hash + ".mp3");
+            string fullPath = Path.Combine(AudioService.Root, relative);
+
+            try
+            {
+                var played = new List<AudioState>();
+                int stopped = 0;
+
+                guest.Events.AudioPlayed = state => { lock (played) played.Add(state); };
+                guest.Events.AudioStopped = () => { lock (played) stopped++; };
+
+                session.PublishAudio(new AudioState
+                {
+                    Hash = "aa11", Extension = ".mp3", Name = "Тестовый трек",
+                    Gain = 0.75, On = true
+                });
+                System.Threading.Thread.Sleep(400);
+
+                AudioState first;
+                lock (played) first = played.FirstOrDefault();
+                Check("игрок получил команду играть", first != null && first.Hash == "aa11",
+                    first == null ? "команда не пришла" : first.Hash);
+                Check("громкость трека доехала", first != null && Math.Abs(first.Gain - 0.75) < 0.01,
+                    first == null ? "нет данных" : first.Gain.ToString("0.00"));
+
+                session.PublishAudioStop();
+                System.Threading.Thread.Sleep(300);
+                Check("игрок получил стоп", stopped >= 1, $"стопов: {stopped}");
+
+                // ── передача файла ──
+                AudioService.EnsureFolders();
+                byte[] data = new byte[100 * 1024];
+                new Random(7).NextBytes(data);
+                File.WriteAllBytes(fullPath, data);
+
+                using (var conn = DatabaseHelper.GetConnection())
+                {
+                    conn.Open();
+                    using var cmd = new SqliteCommand(
+                        @"INSERT INTO AudioTrack (hash, path, name, kind, gain, duration_ms, size, added_at)
+                          VALUES (@h, @p, 'Тест', 'music', 1, 0, @s, @at)", conn);
+                    cmd.Parameters.AddWithValue("@h", hash);
+                    cmd.Parameters.AddWithValue("@p", relative);
+                    cmd.Parameters.AddWithValue("@s", data.Length);
+                    cmd.Parameters.AddWithValue("@at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                    cmd.ExecuteNonQuery();
+                }
+
+                var chunks = new List<AudioChunk>();
+                guest.Events.AudioChunkReceived = chunk => { lock (chunks) chunks.Add(chunk); };
+                guest.SendAudioNeedAsync(hash).GetAwaiter().GetResult();
+
+                var wait = System.Diagnostics.Stopwatch.StartNew();
+                while (wait.ElapsedMilliseconds < 6000)
+                {
+                    lock (chunks)
+                    {
+                        if (chunks.Count > 0 && chunks.All(c => c.Total > 0) &&
+                            chunks.Select(c => c.Index).Distinct().Count() >= chunks[0].Total)
+                            break;
+                    }
+                    System.Threading.Thread.Sleep(60);
+                }
+
+                byte[] received;
+                int totalChunks;
+                lock (chunks)
+                {
+                    var ordered = chunks.OrderBy(c => c.Index).ToList();
+                    totalChunks = ordered.Count == 0 ? 0 : ordered[0].Total;
+                    received = ordered.Count == 0
+                        ? Array.Empty<byte>()
+                        : ordered.SelectMany(c => Convert.FromBase64String(c.Data)).ToArray();
+                }
+
+                Check("файл передан целиком",
+                    received.Length == data.Length && received.SequenceEqual(data),
+                    $"получено {received.Length} из {data.Length} байт, кусков {chunks.Count}/{totalChunks}");
+                Check("кусков столько, сколько объявлено", totalChunks == chunks.Count,
+                    $"{chunks.Count} из {totalChunks}");
+            }
+            catch (Exception ex)
+            {
+                Check("аудио в комнате", false, ex.Message);
+            }
+            finally
+            {
+                try
+                {
+                    using var conn = DatabaseHelper.GetConnection();
+                    conn.Open();
+                    using var cmd = new SqliteCommand("DELETE FROM AudioTrack WHERE hash = @h", conn);
+                    cmd.Parameters.AddWithValue("@h", hash);
+                    cmd.ExecuteNonQuery();
+                }
+                catch { }
+                try { if (File.Exists(fullPath)) File.Delete(fullPath); } catch { }
             }
         }
 

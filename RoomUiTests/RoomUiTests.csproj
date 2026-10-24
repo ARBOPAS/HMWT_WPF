@@ -150,12 +150,14 @@
     <Compile Include="..\HMWT_MUI\Models\MapData.cs"><Link>App\Models\MapData.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Models\InitiativeData.cs"><Link>App\Models\InitiativeData.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Models\MonsterData.cs"><Link>App\Models\MonsterData.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Models\AudioData.cs"><Link>App\Models\AudioData.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\MapService.cs"><Link>App\MapService.cs</Link></Compile>
     <!-- RoomServer связывает участника боя с персонажем по character_id
          (протокол 16): сервис нужен и тестовой сборке сетевого слоя. -->
     <Compile Include="..\HMWT_MUI\Services\InitiativeService.cs"><Link>App\InitiativeService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SchemaMigrator.cs"><Link>App\SchemaMigrator.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\AudioSettings.cs"><Link>App\AudioSettings.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\AudioService.cs"><Link>App\AudioService.cs</Link></Compile>
 
     <!-- Проверяемый интерфейс -->
     <Compile Include="..\HMWT_MUI\Controls\DmProfileEditor.xaml.cs">

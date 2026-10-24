@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using HMWT_MUI.Controls;
 using HMWT_MUI.Models;
+using HMWT_MUI.Net;
 using HMWT_MUI.Services;
 
 namespace HMWT_MUI.Windows
@@ -87,6 +88,8 @@ namespace HMWT_MUI.Windows
             stop.Click += (s, e) =>
             {
                 Host?.Stop();
+                if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+                    RoomSession.Instance.PublishAudioStop();
                 _playingId = 0;
                 Reload();
             };
@@ -215,7 +218,12 @@ namespace HMWT_MUI.Windows
                 track.Gain = gain;
                 gainLabel.Text = Math.Round(gain * 100) + "%";
                 AudioService.SetGain(track.Id, gain);
-                if (track.Id == _playingId) Host?.SetTrackGain(gain);
+                if (track.Id == _playingId)
+                {
+                    Host?.SetTrackGain(gain);
+                    if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+                        RoomSession.Instance.PublishAudioGain(track.Hash, gain);
+                }
             };
 
             gainRow.Children.Add(slider);
@@ -239,7 +247,13 @@ namespace HMWT_MUI.Windows
             {
                 if (MessageBox.Show(this, $"Удалить «{track.Name}» из библиотеки?", "Аудиотека",
                         MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                if (track.Id == _playingId) { Host?.Stop(); _playingId = 0; }
+                if (track.Id == _playingId)
+                {
+                    Host?.Stop();
+                    if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+                        RoomSession.Instance.PublishAudioStop();
+                    _playingId = 0;
+                }
                 AudioService.Delete(track);
                 Reload();
             };
@@ -271,9 +285,23 @@ namespace HMWT_MUI.Windows
             }
 
             string relative = track.Path.Replace('\\', '/').TrimStart('/');
-            host.Play("https://hmwt.audio/" + relative, track.Gain);
+            host.Play("https://hmwt.audio/" + relative, track.Gain, 0);
             _playingId = track.Id;
             Reload();
+
+            // В комнате — сразу и всем: игроки получат файл по хэшу и
+            // начнут с той же громкостью, что настроил ведущий.
+            if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+            {
+                RoomSession.Instance.PublishAudio(new AudioState
+                {
+                    Hash = track.Hash,
+                    Extension = Path.GetExtension(track.Path),
+                    Name = track.Name,
+                    Gain = track.Gain,
+                    On = true
+                });
+            }
         }
 
         private void ImportFiles()

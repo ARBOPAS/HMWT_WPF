@@ -369,7 +369,7 @@ namespace HMWT_MUI.Net
         ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.10.0";
+        public const string AppVersion = "1.3.11.0";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -408,7 +408,7 @@ namespace HMWT_MUI.Net
         /// 18 — <see cref="ZoneRollRequest"/>: хост просит владельца жетона
         /// бросить спас/проверку при входе в тёмную зону со скриптом.
         /// </summary>
-        public const int ProtocolVersion = 18;
+        public const int ProtocolVersion = 19;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -522,6 +522,13 @@ namespace HMWT_MUI.Net
         /// в тёмную зону со скриптом. Протокол 18.
         /// </summary>
         public const string ZoneRollRequest = "zone_roll_request";
+
+        /// <summary>Аудио в комнате: ведущий включил/выключил трек или поправил громкость.</summary>
+        public const string AudioPlay = "audio_play";
+        public const string AudioStop = "audio_stop";
+        public const string AudioGain = "audio_gain";
+        public const string AudioNeed = "audio_need";
+        public const string AudioChunk = "audio_chunk";
 
         /// <summary>
         /// Хост начал разведку заново (туман выключили и включили): игроки

@@ -265,6 +265,8 @@
     <Compile Include="Services\SchemaMigrator.cs" />
     <Compile Include="Services\AudioService.cs" />
     <Compile Include="Services\AudioSettings.cs" />
+    <Compile Include="Services\AudioTransfer.cs" />
+    <Compile Include="Services\AudioPlayback.cs" />
     <Compile Include="Services\SkillCatalog.cs" />
     <Compile Include="Services\RestService.cs" />
     <Compile Include="Services\UiPreferences.cs" />

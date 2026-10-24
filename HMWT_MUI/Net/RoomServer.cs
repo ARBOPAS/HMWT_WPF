@@ -103,6 +103,10 @@ namespace HMWT_MUI.Net
         /// </summary>
         private System.Threading.Timer _combatantSyncTimer;
 
+        /// <summary>Что сейчас играет в комнате (null — тишина).</summary>
+        private AudioState _audio;
+        private DateTime _audioStartedAt;
+
         /// <summary>Скрипт зоны сработал для персонажа ведущего (нет клиента).</summary>
         public event Action<ZoneRollRequest> ZoneRollRequested;
 
@@ -541,6 +545,22 @@ namespace HMWT_MUI.Net
 
                     case MsgType.MapImageRequest:
                         _ = SendMapImageToAsync(conn, msg.As<MapImageRequest>());
+                        break;
+
+                    case MsgType.AudioPlay:
+                        HandleAudioPlay(conn, msg.As<AudioPlayRequest>());
+                        break;
+
+                    case MsgType.AudioStop:
+                        HandleAudioStop(conn);
+                        break;
+
+                    case MsgType.AudioGain:
+                        HandleAudioGain(conn, msg.As<AudioGainRequest>());
+                        break;
+
+                    case MsgType.AudioNeed:
+                        _ = SendAudioToAsync(conn, msg.As<AudioNeedRequest>());
                         break;
 
                     case MsgType.MapStroke:
@@ -982,6 +1002,155 @@ namespace HMWT_MUI.Net
 
         #endregion
 
+        #region === АУДИО ===
+
+        /// <summary>Снимок «что играет» с позицией на сейчас (для опоздавших).</summary>
+        private AudioState BuildAudioSnapshot()
+        {
+            AudioState audio;
+            DateTime started;
+            lock (_stateLock) { audio = _audio; started = _audioStartedAt; }
+            if (audio == null || !audio.On) return null;
+
+            double ms = Math.Max(0, (DateTime.UtcNow - started).TotalMilliseconds);
+            return new AudioState
+            {
+                Hash = audio.Hash,
+                Extension = audio.Extension,
+                Name = audio.Name,
+                Gain = audio.Gain,
+                On = true,
+                PositionMs = (int)Math.Min(int.MaxValue, ms)
+            };
+        }
+
+        private static bool IsGameMaster(ClientConnection conn)
+            => conn?.Player?.Role == RoomRole.GameMaster;
+
+        /// <summary>Ведущий включает трек: состояние + рассылка (он сам играет локально).</summary>
+        public void PlayAudio(AudioState state)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(state.Hash)) return;
+
+            state.Extension = string.IsNullOrWhiteSpace(state.Extension) ? ".mp3" : state.Extension;
+            state.Gain = Math.Max(0, Math.Min(2, state.Gain));
+            state.On = true;
+            state.PositionMs = 0;
+
+            lock (_stateLock)
+            {
+                _audio = state;
+                _audioStartedAt = DateTime.UtcNow;
+            }
+
+            Broadcast(MsgType.AudioPlay, state);
+            Log($"аудио: «{state.Name}» для всех (громкость {state.Gain:0.00})");
+        }
+
+        public void StopAudio()
+        {
+            lock (_stateLock) { _audio = null; _audioStartedAt = default; }
+            Broadcast(MsgType.AudioStop, new AudioStopRequest());
+            Log("аудио: стоп");
+        }
+
+        public void SetAudioGain(string hash, double gain)
+        {
+            AudioState updated = null;
+            lock (_stateLock)
+            {
+                if (_audio == null || !string.Equals(_audio.Hash, hash, StringComparison.OrdinalIgnoreCase))
+                    return;
+                _audio.Gain = Math.Max(0, Math.Min(2, gain));
+                updated = new AudioState
+                {
+                    Hash = _audio.Hash,
+                    Extension = _audio.Extension,
+                    Name = _audio.Name,
+                    Gain = _audio.Gain,
+                    On = true
+                };
+            }
+
+            Broadcast(MsgType.AudioGain, updated);
+        }
+
+        private void HandleAudioPlay(ClientConnection conn, AudioPlayRequest request)
+        {
+            if (!IsGameMaster(conn) || request == null) return;
+            PlayAudio(new AudioState
+            {
+                Hash = request.Hash,
+                Extension = request.Extension,
+                Name = request.Name,
+                Gain = request.Gain,
+                On = true
+            });
+        }
+
+        private void HandleAudioStop(ClientConnection conn)
+        {
+            if (IsGameMaster(conn)) StopAudio();
+        }
+
+        private void HandleAudioGain(ClientConnection conn, AudioGainRequest request)
+        {
+            if (IsGameMaster(conn) && request != null) SetAudioGain(request.Hash, request.Gain);
+        }
+
+        /// <summary>Клиент просит файл: шлём кусками, по одному сообщению за раз.</summary>
+        private async Task SendAudioToAsync(ClientConnection conn, AudioNeedRequest request)
+        {
+            if (conn == null || request == null || string.IsNullOrWhiteSpace(request.Hash)) return;
+
+            try
+            {
+                var track = AudioService.FindByHash(request.Hash);
+                string path = AudioService.ResolvePath(track);
+                if (path == null || !File.Exists(path))
+                {
+                    Log($"аудио: файл {request.Hash} не найден у ведущего");
+                    return;
+                }
+
+                byte[] bytes = File.ReadAllBytes(path);
+                string ext = Path.GetExtension(path) ?? ".mp3";
+                const int chunk = 48 * 1024;
+                int total = Math.Max(1, (bytes.Length + chunk - 1) / chunk);
+
+                for (int i = 0; i < total; i++)
+                {
+                    int length = Math.Min(chunk, bytes.Length - i * chunk);
+                    var message = new AudioChunk
+                    {
+                        Hash = request.Hash,
+                        Extension = ext,
+                        Index = i,
+                        Total = total,
+                        Data = Convert.ToBase64String(bytes, i * chunk, length)
+                    };
+                    await SendSafeAsync(conn, new NetMessage(MsgType.AudioChunk, message))
+                        .ConfigureAwait(false);
+                    if ((i & 7) == 7) await Task.Delay(4).ConfigureAwait(false);
+                }
+
+                Log($"аудио: отдано {bytes.Length / 1024} КБ ({(conn.Player?.CharacterName ?? conn.Player?.Name ?? "игрок")})");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] аудио: {ex.Message}");
+            }
+        }
+
+        private void Broadcast(string type, object payload)
+        {
+            var message = new NetMessage(type, payload);
+            foreach (var c in _clients.Values.Where(x => x.HandshakeDone).ToList())
+                _ = SendSafeAsync(c, message);
+        }
+
+        #endregion
+
         #region === РАССЫЛКА ===
 
         /// <summary>Полный снимок: при 8 участниках это проще и надёжнее диффов.</summary>
@@ -1028,7 +1197,8 @@ namespace HMWT_MUI.Net
                     AppVersion = NetVersions.AppVersion,
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,
-                    Initiative = initiative
+                    Initiative = initiative,
+                    Audio = BuildAudioSnapshot()
                 };
             }
         }

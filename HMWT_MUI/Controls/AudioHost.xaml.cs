@@ -26,6 +26,7 @@ namespace HMWT_MUI.Controls
         private double _gain = 1;
         private string _pendingUrl;
         private double _pendingGain = 1;
+        private double _pendingStart;
         private bool _initializing;
 
         public AudioHost()
@@ -51,7 +52,7 @@ namespace HMWT_MUI.Controls
         }
 
         /// <summary>Играть файл по URL вида https://hmwt.audio/Library/….ogg.</summary>
-        public void Play(string url, double gain)
+        public void Play(string url, double gain, double startSeconds = 0)
         {
             if (string.IsNullOrWhiteSpace(url)) return;
 
@@ -60,11 +61,12 @@ namespace HMWT_MUI.Controls
             {
                 _pendingUrl = url;
                 _pendingGain = _gain;
+                _pendingStart = Math.Max(0, startSeconds);
                 return;
             }
 
             _pendingUrl = null;
-            Run($"window.hmwtPlay({JsonSerializer.Serialize(url)}, {Num(_gain)})");
+            Run($"window.hmwtPlay({JsonSerializer.Serialize(url)}, {Num(_gain)}, {Num(Math.Max(0, startSeconds))})");
         }
 
         public void Stop()
@@ -96,7 +98,7 @@ namespace HMWT_MUI.Controls
                     if (_master >= 0) SetMaster(_master);
                     SetTrackGain(_gain);
                     if (!string.IsNullOrWhiteSpace(_pendingUrl))
-                        Play(_pendingUrl, _pendingGain);
+                        Play(_pendingUrl, _pendingGain, _pendingStart);
                 };
 
                 Web.CoreWebView2.Navigate($"https://{HostName}/host.html");
@@ -133,12 +135,16 @@ namespace HMWT_MUI.Controls
     el.volume = Math.max(0, Math.min(1, v));
   }
 
-  window.hmwtPlay = (url, g) => {
+  window.hmwtPlay = (url, g, start) => {
     gain = g; apply();
     el.loop = true;
     el.src = url;
-    el.currentTime = 0;
-    el.play().catch(() => {});
+    const seek = () => {
+      try { el.currentTime = Math.max(0, start || 0); } catch (e) {}
+      el.play().catch(() => {});
+    };
+    if (el.readyState >= 1) seek();
+    else el.addEventListener('loadedmetadata', seek, { once: true });
   };
 
   window.hmwtStop = () => {

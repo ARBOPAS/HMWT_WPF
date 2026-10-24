@@ -613,6 +613,55 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("char")] public int CharacterId { get; set; }
     }
 
+    /// <summary>
+    /// Что сейчас играет в комнате. Позиция считается от момента старта и
+    /// приходит в снимке, чтобы опоздавший игрок попал в середину трека.
+    /// </summary>
+    public sealed class AudioState
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+        [JsonPropertyName("ext")] public string Extension { get; set; } = ".mp3";
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("gain")] public double Gain { get; set; } = 1;
+        [JsonPropertyName("pos")] public int PositionMs { get; set; }
+        [JsonPropertyName("on")] public bool On { get; set; }
+    }
+
+    /// <summary>Ведущий включил трек; клиенты просят файл, если его нет.</summary>
+    public sealed class AudioPlayRequest
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+        [JsonPropertyName("ext")] public string Extension { get; set; } = ".mp3";
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("gain")] public double Gain { get; set; } = 1;
+    }
+
+    public sealed class AudioGainRequest
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+        [JsonPropertyName("gain")] public double Gain { get; set; } = 1;
+    }
+
+    public sealed class AudioNeedRequest
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+    }
+
+    public sealed class AudioStopRequest { }
+
+    /// <summary>
+    /// Кусок аудиофайла. Без gzip: mp3/ogg уже сжаты, а base64 и так растит
+    /// на треть — второй слой сжатия только тратит CPU.
+    /// </summary>
+    public sealed class AudioChunk
+    {
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+        [JsonPropertyName("ext")] public string Extension { get; set; } = ".mp3";
+        [JsonPropertyName("i")] public int Index { get; set; }
+        [JsonPropertyName("n")] public int Total { get; set; }
+        [JsonPropertyName("d")] public string Data { get; set; } = "";
+    }
+
     /// <summary>Полный снимок состояния комнаты (до 8 человек это проще и надёжнее диффов).</summary>
     public sealed class RoomSnapshot
     {
@@ -626,5 +675,8 @@ namespace HMWT_MUI.Net
 
         /// <summary>Трекер инициативы ведущего. У игроков — только для показа.</summary>
         [JsonPropertyName("init")] public InitiativeState Initiative { get; set; }
+
+        /// <summary>Что играет в комнате (null — тишина).</summary>
+        [JsonPropertyName("audio")] public AudioState Audio { get; set; }
     }
 }

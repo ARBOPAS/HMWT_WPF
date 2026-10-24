@@ -211,6 +211,14 @@ namespace HMWT_MUI.Net
         /// </summary>
         public event Action<ZoneRollRequest> ZoneRollRequested;
 
+        /// <summary>Аудио в комнате: ведущий включил/остановил/поправил громкость.</summary>
+        public event Action<AudioState> AudioReceived;
+        public event Action AudioStopped;
+        public event Action<AudioState> AudioGainChanged;
+        public event Action<AudioChunk> AudioChunkReceived;
+
+        private string _lastAudioHash;
+
         /// <summary>Пришёл пройденный путь жетона от другого участника.</summary>
         public event Action<int, List<MapTrailPoint>> MapTrailReceived;
 
@@ -353,6 +361,10 @@ namespace HMWT_MUI.Net
                     SnapshotReceived?.Invoke(snap);
                     StateChanged?.Invoke();
 
+                    // Что играет в комнате: опоздавший должен попасть в трек,
+                    // а не сидеть в тишине до следующей команды ведущего.
+                    ApplySnapshotAudio(snap?.Audio);
+
                     // В снимке только ПУТИ к аватарам, а самих файлов у нового
                     // игрока нет: просим недостающие у хоста
                     RequestMissingPhotos();
@@ -404,6 +416,18 @@ namespace HMWT_MUI.Net
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _client.Events.ShapeLiveReceived = (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
                 _client.Events.ZoneRollReceived = r => ZoneRollRequested?.Invoke(r);
+                _client.Events.AudioPlayed = a =>
+                {
+                    _lastAudioHash = a?.Hash;
+                    AudioReceived?.Invoke(a);
+                };
+                _client.Events.AudioStopped = () =>
+                {
+                    _lastAudioHash = null;
+                    AudioStopped?.Invoke();
+                };
+                _client.Events.AudioGainChanged = a => AudioGainChanged?.Invoke(a);
+                _client.Events.AudioChunkReceived = c => AudioChunkReceived?.Invoke(c);
                 _client.Events.MapTrailReceived = (id, points) => MapTrailReceived?.Invoke(id, points);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -950,6 +974,52 @@ namespace HMWT_MUI.Net
         }
 
         /// <summary>Ведущий ведёт фигуру мышью: рассылаем только координаты.</summary>
+        /// <summary>
+        /// Ведущий включает трек. Хост играет у себя сам, а сервер рассылает
+        /// состояние; клиенты просят файл, если его нет в кэше.
+        /// </summary>
+        public void PublishAudio(AudioState state)
+        {
+            if (!IsActive || !IsHost || state == null) return;
+            _server?.PlayAudio(state);
+        }
+
+        public void PublishAudioStop()
+        {
+            if (!IsActive || !IsHost) return;
+            _server?.StopAudio();
+        }
+
+        public void PublishAudioGain(string hash, double gain)
+        {
+            if (!IsActive || !IsHost) return;
+            _server?.SetAudioGain(hash, gain);
+        }
+
+        /// <summary>Клиент просит файл у ведущего.</summary>
+        public void RequestAudio(string hash)
+        {
+            if (!IsActive || IsHost || string.IsNullOrWhiteSpace(hash) || _client == null) return;
+            _ = _client.SendAudioNeedAsync(hash);
+        }
+
+        private void ApplySnapshotAudio(AudioState audio)
+        {
+            if (audio == null || !audio.On)
+            {
+                if (_lastAudioHash != null)
+                {
+                    _lastAudioHash = null;
+                    AudioStopped?.Invoke();
+                }
+                return;
+            }
+
+            if (string.Equals(_lastAudioHash, audio.Hash, StringComparison.OrdinalIgnoreCase)) return;
+            _lastAudioHash = audio.Hash;
+            AudioReceived?.Invoke(audio);
+        }
+
         public void PublishShapeMoveLive(int shapeId, double x, double y)
         {
             if (!IsActive || !IsHost || _server == null || shapeId <= 0) return;
