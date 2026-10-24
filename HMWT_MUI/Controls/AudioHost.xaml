@@ -1,12 +1,8 @@
 <UserControl x:Class="HMWT_MUI.Controls.AudioHost"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              Width="2" Height="2" Opacity="0.01" IsHitTestVisible="False">
-    <!-- Крошечный, но видимый WebView2: у скрытого Chromium душит таймеры
-         и может приостановить воспроизведение. Звук живёт здесь, а не в WPF:
-         только Web Audio даёт громкость на трек и точный старт. -->
-    <Grid>
-        <wv2:WebView2 x:Name="Web" Width="2" Height="2"/>
-    </Grid>
+    <!-- Звук идёт через WPF MediaPlayer: он не зависит от видимости WebView2
+         и автоплей-политики Chromium. В свёрнутом окне музыка продолжается. -->
+    <Grid/>
 </UserControl>

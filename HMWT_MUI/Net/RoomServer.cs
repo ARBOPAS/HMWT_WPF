@@ -107,6 +107,27 @@ namespace HMWT_MUI.Net
         private AudioState _audio;
         private DateTime _audioStartedAt;
 
+        /// <summary>Хост тоже должен слышать трек, включённый игроком-диджеем.</summary>
+        public event Action<AudioState> AudioStarted;
+        public event Action AudioStopped;
+        public event Action<AudioState> AudioGainChanged;
+
+        private sealed class AudioUpload
+        {
+            public string Extension = ".mp3";
+            public string Name = "";
+            public double Gain = 1;
+            public byte[][] Parts;
+            public int Total;
+            public int Received;
+        }
+
+        private readonly Dictionary<string, AudioUpload> _audioUploads =
+            new Dictionary<string, AudioUpload>(StringComparer.OrdinalIgnoreCase);
+        private readonly object _audioUploadLock = new object();
+        private AudioState _pendingAudio;
+        private string _pendingAudioFrom;
+
         /// <summary>Скрипт зоны сработал для персонажа ведущего (нет клиента).</summary>
         public event Action<ZoneRollRequest> ZoneRollRequested;
 
@@ -1077,25 +1098,107 @@ namespace HMWT_MUI.Net
 
         private void HandleAudioPlay(ClientConnection conn, AudioPlayRequest request)
         {
-            if (!IsGameMaster(conn) || request == null) return;
-            PlayAudio(new AudioState
+            if (conn == null || request == null || string.IsNullOrWhiteSpace(request.Hash)) return;
+
+            var state = new AudioState
             {
                 Hash = request.Hash,
-                Extension = request.Extension,
-                Name = request.Name,
-                Gain = request.Gain,
+                Extension = string.IsNullOrWhiteSpace(request.Extension) ? ".mp3" : request.Extension,
+                Name = request.Name ?? "",
+                Gain = Math.Max(0, Math.Min(2, request.Gain)),
                 On = true
-            });
+            };
+
+            // Игрок-диджей может включить свой трек. Если у ведущего такого
+            // файла нет — просим его у автора и только потом раздаём всем.
+            if (AudioService.FindByHash(state.Hash) == null)
+            {
+                _pendingAudio = state;
+                _pendingAudioFrom = conn.PlayerId;
+                _ = SendSafeAsync(conn, new NetMessage(MsgType.AudioNeed,
+                    new AudioNeedRequest { Hash = state.Hash }));
+                Log($"аудио: файла нет у ведущего, просим у {conn.Player?.CharacterName ?? "игрока"}");
+                return;
+            }
+
+            PlayAudio(state);
         }
 
         private void HandleAudioStop(ClientConnection conn)
         {
-            if (IsGameMaster(conn)) StopAudio();
+            if (conn != null) StopAudio();
         }
 
         private void HandleAudioGain(ClientConnection conn, AudioGainRequest request)
         {
-            if (IsGameMaster(conn) && request != null) SetAudioGain(request.Hash, request.Gain);
+            if (conn != null && request != null) SetAudioGain(request.Hash, request.Gain);
+        }
+
+        /// <summary>
+        /// Игрок-диджей присылает свой файл кусками. Собираем, кладём в
+        /// библиотеку ведущего и запускаем трек для всех.
+        /// </summary>
+        private void HandleAudioChunk(ClientConnection conn, AudioChunk chunk)
+        {
+            if (conn == null || chunk == null || string.IsNullOrWhiteSpace(chunk.Hash)) return;
+
+            byte[] data = null;
+            string ext = ".mp3";
+            string name = "";
+            double gain = 1;
+
+            lock (_audioUploadLock)
+            {
+                if (!_audioUploads.TryGetValue(chunk.Hash, out var upload))
+                {
+                    if (chunk.Total <= 0 || chunk.Total > 4096) return;
+                    upload = new AudioUpload
+                    {
+                        Parts = new byte[chunk.Total][],
+                        Total = chunk.Total,
+                        Extension = string.IsNullOrWhiteSpace(chunk.Extension) ? ".mp3" : chunk.Extension,
+                        Name = _pendingAudio != null &&
+                               string.Equals(_pendingAudio.Hash, chunk.Hash, StringComparison.OrdinalIgnoreCase)
+                            ? _pendingAudio.Name : "",
+                        Gain = _pendingAudio != null &&
+                               string.Equals(_pendingAudio.Hash, chunk.Hash, StringComparison.OrdinalIgnoreCase)
+                            ? _pendingAudio.Gain : 1
+                    };
+                    _audioUploads[chunk.Hash] = upload;
+                }
+
+                if (chunk.Index < 0 || chunk.Index >= upload.Parts.Length) return;
+                if (upload.Parts[chunk.Index] == null)
+                {
+                    upload.Parts[chunk.Index] = Convert.FromBase64String(chunk.Data ?? "");
+                    upload.Received++;
+                }
+
+                if (upload.Received < upload.Total) return;
+
+                using var buffer = new MemoryStream();
+                foreach (var part in upload.Parts)
+                {
+                    if (part == null) return;
+                    buffer.Write(part, 0, part.Length);
+                }
+                data = buffer.ToArray();
+                ext = upload.Extension;
+                name = upload.Name;
+                gain = upload.Gain;
+                _audioUploads.Remove(chunk.Hash);
+            }
+
+            var track = AudioService.ImportBytes(chunk.Hash, ext, name, gain, data);
+            if (track == null) return;
+
+            if (_pendingAudio != null &&
+                string.Equals(_pendingAudio.Hash, chunk.Hash, StringComparison.OrdinalIgnoreCase))
+            {
+                var state = _pendingAudio;
+                _pendingAudio = null;
+                PlayAudio(state);
+            }
         }
 
         /// <summary>Клиент просит файл: шлём кусками, по одному сообщению за раз.</summary>

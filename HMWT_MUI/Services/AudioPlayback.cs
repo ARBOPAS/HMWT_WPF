@@ -31,6 +31,15 @@ namespace HMWT_MUI.Services
         private static void Play(AudioState state)
         {
             if (state == null || string.IsNullOrWhiteSpace(state.Hash)) return;
+            // Если этот трек уже играет (например, только что включил сам
+            // диджей), не перезапускаем его с нуля.
+            if (string.Equals(_currentHash, state.Hash, StringComparison.OrdinalIgnoreCase) &&
+                Host?.IsPlaying == true)
+            {
+                Host.SetTrackGain(state.Gain);
+                return;
+            }
+
             _currentHash = state.Hash;
 
             string path = FindFile(state.Hash, state.Extension);

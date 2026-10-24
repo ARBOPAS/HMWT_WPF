@@ -1,165 +1,176 @@
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows.Controls;
+using System.Windows.Media;
 using HMWT_MUI.Services;
-using Microsoft.Web.WebView2.Core;
 
 namespace HMWT_MUI.Controls
 {
     /// <summary>
-    /// Звук приложения: WebView2 с одним аудиоэлементом. Громкость трека и
-    /// общая громкость перемножаются, поэтому у каждого файла свой ползунок.
+    /// Звук приложения через WPF MediaPlayer.
     ///
-    /// Один хост на всё приложение (живёт в MainWindow), чтобы музыка не
-    /// обрывалась при закрытии окна аудиотеки и чтобы в будущем команды из
-    /// комнаты играли в тот же источник.
+    /// Изначально здесь был WebView2 с Web Audio, но на практике звук не
+    /// запускался: Chromium считал крошечный WebView невидимым/окклюдированным
+    /// и приостанавливал медиа (слышно было только 0.1 с при закрытии окна).
+    /// MediaPlayer не зависит от видимости и автоплей-политики, работает в
+    /// свёрнутом окне и на виртуалках.
+    ///
+    /// Громкость трека и общая громкость перемножаются и ограничиваются
+    /// единицей: громче исходного файла MediaPlayer не умеет.
     /// </summary>
     public partial class AudioHost : UserControl
     {
-        private const string HostName = "hmwt.audio";
-
-        private bool _ready;
-        private double _master = -1;
+        private readonly MediaPlayer _player = new MediaPlayer();
+        private double _master = 0.8;
         private double _gain = 1;
-        private string _pendingUrl;
-        private double _pendingGain = 1;
         private double _pendingStart;
-        private bool _initializing;
+        private bool _hasTrack;
 
         public AudioHost()
         {
             InitializeComponent();
-            Loaded += async (_, __) => await InitAsync();
+
+            _player.MediaOpened += (_, __) =>
+            {
+                if (_hasTrack && _pendingStart > 0.05)
+                {
+                    try { _player.Position = TimeSpan.FromSeconds(_pendingStart); }
+                    catch { }
+                }
+                _pendingStart = 0;
+                ApplyVolume();
+                _player.Play();
+                Log($"opened, duration={SafeDuration()}, pos={_player.Position.TotalSeconds:0.00}, " +
+                    $"volume={_player.Volume:0.00}");
+            };
+            _player.MediaEnded += (_, __) =>
+            {
+                // Пока всегда зациклено: музыка/эмбиент. Плейлист переключит
+                // трек сам и пересоздаст источник.
+                try
+                {
+                    _player.Position = TimeSpan.Zero;
+                    _player.Play();
+                }
+                catch { }
+            };
+            _player.MediaFailed += (_, e) =>
+            {
+                Log($"FAILED: {e.ErrorException?.Message ?? "media failed"}");
+            };
+
+            Loaded += (_, __) => ApplyVolume();
         }
 
-        public bool IsReady => _ready;
+        public bool IsPlaying => _hasTrack;
 
-        /// <summary>Общая громкость (0…1).</summary>
-        public void SetMaster(double volume)
+        public TimeSpan Position
         {
-            _master = Math.Max(0, Math.Min(1, volume));
-            Run($"window.hmwtMaster({Num(_master)})");
+            get { try { return _player.Position; } catch { return TimeSpan.Zero; } }
         }
 
-        /// <summary>Громкость текущего трека (0…2).</summary>
-        public void SetTrackGain(double gain)
-        {
-            _gain = Math.Max(0, Math.Min(2, gain));
-            Run($"window.hmwtGain({Num(_gain)})");
-        }
-
-        /// <summary>Играть файл по URL вида https://hmwt.audio/Library/….ogg.</summary>
+        /// <summary>Играть по URL аудио-хоста (https://hmwt.audio/...) или по пути.</summary>
         public void Play(string url, double gain, double startSeconds = 0)
         {
-            if (string.IsNullOrWhiteSpace(url)) return;
-
-            _gain = Math.Max(0, Math.Min(2, gain));
-            if (!_ready)
+            string path = ResolvePath(url);
+            if (path == null)
             {
-                _pendingUrl = url;
-                _pendingGain = _gain;
-                _pendingStart = Math.Max(0, startSeconds);
+                Log($"не найден файл: {url}");
+                return;
+            }
+            PlayFile(path, gain, startSeconds);
+        }
+
+        public void PlayFile(string path, double gain, double startSeconds)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                Log($"нет файла: {path}");
                 return;
             }
 
-            _pendingUrl = null;
-            Run($"window.hmwtPlay({JsonSerializer.Serialize(url)}, {Num(_gain)}, {Num(Math.Max(0, startSeconds))})");
+            _gain = Math.Max(0, Math.Min(2, gain));
+            _pendingStart = Math.Max(0, startSeconds);
+            _hasTrack = true;
+
+            try
+            {
+                _player.Close();
+                _player.Open(new Uri(path, UriKind.Absolute));
+                Log($"open {Path.GetFileName(path)} gain={_gain:0.00} start={_pendingStart:0.00}");
+            }
+            catch (Exception ex)
+            {
+                Log($"open error: {ex.Message}");
+            }
         }
 
         public void Stop()
         {
-            _pendingUrl = null;
-            Run("window.hmwtStop()");
-        }
-
-        private async Task InitAsync()
-        {
-            if (_ready || _initializing) return;
-            _initializing = true;
-
+            _hasTrack = false;
+            _pendingStart = 0;
             try
             {
-                AudioService.EnsureFolders();
-                string page = Path.Combine(AudioService.Root, "host.html");
-                File.WriteAllText(page, PageHtml(), new System.Text.UTF8Encoding(false));
-
-                var environment = await Helpers.WebView2Host.GetEnvironmentAsync();
-                await Web.EnsureCoreWebView2Async(environment);
-
-                Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    HostName, AudioService.Root, CoreWebView2HostResourceAccessKind.Allow);
-                Web.CoreWebView2.NavigationCompleted += (_, __) =>
-                {
-                    _ready = true;
-                    _initializing = false;
-                    if (_master >= 0) SetMaster(_master);
-                    SetTrackGain(_gain);
-                    if (!string.IsNullOrWhiteSpace(_pendingUrl))
-                        Play(_pendingUrl, _pendingGain, _pendingStart);
-                };
-
-                Web.CoreWebView2.Navigate($"https://{HostName}/host.html");
+                _player.Stop();
+                _player.Close();
             }
-            catch (Exception ex)
+            catch { }
+            Log("stop");
+        }
+
+        public void SetMaster(double volume)
+        {
+            _master = Math.Max(0, Math.Min(1, volume));
+            ApplyVolume();
+        }
+
+        public void SetTrackGain(double gain)
+        {
+            _gain = Math.Max(0, Math.Min(2, gain));
+            ApplyVolume();
+        }
+
+        private void ApplyVolume()
+        {
+            try { _player.Volume = Math.Max(0, Math.Min(1, _master * _gain)); }
+            catch { }
+        }
+
+        private string ResolvePath(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return null;
+
+            const string prefix = "https://hmwt.audio/";
+            if (url.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                _initializing = false;
-                Debug.WriteLine($"[AudioHost] запуск: {ex.Message}");
+                string relative = Uri.UnescapeDataString(url.Substring(prefix.Length));
+                return Path.Combine(AudioService.Root, relative.Replace('/', '\\'));
             }
+
+            return File.Exists(url) ? url : null;
         }
 
-        private void Run(string js)
+        private string SafeDuration()
         {
-            if (!_ready) return;
-            try { Web.CoreWebView2.ExecuteScriptAsync(js); }
-            catch (Exception ex) { Debug.WriteLine($"[AudioHost] {js}: {ex.Message}"); }
+            try
+            {
+                return _player.NaturalDuration.HasTimeSpan
+                    ? _player.NaturalDuration.TimeSpan.TotalSeconds.ToString("0.0") + " с"
+                    : "?";
+            }
+            catch { return "?"; }
         }
 
-        private static string Num(double value)
-            => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-
-        private static string PageHtml()
+        private static void Log(string message)
         {
-            return @"<!DOCTYPE html>
-<html><head><meta charset=""utf-8""><style>html,body{margin:0;background:transparent}</style></head>
-<body>
-<audio id=""a"" preload=""auto""></audio>
-<script>
-  const el = document.getElementById('a');
-  let master = 0.8, gain = 1;
-
-  function apply() {
-    const v = master * gain;
-    el.volume = Math.max(0, Math.min(1, v));
-  }
-
-  window.hmwtPlay = (url, g, start) => {
-    gain = g; apply();
-    el.loop = true;
-    el.src = url;
-    const seek = () => {
-      try { el.currentTime = Math.max(0, start || 0); } catch (e) {}
-      el.play().catch(() => {});
-    };
-    if (el.readyState >= 1) seek();
-    else el.addEventListener('loadedmetadata', seek, { once: true });
-  };
-
-  window.hmwtStop = () => {
-    el.pause();
-    el.removeAttribute('src');
-    el.load();
-  };
-
-  window.hmwtMaster = (g) => { master = g; apply(); };
-  window.hmwtGain = (g) => { gain = g; apply(); };
-
-  // Разблокировка после первого жеста (страховка от autoplay-политики).
-  document.addEventListener('click', () => el.play().catch(() => {}), { once: true });
-</script>
-</body></html>";
+            try
+            {
+                string path = Path.Combine(Path.GetTempPath(), "hmwt-audio.log");
+                File.AppendAllText(path,
+                    $"{DateTime.Now:HH:mm:ss.fff} {message}{Environment.NewLine}",
+                    new System.Text.UTF8Encoding(false));
+            }
+            catch { }
         }
     }
 }

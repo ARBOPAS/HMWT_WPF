@@ -82,6 +82,47 @@ namespace HMWT_MUI.Services
             }
         }
 
+        /// <summary>
+        /// Принять файл от игрока-диджея: ведущий сохраняет его в библиотеку,
+        /// чтобы отдать остальным. Хэш и имя приходят от клиента.
+        /// </summary>
+        public static AudioTrackData ImportBytes(string hash, string extension, string name,
+            double gain, byte[] bytes)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(hash) || bytes == null || bytes.Length == 0) return null;
+
+                var existing = FindByHash(hash);
+                if (existing != null) return existing;
+
+                EnsureFolders();
+                string ext = string.IsNullOrWhiteSpace(extension) ? ".mp3" : extension.ToLowerInvariant();
+                if (!ext.StartsWith(".")) ext = "." + ext;
+                string relative = Path.Combine("Library", hash + ext);
+                string target = Path.Combine(Root, relative);
+                if (!File.Exists(target)) File.WriteAllBytes(target, bytes);
+
+                var track = new AudioTrackData
+                {
+                    Hash = hash,
+                    Path = relative,
+                    Name = string.IsNullOrWhiteSpace(name) ? "Трек из комнаты" : name,
+                    Kind = "music",
+                    Gain = Math.Max(0, Math.Min(2, gain)),
+                    Size = bytes.Length,
+                    AddedAt = DateTime.Now
+                };
+                track.Id = Insert(track);
+                return track.Id > 0 ? track : null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Audio] приём файла: {ex.Message}");
+                return null;
+            }
+        }
+
         public static List<AudioTrackData> List()
         {
             var list = new List<AudioTrackData>();

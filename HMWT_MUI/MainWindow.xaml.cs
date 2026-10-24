@@ -73,6 +73,34 @@ namespace HMWT_MUI
             };
             Loaded += (_, __) => AudioHost.SetMaster(AudioSettings.Master);
 
+            // Отладочный запуск звука: HMWT_DEBUG_AUDIO=<путь к файлу>.
+            // Пишет в %TEMP%\hmwt-audio.log, играет ли MediaPlayer.
+            string debugAudio = Environment.GetEnvironmentVariable("HMWT_DEBUG_AUDIO");
+            if (!string.IsNullOrWhiteSpace(debugAudio))
+            {
+                Loaded += (_, __) =>
+                {
+                    AudioHost.PlayFile(debugAudio, 1, 0);
+                    var timer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromSeconds(2)
+                    };
+                    timer.Tick += (s2, e2) =>
+                    {
+                        timer.Stop();
+                        try
+                        {
+                            System.IO.File.AppendAllText(
+                                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "hmwt-audio.log"),
+                                $"debug position {AudioHost.Position.TotalSeconds:0.00}{Environment.NewLine}",
+                                new System.Text.UTF8Encoding(false));
+                        }
+                        catch { }
+                    };
+                    timer.Start();
+                };
+            }
+
             SetupSettingsMenu();
 
 

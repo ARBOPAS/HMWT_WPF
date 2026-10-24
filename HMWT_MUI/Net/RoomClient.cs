@@ -41,6 +41,9 @@ namespace HMWT_MUI.Net
         /// <summary>Кусок аудиофайла для локального кэша.</summary>
         public Action<AudioChunk> AudioChunkReceived { get; set; }
 
+        /// <summary>Ведущий просит прислать файл (трек включил игрок-диджей).</summary>
+        public Action<string> AudioNeeded { get; set; }
+
         /// <summary>Пришёл путь жетона от другого участника.</summary>
         public Action<int, List<MapTrailPoint>> MapTrailReceived { get; set; }
 
@@ -493,6 +496,11 @@ namespace HMWT_MUI.Net
                         if (audioChunk != null) Events?.AudioChunkReceived?.Invoke(audioChunk);
                         break;
 
+                    case MsgType.AudioNeed:
+                        var audioNeed = msg.As<AudioNeedRequest>();
+                        if (audioNeed != null) Events?.AudioNeeded?.Invoke(audioNeed.Hash);
+                        break;
+
                     case MsgType.MapTrail:
                         var trail = msg.As<MapTrailMessage>();
                         if (trail?.Points != null)
@@ -643,6 +651,10 @@ namespace HMWT_MUI.Net
                 Hash = hash ?? "",
                 Gain = gain
             }));
+
+        /// <summary>Кусок файла ведущему (играет игрок-диджей).</summary>
+        public Task SendAudioChunkAsync(AudioChunk chunk)
+            => SendAsync(new NetMessage(MsgType.AudioChunk, chunk));
 
         /// <summary>Игрок просит файл, которого нет в кэше.</summary>
         public Task SendAudioNeedAsync(string hash)

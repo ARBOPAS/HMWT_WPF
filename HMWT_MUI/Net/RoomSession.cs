@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
+using HMWT_MUI.Services;
 
 namespace HMWT_MUI.Net
 {
@@ -292,6 +294,9 @@ namespace HMWT_MUI.Net
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.ShapeMovedLive += (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
                 _server.ZoneRollRequested += r => ZoneRollRequested?.Invoke(r);
+                _server.AudioStarted += a => AudioReceived?.Invoke(a);
+                _server.AudioStopped += () => AudioStopped?.Invoke();
+                _server.AudioGainChanged += a => AudioGainChanged?.Invoke(a);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
@@ -428,6 +433,7 @@ namespace HMWT_MUI.Net
                 };
                 _client.Events.AudioGainChanged = a => AudioGainChanged?.Invoke(a);
                 _client.Events.AudioChunkReceived = c => AudioChunkReceived?.Invoke(c);
+                _client.Events.AudioNeeded = hash => _ = UploadAudioAsync(hash);
                 _client.Events.MapTrailReceived = (id, points) => MapTrailReceived?.Invoke(id, points);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -695,6 +701,9 @@ namespace HMWT_MUI.Net
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.ShapeMovedLive += (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
                 _server.ZoneRollRequested += r => ZoneRollRequested?.Invoke(r);
+                _server.AudioStarted += a => AudioReceived?.Invoke(a);
+                _server.AudioStopped += () => AudioStopped?.Invoke();
+                _server.AudioGainChanged += a => AudioGainChanged?.Invoke(a);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
@@ -980,20 +989,56 @@ namespace HMWT_MUI.Net
         /// </summary>
         public void PublishAudio(AudioState state)
         {
-            if (!IsActive || !IsHost || state == null) return;
-            _server?.PlayAudio(state);
+            if (!IsActive || state == null) return;
+            if (IsHost) { _server?.PlayAudio(state); return; }
+            _ = _client?.SendAudioPlayAsync(state);
         }
 
         public void PublishAudioStop()
         {
-            if (!IsActive || !IsHost) return;
-            _server?.StopAudio();
+            if (!IsActive) return;
+            if (IsHost) { _server?.StopAudio(); return; }
+            _ = _client?.SendAudioStopAsync();
         }
 
         public void PublishAudioGain(string hash, double gain)
         {
-            if (!IsActive || !IsHost) return;
-            _server?.SetAudioGain(hash, gain);
+            if (!IsActive) return;
+            if (IsHost) { _server?.SetAudioGain(hash, gain); return; }
+            _ = _client?.SendAudioGainAsync(hash, gain);
+        }
+
+        /// <summary>Игрок-диджей отдаёт свой файл ведущему, чтобы его получили все.</summary>
+        private async Task UploadAudioAsync(string hash)
+        {
+            try
+            {
+                var track = AudioService.FindByHash(hash);
+                string path = AudioService.ResolvePath(track);
+                if (path == null || !File.Exists(path)) return;
+
+                byte[] bytes = File.ReadAllBytes(path);
+                const int size = 48 * 1024;
+                int total = Math.Max(1, (bytes.Length + size - 1) / size);
+                for (int i = 0; i < total; i++)
+                {
+                    int length = Math.Min(size, bytes.Length - i * size);
+                    await _client.SendAudioChunkAsync(new AudioChunk
+                    {
+                        Hash = hash,
+                        Extension = Path.GetExtension(path),
+                        Index = i,
+                        Total = total,
+                        Data = Convert.ToBase64String(bytes, i * size, length)
+                    });
+                    if ((i & 7) == 7) await Task.Delay(4);
+                }
+                Debug.WriteLine($"[RoomSession] аудио отправлено ведущему: {bytes.Length / 1024} КБ");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomSession] аудио-отправка: {ex.Message}");
+            }
         }
 
         /// <summary>Клиент просит файл у ведущего.</summary>
