@@ -1139,7 +1139,10 @@ namespace HMWT_MUI.Views
                         radius = s.RadiusCells,
                         angle = s.Angle,
                         color = s.Color,
-                        label = s.Label ?? ""
+                        label = s.Label ?? "",
+                        // Скрипт тёмной зоны: подпись для меню ПКМ.
+                        script = s.ScriptKind ?? "",
+                        scriptLabel = ZoneScriptLabel(s)
                     }).ToList(),
                     walls = _scene.Walls.Select(w => new
                     {
@@ -1821,6 +1824,39 @@ namespace HMWT_MUI.Views
             PushWebMap();
         }
 
+        private static string ZoneScriptLabel(MapShapeData shape)
+        {
+            if (shape == null || string.IsNullOrWhiteSpace(shape.ScriptKind)) return "";
+
+            string ability = (shape.ScriptAbility ?? "").ToUpperInvariant();
+            string shortName = ability switch
+            {
+                "STR" => "СИЛ", "DEX" => "ЛОВ", "CON" => "ТЕЛ",
+                "INT" => "ИНТ", "WIS" => "МДР", "CHA" => "ХАР",
+                _ => "ЛОВ"
+            };
+
+            string what;
+            if (string.Equals(shape.ScriptKind, "save", StringComparison.OrdinalIgnoreCase))
+            {
+                what = "спас " + shortName;
+            }
+            else if (!string.IsNullOrWhiteSpace(shape.ScriptSkill))
+            {
+                var skill = Services.SkillCatalog.All.FirstOrDefault(k =>
+                    string.Equals(k.Key, shape.ScriptSkill, StringComparison.OrdinalIgnoreCase));
+                what = "проверка " + (string.IsNullOrWhiteSpace(skill?.Russian) ? shape.ScriptSkill : skill.Russian);
+            }
+            else
+            {
+                what = "проверка " + shortName;
+            }
+
+            if (shape.ScriptDC > 0) what += " · DC " + shape.ScriptDC;
+            if (!string.IsNullOrWhiteSpace(shape.ScriptName)) what = shape.ScriptName.Trim() + " · " + what;
+            return what;
+        }
+
         private static List<string> ParseTokenConditions(string text)
         {
             var list = new List<string>();
@@ -2060,6 +2096,11 @@ namespace HMWT_MUI.Views
                     shape.Color = value.Trim();
                     break;
 
+
+                case "script":
+                    if (!_isDm) return;
+                    if (!Windows.ZoneScriptWindow.Edit(Window.GetWindow(this), shape)) return;
+                    break;
 
                 case "delete":
                     CommitShape(shape, "delete");

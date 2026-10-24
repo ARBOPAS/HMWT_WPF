@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 
@@ -101,6 +102,11 @@ namespace HMWT_MUI
                 // Масштаб интерфейса читаем один раз при запуске: все окна,
                 // которые откроются позже, получат уже готовое значение
                 Services.UiScaleManager.Initialize();
+
+                // Скрипты тёмных зон: ведущий просит бросить спас/проверку,
+                // игрок бросает от своего имени. Подписка живёт всё приложение,
+                // поэтому работает и со свёрнутым окном.
+                Net.RoomSession.Instance.ZoneRollRequested += OnZoneRollRequested;
             }
             catch (Exception ex)
             {
@@ -108,6 +114,37 @@ namespace HMWT_MUI
                 System.Diagnostics.Debug.WriteLine($"[App] отпечаток справочников: {ex.Message}");
             }
 
+        }
+
+        /// <summary>
+        /// Скрипт тёмной зоны: жетон игрока вошёл в зону — бросаем спас или
+        /// проверку по его листу и отправляем в общую ленту от его имени.
+        /// </summary>
+        private void OnZoneRollRequested(Net.ZoneRollRequest request)
+        {
+            if (request == null) return;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    var session = Net.RoomSession.Instance;
+                    var me = session.GetPlayers().FirstOrDefault(p => p.Id == session.MyPlayerId);
+                    int characterId = me?.CharacterId ?? 0;
+                    if (characterId <= 0) return;
+                    if (request.CharacterId > 0 && request.CharacterId != characterId) return;
+
+                    var result = Services.ZoneRollService.Roll(characterId, request.Kind,
+                        request.Ability, request.Skill, request.DC, request.Name);
+                    if (string.IsNullOrWhiteSpace(result.Formula)) return;
+
+                    session.PublishRoll(result.Formula, result.Description, result.Total, result.Rolls);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Зона] бросок: {ex.Message}");
+                }
+            }));
         }
     }
 }

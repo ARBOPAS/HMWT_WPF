@@ -134,6 +134,25 @@ namespace HMWT_MUI.Models
 
         /// <summary>Подпись внутри фигуры (например, название заклинания).</summary>
         public string Label { get; set; } = "";
+
+        /// <summary>
+        /// Скрипт зоны: "" — нет, "save" — спасбросок, "check" — проверка.
+        /// Работает только у тёмных зон: при входе жетона игрока тот бросает
+        /// спас/проверку от своего имени (см. ZoneRollService).
+        /// </summary>
+        public string ScriptKind { get; set; } = "";
+
+        /// <summary>Характеристика скрипта: STR, DEX, CON, INT, WIS, CHA.</summary>
+        public string ScriptAbility { get; set; } = "";
+
+        /// <summary>Навык проверки (ключ SkillCatalog), пусто — проверка характеристики.</summary>
+        public string ScriptSkill { get; set; } = "";
+
+        /// <summary>Сложность (DC). 0 — без сравнения, только бросок.</summary>
+        public int ScriptDC { get; set; }
+
+        /// <summary>Название эффекта для ленты: «Огненный шар», «Ядовитый газ».</summary>
+        public string ScriptName { get; set; } = "";
     }
     /// <summary>
     /// Штрих поверх карты: линия из точек с цветом и толщиной.

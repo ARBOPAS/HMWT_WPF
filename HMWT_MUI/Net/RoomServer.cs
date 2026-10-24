@@ -103,6 +103,9 @@ namespace HMWT_MUI.Net
         /// </summary>
         private System.Threading.Timer _combatantSyncTimer;
 
+        /// <summary>Скрипт зоны сработал для персонажа ведущего (нет клиента).</summary>
+        public event Action<ZoneRollRequest> ZoneRollRequested;
+
         /// <summary>Карта боя, которую видит комната. Снимок делается на хосте.</summary>
         private MapSceneData _map;
 
@@ -1235,6 +1238,7 @@ namespace HMWT_MUI.Net
 
             bool applied = false;
             MapTokenData changedToken = null;
+            double fromX = 0, fromY = 0;
             string rejectLabel = "", rejectCharacter = "", rejectNickname = "";
 
             lock (_stateLock)
@@ -1261,6 +1265,8 @@ namespace HMWT_MUI.Net
                                     NameMatch.SamePerson(label, nickname);
                         if (mine)
                         {
+                            fromX = token.X;
+                            fromY = token.Y;
                             token.X = request.X;
                             token.Y = request.Y;
                             if (request.Facing >= 0) token.Facing = request.Facing;
@@ -1341,6 +1347,10 @@ namespace HMWT_MUI.Net
 
             if (!applied) return;
 
+            // Скрипты тёмных зон: проверяем вход жетона (только переход
+            // снаружи внутрь), иначе спасбросок бросался бы каждые 50 мс.
+            try { CheckZoneScripts(changedToken, fromX, fromY); } catch { }
+
             if (request.Live)
             {
                 // Промежуточный шаг: лёгкое сообщение всем, кроме отправителя,
@@ -1362,20 +1372,27 @@ namespace HMWT_MUI.Net
         public void UpdateTokenLive(int tokenId, double x, double y, double facing)
         {
             bool changed = false;
+            MapTokenData moved = null;
+            double fromX = 0, fromY = 0;
 
             lock (_stateLock)
             {
                 var token = _map?.Tokens?.FirstOrDefault(t => t.Id == tokenId);
                 if (token != null)
                 {
+                    fromX = token.X;
+                    fromY = token.Y;
                     token.X = x;
                     token.Y = y;
                     if (facing >= 0) token.Facing = facing;
+                    moved = token;
                     changed = true;
                 }
             }
 
             if (!changed) return;
+
+            try { CheckZoneScripts(moved, fromX, fromY); } catch { }
 
             _ = BroadcastTokenLiveAsync(tokenId, x, y, facing, null);
         }
@@ -2279,6 +2296,82 @@ namespace HMWT_MUI.Net
             {
                 Debug.WriteLine($"[RoomServer] синхронизация состояний: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Проверяет вход жетона в тёмные зоны со скриптом. Смотрим именно
+        /// переход «снаружи → внутрь» по старой и новой точке: пока жетон
+        /// внутри, проверка не повторяется, а загрузка карты броски не
+        /// запускает (вызывается только при движении).
+        /// </summary>
+        private void CheckZoneScripts(MapTokenData token, double fromX, double fromY)
+        {
+            if (token == null || token.OwnerCharacterId <= 0) return;
+
+            MapSceneData scene;
+            lock (_stateLock) scene = _map;
+            if (scene?.Shapes == null || scene.Shapes.Count == 0) return;
+
+            double cell = scene.GridPx > 4 ? scene.GridPx : 70;
+
+            foreach (var shape in scene.Shapes)
+            {
+                if (shape == null) continue;
+                if (string.IsNullOrWhiteSpace(shape.ScriptKind)) continue;
+
+                string kind = shape.Kind ?? "";
+                if (!kind.StartsWith("darkzone", StringComparison.OrdinalIgnoreCase)) continue;
+
+                bool wasInside = ZoneContains(shape, fromX, fromY, cell);
+                bool inside = ZoneContains(shape, token.X, token.Y, cell);
+                if (inside && !wasInside) TriggerZoneRoll(token, shape);
+            }
+        }
+
+        private static bool ZoneContains(MapShapeData shape, double x, double y, double cell)
+        {
+            double radius = Math.Max(cell * 0.5, Math.Max(0.5, shape.RadiusCells) * cell);
+            double dx = x - shape.X, dy = y - shape.Y;
+
+            if ((shape.Kind ?? "").IndexOf("square", StringComparison.OrdinalIgnoreCase) >= 0)
+                return Math.Abs(dx) <= radius && Math.Abs(dy) <= radius;
+
+            return Math.Sqrt(dx * dx + dy * dy) <= radius;
+        }
+
+        private void TriggerZoneRoll(MapTokenData token, MapShapeData shape)
+        {
+            var request = new ZoneRollRequest
+            {
+                TokenId = token.Id,
+                ShapeId = shape.Id,
+                Kind = shape.ScriptKind,
+                Ability = string.IsNullOrWhiteSpace(shape.ScriptAbility) ? "DEX" : shape.ScriptAbility,
+                Skill = shape.ScriptSkill ?? "",
+                DC = Math.Max(0, shape.ScriptDC),
+                Name = string.IsNullOrWhiteSpace(shape.ScriptName)
+                    ? (string.IsNullOrWhiteSpace(shape.Label) ? "Тёмная зона" : shape.Label)
+                    : shape.ScriptName,
+                CharacterId = token.OwnerCharacterId
+            };
+
+            ClientConnection target = null;
+            foreach (var c in _clients.Values)
+            {
+                if (!c.HandshakeDone || c.Player == null) continue;
+                if (c.Player.CharacterId == token.OwnerCharacterId) { target = c; break; }
+            }
+
+            if (target != null)
+            {
+                _ = SendSafeAsync(target, new NetMessage(MsgType.ZoneRollRequest, request));
+                Log($"скрипт зоны «{request.Name}»: {Describe(target.Player)} бросает " +
+                    $"{request.Kind} {request.Ability} (DC {request.DC})");
+                return;
+            }
+
+            // Своего клиента нет: возможно, это жетон персонажа самого ведущего.
+            ZoneRollRequested?.Invoke(request);
         }
 
         private static PlayerInfo Clone(PlayerInfo p) => new PlayerInfo

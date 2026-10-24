@@ -867,7 +867,8 @@
     for (const s of (data.shapes || [])) {
       shapeTargets.set(s.id, {
         id: s.id, kind: s.kind, radius: s.radius, angle: s.angle,
-        color: s.color, x: s.x, y: s.y, label: s.label
+        color: s.color, x: s.x, y: s.y, label: s.label,
+        script: s.script || '', scriptLabel: s.scriptLabel || ''
       });
       if (!shapeDisplay.has(s.id)) shapeDisplay.set(s.id, { x: s.x, y: s.y });
     }
@@ -1166,23 +1167,9 @@
         node._tokenMask.endFill();
       }
 
-      // Рамка: свой цвет важнее «выбран/игрок/монстр».
-      let frameColor = null;
-      if (t.frameColor) frameColor = rgba(t.frameColor, null);
-      const width = t.selected ? 4 : 3;
-      node._frame.clear();
-      if (frameColor) {
-        node._frame.lineStyle(width + 1, frameColor.color, 1);
-        node._frame.drawCircle(0, 0, size / 2);
-      } else {
-        node._frame.lineStyle(width,
-          t.selected ? 0xffd27a : (t.isPlayer ? 0x5fd4dd : 0x0b0d16), 1);
-        node._frame.drawCircle(0, 0, size / 2);
-      }
-      if (t.selected) {
-        node._frame.lineStyle(1.5, 0xffd27a, 0.85);
-        node._frame.drawCircle(0, 0, size / 2 + 3);
-      }
+      // Рамка: свой цвет важнее «выбран/игрок/монстр». Подсветка врага в
+      // обзоре и попадания в фигуру рисуется там же (см. drawTokenFrame).
+      drawTokenFrame(node, t);
 
       // Имя должно читаться и на жетоне в 4 клетки: масштабируем к размеру.
       // Верхний предел нужен для жетонов до 10 клеток — иначе подпись
@@ -1218,21 +1205,15 @@
         node._cond.y = size / 2 + 4 + node._label.height;
       }
 
-      // Враг в зоне обзора — насыщенная рамка, чтобы было видно, кто попал
-      // в радиус/фигуру. Вне обзора её не рисуем.
-      const fogOn = !!(state && state.fog && state.fog.on);
-      const partyAlways = !!(state && state.showParty);
-      const inVision = fogOn ? pointVisible(t.x, t.y, ensureVision()) : true;
-      if (!t.isPlayer && !t.hidden && inVision) {
-        node._frame.lineStyle(2.5, 0xff5a5a, 0.95);
-        node._frame.drawCircle(0, 0, size / 2 + 2);
-        node._frame.lineStyle(1, 0xff5a5a, 0.35);
-        node._frame.drawCircle(0, 0, size / 2 + 5);
-      }
+      // Враг в зоне обзора и жетон внутри фигуры подсвечиваются в
+      // drawTokenFrame — она же вызывается при движении (см. тикер ниже).
 
       // Без тумана видно всех; «Токены отряда» показывают игроков всегда.
       // Свой жетон виден всегда: иначе при выключенном обзоре пропадал
       // и он сам, и его нельзя было вернуть без движения от ведущего.
+      const fogOn = !!(state && state.fog && state.fog.on);
+      const partyAlways = !!(state && state.showParty);
+      const inVision = fogOn ? pointVisible(t.x, t.y, ensureVision()) : true;
       const seen = !fogOn || t.mine || (partyAlways && t.isPlayer) || inVision;
       if (t.hidden) {
         node.alpha = isDm ? 0.4 : 0;
@@ -1249,12 +1230,108 @@
     }
   }
 
+  /**
+   * Точка внутри фигуры-области. Точки интереса и тёмные зоны не считаются:
+   * это метки/инструмент мастера, а не заклинание.
+   */
+  function shapeContains(s, x, y) {
+    if (!s || !s.kind) return false;
+    const r = shapeRadius(s);
+    const dx = x - s.x, dy = y - s.y;
+
+    if (s.kind === 'square') return Math.abs(dx) <= r && Math.abs(dy) <= r;
+
+    if (s.kind === 'line') {
+      const end = shapeEndpoint(s);
+      return distToSegment({ x: x, y: y }, { x: s.x, y: s.y }, end) <=
+        Math.max(cellPx() * 0.5, r * 0.12);
+    }
+
+    const d = Math.hypot(dx, dy);
+    if (d > r) return false;
+
+    if (s.kind === 'cone') {
+      const dir = ((s.angle || 0) * Math.PI) / 180;
+      let diff = Math.atan2(dy, dx) - dir;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      return Math.abs(diff) <= Math.PI / 4;
+    }
+
+    return true;   // circle
+  }
+
+  /** Попал ли жетон хотя бы в одну фигуру (по её отображаемой позиции). */
+  function shapeAt(x, y) {
+    for (const [id, target] of shapeTargets) {
+      const kind = target.kind || '';
+      if (kind === 'point' || kind.indexOf('darkzone') === 0) continue;
+      const pos = shapeDisplay.get(id) || target;
+      if (shapeContains({ x: pos.x, y: pos.y, kind: kind, angle: target.angle, radius: target.radius }, x, y))
+        return true;
+    }
+    return false;
+  }
+
+  /**
+   * Рамка жетона: свой цвет/выбор, плюс подсветка. Враг в поле обзора —
+   * красное кольцо, жетон в фигуре — золотое. При подсветке рамка чуть
+   * увеличивается по радиусу, чтобы её было видно на любом размере.
+   */
+  function drawTokenFrame(node, t) {
+    if (!node || node.destroyed || !t) return;
+
+    const size = node._size || Math.max(24, cellPx() * (t.sizeCells || 1));
+    const fogOn = !!(state && state.fog && state.fog.on);
+    const inVision = fogOn ? pointVisible(t.x, t.y, ensureVision()) : true;
+    const inShape = shapeAt(t.x, t.y);
+    // Подсветка врага — для игрока (мастер и так видит всё, красные кольца
+    // ему только мешают). Мастеру важен второй случай — кто попал в фигуру.
+    const enemyInSight = !isDm && !t.isPlayer && !t.hidden && inVision;
+
+    node._hlVision = enemyInSight;
+    node._hlShape = inShape;
+
+    const grow = (enemyInSight || inShape) ? 3 : 0;
+    const r = size / 2 + grow;
+
+    const frameColor = t.frameColor ? rgba(t.frameColor, null) : null;
+    const width = t.selected ? 4 : 3;
+
+    node._frame.clear();
+    if (frameColor) {
+      node._frame.lineStyle(width + 1, frameColor.color, 1);
+      node._frame.drawCircle(0, 0, r);
+    } else {
+      node._frame.lineStyle(width,
+        t.selected ? 0xffd27a : (t.isPlayer ? 0x5fd4dd : 0x0b0d16), 1);
+      node._frame.drawCircle(0, 0, r);
+    }
+
+    if (t.selected) {
+      node._frame.lineStyle(1.5, 0xffd27a, 0.85);
+      node._frame.drawCircle(0, 0, r + 3);
+    }
+
+    if (enemyInSight) {
+      node._frame.lineStyle(2.5, 0xff5a5a, 0.95);
+      node._frame.drawCircle(0, 0, r + 2);
+      node._frame.lineStyle(1, 0xff5a5a, 0.35);
+      node._frame.drawCircle(0, 0, r + 5);
+    }
+
+    if (inShape) {
+      node._frame.lineStyle(2.5, 0xffd27a, 0.95);
+      node._frame.drawCircle(0, 0, r + 4);
+    }
+  }
+
   // Плавное движение: C# присылает позиции с задержкой (сеть + снимок карты),
   // поэтому жетоны и фигуры догоняют цель кадрами, а не прыгают рывками.
   // Плавное движение токенов: времязависимое сглаживание (кадры могут быть
   // 60 и 144 Гц) плюс небольшая задержка для чужих жетонов — движение
   // приходит из сети рывками, а показываем его плавно.
   let lastMoveFrame = performance.now();
+  let lastHighlightAt = 0;
   app.ticker.add(() => {
     const frameNow = performance.now();
     const frameDt = Math.min(0.1, Math.max(0.001, (frameNow - lastMoveFrame) / 1000));
@@ -1279,6 +1356,21 @@
       const smooth = (drag && drag.kind === 'token') ? 0.05 : (mine ? 0.07 : 0.2);
       const k = 1 - Math.exp(-frameDt / smooth);
       node.position.set(node.x + dx * k, node.y + dy * k);
+    }
+
+    // Подсветка: враг в обзоре и попадание в фигуру пересчитываются по ходу
+    // движения, а рамка перерисовывается только при изменении состояния.
+    if (frameNow - lastHighlightAt >= 120) {
+      lastHighlightAt = frameNow;
+      const fogOn = !!(state && state.fog && state.fog.on);
+      for (const [, node] of tokenNodes) {
+        const t = node && node._token;
+        if (!t || node.destroyed) continue;
+        const inVision = fogOn ? pointVisible(t.x, t.y, ensureVision()) : true;
+        const enemy = !isDm && !t.isPlayer && !t.hidden && inVision;
+        const inShape = shapeAt(t.x, t.y);
+        if (node._hlVision !== enemy || node._hlShape !== inShape) drawTokenFrame(node, t);
+      }
     }
 
     // Плавный доворот конуса: цель приходит из C# ~30 раз в секунду,
@@ -2277,6 +2369,19 @@
       items.push({ text: 'Больше на 1 клетку', action: 'radius', value: '1' });
       items.push({ text: 'Меньше на 1 клетку', action: 'radius', value: '-1' });
     }
+
+    // Скрипт входа — только у тёмной зоны: остальные фигуры игроки видят,
+    // и «невидимая ловушка» из них не получится.
+    if ((shape.kind || '').indexOf('darkzone') === 0) {
+      items.push({ separator: true });
+      items.push({
+        text: (shape.scriptLabel || '').length
+          ? 'Скрипт: ' + shape.scriptLabel + ' — изменить…'
+          : 'Скрипт зоны…',
+        action: 'script', value: ''
+      });
+    }
+
     items.push({ separator: true });
 
     for (const c of SHAPE_COLORS)
@@ -3088,5 +3193,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.8.2');
+  log('renderer ready v1.3.9.0');
 })();

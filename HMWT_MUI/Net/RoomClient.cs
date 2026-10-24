@@ -30,6 +30,9 @@ namespace HMWT_MUI.Net
         /// <summary>Фигуру ведут мышью: (id, x, y). Лёгкое обновление без карты.</summary>
         public Action<int, double, double> ShapeLiveReceived { get; set; }
 
+        /// <summary>Ведущий просит бросить спас/проверку (скрипт тёмной зоны).</summary>
+        public Action<ZoneRollRequest> ZoneRollReceived { get; set; }
+
         /// <summary>Пришёл путь жетона от другого участника.</summary>
         public Action<int, List<MapTrailPoint>> MapTrailReceived { get; set; }
 
@@ -456,6 +459,11 @@ namespace HMWT_MUI.Net
                         var shapeLive = msg.As<MapShapeLive>();
                         if (shapeLive != null)
                             Events?.ShapeLiveReceived?.Invoke(shapeLive.ShapeId, shapeLive.X, shapeLive.Y);
+                        break;
+
+                    case MsgType.ZoneRollRequest:
+                        var zoneRoll = msg.As<ZoneRollRequest>();
+                        if (zoneRoll != null) Events?.ZoneRollReceived?.Invoke(zoneRoll);
                         break;
 
                     case MsgType.MapTrail:

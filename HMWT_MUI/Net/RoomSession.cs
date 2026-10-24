@@ -205,6 +205,12 @@ namespace HMWT_MUI.Net
         /// <summary>Фигуру ведут мышью: (id, x, y).</summary>
         public event Action<int, double, double> ShapeMovedLive;
 
+        /// <summary>
+        /// Ведущий просит бросить спас/проверку: жетон вошёл в тёмную зону
+        /// со скриптом. Игрок бросает от своего имени и отправляет в ленту.
+        /// </summary>
+        public event Action<ZoneRollRequest> ZoneRollRequested;
+
         /// <summary>Пришёл пройденный путь жетона от другого участника.</summary>
         public event Action<int, List<MapTrailPoint>> MapTrailReceived;
 
@@ -277,6 +283,7 @@ namespace HMWT_MUI.Net
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.ShapeMovedLive += (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
+                _server.ZoneRollRequested += r => ZoneRollRequested?.Invoke(r);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
@@ -396,6 +403,7 @@ namespace HMWT_MUI.Net
                 };
                 _client.Events.TokenLiveReceived = (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _client.Events.ShapeLiveReceived = (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
+                _client.Events.ZoneRollReceived = r => ZoneRollRequested?.Invoke(r);
                 _client.Events.MapTrailReceived = (id, points) => MapTrailReceived?.Invoke(id, points);
 
                 _client.Events.PhotoReceived = (ownerId, bytes, extension) =>
@@ -662,6 +670,7 @@ namespace HMWT_MUI.Net
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
                 _server.ShapeMovedLive += (id, x, y) => ShapeMovedLive?.Invoke(id, x, y);
+                _server.ZoneRollRequested += r => ZoneRollRequested?.Invoke(r);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия

@@ -517,6 +517,13 @@ namespace HMWT_MUI.RoomUiTests
                 Say("═══ ЖИВОЙ ХОД ЖЕТОНА ═══");
                 CheckLiveTokenMove(session, guest);
 
+                // ── Скрипт тёмной зоны ──
+                // Вход жетона в зону должен ОДИН раз попросить владельца
+                // бросить спас/проверку (а не каждый шаг перетаскивания).
+                Say("");
+                Say("═══ СКРИПТ ТЁМНОЙ ЗОНЫ ═══");
+                CheckZoneScriptTrigger(session, guest);
+
                 session.PublishChat("Все в сборе? Начинаем спуск в подземелье.");
                 session.PublishRoll("1d20+5", "Проверка Восприятия", 22, new List<int> { 17 });
                 session.PublishRoll("2d6+3", "Урон кинжалом", 10, new List<int> { 3, 4 });
@@ -1497,6 +1504,72 @@ namespace HMWT_MUI.RoomUiTests
         #endregion
 
         #region === ПРОВЕРКА СЧЁТЧИКА ПРИ ПОДКЛЮЧЕНИИ ===
+
+        /// <summary>
+        /// Скрипт тёмной зоны: хост замечает вход жетона игрока в зону и
+        /// присылает владельцу запрос на бросок. Проверяем один вход —
+        /// повторные шаги внутри зоны второй запрос не шлют.
+        /// </summary>
+        private static void CheckZoneScriptTrigger(RoomSession session, RoomClient guest)
+        {
+            try
+            {
+                // Сцена 778: жетон 1 (персонаж 987654 — гость), тёмная зона
+                // со скриптом «спасбросок ЛОВ, DC 15».
+                var scene = new MapSceneData
+                {
+                    Id = 778,
+                    CharacterId = 1,
+                    Name = "Проверка зоны",
+                    WidthPx = 700,
+                    HeightPx = 700
+                };
+                scene.Tokens.Add(new MapTokenData
+                {
+                    Id = 1, SceneId = 778, Label = "Гром", X = 70, Y = 70,
+                    SizeCells = 1, RevealCells = 6, OwnerCharacterId = 987654
+                });
+                scene.Shapes.Add(new MapShapeData
+                {
+                    Id = 50, SceneId = 778, Kind = "darkzone", X = 210, Y = 210,
+                    RadiusCells = 2, Color = "#FFB98BFF",
+                    ScriptKind = "save", ScriptAbility = "DEX", ScriptDC = 15,
+                    ScriptName = "Ловушка"
+                });
+
+                session.PublishMapScene(scene);
+                System.Threading.Thread.Sleep(300);
+
+                var requests = new List<ZoneRollRequest>();
+                guest.Events.ZoneRollReceived = r => { lock (requests) requests.Add(r); };
+
+                // Снаружи (базовая точка), затем внутрь зоны, затем ещё шаг
+                // внутри: второй запрос повториться не должен.
+                guest.SendMapMoveLiveAsync(1, 70, 70, 0).GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(350);
+                guest.SendMapMoveLiveAsync(1, 212, 212, 0).GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(500);
+                guest.SendMapMoveLiveAsync(1, 220, 220, 0).GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(500);
+
+                int count;
+                ZoneRollRequest first = null;
+                lock (requests) { count = requests.Count; first = requests.FirstOrDefault(); }
+
+                Check("вход в тёмную зону просит бросок", count >= 1,
+                    count == 0 ? "запрос не пришёл" : $"запросов: {count}");
+                Check("в запросе спасбросок ЛОВ со сложностью 15",
+                    first != null && first.Kind == "save" && first.Ability == "DEX" && first.DC == 15,
+                    first == null ? "нет запроса"
+                        : $"{first.Kind} {first.Ability} DC {first.DC}");
+                Check("повторные шаги внутри зоны не плодят запросы", count == 1,
+                    $"запросов: {count}");
+            }
+            catch (Exception ex)
+            {
+                Check("скрипт тёмной зоны", false, ex.Message);
+            }
+        }
 
         /// <summary>
         /// Живой ход клиента: лёгкое сообщение map_move(live) должно дойти до

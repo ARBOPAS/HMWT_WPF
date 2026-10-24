@@ -257,6 +257,7 @@
     <Compile Include="Models\InitiativeData.cs" />
     <Compile Include="Services\DiceFormulaParser.cs" />
     <Compile Include="Services\CharacterStateService.cs" />
+    <Compile Include="Services\ZoneRollService.cs" />
     <Compile Include="Services\SkillCatalog.cs" />
     <Compile Include="Services\RestService.cs" />
     <Compile Include="Services\UiPreferences.cs" />
@@ -308,6 +309,7 @@
     </Compile>
     <Compile Include="Windows\MessageDialog.cs" />
     <Compile Include="Windows\ConditionsWindow.cs" />
+    <Compile Include="Windows\ZoneScriptWindow.cs" />
     <Compile Include="Windows\NotificationWindow.cs" />
     <Compile Include="Helpers\SpellTextLinker.cs" />
     <Compile Include="Windows\SpellDetailWindow.cs" />

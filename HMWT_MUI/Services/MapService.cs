@@ -120,7 +120,12 @@ namespace HMWT_MUI.Services
                         radius_cells REAL DEFAULT 4,
                         angle REAL DEFAULT 0,
                         color TEXT DEFAULT '#FFB98BFF',
-                        label TEXT DEFAULT ''
+                        label TEXT DEFAULT '',
+                        script_kind TEXT DEFAULT '',
+                        script_ability TEXT DEFAULT '',
+                        script_skill TEXT DEFAULT '',
+                        script_dc INTEGER DEFAULT 0,
+                        script_name TEXT DEFAULT ''
                     );
                     CREATE INDEX IF NOT EXISTS idx_map_token_scene ON MapToken(id_scene);
                     CREATE INDEX IF NOT EXISTS idx_map_shape_scene ON MapShape(id_scene);
@@ -137,6 +142,12 @@ namespace HMWT_MUI.Services
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "flip_h INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "flip_v INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapWall", "is_open INTEGER DEFAULT 0");
+                // Скрипты тёмных зон (1.3.9.0): старые базы догоняем ALTER'ом.
+                DatabaseHelper.EnsureColumn(conn, tx, "MapShape", "script_kind TEXT DEFAULT ''");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapShape", "script_ability TEXT DEFAULT ''");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapShape", "script_skill TEXT DEFAULT ''");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapShape", "script_dc INTEGER DEFAULT 0");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapShape", "script_name TEXT DEFAULT ''");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "is_player INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "reveal_cells REAL DEFAULT 6");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapToken", "photo_hash TEXT DEFAULT ''");
@@ -786,7 +797,12 @@ namespace HMWT_MUI.Services
                     RadiusCells = Double(reader, "radius_cells", 4),
                     Angle = Double(reader, "angle", 0),
                     Color = Text(reader, "color"),
-                    Label = Text(reader, "label")
+                    Label = Text(reader, "label"),
+                    ScriptKind = Text(reader, "script_kind"),
+                    ScriptAbility = Text(reader, "script_ability"),
+                    ScriptSkill = Text(reader, "script_skill"),
+                    ScriptDC = Int(reader, "script_dc"),
+                    ScriptName = Text(reader, "script_name")
                 });
             }
 
@@ -806,9 +822,14 @@ namespace HMWT_MUI.Services
 
                 string sql = shape.Id > 0
                     ? @"UPDATE MapShape SET kind = @kind, x = @x, y = @y, radius_cells = @radius,
-                              angle = @angle, color = @color, label = @label WHERE id_shape = @id"
-                    : @"INSERT INTO MapShape (id_scene, kind, x, y, radius_cells, angle, color, label)
-                        VALUES (@scene, @kind, @x, @y, @radius, @angle, @color, @label)";
+                              angle = @angle, color = @color, label = @label,
+                              script_kind = @scriptKind, script_ability = @scriptAbility,
+                              script_skill = @scriptSkill, script_dc = @scriptDC,
+                              script_name = @scriptName WHERE id_shape = @id"
+                    : @"INSERT INTO MapShape (id_scene, kind, x, y, radius_cells, angle, color, label,
+                              script_kind, script_ability, script_skill, script_dc, script_name)
+                        VALUES (@scene, @kind, @x, @y, @radius, @angle, @color, @label,
+                              @scriptKind, @scriptAbility, @scriptSkill, @scriptDC, @scriptName)";
 
                 using var cmd = new SqliteCommand(sql, conn);
                 if (shape.Id > 0) cmd.Parameters.AddWithValue("@id", shape.Id);
@@ -820,6 +841,11 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@angle", shape.Angle);
                 cmd.Parameters.AddWithValue("@color", shape.Color ?? "");
                 cmd.Parameters.AddWithValue("@label", shape.Label ?? "");
+                cmd.Parameters.AddWithValue("@scriptKind", shape.ScriptKind ?? "");
+                cmd.Parameters.AddWithValue("@scriptAbility", shape.ScriptAbility ?? "");
+                cmd.Parameters.AddWithValue("@scriptSkill", shape.ScriptSkill ?? "");
+                cmd.Parameters.AddWithValue("@scriptDC", shape.ScriptDC);
+                cmd.Parameters.AddWithValue("@scriptName", shape.ScriptName ?? "");
                 cmd.ExecuteNonQuery();
 
                 if (shape.Id <= 0)

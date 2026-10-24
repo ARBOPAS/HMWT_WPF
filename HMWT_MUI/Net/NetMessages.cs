@@ -585,6 +585,34 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("n")] public int Total { get; set; }
         [JsonPropertyName("d")] public string Data { get; set; } = "";
     }
+    /// <summary>
+    /// Ведущий просит владельца жетона бросить спасбросок или проверку:
+    /// жетон вошёл в тёмную зону со скриптом (протокол 18).
+    /// </summary>
+    public sealed class ZoneRollRequest
+    {
+        [JsonPropertyName("token")] public int TokenId { get; set; }
+        [JsonPropertyName("shape")] public int ShapeId { get; set; }
+
+        /// <summary>"save" — спасбросок, "check" — проверка.</summary>
+        [JsonPropertyName("kind")] public string Kind { get; set; } = "save";
+
+        /// <summary>STR, DEX, CON, INT, WIS, CHA.</summary>
+        [JsonPropertyName("ability")] public string Ability { get; set; } = "DEX";
+
+        /// <summary>Ключ навыка для проверки (пусто — проверка характеристики).</summary>
+        [JsonPropertyName("skill")] public string Skill { get; set; } = "";
+
+        /// <summary>Сложность; 0 — только бросок без успеха/провала.</summary>
+        [JsonPropertyName("dc")] public int DC { get; set; }
+
+        /// <summary>Название эффекта для ленты.</summary>
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+
+        /// <summary>Чей персонаж должен бросать (0 — любой получатель).</summary>
+        [JsonPropertyName("char")] public int CharacterId { get; set; }
+    }
+
     /// <summary>Полный снимок состояния комнаты (до 8 человек это проще и надёжнее диффов).</summary>
     public sealed class RoomSnapshot
     {
