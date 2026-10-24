@@ -111,7 +111,7 @@ namespace HMWT_MUI
             // Оверлеи этого окна (калькулятор ХП, менеджер уровней, портрет,
             // всплывающие подсказки) лежат в том же окне, что и карта, поэтому
             // WebView2 их перекрывает. Пока оверлей открыт — прячем карту.
-            LayoutUpdated += (_, __) => SyncMapOverlays();
+            // оверлеи прячут карту через UpdateChatOcclusion (см. ниже)
             btnHPHeal.Click += BtnHPHeal_Click;
             btnHPDamage.Click += BtnHPDamage_Click;
             btnHPRoll.Click += BtnHPRoll_Click;
@@ -3073,6 +3073,14 @@ namespace HMWT_MUI
                           RollHistoryOverlay.IsVisible || InitiativeOverlay.IsVisible ||
                           PortraitOverlay.IsVisible;
 
+            // WebView2 рисуется поверх WPF, поэтому вместе с чатом прячем и карту
+            if (hidden != _mapHiddenByOverlay)
+            {
+                _mapHiddenByOverlay = hidden;
+                if (hidden) Controls.MapWebRenderer.DialogOpened();
+                else Controls.MapWebRenderer.DialogClosed();
+            }
+
             if (_viewCache != null && _viewCache.TryGetValue("Room", out var view) &&
                 view is Views.RoomView room)
             {
@@ -4507,6 +4515,7 @@ namespace HMWT_MUI
         }
 
         private bool _mapOverlayOpen;
+        private bool _mapHiddenByOverlay;
 
         private void ApplyAdaptiveLayout()
         {
