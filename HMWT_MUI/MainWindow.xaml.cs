@@ -873,6 +873,8 @@ namespace HMWT_MUI
             var menu = new Forms.ContextMenuStrip();
             menu.Items.Add("Открыть HMWT Гримуар", null, (s, e) => RestoreFromTray());
             menu.Items.Add(new Forms.ToolStripSeparator());
+            // Музыка живёт в трее: закрытие окна её не останавливает.
+            menu.Items.Add("Остановить музыку", null, (s, e) => AudioHost?.Stop());
             menu.Items.Add("Выйти", null, (s, e) => ExitFromTray());
 
             _trayIcon = new Forms.NotifyIcon

@@ -280,7 +280,16 @@ end;
 
 { После распаковки файлов: делаем копию базы, ничего не удаляя }
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
 begin
+  if CurStep = ssInstall then
+  begin
+    { Закрываем запущенную копию, в том числе свёрнутую в трей: иначе
+      после обновления остаются старые процессы и играют музыку. }
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM HMWT_MUI.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+
   if CurStep = ssPostInstall then
   begin
     if UserDataDirExists() then

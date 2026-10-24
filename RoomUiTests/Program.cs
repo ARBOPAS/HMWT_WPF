@@ -2564,6 +2564,52 @@ namespace HMWT_MUI.RoomUiTests
                     $"получено {received.Length} из {data.Length} байт, кусков {chunks.Count}/{totalChunks}");
                 Check("кусков столько, сколько объявлено", totalChunks == chunks.Count,
                     $"{chunks.Count} из {totalChunks}");
+
+                // ── клиент-диджей: файла у ведущего нет ──
+                // Сервер должен попросить файл у автора, принять куски и
+                // только потом разослать play. Это ловит забытый case AudioChunk.
+                using (var conn = DatabaseHelper.GetConnection())
+                {
+                    conn.Open();
+                    using var del = new SqliteCommand("DELETE FROM AudioTrack WHERE hash = @h", conn);
+                    del.Parameters.AddWithValue("@h", hash);
+                    del.ExecuteNonQuery();
+                }
+
+                var uploaded = new List<AudioState>();
+                guest.Events.AudioPlayed = state =>
+                {
+                    lock (uploaded) uploaded.Add(state);
+                };
+                string needHash = null;
+                guest.Events.AudioNeeded = h => needHash = h;
+
+                guest.SendAudioPlayAsync(new AudioState
+                {
+                    Hash = hash, Extension = ".mp3", Name = "Тест", Gain = 0.9, On = true
+                }).GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(500);
+                Check("ведущий просит файл у игрока-диджея", needHash == hash,
+                    needHash == null ? "запрос не пришёл" : needHash);
+
+                if (needHash == hash)
+                {
+                    int uploadTotal = (data.Length + 48 * 1024 - 1) / (48 * 1024);
+                    for (int i = 0; i < uploadTotal; i++)
+                    {
+                        int length = Math.Min(48 * 1024, data.Length - i * 48 * 1024);
+                        guest.SendAudioChunkAsync(new AudioChunk
+                        {
+                            Hash = hash, Extension = ".mp3", Index = i, Total = uploadTotal,
+                            Data = Convert.ToBase64String(data, i * 48 * 1024, length)
+                        }).GetAwaiter().GetResult();
+                    }
+                }
+                System.Threading.Thread.Sleep(800);
+                AudioState uploadedState;
+                lock (uploaded) uploadedState = uploaded.FirstOrDefault(x => x.Hash == hash);
+                Check("трек игрока запущен после загрузки", uploadedState != null,
+                    uploadedState == null ? "play не пришёл" : uploadedState.Hash);
             }
             catch (Exception ex)
             {

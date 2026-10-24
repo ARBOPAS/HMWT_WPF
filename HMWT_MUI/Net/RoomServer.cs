@@ -584,6 +584,10 @@ namespace HMWT_MUI.Net
                         _ = SendAudioToAsync(conn, msg.As<AudioNeedRequest>());
                         break;
 
+                    case MsgType.AudioChunk:
+                        HandleAudioChunk(conn, msg.As<AudioChunk>());
+                        break;
+
                     case MsgType.MapStroke:
                         ApplyMapStroke(conn, msg.As<MapStrokeRequest>());
                         break;

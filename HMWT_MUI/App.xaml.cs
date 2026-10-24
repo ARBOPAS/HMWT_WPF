@@ -20,6 +20,8 @@ namespace HMWT_MUI
         public static readonly System.Diagnostics.Stopwatch StartupWatch =
             System.Diagnostics.Stopwatch.StartNew();
 
+        private static System.Threading.Mutex _singleInstance;
+
         /// <summary>Ключ настройки с темой оформления.</summary>
         public const string ThemeSettingKey = Services.UiPreferences.ThemeSettingKey;
 
