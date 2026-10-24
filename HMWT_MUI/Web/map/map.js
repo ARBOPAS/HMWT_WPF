@@ -1574,19 +1574,25 @@
       if (!v || v.pts.length < 6) continue;
 
       const custom = t.viewColor ? rgba(t.viewColor, null) : null;
-      const color = custom ? custom.color : (t.isPlayer ? 0x5fd4dd : 0xa98bec);
+      // Цвет с нулевой альфой (#00000000) — «без заливки»: рисуем только
+      // контур. Цвет контура берём обычный для стороны, иначе прозрачный
+      // цвет означал бы чёрную рамку.
+      const noFill = !!custom && custom.alpha <= 0.01;
+      const baseColor = t.isPlayer ? 0x5fd4dd : 0xa98bec;
+      const color = custom && !noFill ? custom.color : baseColor;
 
       // У мастера заливка только у выбранного жетона: иначе конусы всех
       // монстров накладываются и карта превращается в сплошное пятно.
       // Жетоны игроков заливаются всегда — их немного.
       const filled = !isDm || t.isPlayer || t.id === selectedTokenId;
+      const fillAlpha = filled && !noFill ? 0.14 : 0;
 
-      if (filled) fovG.beginFill(color, 0.14);
-      fovG.lineStyle(2, color, filled ? 0.75 : 0.4);
+      if (fillAlpha > 0) fovG.beginFill(color, fillAlpha);
+      fovG.lineStyle(2, noFill ? baseColor : color, filled ? 0.75 : 0.4);
       fovG.moveTo(v.pts[0], v.pts[1]);
       for (let i = 2; i < v.pts.length; i += 2) fovG.lineTo(v.pts[i], v.pts[i + 1]);
       fovG.closePath();
-      if (filled) fovG.endFill();
+      if (fillAlpha > 0) fovG.endFill();
     }
   }
 
@@ -2249,6 +2255,13 @@
       text: 'Цвет обзора: по умолчанию',
       check: !token.viewColor,
       action: 'viewcolor', value: ''
+    });
+    // Полностью прозрачная заливка: остаётся только контур сектора. Нужно,
+    // когда цвет закрывает карту под конусом.
+    items.push({
+      text: 'Цвет обзора: без заливки (только рамка)',
+      check: sameColor(token.viewColor, '#00000000'),
+      action: 'viewcolor', value: '#00000000'
     });
     for (const c of FRAME_COLORS)
       items.push({
@@ -3193,5 +3206,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.9.0');
+  log('renderer ready v1.3.9.1');
 })();

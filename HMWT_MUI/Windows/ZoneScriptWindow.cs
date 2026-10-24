@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
 using HMWT_MUI.Services;
 
@@ -56,40 +57,33 @@ namespace HMWT_MUI.Windows
             });
 
             // ── тип броска ──
-            window._kind = window.MakeCombo();
-            window._kind.Items.Add(new ComboBoxItem { Content = "Ничего не делать", Tag = "" });
-            window._kind.Items.Add(new ComboBoxItem { Content = "Спасбросок", Tag = "save" });
-            window._kind.Items.Add(new ComboBoxItem { Content = "Проверка", Tag = "check" });
-            window.SelectTag(window._kind, shape.ScriptKind ?? "");
+            // Комбобоксы — из DmUiKit: у них тёмный шаблон и тёмный список,
+            // иначе системный ComboBox рисовал белым по белому.
+            window._kind = DmUiKit.ComboPairs(new[]
+            {
+                Pair("", "Ничего не делать"),
+                Pair("save", "Спасбросок"),
+                Pair("check", "Проверка")
+            }, shape.ScriptKind ?? "");
             root.Children.Add(Label("Бросок"));
             root.Children.Add(window._kind);
 
             // ── характеристика ──
-            window._ability = window.MakeCombo();
-            foreach (var pair in new[]
+            window._ability = DmUiKit.ComboPairs(new[]
             {
-                ("STR", "СИЛА"), ("DEX", "ЛОВКОСТЬ"), ("CON", "ТЕЛОСЛОЖЕНИЕ"),
-                ("INT", "ИНТЕЛЛЕКТ"), ("WIS", "МУДРОСТЬ"), ("CHA", "ХАРИЗМА")
-            })
-            {
-                window._ability.Items.Add(new ComboBoxItem { Content = pair.Item2, Tag = pair.Item1 });
-            }
-            window.SelectTag(window._ability, string.IsNullOrWhiteSpace(shape.ScriptAbility) ? "DEX" : shape.ScriptAbility);
+                Pair("STR", "СИЛА"), Pair("DEX", "ЛОВКОСТЬ"), Pair("CON", "ТЕЛОСЛОЖЕНИЕ"),
+                Pair("INT", "ИНТЕЛЛЕКТ"), Pair("WIS", "МУДРОСТЬ"), Pair("CHA", "ХАРИЗМА")
+            }, string.IsNullOrWhiteSpace(shape.ScriptAbility) ? "DEX" : shape.ScriptAbility);
             root.Children.Add(Label("Характеристика (для спасброска и проверки)"));
             root.Children.Add(window._ability);
 
             // ── навык (только для проверки) ──
-            window._skill = window.MakeCombo();
-            window._skill.Items.Add(new ComboBoxItem { Content = "— проверка характеристики —", Tag = "" });
-            foreach (var skill in SkillCatalog.All)
+            var skillPairs = new List<KeyValuePair<string, string>>
             {
-                window._skill.Items.Add(new ComboBoxItem
-                {
-                    Content = skill.Russian,
-                    Tag = skill.Key
-                });
-            }
-            window.SelectTag(window._skill, shape.ScriptSkill ?? "");
+                Pair("", "— проверка характеристики —")
+            };
+            skillPairs.AddRange(SkillCatalog.All.Select(s => Pair(s.Key, s.Russian)));
+            window._skill = DmUiKit.ComboPairs(skillPairs, shape.ScriptSkill ?? "");
             root.Children.Add(Label("Навык (если проверка на навык)"));
             root.Children.Add(window._skill);
 
@@ -150,9 +144,9 @@ namespace HMWT_MUI.Windows
 
             ok.Click += (s, e) =>
             {
-                shape.ScriptKind = TagOf(window._kind) ?? "";
-                shape.ScriptAbility = TagOf(window._ability) ?? "";
-                shape.ScriptSkill = TagOf(window._skill) ?? "";
+                shape.ScriptKind = DmUiKit.ComboKey(window._kind);
+                shape.ScriptAbility = DmUiKit.ComboKey(window._ability);
+                shape.ScriptSkill = DmUiKit.ComboKey(window._skill);
                 shape.ScriptName = (window._name.Text ?? "").Trim();
                 shape.ScriptDC = int.TryParse((window._dc.Text ?? "").Trim(), out int dc)
                     ? Math.Max(0, Math.Min(50, dc)) : 0;
@@ -168,31 +162,8 @@ namespace HMWT_MUI.Windows
             return window.ShowDialog() == true;
         }
 
-        private static string TagOf(ComboBox combo)
-            => (combo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
-
-        private void SelectTag(ComboBox combo, string tag)
-        {
-            foreach (var item in combo.Items.OfType<ComboBoxItem>())
-            {
-                if (string.Equals(item.Tag as string, tag, StringComparison.OrdinalIgnoreCase))
-                {
-                    combo.SelectedItem = item;
-                    return;
-                }
-            }
-            if (combo.Items.Count > 0) combo.SelectedIndex = 0;
-        }
-
-        private ComboBox MakeCombo() => new ComboBox
-        {
-            Margin = new Thickness(0, 0, 0, 8),
-            Padding = new Thickness(6, 3, 6, 3),
-            Background = Field,
-            Foreground = Ink,
-            BorderBrush = Line,
-            FontSize = 13
-        };
+        private static KeyValuePair<string, string> Pair(string key, string text)
+            => new KeyValuePair<string, string>(key, text);
 
         private static TextBlock Label(string text) => new TextBlock
         {
