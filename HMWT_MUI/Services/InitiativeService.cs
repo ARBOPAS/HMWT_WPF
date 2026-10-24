@@ -330,6 +330,12 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>Сохраняет жетон (новый или изменённый).</summary>
+        /// <summary>
+        /// Боец изменили (например, состояния на карте) — окно трекера
+        /// должно перерисоваться, не дожидаясь переоткрытия.
+        /// </summary>
+        public static event Action Changed;
+
         public static int SaveCombatant(EncounterData encounter, CombatantData combatant)
         {
             if (encounter == null || combatant == null) return 0;
@@ -377,7 +383,8 @@ namespace HMWT_MUI.Services
                     if (!encounter.Combatants.Contains(combatant)) encounter.Combatants.Add(combatant);
                 }
 
-                return combatant.Id;
+                try { Changed?.Invoke(); } catch { }
+            return combatant.Id;
             }
             catch (Exception ex)
             {

@@ -40,6 +40,12 @@ namespace HMWT_MUI.Views
 
         public InitiativeView()
         {
+            // Бойца изменили извне (например, состояния на карте) — перерисовываем
+            Services.InitiativeService.Changed += () =>
+            {
+                if (!IsVisible) return;
+                Dispatcher.BeginInvoke(new Action(Refresh));
+            };
             BuildShell();
 
             _panel.OpenMonsterRequested += id => OpenMonsterRequested?.Invoke(id);
