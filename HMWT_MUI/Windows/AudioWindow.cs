@@ -36,7 +36,7 @@ namespace HMWT_MUI.Windows
 
         public AudioWindow()
         {
-            Title = "Аудиотека";
+            Title = "Аудиотека · " + HMWT_MUI.Net.NetVersions.AppVersion;
             Width = 560;
             Height = 560;
             MinWidth = 460;
@@ -132,6 +132,16 @@ namespace HMWT_MUI.Windows
                 : (RoomSession.Instance.IsHost
                     ? "Комната: вы ведущий — трек слышат все."
                     : "Комната: вы игрок — трек уйдёт ведущему и разойдётся всем.");
+
+            int otherCopies = 0;
+            try
+            {
+                otherCopies = System.Diagnostics.Process.GetProcessesByName("HMWT_MUI")
+                    .Count(x => x.Id != System.Diagnostics.Process.GetCurrentProcess().Id);
+            }
+            catch { }
+            if (otherCopies > 0)
+                roomText += $" ВНИМАНИЕ: запущено ещё копий HMWT: {otherCopies} — закройте их, иначе звук и комната могут идти из другой копии.";
 
             var hint = new TextBlock
             {
@@ -276,6 +286,9 @@ namespace HMWT_MUI.Windows
 
         private void PlayTrack(AudioTrackData track)
         {
+            AudioLog.Write($"window play pid={System.Diagnostics.Process.GetCurrentProcess().Id} " +
+                $"hash={track.Hash} room={RoomSession.Instance.IsActive} host={RoomSession.Instance.IsHost}");
+
             string full = AudioService.ResolvePath(track);
             if (full == null || !File.Exists(full))
             {
