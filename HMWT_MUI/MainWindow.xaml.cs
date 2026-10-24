@@ -24,6 +24,12 @@ namespace HMWT_MUI
     /// </summary>
     public partial class MainWindow : Window
     {
+        /// <summary>
+        /// Аудио-хост приложения. Один на всё окно: музыка продолжает играть,
+        /// когда окно аудиотеки закрыто, а в будущем сюда же придут команды
+        /// из комнаты.
+        /// </summary>
+        public Controls.AudioHost AudioHost { get; private set; }
         private bool _isCharacterFormOpen = false;
 
         /// <summary>
@@ -49,7 +55,26 @@ namespace HMWT_MUI
                 System.Windows.Media.TextRenderingMode.ClearType);
             DatabaseHelper.Initialize();
             PhotoHelper.Initialize();
+
+            // Аудио: крошечный WebView2 в углу главного окна. Пока он есть,
+            // музыка не зависит от того, открыта ли вкладка карты или «Отряд».
+            AudioHost = new Controls.AudioHost
+            {
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            if (Content is System.Windows.Controls.Grid audioRoot)
+                audioRoot.Children.Add(AudioHost);
+
+            AudioSettings.MasterChanged += volume =>
+            {
+                if (Dispatcher.CheckAccess()) AudioHost.SetMaster(volume);
+                else Dispatcher.BeginInvoke(new Action(() => AudioHost.SetMaster(volume)));
+            };
+            Loaded += (_, __) => AudioHost.SetMaster(AudioSettings.Master);
+
             SetupSettingsMenu();
+
 
             // Поиск не был подключен в XAML — вешаем здесь
             SearchBox.TextChanged += SearchBox_TextChanged;

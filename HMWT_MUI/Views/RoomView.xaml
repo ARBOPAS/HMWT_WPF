@@ -52,6 +52,16 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <!-- Громкость у каждого своя: в комнату не уходит, чтобы
+                         наушники одного игрока не делали тише у всех. -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0"
+                                ToolTip="Общая громкость звука у вас. В комнату не передаётся.">
+                        <TextBlock Text="Громкость" FontSize="11" Foreground="{StaticResource B.Mute}"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Slider x:Name="sldVolume" Width="96" Minimum="0" Maximum="100"
+                                VerticalAlignment="Center" ValueChanged="SldVolume_ValueChanged"
+                                ToolTip="Громкость музыки и звуков у вас"/>
+                    </StackPanel>
                     <CheckBox x:Name="chkHiddenRolls" Content="Скрытые броски" Margin="0,0,14,0"
                               VerticalAlignment="Center" FontSize="12"
                               Foreground="{StaticResource B.Mute}" Visibility="Collapsed"

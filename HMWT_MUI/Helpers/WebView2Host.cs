@@ -56,7 +56,16 @@ namespace HMWT_MUI.Helpers
                 }
             }
 
-            var attempt = CoreWebView2Environment.CreateAsync(null, UserDataFolder);
+            // Автоплей нужен аудио-хосту: музыка приходит командой из комнаты,
+            // без клика по самому плееру. Остальные флаги не дают Chromium
+            // душить таймеры, когда окно свёрнуто.
+            var options = new CoreWebView2EnvironmentOptions(
+                "--autoplay-policy=no-user-gesture-required " +
+                "--disable-background-timer-throttling " +
+                "--disable-renderer-backgrounding");
+
+            var attempt = CoreWebView2Environment.CreateAsync(null, UserDataFolder, options);
+
             _environment = attempt;
             return await attempt;
         }

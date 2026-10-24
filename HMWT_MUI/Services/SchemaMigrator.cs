@@ -23,7 +23,7 @@ namespace HMWT_MUI.Services
     public static class SchemaMigrator
     {
         /// <summary>Текущая версия схемы, которую ждёт приложение.</summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         private sealed class Migration
         {
@@ -42,6 +42,30 @@ namespace HMWT_MUI.Services
                 // без индекса каждый поиск перебирает всю таблицу.
                 Apply = (conn, tx) => Exec(conn, tx,
                     "CREATE INDEX IF NOT EXISTS idx_combatant_character ON EncounterCombatant(id_character);")
+            },
+            new Migration
+            {
+                Version = 3,
+                Title = "аудиотека ведущего",
+                // Громкость у каждого трека своя: файлы из разных источников
+                // звучат по-разному, и выравнивать приходится вручную.
+                Apply = (conn, tx) =>
+                {
+                    Exec(conn, tx,
+                        @"CREATE TABLE IF NOT EXISTS AudioTrack (
+                            id_track INTEGER PRIMARY KEY AUTOINCREMENT,
+                            hash TEXT NOT NULL DEFAULT '',
+                            path TEXT NOT NULL DEFAULT '',
+                            name TEXT NOT NULL DEFAULT '',
+                            kind TEXT NOT NULL DEFAULT 'music',
+                            gain REAL NOT NULL DEFAULT 1,
+                            duration_ms INTEGER NOT NULL DEFAULT 0,
+                            size INTEGER NOT NULL DEFAULT 0,
+                            added_at TEXT DEFAULT ''
+                        );");
+                    Exec(conn, tx,
+                        "CREATE INDEX IF NOT EXISTS idx_audio_hash ON AudioTrack(hash);");
+                }
             }
         };
 

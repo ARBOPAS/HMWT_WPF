@@ -75,10 +75,17 @@ namespace HMWT_MUI.Views
             ChatWeb.SetOwnerOccluded(hidden);
         }
 
+        private bool _audioVolumeReady;
+
         public RoomView()
         {
             InitializeComponent();
             _ui = Dispatcher;
+
+            // Громкость общая для приложения: ползунок живёт и в «Отряде»,
+            // и в аудиотеке ведущего, значение одно.
+            sldVolume.Value = Math.Round(Services.AudioSettings.Master * 100);
+            _audioVolumeReady = true;
 
             // Картинки догружаем по одной: хост не любит пачку запросов
             // и отбрасывает те, что пришли слишком часто.
@@ -1778,6 +1785,12 @@ namespace HMWT_MUI.Views
             }
 
             UpdateHeader();
+        }
+
+        private void SldVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!_audioVolumeReady) return;
+            Services.AudioSettings.SetMaster(e.NewValue / 100.0);
         }
 
         private void BtnLeaveRoom_Click(object sender, RoutedEventArgs e)

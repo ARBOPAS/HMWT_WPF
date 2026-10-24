@@ -228,6 +228,9 @@
     <Compile Include="Controls\ChatWebView.xaml.cs">
       <DependentUpon>ChatWebView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\AudioHost.xaml.cs">
+      <DependentUpon>AudioHost.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ResourceMonitor.xaml.cs">
       <DependentUpon>ResourceMonitor.xaml</DependentUpon>
     </Compile>
@@ -253,12 +256,15 @@
     <Compile Include="Models\DamagePartData.cs" />
     <Compile Include="Models\AttackData.cs" />
     <Compile Include="Models\MapData.cs" />
+    <Compile Include="Models\AudioData.cs" />
     <Compile Include="Models\MonsterData.cs" />
     <Compile Include="Models\InitiativeData.cs" />
     <Compile Include="Services\DiceFormulaParser.cs" />
     <Compile Include="Services\CharacterStateService.cs" />
     <Compile Include="Services\ZoneRollService.cs" />
     <Compile Include="Services\SchemaMigrator.cs" />
+    <Compile Include="Services\AudioService.cs" />
+    <Compile Include="Services\AudioSettings.cs" />
     <Compile Include="Services\SkillCatalog.cs" />
     <Compile Include="Services\RestService.cs" />
     <Compile Include="Services\UiPreferences.cs" />
@@ -312,6 +318,7 @@
     <Compile Include="Windows\MessageDialog.cs" />
     <Compile Include="Windows\ConditionsWindow.cs" />
     <Compile Include="Windows\ZoneScriptWindow.cs" />
+    <Compile Include="Windows\AudioWindow.cs" />
     <Compile Include="Windows\NotificationWindow.cs" />
     <Compile Include="Helpers\SpellTextLinker.cs" />
     <Compile Include="Windows\SpellDetailWindow.cs" />
@@ -407,6 +414,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\ChatWebView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\AudioHost.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

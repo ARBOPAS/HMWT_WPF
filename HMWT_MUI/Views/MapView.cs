@@ -586,6 +586,16 @@ namespace HMWT_MUI.Views
             delScene.Margin = new Thickness(0, 0, 10, 0);
             dmBar.Children.Add(delScene);
 
+            // Аудиотека ведущего: музыка и звуки. У игроков только громкость
+            // в «Отряде», поэтому кнопка живёт в панели ведущего.
+            var audio = DmUiKit.Action("Аудио", (s, e) =>
+            {
+                var window = new Windows.AudioWindow { Owner = Window.GetWindow(this) };
+                window.Show();
+            }, DmUiKit.ButtonKind.Ghost, "Музыка, эмбиент и звуки", 86, 30);
+            audio.Margin = new Thickness(0, 0, 8, 0);
+            dmBar.Children.Add(audio);
+
             // ── сетка: включение, размер клетки, цвет ──
             _gridCheck.Margin = new Thickness(0, 0, 8, 0);
             _gridCheck.IsEnabled = _isDm;
