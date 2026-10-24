@@ -127,9 +127,15 @@ namespace HMWT_MUI.Windows
             Grid.SetRow(scroll, 1);
             root.Children.Add(scroll);
 
+            string roomText = !RoomSession.Instance.IsActive
+                ? "Комната не активна — трек играет только у вас."
+                : (RoomSession.Instance.IsHost
+                    ? "Комната: вы ведущий — трек слышат все."
+                    : "Комната: вы игрок — трек уйдёт ведущему и разойдётся всем.");
+
             var hint = new TextBlock
             {
-                Text = "Передача звука игрокам — следующий шаг. Сейчас проверяем сам плеер.",
+                Text = roomText + " Плейлисты — следующий шаг.",
                 FontSize = 11, Foreground = Mute, Margin = new Thickness(0, 10, 0, 0),
                 TextWrapping = TextWrapping.Wrap
             };

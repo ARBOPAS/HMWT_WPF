@@ -28,6 +28,13 @@ namespace HMWT_MUI.Services
         private static AudioHost Host
             => (Application.Current?.MainWindow as MainWindow)?.AudioHost;
 
+        /// <summary>Ведущий и сервер в одном процессе: играем напрямую, не полагаясь на события.</summary>
+        public static void PlayState(AudioState state) => OnUi(() => Play(state));
+
+        public static void StopState() => OnUi(Stop);
+
+        public static void GainState(AudioState state) => OnUi(() => SetGain(state));
+
         private static void Play(AudioState state)
         {
             if (state == null || string.IsNullOrWhiteSpace(state.Hash)) return;
@@ -97,6 +104,17 @@ namespace HMWT_MUI.Services
             var state = _pending;
             _pending = null;
             Start(path, state);
+        }
+
+        private static void Log(string message)
+        {
+            try
+            {
+                string path = Path.Combine(Path.GetTempPath(), "hmwt-audio.log");
+                File.AppendAllText(path, $"{DateTime.Now:HH:mm:ss.fff} [playback] {message}{Environment.NewLine}",
+                    new System.Text.UTF8Encoding(false));
+            }
+            catch { }
         }
 
         private static void OnUi(Action action)
