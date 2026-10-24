@@ -88,7 +88,7 @@ namespace HMWT_MUI.Windows
             stop.Click += (s, e) =>
             {
                 Host?.Stop();
-                if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+                if (RoomSession.Instance.IsActive)
                     RoomSession.Instance.PublishAudioStop();
                 _playingId = 0;
                 Reload();
@@ -229,7 +229,7 @@ namespace HMWT_MUI.Windows
                 if (track.Id == _playingId)
                 {
                     Host?.SetTrackGain(gain);
-                    if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+                    if (RoomSession.Instance.IsActive)
                         RoomSession.Instance.PublishAudioGain(track.Hash, gain);
                 }
             };
@@ -258,7 +258,7 @@ namespace HMWT_MUI.Windows
                 if (track.Id == _playingId)
                 {
                     Host?.Stop();
-                    if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+                    if (RoomSession.Instance.IsActive)
                         RoomSession.Instance.PublishAudioStop();
                     _playingId = 0;
                 }
@@ -293,13 +293,11 @@ namespace HMWT_MUI.Windows
             }
 
             string relative = track.Path.Replace('\\', '/').TrimStart('/');
-            host.Play("https://hmwt.audio/" + relative, track.Gain, 0);
-            _playingId = track.Id;
-            Reload();
 
-            // В комнате — сразу и всем: игроки получат файл по хэшу и
-            // начнут с той же громкостью, что настроил ведущий.
-            if (RoomSession.Instance.IsActive && RoomSession.Instance.IsHost)
+            // В комнате трек запускает сервер: у ведущего — сразу, у игрока
+            // файл сначала уедет ведущему и разойдётся всем. Локально играем
+            // только вне комнаты.
+            if (RoomSession.Instance.IsActive)
             {
                 RoomSession.Instance.PublishAudio(new AudioState
                 {
@@ -309,7 +307,14 @@ namespace HMWT_MUI.Windows
                     Gain = track.Gain,
                     On = true
                 });
+                _playingId = track.Id;
+                Reload();
+                return;
             }
+
+            host.Play("https://hmwt.audio/" + relative, track.Gain, 0);
+            _playingId = track.Id;
+            Reload();
         }
 
         private void ImportFiles()
