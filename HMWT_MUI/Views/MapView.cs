@@ -1590,34 +1590,27 @@ namespace HMWT_MUI.Views
 
                 // Состояние из справочника (галочка в меню): включаем/выключаем.
                 // Ведущий — любому жетону, игрок — только своему (проверка ниже).
-                case "condition":
+                // Состояния: одно окно с галочками из справочника трекера.
+                // Ведущий — любому жетону, игрок — только своему.
+                case "conditions":
                     {
                         if (!_isDm && !CanMoveToken(token)) return;
                         if (token.CombatantId <= 0 ||
                             !_combatants.TryGetValue(token.CombatantId, out var cond) ||
                             cond.Combatant == null) return;
 
-                        string name = (value ?? "").Trim();
-                        if (name.Length == 0) return;
+                        var picked = Windows.ConditionsWindow.Pick(Window.GetWindow(this),
+                            "Состояния: " + (token.Label ?? ""),
+                            (cond.Combatant.Conditions ?? "").Split(new[] { ',', ';' },
+                                StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()));
+                        if (picked == null) return;
 
-                        var list = (cond.Combatant.Conditions ?? "")
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(x => x.Trim())
-                            .Where(x => x.Length > 0)
-                            .ToList();
-
-                        if (list.Any(x => string.Equals(x, name, StringComparison.CurrentCultureIgnoreCase)))
-                            list.RemoveAll(x => string.Equals(x, name, StringComparison.CurrentCultureIgnoreCase));
-                        else
-                            list.Add(name);
-
-                        string keys = string.Join(", ", list);
+                        string keys = string.Join(", ", picked);
                         cond.Combatant.Conditions = keys;
                         token.Conditions = keys;
 
                         if (_remote)
                         {
-                            // у игрока своего файла нет: набор уезжает хосту
                             RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, token.Facing,
                                 conditions: keys);
                         }

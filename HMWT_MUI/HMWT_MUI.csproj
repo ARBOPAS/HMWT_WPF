@@ -307,6 +307,7 @@
       <DependentUpon>SpellsView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Windows\MessageDialog.cs" />
+    <Compile Include="Windows\ConditionsWindow.cs" />
     <Compile Include="Windows\NotificationWindow.cs" />
     <Compile Include="Helpers\SpellTextLinker.cs" />
     <Compile Include="Windows\SpellDetailWindow.cs" />

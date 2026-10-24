@@ -1871,44 +1871,32 @@
         });
 
       items.push({ separator: true });
-      // Состояния: ключи из трекера, подписи русские. Ведущий ставит любому
-      // жетону, игрок видит список своего (правка у игрока — следующим шагом).
-      const condList = (state && state.conditionList) || [];
-      const condHave = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
-      if (condList.length) {
-        items.push({ separator: true });
-        items.push({ text: 'Состояния', disabled: true });
-        for (const c of condList) {
-          if (!c || !c.key) continue;
-          items.push({
-            text: c.name || c.key,
-            check: condHave.some(x => x.toLowerCase() === c.key.toLowerCase()),
-            action: 'condition', value: c.key, disabled: false
-          });
-        }
-      }
+      // Состояния — одной кнопкой: открывается окно с галочками
+      const condN = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean).length;
+      items.push({
+        text: condN ? ('Состояния (' + condN + ')…') : 'Состояния…',
+        action: 'conditions', value: ''
+      });
 
       items.push({ separator: true });
       items.push({ text: 'Убрать с карты', danger: true, action: 'remove', value: '' });
     } else {
-      // Игрок: свой жетон — такие же галочки, чужие — только просмотр
-      const list = (state && state.conditionList) || [];
-      const have = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
-      const canEdit = token.canMove !== false;
-      if (list.length) {
-        items.push({ separator: true });
-        items.push({ text: 'Состояния', disabled: true });
-        for (const c of list) {
-          if (!c || !c.key) continue;
-          const on = have.some(x => x.toLowerCase() === c.key.toLowerCase());
-          if (!canEdit && !on) continue;
-          items.push({
-            text: canEdit ? (c.name || c.key) : ('• ' + (c.name || c.key)),
-            check: on,
-            action: 'condition', value: c.key,
-            disabled: !canEdit
-          });
-        }
+      // Игрок: своему жетону — та же кнопка, что у ведущего; чужому —
+      // только список уже выставленных состояний.
+      const n2 = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean).length;
+      const names = {};
+      for (const o of ((state && state.conditionList) || [])) if (o && o.key) names[o.key.toLowerCase()] = o.name || o.key;
+      const have2 = (token.conditions || '').split(/[,;]/).map(x => x.trim()).filter(Boolean)
+        .map(k => names[k.toLowerCase()] || k);
+
+      items.push({ separator: true });
+      if (token.canMove !== false)
+        items.push({
+          text: n2 ? ('Состояния (' + n2 + ')…') : 'Состояния…',
+          action: 'conditions', value: ''
+        });
+      else {
+        items.push({ text: n2 ? ('Состояния: ' + have2.join(', ')) : 'Состояний нет', disabled: true });
       }
     }
 
@@ -2769,5 +2757,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.7.1');
+  log('renderer ready v1.3.7.2');
 })();
