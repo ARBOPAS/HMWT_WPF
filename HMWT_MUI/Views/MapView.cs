@@ -2925,24 +2925,35 @@ namespace HMWT_MUI.Views
                 DmRolls.Toast(this, "Не удалось открыть картинку: " + error, true);
         }
 
+        private static bool _scenesDebugShown;
+
         private void OpenScenesWindow()
         {
             if (!_isDm) return;
 
-            var window = new Windows.ScenesWindow(_characterId, _scene?.Id ?? 0, scene =>
+            try
             {
+                var window = new Windows.ScenesWindow(_characterId, _scene?.Id ?? 0, scene =>
+                {
+                    Refresh();
+                    var found = _scenes.FirstOrDefault(s => s.Id == scene.Id);
+                    if (found == null) return;
+                    _sceneCombo.SelectedItem = found;
+                    OpenScene(found);
+                    PublishMap();
+                })
+                {
+                    Owner = Window.GetWindow(this)
+                };
+                window.ShowDialog();
                 Refresh();
-                var found = _scenes.FirstOrDefault(s => s.Id == scene.Id);
-                if (found == null) return;
-                _sceneCombo.SelectedItem = found;
-                OpenScene(found);
-                PublishMap();
-            })
+            }
+            catch (Exception ex)
             {
-                Owner = Window.GetWindow(this)
-            };
-            window.ShowDialog();
-            Refresh();
+                Debug.WriteLine($"[Карта] окно сцен: {ex}");
+                WebLog("scenes window error: " + ex);
+                DmRolls.Toast(this, "Окно сцен: " + ex.Message, true);
+            }
         }
 
         private void NewScene()
