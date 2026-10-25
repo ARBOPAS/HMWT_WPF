@@ -290,6 +290,9 @@
     <Compile Include="Views\MapView.cs" />
     <Compile Include="Views\MapView.Web.cs" />
     <Compile Include="Views\MapView.Events.cs" />
+    <Compile Include="Views\MapView.Scenes.cs" />
+    <Compile Include="Views\MapView.Fog.cs" />
+    <Compile Include="Views\MapView.Shell.cs" />
     <Compile Include="Views\MonsterEditor.cs" />
     <Compile Include="Views\BestiaryView.cs" />
     <Compile Include="Views\InitiativePanel.cs" />
