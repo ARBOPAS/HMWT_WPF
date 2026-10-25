@@ -1069,6 +1069,9 @@ namespace HMWT_MUI.Net
             }
 
             Broadcast(MsgType.AudioPlay, state);
+            // Сервер и ведущий — один процесс: играем у ведущего напрямую.
+            // Без этого клиенты слышали, а сам ведущий — нет.
+            HostAudio("PlayState", state);
             Log($"аудио: «{state.Name}» для всех (громкость {state.Gain:0.00})");
         }
 
@@ -1076,6 +1079,7 @@ namespace HMWT_MUI.Net
         {
             lock (_stateLock) { _audio = null; _audioStartedAt = default; }
             Broadcast(MsgType.AudioStop, new AudioStopRequest());
+            HostAudio("StopState");
             Log("аудио: стоп");
         }
 
@@ -1098,6 +1102,20 @@ namespace HMWT_MUI.Net
             }
 
             Broadcast(MsgType.AudioGain, updated);
+            HostAudio("GainState", updated);
+        }
+
+        /// <summary>Вызов плеера ведущего без жёсткой ссылки на WPF-сборку.</summary>
+        private static void HostAudio(string method, object arg = null)
+        {
+            try
+            {
+                var type = Type.GetType("HMWT_MUI.Services.AudioPlayback, HMWT_MUI");
+                var call = type?.GetMethod(method);
+                if (call == null) return;
+                call.Invoke(null, call.GetParameters().Length == 0 ? null : new[] { arg });
+            }
+            catch { }
         }
 
         private static void LogAudio(string text) => LogRoomLine("аудио: " + text);
