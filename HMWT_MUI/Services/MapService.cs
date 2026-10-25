@@ -380,8 +380,8 @@ namespace HMWT_MUI.Services
                 if (scene == null || scene.Id <= 0) { error = "Сцена не выбрана."; return false; }
                 if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath)) { error = "Файл не найден."; return false; }
 
-                var frame = BitmapFrame.Create(new Uri(sourcePath), BitmapCreateOptions.DelayCreation, BitmapCacheOption.OnLoad);
-                int width = frame.PixelWidth, height = frame.PixelHeight;
+                if (!TryReadImageSize(sourcePath, out int width, out int height, out error))
+                    return false;
 
                 string dir = Path.Combine(PhotoHelper.GetWritableRoot(), "Maps");
                 Directory.CreateDirectory(dir);
@@ -412,6 +412,224 @@ namespace HMWT_MUI.Services
                 error = ex.Message;
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Размер карты. PNG/JPEG/BMP/GIF читает WPF, а WebP и WebM — свои
+        /// разборщики: системный декодер их не знает, а размер нужен сетке,
+        /// жетонам и туману.
+        /// </summary>
+        private static bool TryReadImageSize(string path, out int width, out int height, out string error)
+        {
+            width = height = 0;
+            error = "";
+            try
+            {
+                string ext = (Path.GetExtension(path) ?? "").ToLowerInvariant();
+                if (ext == ".webp") return TryReadWebP(path, out width, out height, out error);
+                if (ext == ".webm") return TryReadWebM(path, out width, out height, out error);
+
+                var frame = BitmapFrame.Create(new Uri(path), BitmapCreateOptions.DelayCreation,
+                    BitmapCacheOption.OnLoad);
+                width = frame.PixelWidth;
+                height = frame.PixelHeight;
+                return width > 0 && height > 0;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private static bool TryReadWebP(string path, out int width, out int height, out string error)
+        {
+            width = height = 0;
+            error = "";
+            try
+            {
+                byte[] b = new byte[40];
+                using (var fs = File.OpenRead(path))
+                {
+                    if (fs.Read(b, 0, b.Length) < 30) { error = "Файл WebP слишком короткий."; return false; }
+                }
+
+                if (b[0] != 'R' || b[1] != 'I' || b[2] != 'F' || b[3] != 'F' ||
+                    b[8] != 'W' || b[9] != 'E' || b[10] != 'B' || b[11] != 'P')
+                {
+                    error = "Это не WebP.";
+                    return false;
+                }
+
+                string chunk = System.Text.Encoding.ASCII.GetString(b, 12, 4);
+                if (chunk == "VP8 ")
+                {
+                    if (b[23] != 0x9D || b[24] != 0x01 || b[25] != 0x2A)
+                    {
+                        error = "Повреждённый WebP (VP8).";
+                        return false;
+                    }
+                    width = (b[26] | (b[27] << 8)) & 0x3FFF;
+                    height = (b[28] | (b[29] << 8)) & 0x3FFF;
+                }
+                else if (chunk == "VP8L")
+                {
+                    if (b[20] != 0x2F) { error = "Повреждённый WebP (VP8L)."; return false; }
+                    uint bits = (uint)(b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24));
+                    width = (int)(bits & 0x3FFF) + 1;
+                    height = (int)((bits >> 14) & 0x3FFF) + 1;
+                }
+                else if (chunk == "VP8X")
+                {
+                    width = (b[24] | (b[25] << 8) | (b[26] << 16)) + 1;
+                    height = (b[27] | (b[28] << 8) | (b[29] << 16)) + 1;
+                }
+                else
+                {
+                    error = "Неизвестный вариант WebP: " + chunk;
+                    return false;
+                }
+
+                if (width <= 0 || height <= 0) { error = "Не удалось определить размер WebP."; return false; }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// WebM — контейнер EBML. Идём по дереву (Segment → Tracks →
+        /// TrackEntry → Video) и читаем PixelWidth/PixelHeight. Простой
+        /// поиск байтов 0xB0/0xBA даёт ложные совпадения в первых же
+        /// мегабайтах, поэтому разбираем структуру.
+        /// </summary>
+        private static bool TryReadWebM(string path, out int width, out int height, out string error)
+        {
+            width = height = 0;
+            error = "";
+            try
+            {
+                const int limit = 4 * 1024 * 1024;
+                byte[] data;
+                using (var fs = File.OpenRead(path))
+                {
+                    int size = (int)Math.Min(limit, fs.Length);
+                    data = new byte[size];
+                    int read = 0;
+                    while (read < size)
+                    {
+                        int n = fs.Read(data, read, size - read);
+                        if (n <= 0) break;
+                        read += n;
+                    }
+                }
+
+                int parsedWidth = 0, parsedHeight = 0;
+                ParseEbml(data, 0, data.Length, 0, ref parsedWidth, ref parsedHeight);
+
+                if (parsedWidth <= 0 || parsedHeight <= 0)
+                {
+                    error = "Не удалось найти размеры WebM.";
+                    return false;
+                }
+
+                width = parsedWidth;
+                height = parsedHeight;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private const long EbmlHeader = 0x1A45DFA3;
+        private const long EbmlSegment = 0x18538067;
+        private const long EbmlTracks = 0x1654AE6B;
+        private const long EbmlTrackEntry = 0xAE;
+        private const long EbmlVideo = 0xE0;
+
+        private static void ParseEbml(byte[] data, int start, int end, int depth,
+            ref int width, ref int height)
+        {
+            if (depth > 10 || start < 0 || start >= data.Length) return;
+
+            int pos = Math.Max(0, start);
+            end = Math.Min(end, data.Length);
+            while (pos < end)
+            {
+                if (!ReadEbmlVint(data, pos, true, out long id, out int idLength, out _))
+                    return;
+                int sizePos = pos + idLength;
+                if (!ReadEbmlVint(data, sizePos, false, out long size, out int sizeLength, out bool unknown))
+                    return;
+
+                int dataStart = sizePos + sizeLength;
+                if (dataStart >= data.Length) return;
+
+                long endLong = unknown ? end : Math.Min(end, dataStart + size);
+                int dataEnd = (int)Math.Min(data.Length, Math.Max(dataStart, endLong));
+
+                if (id == EbmlHeader || id == EbmlSegment || id == EbmlTracks ||
+                    id == EbmlTrackEntry || id == EbmlVideo)
+                {
+                    ParseEbml(data, dataStart, dataEnd, depth + 1, ref width, ref height);
+                }
+                else if ((id == 0xB0 || id == 0xBA) && size >= 1 && size <= 4)
+                {
+                    long value = 0;
+                    for (int i = 0; i < size && dataStart + i < data.Length; i++)
+                        value = (value << 8) | data[dataStart + i];
+
+                    if (value >= 16 && value <= 20000)
+                    {
+                        if (id == 0xB0 && width == 0) width = (int)value;
+                        else if (id == 0xBA && height == 0) height = (int)value;
+                    }
+                }
+
+                if (dataEnd <= pos) return;
+                pos = dataEnd;
+            }
+        }
+
+        private static bool ReadEbmlVint(byte[] data, int pos, bool keepMarker,
+            out long value, out int length, out bool unknown)
+        {
+            value = 0;
+            length = 0;
+            unknown = false;
+            if (pos < 0 || pos >= data.Length) return false;
+
+            byte first = data[pos];
+            int len = 0;
+            for (int bit = 7; bit >= 0; bit--)
+            {
+                if ((first & (1 << bit)) != 0) { len = 8 - bit; break; }
+            }
+            if (len < 1 || pos + len > data.Length) return false;
+
+            if (keepMarker)
+            {
+                for (int i = 0; i < len; i++) value = (value << 8) | data[pos + i];
+            }
+            else
+            {
+                long mask = (1L << (8 - len)) - 1;
+                value = first & mask;
+                for (int i = 1; i < len; i++) value = (value << 8) | data[pos + i];
+
+                long all = mask;
+                for (int i = 1; i < len; i++) all = (all << 8) | 255;
+                if (value == all) unknown = true;
+            }
+
+            length = len;
+            return true;
         }
 
         /// <summary>Абсолютный путь к картинке сцены (или null).</summary>

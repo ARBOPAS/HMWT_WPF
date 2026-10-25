@@ -411,7 +411,79 @@
     }
   }
 
+  // ── WebM-карта: видео-текстура ──
+  // Pixi рисует кадр видео как обычную текстуру; звук у карты выключен,
+  // иначе браузер не запустит автоплей.
+  let mapVideo = null;
+
+  function stopMapVideo() {
+    if (!mapVideo) return;
+    try {
+      mapVideo.pause();
+      mapVideo.removeAttribute('src');
+      mapVideo.load();
+    } catch (_) { }
+    try { mapVideo.remove(); } catch (_) { }
+    mapVideo = null;
+  }
+
+  function ensureMapVideo(url, hash) {
+    if (mapSprite && mapVideo && url === mapImageUrl) { applyMapSpriteSize(); return; }
+
+    mapImageUrl = url || '';
+    mapImageHash = hash || '';
+    stopMapGif();
+    stopMapVideo();
+    if (mapSprite) {
+      try { mapLayer.removeChild(mapSprite); } catch (_) { }
+      try { mapSprite.destroy({ texture: true }); } catch (_) { }
+      mapSprite = null;
+    }
+
+    const video = document.createElement('video');
+    video.src = url;
+    video.loop = true;
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.style.position = 'fixed';
+    video.style.left = '-10px';
+    video.style.top = '-10px';
+    video.style.width = '2px';
+    video.style.height = '2px';
+    video.style.opacity = '0';
+    video.style.pointerEvents = 'none';
+    document.body.appendChild(video);
+    mapVideo = video;
+
+    video.addEventListener('loadeddata', () => {
+      if (mapVideo !== video) return;
+      try {
+        const tex = PIXI.Texture.from(video);
+        mapSprite = new PIXI.Sprite(tex);
+        mapSprite.anchor.set(0, 0);
+        mapSprite.position.set(0, 0);
+        mapLayer.addChild(mapSprite);
+        applyMapSpriteSize();
+        video.play().catch(() => log('webm autoplay: ' + url));
+        log('webm map: ' + video.videoWidth + 'x' + video.videoHeight);
+      } catch (err) {
+        log('webm map error: ' + err);
+      }
+    }, { once: true });
+
+    video.addEventListener('error', () => log('webm load error: ' + url));
+    video.load();
+  }
+
   function ensureMapSprite(url, hash) {
+    if ((url || '').toLowerCase().indexOf('.webm') >= 0) {
+      ensureMapVideo(url, hash);
+      return;
+    }
+    stopMapVideo();
+
     // Один и тот же адрес — не пересоздаём спрайт на каждом кадре.
     if (mapSprite && url && url === mapImageUrl) { applyMapSpriteSize(); return; }
 
@@ -467,6 +539,13 @@
     if (!mapSprite || mapSprite.destroyed) return;
     const tex = mapSprite.texture;
     if (!tex || !tex.baseTexture || !tex.baseTexture.valid) return;
+
+    // Видео-карта: обновляем кадр текстуры. Resource сам не всегда тикает,
+    // а без update кадр замирает на первом.
+    if (mapVideo) {
+      try { tex.baseTexture.update(); } catch (_) { }
+    }
+
     if (Math.abs(mapSprite.width - mapW) > 0.5 || Math.abs(mapSprite.height - mapH) > 0.5)
       applyMapSpriteSize();
   });
@@ -3206,5 +3285,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.11.12');
+  log('renderer ready v1.3.12.0');
 })();

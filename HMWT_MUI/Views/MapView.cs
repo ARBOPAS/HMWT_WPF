@@ -2904,7 +2904,7 @@ namespace HMWT_MUI.Views
             var dialog = new OpenFileDialog
             {
                 Title = "Карта боя",
-                Filter = "Изображение (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Все файлы (*.*)|*.*"
+                Filter = "Карта (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.webm)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.webm|Все файлы (*.*)|*.*"
             };
             if (dialog.ShowDialog() != true) return;
 
