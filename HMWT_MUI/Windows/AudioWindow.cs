@@ -53,8 +53,7 @@ namespace HMWT_MUI.Windows
         {
             get
             {
-                var main = Application.Current?.MainWindow as MainWindow;
-                return main?.AudioHost;
+                return AudioHost.Shared ?? (Application.Current?.MainWindow as MainWindow)?.AudioHost;
             }
         }
 

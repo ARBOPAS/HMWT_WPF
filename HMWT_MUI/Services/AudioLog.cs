@@ -16,9 +16,19 @@ namespace HMWT_MUI.Services
             try
             {
                 string path = Path.Combine(Path.GetTempPath(), "hmwt-audio.log");
-                File.AppendAllText(path,
-                    $"{DateTime.Now:HH:mm:ss.fff} [{Process.GetCurrentProcess().Id}] {message}{Environment.NewLine}",
-                    new System.Text.UTF8Encoding(false));
+                string line = $"{DateTime.Now:HH:mm:ss.fff} [{Process.GetCurrentProcess().Id}] {message}{Environment.NewLine}";
+                for (int i = 0; i < 3; i++)
+                {
+                    try
+                    {
+                        File.AppendAllText(path, line, new System.Text.UTF8Encoding(false));
+                        return;
+                    }
+                    catch (System.IO.IOException)
+                    {
+                        System.Threading.Thread.Sleep(15);
+                    }
+                }
             }
             catch { }
         }

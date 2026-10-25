@@ -20,6 +20,9 @@ namespace HMWT_MUI.Controls
     /// </summary>
     public partial class AudioHost : UserControl
     {
+        /// <summary>Единственный плеер приложения: окно и сервис берут его отсюда.</summary>
+        public static AudioHost Shared { get; private set; }
+
         private readonly MediaPlayer _player = new MediaPlayer();
         private double _master = 0.8;
         private double _gain = 1;

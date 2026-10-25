@@ -26,7 +26,7 @@ namespace HMWT_MUI.Services
         }
 
         private static AudioHost Host
-            => (Application.Current?.MainWindow as MainWindow)?.AudioHost;
+            => AudioHost.Shared ?? (Application.Current?.MainWindow as MainWindow)?.AudioHost;
 
         /// <summary>Ведущий и сервер в одном процессе: играем напрямую, не полагаясь на события.</summary>
         public static void PlayState(AudioState state) => OnUi(() => Play(state));

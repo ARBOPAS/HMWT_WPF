@@ -3684,7 +3684,21 @@ namespace HMWT_MUI
         {
             if (!DmRights.CanUseDmTools())
             {
-                ShowToast(DmRights.DenyReason(), true);
+                // Игроку — только просмотр: бой ведёт ведущий.
+                if (!RoomSession.Instance.IsActive)
+                {
+                    ShowToast("Инициатива доступна в отряде — там её ведёт ведущий", true);
+                    return;
+                }
+
+                if (InitiativeOverlay.Visibility == Visibility.Visible)
+                {
+                    CloseInitiativeOverlay();
+                    return;
+                }
+
+                BuildReadOnlyInitiative();
+                ShowInitiativeOverlay();
                 return;
             }
 
@@ -3696,7 +3710,11 @@ namespace HMWT_MUI
 
             EnsureInitiativeOverlayBuilt();
             _initiativePanel.Refresh();
+            ShowInitiativeOverlay();
+        }
 
+        private void ShowInitiativeOverlay()
+        {
             InitiativeOverlay.Visibility = Visibility.Visible;
             var anim = new DoubleAnimation
             {
@@ -3706,6 +3724,97 @@ namespace HMWT_MUI
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
             InitiativeOverlay.RenderTransform.BeginAnimation(TranslateTransform.XProperty, anim);
+        }
+
+        /// <summary>
+        /// Окошко инициативы для игрока: раунд, порядок и чей ход. Никаких
+        /// кнопок «следующий», правки хитов или НПС — это инструменты ведущего.
+        /// </summary>
+        private void BuildReadOnlyInitiative()
+        {
+            var ink = (Brush)FindResource("B.Ink");
+            var mute = (Brush)FindResource("B.Mute");
+            var accent = (Brush)FindResource("B.Accent");
+
+            var root = new StackPanel { Margin = new Thickness(18, 14, 18, 14) };
+            root.Children.Add(new TextBlock
+            {
+                Text = "Только просмотр — бой ведёт ведущий",
+                FontSize = 11,
+                Foreground = mute,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            var state = RoomSession.Instance.GetInitiative();
+            bool has = state != null && state.HasContent;
+            root.Children.Add(new TextBlock
+            {
+                Text = has ? state.RoundLine() : "Бой ещё не начат",
+                FontFamily = (FontFamily)FindResource("F.Display"),
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = has ? accent : mute,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            if (has && state.Combatants != null)
+            {
+                int position = 1;
+                foreach (var combatant in state.Combatants)
+                {
+                    if (combatant == null) continue;
+
+                    var row = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Margin = new Thickness(0, 3, 0, 3)
+                    };
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = position + ".",
+                        Width = 26,
+                        FontSize = 13,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = combatant.IsCurrent ? accent : mute,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = combatant.Name,
+                        FontSize = 13,
+                        FontWeight = combatant.IsCurrent ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = combatant.IsCurrent ? accent : ink,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    if (combatant.IsCurrent)
+                    {
+                        row.Children.Add(new Border
+                        {
+                            Background = accent,
+                            CornerRadius = new CornerRadius(3),
+                            Padding = new Thickness(4, 0, 4, 0),
+                            Margin = new Thickness(8, 0, 0, 0),
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Child = new TextBlock
+                            {
+                                Text = "ХОД",
+                                FontSize = 9,
+                                FontWeight = FontWeights.Bold,
+                                Foreground = (Brush)FindResource("B.Void")
+                            }
+                        });
+                    }
+
+                    root.Children.Add(row);
+                    position++;
+                }
+            }
+
+            InitiativeOverlayHost.Content = new ScrollViewer
+            {
+                Content = root,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
         }
 
         private void btnCloseInitiative_Click(object sender, RoutedEventArgs e) => CloseInitiativeOverlay();
