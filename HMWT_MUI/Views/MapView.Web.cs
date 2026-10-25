@@ -196,7 +196,11 @@ namespace HMWT_MUI.Views
                     _webSeenVersion = _seenVersion;
                     _webSeenSent = _seenPoints.Count;
                 }
-                if (sendImage) _webImageHash = imageHash;
+                // Хэш запоминаем только когда картинка реально ушла. Иначе
+                // «файл ещё качается» навсегда помечал бы карту отправленной,
+                // и WebM/WebP не доезжали до WebGL после загрузки.
+                if (sendImage && !string.IsNullOrWhiteSpace(imagePath)) _webImageHash = imageHash;
+                else if (sendImage && string.IsNullOrWhiteSpace(imageHash)) _webImageHash = "";
             }
             catch (Exception ex)
             {

@@ -322,6 +322,7 @@
     <Compile Include="Windows\ConditionsWindow.cs" />
     <Compile Include="Windows\ZoneScriptWindow.cs" />
     <Compile Include="Windows\AudioWindow.cs" />
+    <Compile Include="Windows\ScenesWindow.cs" />
     <Compile Include="Windows\NotificationWindow.cs" />
     <Compile Include="Helpers\SpellTextLinker.cs" />
     <Compile Include="Windows\SpellDetailWindow.cs" />

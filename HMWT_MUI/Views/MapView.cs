@@ -576,6 +576,12 @@ namespace HMWT_MUI.Views
             };
             bar.Children.Add(_sceneCombo);
 
+            var scenesWindow = DmUiKit.Action("Сцены…", (s, e) => OpenScenesWindow(),
+                DmUiKit.ButtonKind.Ghost, "Все сцены по кампаниям", 96, 30);
+            scenesWindow.Margin = new Thickness(0, 0, 8, 0);
+            scenesWindow.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
+            bar.Children.Add(scenesWindow);
+
             var newScene = DmUiKit.Icon("+", (s, e) => NewScene(), "Новая сцена", 30);
             newScene.IsEnabled = _isDm;
             newScene.Margin = new Thickness(0, 0, 6, 0);
@@ -2917,6 +2923,26 @@ namespace HMWT_MUI.Views
             }
             else
                 DmRolls.Toast(this, "Не удалось открыть картинку: " + error, true);
+        }
+
+        private void OpenScenesWindow()
+        {
+            if (!_isDm) return;
+
+            var window = new Windows.ScenesWindow(_characterId, _scene?.Id ?? 0, scene =>
+            {
+                Refresh();
+                var found = _scenes.FirstOrDefault(s => s.Id == scene.Id);
+                if (found == null) return;
+                _sceneCombo.SelectedItem = found;
+                OpenScene(found);
+                PublishMap();
+            })
+            {
+                Owner = Window.GetWindow(this)
+            };
+            window.ShowDialog();
+            Refresh();
         }
 
         private void NewScene()

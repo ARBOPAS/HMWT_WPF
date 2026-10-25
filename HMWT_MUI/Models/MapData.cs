@@ -9,11 +9,24 @@ namespace HMWT_MUI.Models
     /// строкой: мастер заранее готовит «Таверну» и «Подземелье», а на игре
     /// просто выбирает нужную — картинка, сетка и жетоны уже на месте.
     /// </summary>
+    /// <summary>Группа-кампания для сцен: «Кампания А», «Ваншот» и т.п.</summary>
+    public sealed class MapCampaignData
+    {
+        public int Id { get; set; }
+        public int CharacterId { get; set; }
+        public string Name { get; set; } = "Кампания";
+        public int Sort { get; set; }
+        public override string ToString() => Name;
+    }
+
     public sealed class MapSceneData
     {
         public int Id { get; set; }
 
         public int CharacterId { get; set; }
+
+        /// <summary>Кампания-группа, к которой относится сцена (0 — без группы).</summary>
+        public int CampaignId { get; set; }
 
         public string Name { get; set; } = "Карта";
 

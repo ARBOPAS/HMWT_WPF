@@ -45,6 +45,7 @@ namespace HMWT_MUI.Services
                     CREATE TABLE IF NOT EXISTS MapScene (
                         id_scene INTEGER PRIMARY KEY AUTOINCREMENT,
                         id_character INTEGER NOT NULL,
+                        id_campaign INTEGER DEFAULT 0,
                         name TEXT NOT NULL DEFAULT 'Карта',
                         image_path TEXT DEFAULT '',
                         image_hash TEXT DEFAULT '',
@@ -65,6 +66,12 @@ namespace HMWT_MUI.Services
                         flip_v INTEGER DEFAULT 0,
                         created_at TEXT DEFAULT '',
                         updated_at TEXT DEFAULT ''
+                    );
+                    CREATE TABLE IF NOT EXISTS MapCampaign (
+                        id_campaign INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_character INTEGER NOT NULL,
+                        name TEXT NOT NULL DEFAULT 'Кампания',
+                        sort INTEGER DEFAULT 0
                     );
                     CREATE TABLE IF NOT EXISTS MapToken (
                         id_token INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,6 +145,7 @@ namespace HMWT_MUI.Services
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_thickness REAL DEFAULT 1");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "grid_snap INTEGER DEFAULT 1");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "fog_mode TEXT DEFAULT 'combined'");
+                DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "id_campaign INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "rotation INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "flip_h INTEGER DEFAULT 0");
                 DatabaseHelper.EnsureColumn(conn, tx, "MapScene", "flip_v INTEGER DEFAULT 0");
@@ -241,13 +249,14 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>Создаёт пустую сцену и возвращает её.</summary>
-        public static MapSceneData CreateScene(int characterId, string name)
+        public static MapSceneData CreateScene(int characterId, string name, int campaignId = 0)
         {
             EnsureTables();
 
             var scene = new MapSceneData
             {
                 CharacterId = characterId,
+                CampaignId = campaignId,
                 Name = string.IsNullOrWhiteSpace(name) ? "Новая сцена" : name.Trim()
             };
 
@@ -256,10 +265,11 @@ namespace HMWT_MUI.Services
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
                 using var cmd = new SqliteCommand(@"
-                    INSERT INTO MapScene (id_character, name, created_at, updated_at)
-                    VALUES (@char, @name, @now, @now);
+                    INSERT INTO MapScene (id_character, id_campaign, name, created_at, updated_at)
+                    VALUES (@char, @campaign, @name, @now, @now);
                     SELECT last_insert_rowid();", conn);
                 cmd.Parameters.AddWithValue("@char", characterId);
+                cmd.Parameters.AddWithValue("@campaign", campaignId);
                 cmd.Parameters.AddWithValue("@name", scene.Name);
                 cmd.Parameters.AddWithValue("@now", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 scene.Id = Convert.ToInt32(cmd.ExecuteScalar());
@@ -282,7 +292,7 @@ namespace HMWT_MUI.Services
                 conn.Open();
                 using var cmd = new SqliteCommand(@"
                     UPDATE MapScene SET
-                        name = @name, image_path = @image, image_hash = @hash,
+                        name = @name, id_campaign = @campaign, image_path = @image, image_hash = @hash,
                         width_px = @w, height_px = @h, grid_px = @grid, grid_on = @gridOn,
                         grid_offset_x = @gx, grid_offset_y = @gy, fog_on = @fog,
                         grid_color = @gridColor, trail_color = @trailColor,
@@ -290,6 +300,7 @@ namespace HMWT_MUI.Services
                         updated_at = @now
                     WHERE id_scene = @id", conn);
                 cmd.Parameters.AddWithValue("@name", scene.Name ?? "");
+                cmd.Parameters.AddWithValue("@campaign", scene.CampaignId);
                 cmd.Parameters.AddWithValue("@image", scene.ImagePath ?? "");
                 cmd.Parameters.AddWithValue("@hash", scene.ImageHash ?? "");
                 cmd.Parameters.AddWithValue("@w", scene.WidthPx);
@@ -342,6 +353,7 @@ namespace HMWT_MUI.Services
             {
                 Id = Int(reader, "id_scene"),
                 CharacterId = Int(reader, "id_character"),
+                CampaignId = Int(reader, "id_campaign"),
                 Name = Text(reader, "name"),
                 ImagePath = Text(reader, "image_path"),
                 ImageHash = Text(reader, "image_hash"),
@@ -361,6 +373,130 @@ namespace HMWT_MUI.Services
                 FlipH = Int(reader, "flip_h") != 0,
                 FlipV = Int(reader, "flip_v") != 0
             };
+        }
+
+        #endregion
+
+        #region === КАМПАНИИ И ПРЕВЬЮ ===
+
+        public static List<MapCampaignData> LoadCampaigns(int characterId)
+        {
+            EnsureTables();
+            var list = new List<MapCampaignData>();
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "SELECT * FROM MapCampaign WHERE id_character = @char ORDER BY sort, id_campaign", conn);
+                cmd.Parameters.AddWithValue("@char", characterId);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    list.Add(new MapCampaignData
+                    {
+                        Id = Int(r, "id_campaign"),
+                        CharacterId = Int(r, "id_character"),
+                        Name = Text(r, "name"),
+                        Sort = Int(r, "sort")
+                    });
+            }
+            catch (Exception ex) { Debug.WriteLine($"[MapService] кампании: {ex.Message}"); }
+            return list;
+        }
+
+        public static int CreateCampaign(int characterId, string name)
+        {
+            EnsureTables();
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    @"INSERT INTO MapCampaign (id_character, name, sort)
+                      VALUES (@char, @name,
+                        COALESCE((SELECT MAX(sort) FROM MapCampaign WHERE id_character = @char), 0) + 1);
+                      SELECT last_insert_rowid();", conn);
+                cmd.Parameters.AddWithValue("@char", characterId);
+                cmd.Parameters.AddWithValue("@name", string.IsNullOrWhiteSpace(name) ? "Кампания" : name.Trim());
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+            catch (Exception ex) { Debug.WriteLine($"[MapService] кампания: {ex.Message}"); return 0; }
+        }
+
+        public static void RenameCampaign(int id, string name)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand("UPDATE MapCampaign SET name = @n WHERE id_campaign = @id", conn);
+                cmd.Parameters.AddWithValue("@n", name ?? "");
+                cmd.Parameters.AddWithValue("@id", id);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[MapService] переименовать кампанию: {ex.Message}"); }
+        }
+
+        public static void DeleteCampaign(int id)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var tx = conn.BeginTransaction();
+                using (var cmd = new SqliteCommand("UPDATE MapScene SET id_campaign = 0 WHERE id_campaign = @id", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+                using (var cmd = new SqliteCommand("DELETE FROM MapCampaign WHERE id_campaign = @id", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+                tx.Commit();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[MapService] удалить кампанию: {ex.Message}"); }
+        }
+
+        /// <summary>Миниатюра сцены для карточки. WebP/WebM WPF не декодирует — вернём null.</summary>
+        public static string ThumbnailPath(MapSceneData scene)
+        {
+            if (scene == null || string.IsNullOrWhiteSpace(scene.ImageHash)) return null;
+
+            try
+            {
+                string dir = Path.Combine(PhotoHelper.GetWritableRoot(), "Maps");
+                Directory.CreateDirectory(dir);
+                string file = Path.Combine(dir, "thumb_" + scene.ImageHash + ".jpg");
+                if (File.Exists(file)) return file;
+
+                string image = ResolveImagePath(scene);
+                if (image == null) return null;
+
+                string ext = (Path.GetExtension(image) ?? "").ToLowerInvariant();
+                if (ext == ".webp" || ext == ".webm") return null;
+
+                var source = new BitmapImage();
+                source.BeginInit();
+                source.CacheOption = BitmapCacheOption.OnLoad;
+                source.UriSource = new Uri(image);
+                source.EndInit();
+
+                if (source.PixelWidth <= 0) return null;
+                double scale = 240.0 / source.PixelWidth;
+                var thumb = new TransformedBitmap(source, new ScaleTransform(scale, scale));
+
+                var encoder = new JpegBitmapEncoder { QualityLevel = 80 };
+                encoder.Frames.Add(BitmapFrame.Create(thumb));
+                using (var stream = File.Create(file)) encoder.Save(stream);
+                return file;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MapService] миниатюра: {ex.Message}");
+                return null;
+            }
         }
 
         #endregion
