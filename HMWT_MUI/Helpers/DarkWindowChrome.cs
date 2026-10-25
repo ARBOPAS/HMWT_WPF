@@ -33,6 +33,11 @@ namespace HMWT_MUI.Helpers
             };
             WindowChrome.SetWindowChrome(window, chrome);
 
+            // Сначала отсоединяем старое содержимое: иначе body уже является
+            // логическим ребёнком Window, и добавить его в shell нельзя —
+            // «элемент уже является дочерним для другого элемента».
+            window.Content = null;
+
             var shell = new Grid();
             shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(36) });
             shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
