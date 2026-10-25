@@ -36,6 +36,8 @@ namespace HMWT_MUI.Windows
         private Slider _master;
 
         private ComboBox _playlists;
+        private StackPanel _playlistBox;
+        private TextBlock _playlistTitle;
         private List<AudioTrackData> _queue = new List<AudioTrackData>();
         private int _queueIndex;
         private bool _playlistMode;
@@ -149,6 +151,7 @@ namespace HMWT_MUI.Windows
                 VerticalContentAlignment = VerticalAlignment.Center
             };
             DmUiKit.ApplyDarkListStyle(_playlists);
+            _playlists.SelectionChanged += (s, e) => ReloadPlaylistTracks();
             plBar.Children.Add(_playlists);
 
             var create = MakeButton("Создать…", 96);
@@ -168,6 +171,31 @@ namespace HMWT_MUI.Windows
             plBar.Children.Add(delete);
 
             top.Children.Add(plBar);
+
+            // Содержимое плейлиста: видно, что в нём лежит, и «Убрать»
+            // убирает только из плейлиста, а не из библиотеки.
+            _playlistTitle = new TextBlock
+            {
+                Text = "Плейлист пуст", FontSize = 11, Foreground = Mute,
+                Margin = new Thickness(2, 0, 0, 4)
+            };
+            top.Children.Add(_playlistTitle);
+
+            _playlistBox = new StackPanel();
+            var playlistBorder = new Border
+            {
+                Background = Card, BorderBrush = Line, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(6),
+                MaxHeight = 150, Margin = new Thickness(0, 0, 0, 8)
+            };
+            playlistBorder.Child = new ScrollViewer
+            {
+                Content = _playlistBox,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+            top.Children.Add(playlistBorder);
+
             ReloadPlaylists();
 
             root.Children.Add(top);
@@ -256,6 +284,75 @@ namespace HMWT_MUI.Windows
                 }
             }
             _playlists.SelectedIndex = index;
+            ReloadPlaylistTracks();
+        }
+
+        private void ReloadPlaylistTracks()
+        {
+            if (_playlistBox == null) return;
+            _playlistBox.Children.Clear();
+
+            int? id = SelectedPlaylistId;
+            if (id == null)
+            {
+                if (_playlistTitle != null) _playlistTitle.Text = "Плейлист не выбран";
+                return;
+            }
+
+            var tracks = AudioService.PlaylistTracks(id.Value);
+            if (_playlistTitle != null)
+                _playlistTitle.Text = tracks.Count == 0
+                    ? "Плейлист пуст"
+                    : $"В плейлисте: {tracks.Count}";
+
+            if (tracks.Count == 0)
+            {
+                _playlistBox.Children.Add(new TextBlock
+                {
+                    Text = "Пусто. Нажмите «В плейлист» у нужного трека в библиотеке.",
+                    FontSize = 11, Foreground = Mute, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(4, 4, 4, 4)
+                });
+                return;
+            }
+
+            int position = 1;
+            foreach (var track in tracks)
+            {
+                int trackId = track.Id;
+                var row = new Grid { Margin = new Thickness(2, 2, 2, 2) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var name = new TextBlock
+                {
+                    Text = position + ". " + track.Name,
+                    FontSize = 12, Foreground = Ink, VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                Grid.SetColumn(name, 0);
+                row.Children.Add(name);
+
+                var play = MakeButton("Играть", 70);
+                play.Margin = new Thickness(6, 0, 6, 0);
+                play.Click += (s, e) => { _playlistMode = true; PlayTrack(track); };
+                Grid.SetColumn(play, 1);
+                row.Children.Add(play);
+
+                var remove = MakeButton("Убрать", 70);
+                remove.Margin = new Thickness(0);
+                remove.Click += (s, e) =>
+                {
+                    AudioService.RemoveFromPlaylist(id.Value, trackId);
+                    ReloadPlaylistTracks();
+                };
+                Grid.SetColumn(remove, 2);
+                row.Children.Add(remove);
+
+                _playlistBox.Children.Add(row);
+                position++;
+            }
         }
 
         private void CreatePlaylist()
@@ -270,13 +367,15 @@ namespace HMWT_MUI.Windows
         {
             int? id = SelectedPlaylistId;
             if (id == null) return;
-            if (MessageBox.Show(this, "Удалить выбранный плейлист?", "Аудиотека",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (!NotePromptWindow.Confirm(this, "Удалить плейлист?",
+                    "Треки останутся в библиотеке — удалится только список.",
+                    "Удалить")) return;
 
             AudioService.DeletePlaylist(id.Value);
             _playlistMode = false;
             if (Host != null) Host.Loop = true;
             ReloadPlaylists();
+            ReloadPlaylistTracks();
         }
 
         private void PlayPlaylist()
@@ -284,16 +383,16 @@ namespace HMWT_MUI.Windows
             int? id = SelectedPlaylistId;
             if (id == null)
             {
-                MessageBox.Show(this, "Сначала создайте плейлист и добавьте в него треки.",
-                    "Аудиотека", MessageBoxButton.OK, MessageBoxImage.Information);
+                NotePromptWindow.Message(this, "Плейлист",
+                    "Сначала создайте плейлист и добавьте в него треки.");
                 return;
             }
 
             var tracks = AudioService.PlaylistTracks(id.Value);
             if (tracks.Count == 0)
             {
-                MessageBox.Show(this, "В плейлисте пока нет треков. Нажмите «В плейлист» у трека.",
-                    "Аудиотека", MessageBoxButton.OK, MessageBoxImage.Information);
+                NotePromptWindow.Message(this, "Плейлист",
+                    "В плейлисте пока нет треков. Нажмите «В плейлист» у трека в библиотеке.");
                 return;
             }
 
@@ -320,12 +419,12 @@ namespace HMWT_MUI.Windows
             int? id = SelectedPlaylistId;
             if (id == null)
             {
-                MessageBox.Show(this, "Сначала создайте плейлист.", "Аудиотека",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                NotePromptWindow.Message(this, "Плейлист", "Сначала создайте плейлист.");
                 return;
             }
 
             AudioService.AddToPlaylist(id.Value, track.Id);
+            ReloadPlaylistTracks();
         }
 
         private FrameworkElement BuildRow(AudioTrackData track)
@@ -420,8 +519,9 @@ namespace HMWT_MUI.Windows
             var del = MakeButton("Удалить", 76);
             del.Click += (s, e) =>
             {
-                if (MessageBox.Show(this, $"Удалить «{track.Name}» из библиотеки?", "Аудиотека",
-                        MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                if (!NotePromptWindow.Confirm(this, "Удалить трек?",
+                        $"«{track.Name}» исчезнет из библиотеки и из всех плейлистов.",
+                        "Удалить")) return;
                 if (track.Id == _playingId)
                 {
                     Host?.Stop();
@@ -450,16 +550,15 @@ namespace HMWT_MUI.Windows
             string full = AudioService.ResolvePath(track);
             if (full == null || !File.Exists(full))
             {
-                MessageBox.Show(this, "Файл трека не найден.", "Аудиотека",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                NotePromptWindow.Message(this, "Аудиотека", "Файл трека не найден.");
                 return;
             }
 
             var host = Host;
             if (host == null)
             {
-                MessageBox.Show(this, "Аудио-хост ещё не готов. Попробуйте через пару секунд.",
-                    "Аудиотека", MessageBoxButton.OK, MessageBoxImage.Information);
+                NotePromptWindow.Message(this, "Аудиотека",
+                    "Аудио-хост ещё не готов. Попробуйте через пару секунд.");
                 return;
             }
 
@@ -507,9 +606,8 @@ namespace HMWT_MUI.Windows
             Reload();
             if (skipped > 0)
             {
-                MessageBox.Show(this,
-                    $"Добавлено: {added}. Пропущено (не аудио или уже есть): {skipped}.",
-                    "Аудиотека", MessageBoxButton.OK, MessageBoxImage.Information);
+                NotePromptWindow.Message(this, "Импорт",
+                    $"Добавлено: {added}. Пропущено (не аудио или уже есть): {skipped}.");
             }
         }
 
@@ -520,16 +618,14 @@ namespace HMWT_MUI.Windows
             return mb >= 1 ? $"{mb:0.0} МБ" : $"{bytes / 1024} КБ";
         }
 
-        private static Button MakeButton(string text, double width) => new Button
+        private static Button MakeButton(string text, double width)
         {
-            Content = text,
-            MinWidth = width,
-            Padding = new Thickness(10, 5, 10, 5),
-            Margin = new Thickness(0, 0, 8, 0),
-            Background = ButtonBg,
-            Foreground = Ink,
-            BorderBrush = Line,
-            Cursor = System.Windows.Input.Cursors.Hand
-        };
+            // Кнопки — из общего набора: у них тёмный шаблон приложения,
+            // а не системный «виндусовский» вид.
+            var button = DmUiKit.Action(text, (s, e) => { }, DmUiKit.ButtonKind.Ghost,
+                null, width, 28);
+            button.Margin = new Thickness(0, 0, 8, 0);
+            return button;
+        }
     }
 }

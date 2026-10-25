@@ -210,6 +210,11 @@ namespace HMWT_MUI.Services
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
+                using (var cmd = new SqliteCommand("DELETE FROM AudioPlaylistItem WHERE id_track = @id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", track.Id);
+                    cmd.ExecuteNonQuery();
+                }
                 using (var cmd = new SqliteCommand("DELETE FROM AudioTrack WHERE id_track = @id", conn))
                 {
                     cmd.Parameters.AddWithValue("@id", track.Id);
