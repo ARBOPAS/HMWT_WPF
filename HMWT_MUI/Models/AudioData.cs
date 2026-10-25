@@ -2,6 +2,14 @@ using System;
 
 namespace HMWT_MUI.Models
 {
+    /// <summary>Плейлист аудиотеки: имя и порядок треков.</summary>
+    public sealed class AudioPlaylistData
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public override string ToString() => Name;
+    }
+
     /// <summary>Один звук/трек в аудиотеке ведущего.</summary>
     public sealed class AudioTrackData
     {

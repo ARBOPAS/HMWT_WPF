@@ -238,6 +238,129 @@ namespace HMWT_MUI.Services
             catch { return null; }
         }
 
+        // ── плейлисты ──
+
+        public static List<AudioPlaylistData> Playlists()
+        {
+            var list = new List<AudioPlaylistData>();
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "SELECT id_playlist, name FROM AudioPlaylist ORDER BY name COLLATE NOCASE", conn);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    list.Add(new AudioPlaylistData
+                    {
+                        Id = Convert.ToInt32(r["id_playlist"]),
+                        Name = r["name"]?.ToString() ?? ""
+                    });
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Audio] плейлисты: {ex.Message}"); }
+            return list;
+        }
+
+        public static int CreatePlaylist(string name)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "INSERT INTO AudioPlaylist (name, created_at) VALUES (@n, @at)", conn);
+                cmd.Parameters.AddWithValue("@n", string.IsNullOrWhiteSpace(name) ? "Плейлист" : name.Trim());
+                cmd.Parameters.AddWithValue("@at", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                cmd.ExecuteNonQuery();
+                using var id = new SqliteCommand("SELECT last_insert_rowid()", conn);
+                return Convert.ToInt32(id.ExecuteScalar());
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Audio] создать плейлист: {ex.Message}"); return 0; }
+        }
+
+        public static void DeletePlaylist(int id)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var tx = conn.BeginTransaction();
+                using (var cmd = new SqliteCommand("DELETE FROM AudioPlaylistItem WHERE id_playlist = @id", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+                using (var cmd = new SqliteCommand("DELETE FROM AudioPlaylist WHERE id_playlist = @id", conn, tx))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+                tx.Commit();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Audio] удалить плейлист: {ex.Message}"); }
+        }
+
+        public static void AddToPlaylist(int playlistId, int trackId)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    @"INSERT INTO AudioPlaylistItem (id_playlist, id_track, sort)
+                      SELECT @p, @t, COALESCE(MAX(sort), 0) + 1 FROM AudioPlaylistItem WHERE id_playlist = @p",
+                    conn);
+                cmd.Parameters.AddWithValue("@p", playlistId);
+                cmd.Parameters.AddWithValue("@t", trackId);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Audio] в плейлист: {ex.Message}"); }
+        }
+
+        public static void RemoveFromPlaylist(int playlistId, int trackId)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    "DELETE FROM AudioPlaylistItem WHERE id_playlist = @p AND id_track = @t", conn);
+                cmd.Parameters.AddWithValue("@p", playlistId);
+                cmd.Parameters.AddWithValue("@t", trackId);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Audio] из плейлиста: {ex.Message}"); }
+        }
+
+        public static List<AudioTrackData> PlaylistTracks(int playlistId)
+        {
+            var list = new List<AudioTrackData>();
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(
+                    @"SELECT t.* FROM AudioPlaylistItem i
+                      JOIN AudioTrack t ON t.id_track = i.id_track
+                      WHERE i.id_playlist = @p ORDER BY i.sort, i.id_item", conn);
+                cmd.Parameters.AddWithValue("@p", playlistId);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    list.Add(new AudioTrackData
+                    {
+                        Id = Convert.ToInt32(r["id_track"]),
+                        Hash = r["hash"]?.ToString() ?? "",
+                        Path = r["path"]?.ToString() ?? "",
+                        Name = r["name"]?.ToString() ?? "",
+                        Kind = r["kind"]?.ToString() ?? "music",
+                        Gain = r["gain"] == DBNull.Value ? 1.0 : Convert.ToDouble(r["gain"]),
+                        Size = r["size"] == DBNull.Value ? 0 : Convert.ToInt64(r["size"])
+                    });
+            }
+            catch (Exception ex) { Debug.WriteLine($"[Audio] треки плейлиста: {ex.Message}"); }
+            return list;
+        }
+
         public static string HashFile(string path)
         {
             try

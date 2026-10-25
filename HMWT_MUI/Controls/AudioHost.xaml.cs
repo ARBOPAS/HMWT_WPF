@@ -23,6 +23,12 @@ namespace HMWT_MUI.Controls
         /// <summary>Единственный плеер приложения: окно и сервис берут его отсюда.</summary>
         public static AudioHost Shared { get; private set; }
 
+        /// <summary>Зацикливать трек. Плейлист выключает цикл и ждёт окончания.</summary>
+        public bool Loop { get; set; } = true;
+
+        /// <summary>Трек доиграл (только при Loop = false).</summary>
+        public event Action Ended;
+
         private readonly MediaPlayer _player = new MediaPlayer();
         private double _master = 0.8;
         private double _gain = 1;
@@ -49,14 +55,20 @@ namespace HMWT_MUI.Controls
             };
             _player.MediaEnded += (_, __) =>
             {
-                // Пока всегда зациклено: музыка/эмбиент. Плейлист переключит
-                // трек сам и пересоздаст источник.
-                try
+                if (Loop)
                 {
-                    _player.Position = TimeSpan.Zero;
-                    _player.Play();
+                    try
+                    {
+                        _player.Position = TimeSpan.Zero;
+                        _player.Play();
+                    }
+                    catch { }
+                    return;
                 }
-                catch { }
+
+                _hasTrack = false;
+                _pendingStart = 0;
+                try { Ended?.Invoke(); } catch { }
             };
             _player.MediaFailed += (_, e) =>
             {

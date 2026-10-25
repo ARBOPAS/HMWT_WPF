@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using HMWT_MUI.Controls;
+using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
 using HMWT_MUI.Net;
 using HMWT_MUI.Services;
@@ -34,10 +35,15 @@ namespace HMWT_MUI.Windows
         private int _playingId;
         private Slider _master;
 
+        private ComboBox _playlists;
+        private List<AudioTrackData> _queue = new List<AudioTrackData>();
+        private int _queueIndex;
+        private bool _playlistMode;
+
         public AudioWindow()
         {
             Title = "Аудиотека · " + HMWT_MUI.Net.NetVersions.AppVersion;
-            Width = 560;
+            Width = 640;
             Height = 560;
             MinWidth = 460;
             MinHeight = 380;
@@ -47,6 +53,15 @@ namespace HMWT_MUI.Windows
             ShowInTaskbar = false;
             Build();
             Reload();
+
+            Loaded += (_, __) => { var h = Host; if (h != null) h.Ended += OnTrackEnded; };
+            Closed += (_, __) => { var h = Host; if (h != null) h.Ended -= OnTrackEnded; };
+        }
+
+        private void OnTrackEnded()
+        {
+            if (!_playlistMode) return;
+            Dispatcher.BeginInvoke(new Action(NextTrack));
         }
 
         private AudioHost Host
@@ -86,6 +101,9 @@ namespace HMWT_MUI.Windows
             var stop = MakeButton("Стоп", 70);
             stop.Click += (s, e) =>
             {
+                _playlistMode = false;
+                _queue.Clear();
+                if (Host != null) Host.Loop = true;
                 Host?.Stop();
                 if (RoomSession.Instance.IsActive)
                     RoomSession.Instance.PublishAudioStop();
@@ -115,6 +133,43 @@ namespace HMWT_MUI.Windows
             bar.Children.Add(_master);
 
             top.Children.Add(bar);
+
+            // Плейлисты: локальный инструмент диджея. В комнату уходит
+            // только текущий трек, поэтому синхронизация не усложняется.
+            var plBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            plBar.Children.Add(new TextBlock
+            {
+                Text = "Плейлист", FontSize = 11, Foreground = Mute,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
+            });
+
+            _playlists = new ComboBox
+            {
+                Width = 170, Height = 28, Margin = new Thickness(0, 0, 8, 0),
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            DmUiKit.ApplyDarkListStyle(_playlists);
+            plBar.Children.Add(_playlists);
+
+            var create = MakeButton("Создать…", 96);
+            create.Click += (s, e) => CreatePlaylist();
+            plBar.Children.Add(create);
+
+            var playList = MakeButton("Играть плейлист", 126);
+            playList.Click += (s, e) => PlayPlaylist();
+            plBar.Children.Add(playList);
+
+            var next = MakeButton("Дальше", 80);
+            next.Click += (s, e) => NextTrack();
+            plBar.Children.Add(next);
+
+            var delete = MakeButton("Удалить", 82);
+            delete.Click += (s, e) => DeletePlaylist();
+            plBar.Children.Add(delete);
+
+            top.Children.Add(plBar);
+            ReloadPlaylists();
+
             root.Children.Add(top);
 
             var scroll = new ScrollViewer
@@ -144,7 +199,7 @@ namespace HMWT_MUI.Windows
 
             var hint = new TextBlock
             {
-                Text = roomText + " Плейлисты — следующий шаг.",
+                Text = roomText,
                 FontSize = 11,
                 Foreground = RoomSession.Instance.IsActive ? Mute : new SolidColorBrush(Color.FromRgb(0xE0, 0x7A, 0x6A)),
                 Margin = new Thickness(0, 10, 0, 0),
@@ -172,6 +227,105 @@ namespace HMWT_MUI.Windows
             }
 
             foreach (var track in tracks) _list.Children.Add(BuildRow(track));
+        }
+
+        private int? SelectedPlaylistId
+            => (_playlists?.SelectedItem as ComboBoxItem)?.Tag is int id && id > 0
+                ? id : (int?)null;
+
+        private void ReloadPlaylists()
+        {
+            if (_playlists == null) return;
+            int? keep = SelectedPlaylistId;
+            _playlists.Items.Clear();
+            foreach (var playlist in AudioService.Playlists())
+                _playlists.Items.Add(new ComboBoxItem { Content = playlist.Name, Tag = playlist.Id });
+
+            if (_playlists.Items.Count == 0) return;
+
+            int index = 0;
+            if (keep != null)
+            {
+                for (int i = 0; i < _playlists.Items.Count; i++)
+                {
+                    if ((_playlists.Items[i] as ComboBoxItem)?.Tag is int id && id == keep)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+            _playlists.SelectedIndex = index;
+        }
+
+        private void CreatePlaylist()
+        {
+            string name = NotePromptWindow.AskText(this, "Плейлист", "Название", "Новый плейлист", "Создать");
+            if (string.IsNullOrWhiteSpace(name)) return;
+            AudioService.CreatePlaylist(name);
+            ReloadPlaylists();
+        }
+
+        private void DeletePlaylist()
+        {
+            int? id = SelectedPlaylistId;
+            if (id == null) return;
+            if (MessageBox.Show(this, "Удалить выбранный плейлист?", "Аудиотека",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+            AudioService.DeletePlaylist(id.Value);
+            _playlistMode = false;
+            if (Host != null) Host.Loop = true;
+            ReloadPlaylists();
+        }
+
+        private void PlayPlaylist()
+        {
+            int? id = SelectedPlaylistId;
+            if (id == null)
+            {
+                MessageBox.Show(this, "Сначала создайте плейлист и добавьте в него треки.",
+                    "Аудиотека", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var tracks = AudioService.PlaylistTracks(id.Value);
+            if (tracks.Count == 0)
+            {
+                MessageBox.Show(this, "В плейлисте пока нет треков. Нажмите «В плейлист» у трека.",
+                    "Аудиотека", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _queue = tracks;
+            _queueIndex = 0;
+            _playlistMode = true;
+            PlayTrack(tracks[0]);
+        }
+
+        private void NextTrack()
+        {
+            if (_queue.Count == 0)
+            {
+                PlayPlaylist();
+                return;
+            }
+
+            _queueIndex = (_queueIndex + 1) % _queue.Count;
+            PlayTrack(_queue[_queueIndex]);
+        }
+
+        private void AddToPlaylist(AudioTrackData track)
+        {
+            int? id = SelectedPlaylistId;
+            if (id == null)
+            {
+                MessageBox.Show(this, "Сначала создайте плейлист.", "Аудиотека",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            AudioService.AddToPlaylist(id.Value, track.Id);
         }
 
         private FrameworkElement BuildRow(AudioTrackData track)
@@ -256,8 +410,12 @@ namespace HMWT_MUI.Windows
             };
 
             var play = MakeButton(track.Id == _playingId ? "Заново" : "Играть", 86);
-            play.Click += (s, e) => PlayTrack(track);
+            play.Click += (s, e) => { _playlistMode = false; PlayTrack(track); };
             buttons.Children.Add(play);
+
+            var toPlaylist = MakeButton("В плейлист", 92);
+            toPlaylist.Click += (s, e) => AddToPlaylist(track);
+            buttons.Children.Add(toPlaylist);
 
             var del = MakeButton("Удалить", 76);
             del.Click += (s, e) =>
@@ -285,6 +443,7 @@ namespace HMWT_MUI.Windows
 
         private void PlayTrack(AudioTrackData track)
         {
+            if (Host != null) Host.Loop = !_playlistMode;
             AudioLog.Write($"window play pid={System.Diagnostics.Process.GetCurrentProcess().Id} " +
                 $"hash={track.Hash} room={RoomSession.Instance.IsActive} host={RoomSession.Instance.IsHost}");
 

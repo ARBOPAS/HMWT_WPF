@@ -23,7 +23,7 @@ namespace HMWT_MUI.Services
     public static class SchemaMigrator
     {
         /// <summary>Текущая версия схемы, которую ждёт приложение.</summary>
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         private sealed class Migration
         {
@@ -65,6 +65,29 @@ namespace HMWT_MUI.Services
                         );");
                     Exec(conn, tx,
                         "CREATE INDEX IF NOT EXISTS idx_audio_hash ON AudioTrack(hash);");
+                }
+            },
+            new Migration
+            {
+                Version = 4,
+                Title = "плейлисты аудиотеки",
+                Apply = (conn, tx) =>
+                {
+                    Exec(conn, tx,
+                        @"CREATE TABLE IF NOT EXISTS AudioPlaylist (
+                            id_playlist INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT NOT NULL DEFAULT '',
+                            created_at TEXT DEFAULT ''
+                        );");
+                    Exec(conn, tx,
+                        @"CREATE TABLE IF NOT EXISTS AudioPlaylistItem (
+                            id_item INTEGER PRIMARY KEY AUTOINCREMENT,
+                            id_playlist INTEGER NOT NULL,
+                            id_track INTEGER NOT NULL,
+                            sort INTEGER NOT NULL DEFAULT 0
+                        );");
+                    Exec(conn, tx,
+                        "CREATE INDEX IF NOT EXISTS idx_audio_playlist_item ON AudioPlaylistItem(id_playlist, sort);");
                 }
             }
         };

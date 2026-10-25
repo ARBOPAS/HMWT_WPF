@@ -3607,7 +3607,9 @@ namespace HMWT_MUI
                 bool allowed = DmRights.CanUseDmTools();
 
                 btnDmToolsTab.Visibility = allowed ? Visibility.Visible : Visibility.Collapsed;
-                btnInitiative.Visibility = allowed ? Visibility.Visible : Visibility.Collapsed;
+                // Кнопка слева от «Отряда»: игроку — только просмотр.
+                btnInitiative.Visibility = (allowed || RoomSession.Instance.IsActive)
+                    ? Visibility.Visible : Visibility.Collapsed;
 
                 btnDmToolsTab.ToolTip = allowed
                     ? "Инструменты ДМа: трекер инициативы и бестиарий"
@@ -3630,8 +3632,27 @@ namespace HMWT_MUI
                 if (btnInitiative == null) return;
 
                 bool allowed = DmRights.CanUseDmTools();
-                btnInitiative.Visibility = allowed ? Visibility.Visible : Visibility.Collapsed;
-                if (!allowed) return;
+                // Игроку инициатива тоже нужна — только для просмотра.
+                btnInitiative.Visibility = (allowed || RoomSession.Instance.IsActive)
+                    ? Visibility.Visible : Visibility.Collapsed;
+
+                if (!allowed)
+                {
+                    var roomState = RoomSession.Instance.GetInitiative();
+                    if (roomState != null && roomState.HasContent)
+                    {
+                        txtInitiativeStatus.Text = roomState.RoundLine();
+                        brInitiativeDot.Background = (Brush)FindResource("B.Accent");
+                        btnInitiative.ToolTip = "Бой в отряде — только просмотр, ход ведёт ведущий";
+                    }
+                    else
+                    {
+                        txtInitiativeStatus.Text = "Инициатива";
+                        brInitiativeDot.Background = (Brush)FindResource("B.Mute");
+                        btnInitiative.ToolTip = "Бой ещё не начат — здесь будет порядок хода";
+                    }
+                    return;
+                }
 
                 var encounter = InitiativeService.ActiveEncounter();
                 if (encounter == null)
