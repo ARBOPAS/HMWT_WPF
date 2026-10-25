@@ -182,6 +182,7 @@
     <Compile Include="Helpers\NoteLinks.cs" />
     <Compile Include="Helpers\NameMatch.cs" />
     <Compile Include="Helpers\WebView2Host.cs" />
+    <Compile Include="Helpers\DarkWindowChrome.cs" />
     <Compile Include="Helpers\MarkdownParser.cs" />
     <Compile Include="Helpers\NotePaths.cs" />
     <Compile Include="Helpers\TreeIndentConverter.cs" />

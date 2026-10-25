@@ -56,6 +56,9 @@ namespace HMWT_MUI.Windows
             Build();
             Reload();
 
+            DarkWindowChrome.Apply(this, "Аудиотека · " + HMWT_MUI.Net.NetVersions.AppVersion,
+                (UIElement)Content, Card, Line, Ink);
+
             Loaded += (_, __) => { var h = Host; if (h != null) h.Ended += OnTrackEnded; };
             Closed += (_, __) => { var h = Host; if (h != null) h.Ended -= OnTrackEnded; };
         }

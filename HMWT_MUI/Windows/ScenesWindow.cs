@@ -51,19 +51,12 @@ namespace HMWT_MUI.Windows
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
             var top = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
-            var title = new StackPanel();
-            title.Children.Add(new TextBlock
-            {
-                Text = "Сцены",
-                FontFamily = (FontFamily)FindResource("F.Display"),
-                FontSize = 20, FontWeight = FontWeights.Bold, Foreground = Accent
-            });
-            title.Children.Add(new TextBlock
+            top.Children.Add(new TextBlock
             {
                 Text = "Кампании объединяют сцены: у каждого похода свои карты.",
-                FontSize = 11, Foreground = Mute, Margin = new Thickness(0, 2, 0, 0)
+                FontSize = 11, Foreground = Mute, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 0)
             });
-            top.Children.Add(title);
 
             var addCampaign = DmUiKit.Action("Новая кампания", (s, e) => CreateCampaign(),
                 DmUiKit.ButtonKind.Primary, null, 160, 30);
@@ -83,6 +76,9 @@ namespace HMWT_MUI.Windows
 
             Content = root;
             Reload();
+
+            DarkWindowChrome.Apply(this, "Сцены · " + HMWT_MUI.Net.NetVersions.AppVersion,
+                (UIElement)Content, Card, Line, Ink);
         }
 
         private void Reload()
@@ -171,7 +167,7 @@ namespace HMWT_MUI.Windows
             var card = new Border
             {
                 Width = 196,
-                Height = 152,
+                Height = 188,
                 Background = Card,
                 BorderBrush = scene.Id == _currentSceneId ? Accent : Line,
                 BorderThickness = new Thickness(scene.Id == _currentSceneId ? 2 : 1),
@@ -180,10 +176,14 @@ namespace HMWT_MUI.Windows
                 Cursor = Cursors.Hand,
                 ToolTip = scene.Name
             };
-            card.MouseLeftButtonUp += (s, e) => Open(scene);
+            card.MouseLeftButtonUp += (s, e) =>
+            {
+                if (FindButton(e.OriginalSource as DependencyObject) != null) return;
+                Open(scene);
+            };
 
             var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(96) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(104) });
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
             var preview = new Border
@@ -252,7 +252,7 @@ namespace HMWT_MUI.Windows
                 Margin = new Thickness(0, 2, 0, 0)
             };
             var rename = DmUiKit.Action("✎", (s, e) => RenameScene(scene), DmUiKit.ButtonKind.Ghost,
-                "Переименовать сцену", 26, 22);
+                "Переименовать сцену", 30, 24);
             rename.Margin = new Thickness(0, 0, 4, 0);
             menu.Children.Add(rename);
             var move = DmUiKit.Action("→", (s, e) => ShowCampaignMenu(scene, (FrameworkElement)s),
@@ -261,7 +261,7 @@ namespace HMWT_MUI.Windows
             menu.Children.Add(move);
 
             var remove = DmUiKit.Action("✕", (s, e) => DeleteScene(scene), DmUiKit.ButtonKind.Ghost,
-                "Удалить сцену", 26, 22);
+                "Удалить сцену", 30, 24);
             menu.Children.Add(remove);
             caption.Children.Add(menu);
             Grid.SetRow(caption, 1);
@@ -298,6 +298,15 @@ namespace HMWT_MUI.Windows
             scene.CampaignId = campaignId;
             MapService.SaveScene(scene);
             Reload();
+        }
+
+        private static Button FindButton(DependencyObject source)
+        {
+            while (source != null && !(source is Button))
+            {
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return source as Button;
         }
 
         private void Open(MapSceneData scene)
