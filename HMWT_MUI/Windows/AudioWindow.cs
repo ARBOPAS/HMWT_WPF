@@ -99,11 +99,11 @@ namespace HMWT_MUI.Windows
 
             var bar = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 8) };
 
-            var add = MakeButton("Добавить файлы…", 140);
+            var add = MakeButton("Добавить файлы…", 160, DmUiKit.ButtonKind.Soft, "plus");
             add.Click += (s, e) => ImportFiles();
             bar.Children.Add(add);
 
-            var stop = MakeButton("Стоп", 70);
+            var stop = MakeButton("Стоп", 82, DmUiKit.ButtonKind.Danger);
             stop.Click += (s, e) =>
             {
                 _playlistMode = false;
@@ -141,6 +141,11 @@ namespace HMWT_MUI.Windows
 
             // Плейлисты: локальный инструмент диджея. В комнату уходит
             // только текущий трек, поэтому синхронизация не усложняется.
+            top.Children.Add(new TextBlock
+            {
+                Text = "ПЛЕЙЛИСТ", FontSize = 10, FontWeight = FontWeights.SemiBold,
+                Foreground = Accent, Margin = new Thickness(2, 0, 0, 4)
+            });
             var plBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             plBar.Children.Add(new TextBlock
             {
@@ -157,19 +162,19 @@ namespace HMWT_MUI.Windows
             _playlists.SelectionChanged += (s, e) => ReloadPlaylistTracks();
             plBar.Children.Add(_playlists);
 
-            var create = MakeButton("Создать…", 96);
+            var create = MakeButton("Создать…", 104, DmUiKit.ButtonKind.Soft, "plus");
             create.Click += (s, e) => CreatePlaylist();
             plBar.Children.Add(create);
 
-            var playList = MakeButton("Играть плейлист", 126);
+            var playList = MakeButton("Играть плейлист", 140, DmUiKit.ButtonKind.Primary, "arrowRight");
             playList.Click += (s, e) => PlayPlaylist();
             plBar.Children.Add(playList);
 
-            var next = MakeButton("Дальше", 80);
+            var next = MakeButton("Дальше", 92, DmUiKit.ButtonKind.Ghost, "arrowRight");
             next.Click += (s, e) => NextTrack();
             plBar.Children.Add(next);
 
-            var delete = MakeButton("Удалить", 82);
+            var delete = MakeButton("Удалить", 100, DmUiKit.ButtonKind.Danger, "trash");
             delete.Click += (s, e) => DeletePlaylist();
             plBar.Children.Add(delete);
 
@@ -198,6 +203,11 @@ namespace HMWT_MUI.Windows
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
             };
             top.Children.Add(playlistBorder);
+            top.Children.Add(new TextBlock
+            {
+                Text = "БИБЛИОТЕКА", FontSize = 10, FontWeight = FontWeights.SemiBold,
+                Foreground = Accent, Margin = new Thickness(2, 0, 0, 2)
+            });
 
             ReloadPlaylists();
 
@@ -337,13 +347,13 @@ namespace HMWT_MUI.Windows
                 Grid.SetColumn(name, 0);
                 row.Children.Add(name);
 
-                var play = MakeButton("Играть", 70);
+                var play = MakeButton("Играть", 82, DmUiKit.ButtonKind.Primary, "arrowRight");
                 play.Margin = new Thickness(6, 0, 6, 0);
                 play.Click += (s, e) => { _playlistMode = true; PlayTrack(track); };
                 Grid.SetColumn(play, 1);
                 row.Children.Add(play);
 
-                var remove = MakeButton("Убрать", 70);
+                var remove = MakeButton("Убрать", 82, DmUiKit.ButtonKind.Ghost, "minus");
                 remove.Margin = new Thickness(0);
                 remove.Click += (s, e) =>
                 {
@@ -511,15 +521,15 @@ namespace HMWT_MUI.Windows
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            var play = MakeButton(track.Id == _playingId ? "Заново" : "Играть", 86);
+            var play = MakeButton(track.Id == _playingId ? "Заново" : "Играть", 98, DmUiKit.ButtonKind.Primary, "arrowRight");
             play.Click += (s, e) => { _playlistMode = false; PlayTrack(track); };
             buttons.Children.Add(play);
 
-            var toPlaylist = MakeButton("В плейлист", 92);
+            var toPlaylist = MakeButton("В плейлист", 112, DmUiKit.ButtonKind.Ghost, "plus");
             toPlaylist.Click += (s, e) => AddToPlaylist(track);
             buttons.Children.Add(toPlaylist);
 
-            var del = MakeButton("Удалить", 76);
+            var del = MakeButton("Удалить", 98, DmUiKit.ButtonKind.Danger, "trash");
             del.Click += (s, e) =>
             {
                 if (!NotePromptWindow.Confirm(this, "Удалить трек?",
@@ -621,12 +631,12 @@ namespace HMWT_MUI.Windows
             return mb >= 1 ? $"{mb:0.0} МБ" : $"{bytes / 1024} КБ";
         }
 
-        private static Button MakeButton(string text, double width)
+        private static Button MakeButton(string text, double width,
+            DmUiKit.ButtonKind kind = DmUiKit.ButtonKind.Ghost, string icon = null)
         {
             // Кнопки — из общего набора: у них тёмный шаблон приложения,
-            // а не системный «виндусовский» вид.
-            var button = DmUiKit.Action(text, (s, e) => { }, DmUiKit.ButtonKind.Ghost,
-                null, width, 28);
+            // а не системный «виндусовский» вид. Иконка — из IconLibrary.
+            var button = DmUiKit.Action(text, (s, e) => { }, kind, null, width, 28, icon);
             button.Margin = new Thickness(0, 0, 8, 0);
             return button;
         }

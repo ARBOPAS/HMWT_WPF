@@ -160,6 +160,7 @@
   let mapSprite = null;
   let needImageAt = 0;
   let selectedTokenId = 0;
+  let turnTokenId = 0;
 
   let drag = null;
   let lastFogAt = 0;
@@ -1196,6 +1197,7 @@
 
       node._token = t;
       if (t.selected) selectedTokenId = t.id;
+      if (data.turnTokenId !== undefined) turnTokenId = data.turnTokenId || 0;
 
       // Свежий live-пакет важнее снимка: снимок мог быть собран раньше и
       // «отмотал» бы жетон назад — это и давало рывки при каждом ходе.
@@ -2762,6 +2764,11 @@
     t.x = x;
     t.y = y;
 
+    // Живые ходы группы: раньше у остальных двигался только жетон под
+    // курсором, а остальные «телепортировались» после отпускания.
+    const liveTick = Date.now() - lastLiveAt >= 50;
+    if (liveTick) lastLiveAt = Date.now();
+
     // Группа едет вместе с ведущим жетоном (тем же шагом, без своей привязки)
     if (drag.group && drag.group.length > 1) {
       const dx = x - (drag.groupStartX || t.x);
@@ -2775,6 +2782,8 @@
           item.node._targetX = item.token.x;
           item.node._targetY = item.token.y;
         }
+        if (liveTick)
+          post({ type: 'moveTokenLive', id: item.token.id, x: item.token.x, y: item.token.y });
       }
     }
     drag.node.position.set(x, y);
@@ -2804,10 +2813,7 @@
       buildFov();
     }
 
-    if (Date.now() - lastLiveAt >= 50) {
-      lastLiveAt = Date.now();
-      post({ type: 'moveTokenLive', id: t.id, x, y });
-    }
+    if (liveTick) post({ type: 'moveTokenLive', id: t.id, x, y });
   }
 
   function finishTokenDrag() {
@@ -2992,6 +2998,15 @@
     // Q/E — поворот обзора выделенного жетона. Пока клавишу держат, угол
     // идёт непрерывно, а не шагами по 15°.
     const key = (e.key || '').toLowerCase();
+
+    // Delete/Backspace по группе: удаляем все выделенные жетоны, а не один.
+    if ((key === 'delete' || key === 'backspace') && isDm && groupSel.size > 0) {
+      for (const id of groupSel)
+        post({ type: 'tokenMenuAction', id, action: 'remove', value: '' });
+      clearGroup();
+      e.preventDefault();
+      return;
+    }
 
     // TAB — пинг по карте в точке курсора (когда фокус у WebView,
     // до WPF эта клавиша не доходит).
@@ -3285,5 +3300,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.13.3');
+  log('renderer ready v1.3.14.0');
 })();

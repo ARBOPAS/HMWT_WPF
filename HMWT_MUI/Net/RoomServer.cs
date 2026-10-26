@@ -622,6 +622,7 @@ namespace HMWT_MUI.Net
             incoming.State = PeerState.Online;
 
             PlayerInfo updated;
+            int previousHp = 0, previousMaxHp = 0;
             lock (_stateLock)
             {
                 var index = _players.FindIndex(p => p.Id == conn.PlayerId);
@@ -634,6 +635,9 @@ namespace HMWT_MUI.Net
                 if (InRoomPhotos(previous) && !InRoomPhotos(incoming.AvatarPath))
                     incoming.AvatarPath = previous;
 
+                previousHp = _players[index].Hp;
+                previousMaxHp = _players[index].MaxHp;
+
                 _players[index] = incoming;
                 updated = incoming;
             }
@@ -641,6 +645,7 @@ namespace HMWT_MUI.Net
             conn.Player = updated;
             Log($"{Describe(updated)} обновил данные персонажа");
 
+            SyncPlayerHitPoints(updated, previousHp, previousMaxHp);
             Events?.PlayerChanged?.Invoke(updated);
             _ = BroadcastSnapshotAsync();
         }
@@ -2430,6 +2435,7 @@ namespace HMWT_MUI.Net
             if (data == null) return;
             bool found = false;
             string previousConditions = null;
+            int previousHp = 0, previousMaxHp = 0;
             lock (_stateLock)
             {
                 var existing = _players.FirstOrDefault(p => p.Id == playerId);
@@ -2439,6 +2445,8 @@ namespace HMWT_MUI.Net
                     data.Role = existing.Role;
                     data.State = existing.State;
                     previousConditions = existing.Conditions;
+                    previousHp = existing.Hp;
+                    previousMaxHp = existing.MaxHp;
 
                     // Уже принятый файл аватара важнее локального пути из
                     // карточки: иначе каждое сохранение профиля сбрасывало
@@ -2461,8 +2469,30 @@ namespace HMWT_MUI.Net
                 bool conditionsChanged = !string.Equals(previousConditions ?? "",
                     data.Conditions ?? "", StringComparison.Ordinal);
                 SyncPlayerConditions(data, conditionsChanged);
+                SyncPlayerHitPoints(data, previousHp, previousMaxHp);
                 Events?.PlayerChanged?.Invoke(data);
                 _ = BroadcastSnapshotAsync();
+            }
+        }
+
+        /// <summary>
+        /// Хиты из листа игрока переносим в участника боя только когда игрок
+        /// сам их изменил. Иначе каждое сохранение профиля затирало бы урон,
+        /// который вёл мастер.
+        /// </summary>
+        private static void SyncPlayerHitPoints(PlayerInfo data, int previousHp, int previousMaxHp)
+        {
+            if (data == null || data.CharacterId <= 0) return;
+            if (data.Hp == previousHp && data.MaxHp == previousMaxHp) return;
+
+            try
+            {
+                InitiativeService.UpdateCombatantHitPointsByCharacter(data.CharacterId,
+                    data.Hp, data.MaxHp);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomServer] хиты игрока: {ex.Message}");
             }
         }
 
@@ -2473,7 +2503,7 @@ namespace HMWT_MUI.Net
         /// Состояния применяем только к пустому участнику: если писать из
         /// листа на каждом обновлении профиля, устаревшая копия у игрока
         /// затирала бы отметки, которые ведущий поставил в трекере/на карте.
-        /// Хиты не трогаем вовсе: их ведёт мастер.
+        /// Хиты синхронизируются отдельно и только при явном изменении в листе.
         /// </summary>
         private void SyncPlayerConditions(PlayerInfo data, bool explicitChange = false)
         {

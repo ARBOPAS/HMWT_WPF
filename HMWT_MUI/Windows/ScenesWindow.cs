@@ -251,17 +251,17 @@ namespace HMWT_MUI.Windows
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 2, 0, 0)
             };
-            var rename = DmUiKit.Action("✎", (s, e) => RenameScene(scene), DmUiKit.ButtonKind.Ghost,
-                "Переименовать сцену", 30, 24);
+            var rename = DmUiKit.Icon("edit", (s, e) => RenameScene(scene), "Переименовать сцену", 28,
+                DmUiKit.ButtonKind.Ghost);
             rename.Margin = new Thickness(0, 0, 4, 0);
             menu.Children.Add(rename);
-            var move = DmUiKit.Action("→", (s, e) => ShowCampaignMenu(scene, (FrameworkElement)s),
-                DmUiKit.ButtonKind.Ghost, "Перенести в кампанию", 26, 22);
+            var move = DmUiKit.Icon("arrowRight", (s, e) => ShowCampaignMenu(scene, (FrameworkElement)s),
+                "Перенести в кампанию", 28, DmUiKit.ButtonKind.Ghost);
             move.Margin = new Thickness(0, 0, 4, 0);
             menu.Children.Add(move);
 
-            var remove = DmUiKit.Action("✕", (s, e) => DeleteScene(scene), DmUiKit.ButtonKind.Ghost,
-                "Удалить сцену", 30, 24);
+            var remove = DmUiKit.Icon("trash", (s, e) => DeleteScene(scene), "Удалить сцену", 28,
+                DmUiKit.ButtonKind.Ghost);
             menu.Children.Add(remove);
             caption.Children.Add(menu);
             Grid.SetRow(caption, 1);

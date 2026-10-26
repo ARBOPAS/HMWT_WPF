@@ -153,6 +153,8 @@ namespace HMWT_MUI.Views
                         points = pair.Value.Select(p => new { x = p.X, y = p.Y }).ToList()
                     }).ToList(),
                     tokens,
+                    // Чей сейчас ход: жетон подсвечивается на карте.
+                    turnTokenId = CurrentTurnTokenId(),
                     // Тёмную зону игрокам не отправляем вовсе: это инструмент
                     // мастера, и в чужом клиенте ей делать нечего.
                     shapes = _scene.Shapes
@@ -235,6 +237,28 @@ namespace HMWT_MUI.Views
             };
 
         /// <summary>Секущие области обзора — их WebView и вырезает из тумана.</summary>
+        /// <summary>Жетон текущего участника боя (0 — нет боя).</summary>
+        private int CurrentTurnTokenId()
+        {
+            try
+            {
+                var state = RoomSession.Instance.GetInitiative();
+                if (state?.Combatants == null) return 0;
+
+                var current = state.Combatants.FirstOrDefault(c => c != null && c.IsCurrent);
+                if (current == null) return 0;
+
+                var token = _scene?.Tokens?.FirstOrDefault(t =>
+                    t.CombatantId == current.Id ||
+                    (current.CharacterId > 0 && t.OwnerCharacterId == current.CharacterId) ||
+                    (t.CombatantId == 0 && !string.IsNullOrWhiteSpace(current.Name) &&
+                     string.Equals((t.Label ?? "").Trim(), current.Name.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+                return token?.Id ?? 0;
+            }
+            catch { return 0; }
+        }
+
         private List<object> WebFovTokens()
         {
             var list = new List<object>();

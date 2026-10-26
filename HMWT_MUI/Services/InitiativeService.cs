@@ -468,6 +468,39 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>
+        /// Игрок изменил хиты в листе — переносим их в участника боя, чтобы
+        /// карта и трекер не показывали старые значения (чат уже обновился).
+        /// </summary>
+        public static EncounterData UpdateCombatantHitPointsByCharacter(int characterId,
+            int hitPoints, int maxHitPoints)
+        {
+            if (characterId <= 0) return null;
+            try
+            {
+                var found = FindForCharacter(characterId, null);
+                if (found == null) return null;
+
+                var encounter = found.Value.Encounter;
+                var combatant = found.Value.Combatant;
+                if (encounter == null || combatant == null) return null;
+
+                int hp = Math.Max(0, hitPoints);
+                int max = Math.Max(0, maxHitPoints);
+                if (combatant.HitPoints == hp && combatant.MaxHitPoints == max) return encounter;
+
+                combatant.HitPoints = hp;
+                combatant.MaxHitPoints = max;
+                SaveCombatant(encounter, combatant);
+                return encounter;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[InitiativeService] UpdateCombatantHitPoints: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Боец изменили (например, состояния на карте) — окно трекера
         /// должно перерисоваться, не дожидаясь переоткрытия.
         /// </summary>
