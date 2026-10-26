@@ -283,6 +283,7 @@
     <Compile Include="Helpers\DmUiKit.cs" />
     <Compile Include="Helpers\IconLibrary.cs" />
     <Compile Include="Helpers\IconView.cs" />
+    <Compile Include="Helpers\DonateInfo.cs" />
     <Compile Include="Helpers\FirewallHelper.cs" />
     <Compile Include="Helpers\UpnpProbe.cs" />
     <Compile Include="Helpers\DmRolls.cs" />
@@ -324,6 +325,9 @@
       <DependentUpon>SpellsView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Windows\MessageDialog.cs" />
+    <Compile Include="Windows\DonateWindow.xaml.cs">
+      <DependentUpon>DonateWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\ConditionsWindow.cs" />
     <Compile Include="Windows\ZoneScriptWindow.cs" />
     <Compile Include="Windows\AudioWindow.cs" />
@@ -399,6 +403,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\NotePromptWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\DonateWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

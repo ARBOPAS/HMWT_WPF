@@ -717,6 +717,13 @@ namespace HMWT_MUI
                 // конструктор InventoryService на каждое создание сервиса)
                 "list_photo_path TEXT DEFAULT ''");
 
+            // У баз, созданных до появления group_size, колонки в EquipmentGroups
+            // нет: CREATE TABLE IF NOT EXISTS старую таблицу не меняет. Без неё
+            // чтение групп экипировки падает с «no such column», и вкладка
+            // «Инвентарь» закрывает программу. Тот же шаг есть миграцией 5.
+            EnsureColumns(conn, transaction, "EquipmentGroups",
+                "group_size REAL NOT NULL DEFAULT 100");
+
             // Каталог магазина: колонки добавляются и к уже существующей таблице
             EnsureColumns(conn, transaction, "SrdItem",
                 "photo_path TEXT",

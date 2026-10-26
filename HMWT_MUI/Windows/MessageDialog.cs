@@ -24,15 +24,22 @@ namespace HMWT_MUI.Windows
         public static bool Confirm(FrameworkElement host, string message,
             string title = "Подтверждение", string yesText = "Да", string noText = "Отмена",
             bool danger = true)
-            => Show(host, message, title, yesText, noText, danger);
+            => Show(host, message, title, yesText, noText, danger, null, null);
 
-        /// <summary>Сообщение с одной кнопкой «Понятно».</summary>
-        public static void Info(FrameworkElement host, string message, string title = "Сообщение")
-            => Show(host, message, title, "Понятно", null, false);
+        /// <summary>
+        /// Сообщение с одной кнопкой «Понятно».
+        ///
+        /// Необязательная третья кнопка (<paramref name="extraText"/>) закрывает
+        /// диалог и выполняет <paramref name="onExtra"/>: так «О программе»
+        /// открывает окно поддержки, не плодя лишних пунктов меню.
+        /// </summary>
+        public static void Info(FrameworkElement host, string message, string title = "Сообщение",
+            string extraText = null, Action onExtra = null)
+            => Show(host, message, title, "Понятно", null, false, extraText, onExtra);
 
         /// <summary>Сообщение об ошибке с одной кнопкой.</summary>
         public static void Error(FrameworkElement host, string message, string title = "Ошибка")
-            => Show(host, message, title, "Понятно", null, true);
+            => Show(host, message, title, "Понятно", null, true, null, null);
 
         private static void MapDialog(bool opened)
         {
@@ -47,7 +54,8 @@ namespace HMWT_MUI.Windows
         }
 
         private static bool Show(FrameworkElement host, string message, string title,
-            string yesText, string noText, bool danger)
+            string yesText, string noText, bool danger,
+            string extraText, Action onExtra)
         {
             // Если передан не тот элемент — показываем системное окно,
             // чтобы сообщение не потерялось молча
@@ -193,6 +201,24 @@ namespace HMWT_MUI.Windows
                 ink: brushInk, line: brushLine, body: fontBody);
             confirm.Click += (s, e) => finish(true);
             buttons.Children.Add(confirm);
+
+            // Необязательная кнопка слева от «Понятно». Открытие следующего окна
+            // откладываем до выхода из кадра диалога: ShowDialog запускает свой
+            // цикл сообщений, и вкладывать его в ещё не закрытый кадр не стоит.
+            if (!string.IsNullOrEmpty(extraText))
+            {
+                var extra = MakeButton(extraText, accent: false, danger: false,
+                    accentBrush: brushAccent, dangerBrush: brushDanger, onAccent: brushOnAccent,
+                    ink: brushInk, line: brushLine, body: fontBody);
+                extra.Margin = new Thickness(0, 0, 10, 0);
+                extra.Click += (s, e) =>
+                {
+                    finish(true);
+                    if (onExtra != null)
+                        host.Dispatcher.BeginInvoke(new Action(onExtra), DispatcherPriority.Background);
+                };
+                buttons.Children.Insert(0, extra);
+            }
 
             Grid.SetRow(buttons, 2);
             grid.Children.Add(buttons);
