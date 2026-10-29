@@ -302,6 +302,9 @@
     <Compile Include="Controls\MarkdownEditor.xaml.cs">
       <DependentUpon>MarkdownEditor.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Windows\DonateWindow.xaml.cs">
+      <DependentUpon>DonateWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\NotePromptWindow.xaml.cs">
       <DependentUpon>NotePromptWindow.xaml</DependentUpon>
     </Compile>
@@ -350,6 +353,7 @@
     </Compile>
     <Compile Include="Helpers\DatabaseHelper.cs" />
     <Compile Include="Helpers\NumberInput.cs" />
+    <Compile Include="Helpers\DonateInfo.cs" />
     <Compile Include="Helpers\PhotoHelper.cs" />
     <Compile Include="Helpers\PaletteBrush.cs" />
     <Compile Include="MainWindow.xaml.cs">
@@ -397,6 +401,10 @@
     <Page Include="Controls\MarkdownEditor.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\DonateWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="Windows\NotePromptWindow.xaml">
       <SubType>Designer</SubType>
