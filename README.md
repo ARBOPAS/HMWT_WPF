@@ -155,6 +155,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer\build-installer.ps
 **XERNUSHKIN** — поддержка проекта, тестирование и макеты вкладки заклинаний.
 Не является автором кода и правообладателем. Подробнее — в [CREDITS.md](CREDITS.md).
 
+## Поддержка
+
+Проект бесплатный: без рекламы, платных версий и подписок. Если хочется
+поддержать разработку — можно [на Boosty](https://boosty.to/arbopas).
+Это добровольно и ничего не открывает в программе.
+
 ## Лицензия
 
 Код распространяется по **GNU Affero General Public License v3.0 only**

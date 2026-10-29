@@ -283,6 +283,7 @@
     <Compile Include="Helpers\DmUiKit.cs" />
     <Compile Include="Helpers\IconLibrary.cs" />
     <Compile Include="Helpers\IconView.cs" />
+    <Compile Include="Helpers\DonateInfo.cs" />
     <Compile Include="Helpers\FirewallHelper.cs" />
     <Compile Include="Helpers\UpnpProbe.cs" />
     <Compile Include="Helpers\DmRolls.cs" />
@@ -353,7 +354,6 @@
     </Compile>
     <Compile Include="Helpers\DatabaseHelper.cs" />
     <Compile Include="Helpers\NumberInput.cs" />
-    <Compile Include="Helpers\DonateInfo.cs" />
     <Compile Include="Helpers\PhotoHelper.cs" />
     <Compile Include="Helpers\PaletteBrush.cs" />
     <Compile Include="MainWindow.xaml.cs">

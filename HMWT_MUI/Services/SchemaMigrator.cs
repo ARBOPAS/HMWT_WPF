@@ -23,7 +23,7 @@ namespace HMWT_MUI.Services
     public static class SchemaMigrator
     {
         /// <summary>Текущая версия схемы, которую ждёт приложение.</summary>
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         private sealed class Migration
         {
@@ -89,6 +89,21 @@ namespace HMWT_MUI.Services
                     Exec(conn, tx,
                         "CREATE INDEX IF NOT EXISTS idx_audio_playlist_item ON AudioPlaylistItem(id_playlist, sort);");
                 }
+            },
+            new Migration
+            {
+                Version = 5,
+                Title = "размер группы экипировки",
+                // Колонка group_size появилась в DDL таблицы EquipmentGroups, но
+                // базам, созданным раньше, её никто не добавил: CREATE TABLE IF NOT
+                // EXISTS старую таблицу не меняет, а отдельного шага не было.
+                //
+                // Из-за этого запрос групп экипировки падал с «no such column:
+                // g.group_size», и вкладка «Инвентарь» закрывала всю программу.
+                // EnsureColumn добавляет колонку только если её нет, поэтому шаг
+                // безопасно повторять и на уже починенных базах.
+                Apply = (conn, tx) => DatabaseHelper.EnsureColumn(conn, tx,
+                    "EquipmentGroups", "group_size REAL NOT NULL DEFAULT 100")
             }
         };
 

@@ -798,7 +798,9 @@ namespace HMWT_MUI
             aboutItem.Click += (s, e) => MessageDialog.Info(this,
                 "Редактор персонажа и инструменты ведущего для настольных ролевых игр.\n\n" +
                 "Автор: Arbopas. Благодарности: XERNUSHKIN — поддержка, тестирование и макеты вкладки заклинаний.\n\n" +
-                "Проект бесплатный: без рекламы, платных версий и подписок. Поддержать разработку можно добровольно — пункт меню «Поддержать проект» (Boosty). Это ничего не открывает и ни на что в программе не влияет.\n\n" +
+                "Проект бесплатный: без рекламы, платных версий и подписок. " +
+                "Поддержать разработку можно добровольно — пункт меню «Поддержать проект» (Boosty). " +
+                "Это ничего не открывает и ни на что в программе не влияет.\n\n" +
                 "Copyright (C) 2026 ARBOPAS.\n" +
                 "Лицензия: GNU Affero General Public License v3.0 only (AGPL-3.0-only).\n" +
                 "Исходный код: https://github.com/ARBOPAS/HMWT_WPF\n\n" +
@@ -809,24 +811,34 @@ namespace HMWT_MUI
                 "Имена, тексты и описания из книг принадлежат их издателям. " +
                 "Свой справочник можно загрузить отдельным файлом.\n\n" +
                 "Настройки масштаба и анимации — во вкладке настроек внутри персонажа.",
-                "HMWT Гримуар");
+                "HMWT Гримуар",
+                "♥ Поддержать проект",
+                OpenDonateWindow);
             _settingsContextMenu.Items.Add(aboutItem);
 
             _settingsContextMenu.Items.Add(new Separator());
+
+            // Отдельным пунктом — чтобы поддержку можно было найти, не открывая
+            // «О программе». Ничего не проверяет: окно просто показывает реквизиты.
             var donateItem = new MenuItem { Header = "Поддержать проект" };
             donateItem.Click += (s, e) => OpenDonateWindow();
             _settingsContextMenu.Items.Add(donateItem);
         }
 
+        /// <summary>
+        /// Окно добровольной поддержки. Реквизиты лежат в
+        /// <see cref="DonateInfo"/>, поэтому здесь только открытие окна:
+        /// ни проверок «заплатил или нет», ни влияния на работу программы.
+        /// </summary>
         private void OpenDonateWindow()
         {
             try
             {
-                var window = new DonateWindow { Owner = this };
-                window.ShowDialog();
+                new DonateWindow { Owner = this }.ShowDialog();
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"[Donate] окно: {ex.Message}");
                 MessageDialog.Error(this, "Не удалось открыть окно поддержки: " + ex.Message);
             }
         }

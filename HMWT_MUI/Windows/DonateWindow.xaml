@@ -1,64 +1,154 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Window x:Class="HMWT_MUI.Windows.DonateWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:h="clr-namespace:HMWT_MUI.Helpers" Title="Поддержать проект" Width="600" SizeToContent="Height" ResizeMode="NoResize" ShowInTaskbar="False" WindowStartupLocation="CenterOwner" Background="{StaticResource B.Panel}" FontFamily="{StaticResource F.Body}" UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType" xmlns:windows="clr-namespace:HMWT_MUI.Windows" KeyDown="Window_KeyDown">
-  <Border Padding="26,22,26,18">
-    <StackPanel>
-      <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-        <h:IconView Kind="heart" IconSize="26" IconBrush="{StaticResource B.Arcane}" VerticalAlignment="Center" Margin="0,0,12,0" />
-        <TextBlock Text="ПОДДЕРЖАТЬ ПРОЕКТ" FontFamily="{StaticResource F.Display}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center" />
-      </StackPanel>
-      <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource B.Ink}" LineHeight="19" Margin="0,0,0,12" Text="HMWT Гримуар бесплатен и останется бесплатным: все функции доступны всем, платных версий, подписок и рекламы нет. Программу я делаю один, в свободное время." />
-      <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource B.Ink}" LineHeight="19" Margin="0,0,0,14" Text="Если программа пригодилась и есть желание — можно добровольно поддержать разработку. Это не покупка и не платная версия: за перевод в программе ничего не открывается." />
-      <Border Background="{StaticResource B.PanelHi}" CornerRadius="8" Padding="14,12" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,0,16">
+<Window x:Class="HMWT_MUI.Windows.DonateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:h="clr-namespace:HMWT_MUI.Helpers"
+        Title="Поддержать проект"
+        Width="600"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource B.Panel}"
+        FontFamily="{StaticResource F.Body}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        KeyDown="Window_KeyDown">
+
+    <Border Padding="26,22,26,18">
         <StackPanel>
-          <TextBlock Text="Чего это не делает" FontSize="11" FontWeight="Bold" Foreground="{StaticResource B.Mute}" Margin="0,0,0,8" />
-          <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Ink}" LineHeight="18" Margin="0,0,0,6" Text="• Не открывает функций и не ускоряет программу: всё уже доступно всем." />
-          <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Ink}" LineHeight="18" Margin="0,0,0,6" Text="• Ни к чему не обязывает: можно поддержать разово, а подписку — отменить в любой момент." />
-          <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Ink}" LineHeight="18" Text="• Не влияет на проект, поддержку и обновления — они не зависят от переводов." />
+
+            <!-- ─── Заголовок ─── -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <h:IconView Kind="heart" IconSize="26" IconBrush="{StaticResource B.Arcane}"
+                            VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <TextBlock Text="ПОДДЕРЖАТЬ ПРОЕКТ"
+                           FontFamily="{StaticResource F.Display}" FontSize="15" FontWeight="Bold"
+                           Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ─── Что это такое ─── -->
+            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource B.Ink}"
+                       LineHeight="19" Margin="0,0,0,12"
+                       Text="HMWT Гримуар бесплатен и останется бесплатным: все функции доступны всем, платных версий, подписок и рекламы нет. Программу я делаю один, в свободное время."/>
+
+            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{StaticResource B.Ink}"
+                       LineHeight="19" Margin="0,0,0,14"
+                       Text="Если программа пригодилась и есть желание — можно добровольно поддержать разработку. Это не покупка и не платная версия: за перевод в программе ничего не открывается."/>
+
+            <!-- ─── Что перевод НЕ меняет ─── -->
+            <Border Background="{StaticResource B.PanelHi}" CornerRadius="8" Padding="14,12"
+                    BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Чего это не делает" FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource B.Mute}" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Ink}"
+                               LineHeight="18" Margin="0,0,0,6"
+                               Text="• Не открывает функций и не ускоряет программу: всё уже доступно всем."/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Ink}"
+                               LineHeight="18" Margin="0,0,0,6"
+                               Text="• Ни к чему не обязывает: можно поддержать разово, а подписку — отменить в любой момент."/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Ink}"
+                               LineHeight="18"
+                               Text="• Не влияет на проект, поддержку и обновления — они не зависят от переводов."/>
+                </StackPanel>
+            </Border>
+
+            <!-- ─── Реквизиты ─── -->
+            <StackPanel x:Name="RequisitesBlock">
+
+                <!-- Карта -->
+                <Border x:Name="CardRow" Background="{StaticResource B.PanelHi}" CornerRadius="8"
+                        Padding="14,10" BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                        Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="Перевод по номеру карты" FontSize="10"
+                                       Foreground="{StaticResource B.Mute}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="txtCard" IsReadOnly="True" BorderThickness="0"
+                                     Background="Transparent" Foreground="{StaticResource B.Ink}"
+                                     FontFamily="Consolas" FontSize="16" Padding="0"
+                                     Cursor="IBeam" CaretBrush="{StaticResource B.Accent}"/>
+                            <TextBlock x:Name="RecipientText" FontSize="10"
+                                       Foreground="{StaticResource B.Mute}" Margin="0,3,0,0"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" x:Name="btnCopyCard" Content="Скопировать"
+                                Style="{StaticResource SoftBtn}" Padding="12,6"
+                                VerticalAlignment="Center" Margin="12,0,0,0"
+                                Click="BtnCopyCard_Click"/>
+                    </Grid>
+                </Border>
+
+                <!-- СБП -->
+                <Border x:Name="SbpRow" Background="{StaticResource B.PanelHi}" CornerRadius="8"
+                        Padding="14,10" BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                        Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="Перевод по СБП (по номеру телефона)" FontSize="10"
+                                       Foreground="{StaticResource B.Mute}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="txtSbp" IsReadOnly="True" BorderThickness="0"
+                                     Background="Transparent" Foreground="{StaticResource B.Ink}"
+                                     FontFamily="Consolas" FontSize="16" Padding="0"
+                                     Cursor="IBeam" CaretBrush="{StaticResource B.Accent}"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" x:Name="btnCopySbp" Content="Скопировать"
+                                Style="{StaticResource SoftBtn}" Padding="12,6"
+                                VerticalAlignment="Center" Margin="12,0,0,0"
+                                Click="BtnCopySbp_Click"/>
+                    </Grid>
+                </Border>
+
+                <!-- Ссылка на страницу поддержки -->
+                <Button x:Name="btnOpenLink" Style="{StaticResource MagicBtn}"
+                        HorizontalAlignment="Stretch" Margin="0,0,0,6"
+                        Click="BtnOpenLink_Click"/>
+
+                <!-- Адрес виден до клика: не приходится открывать, чтобы понять, куда ведёт -->
+                <TextBlock x:Name="txtLinkUrl" FontSize="10" Foreground="{StaticResource B.Mute}"
+                           HorizontalAlignment="Center" Margin="0,0,0,10"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <!-- ─── Если реквизиты не заполнены ─── -->
+            <Border x:Name="EmptyHint" Visibility="Collapsed" Background="{StaticResource B.PanelHi}"
+                    CornerRadius="8" Padding="14,12" BorderBrush="{StaticResource B.Line}"
+                    BorderThickness="1" Margin="0,0,0,8">
+                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Mute}"
+                           LineHeight="18"
+                           Text="Реквизиты для поддержки пока не указаны. Спасибо, что пользуетесь программой: этого уже достаточно."/>
+            </Border>
+
+            <!-- ─── Подвал ─── -->
+            <Border Height="1" Background="{StaticResource B.Line}" Margin="0,4,0,12"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="FooterNote" Grid.Column="0" TextWrapping="Wrap" FontSize="11"
+                           Foreground="{StaticResource B.Mute}" VerticalAlignment="Center"
+                           Margin="0,0,14,0"/>
+
+                <Button Grid.Column="1" x:Name="btnClose" Content="Закрыть"
+                        Style="{StaticResource GhostBtn}" Padding="16,7"
+                        Click="BtnClose_Click"/>
+            </Grid>
         </StackPanel>
-      </Border>
-      <StackPanel Name="RequisitesBlock">
-        <Border Name="CardRow" Background="{StaticResource B.PanelHi}" CornerRadius="8" Padding="14,10" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,0,8">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="Перевод по номеру карты" FontSize="10" Foreground="{StaticResource B.Mute}" Margin="0,0,0,4" />
-              <TextBox Name="txtCard" IsReadOnly="True" BorderThickness="0" Background="#00FFFFFF" Foreground="{StaticResource B.Ink}" FontFamily="Consolas" FontSize="16" Padding="0" Cursor="IBeam" CaretBrush="{StaticResource B.Accent}" />
-              <TextBlock Name="RecipientText" FontSize="10" Foreground="{StaticResource B.Mute}" Margin="0,3,0,0" />
-            </StackPanel>
-            <Button Name="btnCopyCard" Grid.Column="1" Content="Скопировать" Style="{StaticResource SoftBtn}" Padding="12,6" VerticalAlignment="Center" Margin="12,0,0,0" Click="BtnCopyCard_Click" />
-          </Grid>
-        </Border>
-        <Border Name="SbpRow" Background="{StaticResource B.PanelHi}" CornerRadius="8" Padding="14,10" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,0,8">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel>
-              <TextBlock Text="Перевод по СБП (по номеру телефона)" FontSize="10" Foreground="{StaticResource B.Mute}" Margin="0,0,0,4" />
-              <TextBox Name="txtSbp" IsReadOnly="True" BorderThickness="0" Background="#00FFFFFF" Foreground="{StaticResource B.Ink}" FontFamily="Consolas" FontSize="16" Padding="0" Cursor="IBeam" CaretBrush="{StaticResource B.Accent}" />
-            </StackPanel>
-            <Button Name="btnCopySbp" Grid.Column="1" Content="Скопировать" Style="{StaticResource SoftBtn}" Padding="12,6" VerticalAlignment="Center" Margin="12,0,0,0" Click="BtnCopySbp_Click" />
-          </Grid>
-        </Border>
-        <Button Name="btnOpenLink" Style="{StaticResource MagicBtn}" HorizontalAlignment="Stretch" Margin="0,0,0,6" Click="BtnOpenLink_Click" />
-        <TextBlock Name="txtLinkUrl" FontSize="10" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center" Margin="0,0,0,10" TextTrimming="CharacterEllipsis" />
-      </StackPanel>
-      <Border Name="EmptyHint" Visibility="Collapsed" Background="{StaticResource B.PanelHi}" CornerRadius="8" Padding="14,12" BorderBrush="{StaticResource B.Line}" BorderThickness="1" Margin="0,0,0,8">
-        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource B.Mute}" LineHeight="18" Text="Реквизиты для поддержки пока не указаны. Спасибо, что пользуетесь программой: этого уже достаточно." />
-      </Border>
-      <Border Height="1" Background="{StaticResource B.Line}" Margin="0,4,0,12" />
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <TextBlock Name="FooterNote" Grid.Column="0" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,14,0" />
-        <Button Name="btnClose" Grid.Column="1" Content="Закрыть" Style="{StaticResource GhostBtn}" Padding="16,7" Click="BtnClose_Click" />
-      </Grid>
-    </StackPanel>
-  </Border>
+    </Border>
 </Window>
