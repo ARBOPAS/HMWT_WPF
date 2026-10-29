@@ -180,6 +180,7 @@ namespace HMWT_MUI.Views
             AddToolbarButton("S̶", "Зачёркнутый (Ctrl+Shift+U)", () => Editor.ApplyStrikethrough(), null, null, TextDecorations.Strikethrough);
             AddToolbarButton("〈〉", "Код (Ctrl+Shift+E)", () => Editor.ApplyInlineCode());
             AddToolbarButton("highlight", "Выделение цветом", () => Editor.ApplyHighlight());
+            AddTextColorButton();
 
             AddToolbarSeparator();
 

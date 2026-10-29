@@ -882,13 +882,50 @@ function highlight() {
   if (!sel || sel.rangeCount === 0) return;
   const text = sel.toString();
   if (!text) return;
+
+  // Повторное нажатие по уже выделенному фрагменту снимает mark,
+  // а не добавляет второй слой.
+  const range = sel.getRangeAt(0);
+  const mark = tagAround(range.startContainer, 'MARK');
+  if (mark && mark.contains(range.endContainer)) {
+    unwrapTag(mark);
+    emitChanged();
+    return;
+  }
+
   exec('insertHTML', '<mark>' + esc(text) + '</mark>');
 }
 
 function inlineCode() {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0 || !sel.toString()) { post({ type: 'hint', text: 'выделите текст, чтобы сделать его кодом' }); return; }
+
+  // Так же снимаем code повторным нажатием.
+  const range = sel.getRangeAt(0);
+  const code = tagAround(range.startContainer, 'CODE');
+  if (code && code.contains(range.endContainer)) {
+    unwrapTag(code);
+    emitChanged();
+    return;
+  }
+
   exec('insertHTML', '<code>' + esc(sel.toString()) + '</code>');
+}
+
+function tagAround(node, tag) {
+  while (node && node !== doc) {
+    if (node.nodeType === 1 && node.tagName === tag) return node;
+    node = node.parentNode;
+  }
+  return null;
+}
+
+function unwrapTag(node) {
+  const parent = node.parentNode;
+  if (!parent) return;
+  while (node.firstChild) parent.insertBefore(node.firstChild, node);
+  parent.removeChild(node);
+  parent.normalize();
 }
 
 function imageUrl(path) {
