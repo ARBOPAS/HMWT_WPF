@@ -403,6 +403,10 @@ namespace HMWT_MUI.Views
         public void ApplyStrikethrough() => Run("strike");
         public void ApplyInlineCode() => Run("code");
         public void ApplyHighlight() => Run("highlight");
+
+        /// <summary>Цвет текста: выделению или всей заметке (hex #RRGGBB).</summary>
+        public void ApplyTextColor(string hex, bool wholeText = false)
+            => Run("color", string.IsNullOrWhiteSpace(hex) ? "#ECE4D0" : hex, wholeText ? "true" : "false");
         public void ApplyHeading(int level) => Run("heading", level.ToString());
         public void ApplyList(bool numbered, bool checklist = false)
             => Run("list", numbered ? "ol" : "ul", checklist ? "check" : "");
@@ -710,6 +714,29 @@ function exec(cmd, value) {
   emitChanged();
 }
 
+// Цвет текста: выделению или всему документу. styleWithCSS даёт span
+// со style=color:..., а не устаревший font color.
+function applyColor(color, whole) {
+  if (!doc.isContentEditable) return;
+  doc.focus();
+  document.execCommand('styleWithCSS', false, true);
+
+  const sel = window.getSelection();
+  const all = String(whole) === 'true';
+  if (all) {
+    document.execCommand('selectAll', false, null);
+    document.execCommand('foreColor', false, color);
+    sel.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(doc);
+    range.collapse(false);
+    sel.addRange(range);
+  } else {
+    document.execCommand('foreColor', false, color);
+  }
+  emitChanged();
+}
+
 // ── выбранная картинка и её уголки ──
 
 function selectImage(img) {
@@ -978,6 +1005,15 @@ doc.addEventListener('paste', (e) => {
       return;
     }
   }
+
+  // Текст из браузера приходит с color:black — вставляем как обычный,
+  // иначе на тёмном фоне его не видно.
+  const text = e.clipboardData.getData('text/plain');
+  if (text) {
+    e.preventDefault();
+    document.execCommand('insertText', false, text);
+    emitChanged();
+  }
 });
 
 // Масштаб текста: Ctrl+колесо, как в прежнем редакторе
@@ -1011,7 +1047,7 @@ window.notesApi = {
   highlight, insertWiki, insertImage, insertAttachment, editCurrentLink,
   setLinkMode, ping, imageUrl,
   bold: () => exec('bold'), italic: () => exec('italic'), underline: () => exec('underline'),
-  strike: () => exec('strikeThrough'), code: inlineCode
+  strike: () => exec('strikeThrough'), code: inlineCode, color: applyColor
 };
 </script>
 </body></html>";

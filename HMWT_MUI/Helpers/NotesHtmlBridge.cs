@@ -307,6 +307,11 @@ namespace HMWT_MUI.Helpers
             s = Regex.Replace(s, @"\*\*([^*]+)\*\*", "<b>$1</b>");
             s = Regex.Replace(s, @"(?<!\*)\*([^*]+)\*(?!\*)", "<i>$1</i>");
 
+            // Наш синтаксис цвета → span для contenteditable.
+            s = Regex.Replace(s, @"\{\{color:(#[0-9A-Fa-f]{6})\|(.*?)\}\}",
+                m => "<span style=\"color:" + m.Groups[1].Value + "\">" + m.Groups[2].Value + "</span>",
+                RegexOptions.Singleline);
+
             return s;
         }
 
@@ -325,6 +330,7 @@ namespace HMWT_MUI.Helpers
             s = Regex.Replace(s, @"!\[[^\]]*\]\([^)]*\)", " ");
             s = Regex.Replace(s, @"\[([^\]]*)\]\([^)]*\)", "$1");
             s = Regex.Replace(s, @"\[\[([^\]]*)\]\]", "$1");
+            s = Regex.Replace(s, @"\{\{color:#[0-9A-Fa-f]{6}\|(.*?)\}\}", "$1");
             s = Regex.Replace(s, @"[#*>`~|]", "");
             return s;
         }
@@ -622,6 +628,28 @@ namespace HMWT_MUI.Helpers
 
             string s = html;
 
+            // Цветные фрагменты сохраняем в собственном синтаксисе
+            // {{color:#RRGGBB|текст}}, иначе общая чистка тегов ниже
+            // выбросила бы span/font вместе с цветом.
+            var colorSpans = new List<(string Hex, string Inner)>();
+            s = Regex.Replace(s,
+                @"<span\b[^>]*style=""[^""]*color:\s*(#[0-9A-Fa-f]{6}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))[^""]*""[^>]*>(?<inner>.*?)</span>",
+                m =>
+                {
+                    string key = "\u0001C" + colorSpans.Count + "\u0001";
+                    colorSpans.Add((NormalizeColor(m.Groups[1].Value), m.Groups["inner"].Value));
+                    return key;
+                }, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+            s = Regex.Replace(s,
+                @"<font\b[^>]*color=""(#[0-9A-Fa-f]{6})""[^>]*>(?<inner>.*?)</font>",
+                m =>
+                {
+                    string key = "\u0001C" + colorSpans.Count + "\u0001";
+                    colorSpans.Add((m.Groups[1].Value.ToUpperInvariant(), m.Groups["inner"].Value));
+                    return key;
+                }, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
             // Обратно: [[заметка]] или [[заметка|подпись]]
             s = Regex.Replace(s, @"<a\b[^>]*data-wiki=""([^""]*)""[^>]*>(?<label>.*?)</a>", m =>
             {
@@ -668,7 +696,31 @@ namespace HMWT_MUI.Helpers
             s = WebUtility.HtmlDecode(s);
             s = s.Replace('\u00A0', ' ');
 
+            for (int i = 0; i < colorSpans.Count; i++)
+            {
+                string key = "\u0001C" + i + "\u0001";
+                s = s.Replace(key,
+                    "{{color:" + colorSpans[i].Hex + "|" + InlineToMarkdown(colorSpans[i].Inner) + "}}");
+            }
+
             return s;
+        }
+
+        /// <summary>#RRGGBB или rgb(r,g,b) → #RRGGBB.</summary>
+        private static string NormalizeColor(string color)
+        {
+            string value = (color ?? "").Trim();
+            if (value.StartsWith("#", StringComparison.Ordinal))
+                return value.ToUpperInvariant();
+
+            var m = Regex.Match(value, @"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) return "#ECE4D0";
+
+            int r = Math.Min(255, int.Parse(m.Groups[1].Value));
+            int g = Math.Min(255, int.Parse(m.Groups[2].Value));
+            int b = Math.Min(255, int.Parse(m.Groups[3].Value));
+            return "#" + r.ToString("X2") + g.ToString("X2") + b.ToString("X2");
         }
     }
 

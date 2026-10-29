@@ -10,7 +10,9 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
@@ -230,6 +232,141 @@ namespace HMWT_MUI.Views
                 Margin = new Thickness(1, 0, 1, 0)
             };
             button.Click += (s, e) => action();
+            EditorToolbar.Children.Add(button);
+        }
+
+        /// <summary>
+        /// Кнопка «цвет текста»: палитра для выделения или всего текста.
+        /// Цвет применяется к RichTextBox и сохраняется в Markdown как span.
+        /// </summary>
+        private void AddTextColorButton()
+        {
+            var face = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            face.Children.Add(new TextBlock
+            {
+                Text = "A",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = DmUiKit.B("Ink"),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            face.Children.Add(new Border
+            {
+                Height = 3,
+                Width = 16,
+                CornerRadius = new CornerRadius(1),
+                Background = DmUiKit.B("Gold"),
+                Margin = new Thickness(0, 1, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+
+            var button = new Button
+            {
+                Content = face,
+                ToolTip = "Цвет текста: выделение или вся заметка",
+                Style = FindResource("ToolbarBtn") as Style,
+                Margin = new Thickness(1, 0, 1, 0)
+            };
+
+            var popup = new Popup
+            {
+                Placement = PlacementMode.Bottom,
+                PlacementTarget = button,
+                StaysOpen = false,
+                AllowsTransparency = true,
+                PopupAnimation = PopupAnimation.Fade
+            };
+
+            var panel = new StackPanel { Margin = new Thickness(8) };
+            panel.Children.Add(new TextBlock
+            {
+                Text = "ЦВЕТ ТЕКСТА",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = DmUiKit.B("Accent"),
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            var whole = new CheckBox
+            {
+                Content = "Весь текст",
+                Foreground = DmUiKit.B("Ink"),
+                IsChecked = false,
+                Margin = new Thickness(0, 5, 0, 4)
+            };
+
+            var wrap = new WrapPanel { Width = 150 };
+            var colors = new (string Name, string Hex)[]
+            {
+                ("Светлый (тема)", "#ECE4D0"),
+                ("Белый", "#FFFFFF"),
+                ("Золотой", "#E0AE4E"),
+                ("Бирюзовый", "#4FB6AC"),
+                ("Лиловый", "#9A7BD6"),
+                ("Красный", "#E06A63"),
+                ("Зелёный", "#7FD98A"),
+                ("Синий", "#7FB3E0"),
+                ("Оранжевый", "#E8A05A"),
+                ("Розовый", "#E58BB5"),
+                ("Серый", "#9AA4BF"),
+                ("Бледно-жёлтый", "#F2DFA0")
+            };
+
+            foreach (var item in colors)
+            {
+                var color = (Color)ColorConverter.ConvertFromString(item.Hex);
+                // Border, а не Button: глобальный шаблон кнопки может
+                // перекрасить образец в цвет темы, и палитра станет серой.
+                var swatch = new Border
+                {
+                    Width = 24,
+                    Height = 24,
+                    Margin = new Thickness(2),
+                    Background = new SolidColorBrush(color),
+                    BorderBrush = DmUiKit.B("Line"),
+                    BorderThickness = new Thickness(1),
+                    ToolTip = item.Name,
+                    Cursor = Cursors.Hand
+                };
+                swatch.MouseLeftButtonUp += (s, e) =>
+                {
+                    Editor.ApplyTextColor(item.Hex, whole.IsChecked == true);
+                    popup.IsOpen = false;
+                };
+                wrap.Children.Add(swatch);
+            }
+
+            panel.Children.Add(wrap);
+            panel.Children.Add(whole);
+
+            var reset = new Button
+            {
+                Content = "Сбросить цвет",
+                Style = FindResource("ToolbarBtn") as Style,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            reset.Click += (s, e) =>
+            {
+                Editor.ApplyTextColor("#ECE4D0", whole.IsChecked == true);
+                popup.IsOpen = false;
+            };
+            panel.Children.Add(reset);
+
+            popup.Child = new Border
+            {
+                Background = FindResource("B.Panel") as Brush ?? DmUiKit.B("Slate"),
+                BorderBrush = DmUiKit.B("Line"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Child = panel
+            };
+
+            button.Click += (s, e) => popup.IsOpen = !popup.IsOpen;
             EditorToolbar.Children.Add(button);
         }
 

@@ -370,7 +370,7 @@ namespace HMWT_MUI.Net
         ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.14.2";
+        public const string AppVersion = "1.3.14.3";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.

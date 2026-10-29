@@ -24,7 +24,7 @@ namespace HMWT_MUI
 
         private static readonly Color Frost = (Color)ColorConverter.ConvertFromString("#4FB6AC");
         private static readonly Color Arcane = (Color)ColorConverter.ConvertFromString("#9A7BD6");
-        private static readonly Color Ink = (Color)ColorConverter.ConvertFromString("#ECE4D0");
+        public static readonly Color Ink = (Color)ColorConverter.ConvertFromString("#ECE4D0");
         private static readonly Color Mute = (Color)ColorConverter.ConvertFromString("#8B859C");
         private static readonly Color Slate = (Color)ColorConverter.ConvertFromString("#15151F");
         private static readonly Color Line = (Color)ColorConverter.ConvertFromString("#322E44");
@@ -484,6 +484,7 @@ namespace HMWT_MUI
             + @"|(_[^_\n]+?_)"
             + @"|(~~.+?~~)"
             + @"|(==.+?==)"
+            + @"|(<span style=""color:#[0-9A-Fa-f]{6}"">.+?</span>)"
             + @"|(<u>.+?</u>)"
             + @"|(\$[^\$\n]+\$)",
             RegexOptions.Compiled);
@@ -521,6 +522,32 @@ namespace HMWT_MUI
 
         private static void AddInlineToken(string token, InlineCollection inlines, Ctx ctx)
         {
+            // Цветной фрагмент: <span style="color:#RRGGBB">текст</span>.
+            // Храним его в Markdown, чтобы цвет переживал сохранение заметки.
+            if (token.StartsWith("<span style=\"color:", StringComparison.OrdinalIgnoreCase))
+            {
+                var m = Regex.Match(token,
+                    @"^<span style=""color:\s*(?<color>#[0-9A-Fa-f]{6})"">(?<text>.*)</span>$",
+                    RegexOptions.Singleline);
+                if (m.Success)
+                {
+                    var span = new Span();
+                    try
+                    {
+                        span.Foreground = new SolidColorBrush(
+                            (Color)ColorConverter.ConvertFromString(m.Groups["color"].Value));
+                    }
+                    catch
+                    {
+                        span.Foreground = new SolidColorBrush(Ink);
+                    }
+
+                    ParseInlines(Unescape(m.Groups["text"].Value), span.Inlines, ctx);
+                    inlines.Add(span);
+                    return;
+                }
+            }
+
             // Код
             if (token.StartsWith("`") && token.EndsWith("`") && token.Length > 2)
             {
@@ -658,7 +685,20 @@ namespace HMWT_MUI
 
         private static string Unescape(string text)
         {
-            return text.Replace("\\*", "*").Replace("\\_", "_").Replace("\\`", "`");
+            return text.Replace("\\*", "*").Replace("\\_", "_").Replace("\\`", "`")
+                .Replace("&lt;", "<").Replace("&gt;", ">").Replace("&amp;", "&");
+        }
+
+        /// <summary>Цвет в виде #RRGGBB — формат, который понимает и парсер, и CSS.</summary>
+        private static string HexColor(Color color)
+        {
+            return "#" + color.R.ToString("X2") + color.G.ToString("X2") + color.B.ToString("X2");
+        }
+
+        private static string EscapeHtml(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
         }
 
         #endregion
@@ -934,7 +974,13 @@ namespace HMWT_MUI
         private static string SerializeInline(Inline inline)
         {
             if (inline is Run run)
-                return run.Text ?? "";
+            {
+                string text = run.Text ?? "";
+                if (run.Foreground is SolidColorBrush fg && fg.Color != Ink &&
+                    !(run.FontFamily?.Source?.Contains("Consolas") == true))
+                    return "<span style=\"color:" + HexColor(fg.Color) + "\">" + EscapeHtml(text) + "</span>";
+                return text;
+            }
 
             if (inline is InlineUIContainer container && container.Child is Image)
                 return SerializeImageInline(container);
@@ -973,6 +1019,12 @@ namespace HMWT_MUI
 
             if (inline is Span span)
             {
+                if (span.Foreground is SolidColorBrush spanFg && spanFg.Color != Ink)
+                {
+                    var inner = SerializeInlines(span.Inlines);
+                    return "<span style=\"color:" + HexColor(spanFg.Color) + "\">" + inner + "</span>";
+                }
+
                 var text = SerializeInlines(span.Inlines);
                 if (span.TextDecorations == TextDecorations.Strikethrough)
                     return "~~" + text + "~~";

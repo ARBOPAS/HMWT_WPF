@@ -14,6 +14,7 @@ using Microsoft.Data.Sqlite;
 using HMWT_MUI.Controls;
 using HMWT_MUI.Models;
 using HMWT_MUI.Net;
+using HMWT_MUI.Helpers;
 using HMWT_MUI.Services;
 using HMWT_MUI.Views;
 
@@ -383,6 +384,7 @@ namespace HMWT_MUI.RoomUiTests
             Say("");
             Say("═══ РАЗБОР СПИСКОВ В ЗАМЕТКАХ ═══");
             CheckMarkdownLists();
+            CheckNotesColor();
 
             Say("");
             Say("═══ ПОКУПКА И СТАКИВАНИЕ ═══");
@@ -968,6 +970,34 @@ namespace HMWT_MUI.RoomUiTests
             catch (Exception ex)
             {
                 Check("проверка списков прошла без исключения", false, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Цвет текста в заметках: HTML из contenteditable (span/font) должен
+        /// переживать сохранение в Markdown и обратную загрузку.
+        /// </summary>
+        private static void CheckNotesColor()
+        {
+            try
+            {
+                string html = "<p><span style=\"color: rgb(224, 106, 99);\">красный</span> текст</p>";
+                string markdown = NotesHtmlBridge.ToMarkdown(html);
+                Check("цвет из span сохраняется в Markdown",
+                    markdown.Contains("{{color:#E06A63|красный}}"), markdown);
+
+                string htmlBack = NotesHtmlBridge.ToHtml(markdown);
+                Check("цвет из Markdown возвращается в span",
+                    htmlBack.Contains("color:#E06A63") && htmlBack.Contains("красный"), htmlBack);
+
+                string markdown2 = NotesHtmlBridge.ToMarkdown(
+                    "<p><font color=\"#4FB6AC\">бирюзовый</font></p>");
+                Check("цвет из font сохраняется в Markdown",
+                    markdown2.Contains("{{color:#4FB6AC|бирюзовый}}"), markdown2);
+            }
+            catch (Exception ex)
+            {
+                Check("проверка цвета заметок прошла без исключения", false, ex.Message);
             }
         }
 
