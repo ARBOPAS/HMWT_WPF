@@ -38,6 +38,8 @@ namespace HMWT_MUI.Windows
         private ComboBox _playlists;
         private StackPanel _playlistBox;
         private TextBlock _playlistTitle;
+        private TextBox _search;
+        private HashSet<int> _playlistTrackIds = new HashSet<int>();
         private List<AudioTrackData> _queue = new List<AudioTrackData>();
         private int _queueIndex;
         private bool _playlistMode;
@@ -45,10 +47,10 @@ namespace HMWT_MUI.Windows
         public AudioWindow()
         {
             Title = "Аудиотека · " + HMWT_MUI.Net.NetVersions.AppVersion;
-            Width = 640;
-            Height = 560;
-            MinWidth = 460;
-            MinHeight = 380;
+            Width = 880;
+            Height = 680;
+            MinWidth = 760;
+            MinHeight = 520;
             Background = Bg;
             Foreground = Ink;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -65,8 +67,16 @@ namespace HMWT_MUI.Windows
 
         private void OnTrackEnded()
         {
-            if (!_playlistMode) return;
-            Dispatcher.BeginInvoke(new Action(NextTrack));
+            if (_playlistMode)
+            {
+                Dispatcher.BeginInvoke(new Action(NextTrack));
+                return;
+            }
+
+            // Из библиотеки трек просто заканчивается, без повтора.
+            _playingId = 0;
+            if (Host != null) Host.Loop = false;
+            Dispatcher.BeginInvoke(new Action(Reload));
         }
 
         private AudioHost Host
@@ -108,7 +118,8 @@ namespace HMWT_MUI.Windows
             {
                 _playlistMode = false;
                 _queue.Clear();
-                if (Host != null) Host.Loop = true;
+                _queueIndex = 0;
+                if (Host != null) Host.Loop = false;
                 Host?.Stop();
                 if (RoomSession.Instance.IsActive)
                     RoomSession.Instance.PublishAudioStop();
@@ -138,21 +149,28 @@ namespace HMWT_MUI.Windows
             bar.Children.Add(_master);
 
             top.Children.Add(bar);
+            root.Children.Add(top);
 
-            // Плейлисты: локальный инструмент диджея. В комнату уходит
-            // только текущий трек, поэтому синхронизация не усложняется.
-            top.Children.Add(new TextBlock
+            // Две колонки: слева плейлист, справа библиотека. В одном
+            // столбце плайлист и сотня треков мешали друг другу.
+            var split = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            split.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
+            split.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetRow(split, 1);
+
+            var left = new Grid { Margin = new Thickness(0, 0, 14, 0) };
+            left.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            left.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            left.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            left.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            left.Children.Add(new TextBlock
             {
                 Text = "ПЛЕЙЛИСТ", FontSize = 10, FontWeight = FontWeights.SemiBold,
                 Foreground = Accent, Margin = new Thickness(2, 0, 0, 4)
             });
-            var plBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            plBar.Children.Add(new TextBlock
-            {
-                Text = "Плейлист", FontSize = 11, Foreground = Mute,
-                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
-            });
 
+            var plBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             _playlists = new ComboBox
             {
                 Width = 170, Height = 28, Margin = new Thickness(0, 0, 8, 0),
@@ -178,23 +196,22 @@ namespace HMWT_MUI.Windows
                 30, DmUiKit.ButtonKind.Danger);
             plBar.Children.Add(delete);
 
-            top.Children.Add(plBar);
+            Grid.SetRow(plBar, 1);
+            left.Children.Add(plBar);
 
-            // Содержимое плейлиста: видно, что в нём лежит, и «Убрать»
-            // убирает только из плейлиста, а не из библиотеки.
             _playlistTitle = new TextBlock
             {
                 Text = "Плейлист пуст", FontSize = 11, Foreground = Mute,
                 Margin = new Thickness(2, 0, 0, 4)
             };
-            top.Children.Add(_playlistTitle);
+            Grid.SetRow(_playlistTitle, 2);
+            left.Children.Add(_playlistTitle);
 
             _playlistBox = new StackPanel();
             var playlistBorder = new Border
             {
                 Background = Card, BorderBrush = Line, BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6), Padding = new Thickness(6),
-                MaxHeight = 150, Margin = new Thickness(0, 0, 0, 8)
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(6)
             };
             playlistBorder.Child = new ScrollViewer
             {
@@ -202,25 +219,43 @@ namespace HMWT_MUI.Windows
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
             };
-            top.Children.Add(playlistBorder);
-            top.Children.Add(new TextBlock
+            Grid.SetRow(playlistBorder, 3);
+            left.Children.Add(playlistBorder);
+
+            split.Children.Add(left);
+
+            var right = new Grid();
+            right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var libHead = new Grid { Margin = new Thickness(2, 0, 0, 4) };
+            libHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            libHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            libHead.Children.Add(new TextBlock
             {
                 Text = "БИБЛИОТЕКА", FontSize = 10, FontWeight = FontWeights.SemiBold,
-                Foreground = Accent, Margin = new Thickness(2, 0, 0, 2)
+                Foreground = Accent, VerticalAlignment = VerticalAlignment.Center
             });
 
-            ReloadPlaylists();
-
-            root.Children.Add(top);
+            _search = DmUiKit.Field("", 230, "Поиск по библиотеке");
+            _search.TextChanged += (s, e) => Reload();
+            Grid.SetColumn(_search, 1);
+            libHead.Children.Add(_search);
+            right.Children.Add(libHead);
 
             var scroll = new ScrollViewer
             {
                 Content = _list,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Margin = new Thickness(0, 4, 0, 0)
             };
             Grid.SetRow(scroll, 1);
-            root.Children.Add(scroll);
+            right.Children.Add(scroll);
+
+            Grid.SetColumn(right, 1);
+            split.Children.Add(right);
+            root.Children.Add(split);
 
             string roomText = !RoomSession.Instance.IsActive
                 ? "ВНИМАНИЕ: комната не активна — трек слышите только вы. Подключитесь к отряду и включите снова."
@@ -249,18 +284,30 @@ namespace HMWT_MUI.Windows
             Grid.SetRow(hint, 2);
             root.Children.Add(hint);
 
+            ReloadPlaylists();
             Content = root;
         }
-
         private void Reload()
         {
             _list.Children.Clear();
             var tracks = AudioService.List();
+
+            string query = (_search?.Text ?? "").Trim();
+            if (query.Length > 0)
+            {
+                tracks = tracks
+                    .Where(t => (t.Name ?? "").IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                (t.Path ?? "").IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                    .ToList();
+            }
+
             if (tracks.Count == 0)
             {
                 _list.Children.Add(new TextBlock
                 {
-                    Text = "Пока пусто. Нажмите «Добавить файлы…» — mp3, ogg, wav, flac.",
+                    Text = query.Length > 0
+                        ? "По запросу «" + query + "» ничего не найдено."
+                        : "Пока пусто. Нажмите «Добавить файлы…» — mp3, ogg, wav, flac.",
                     FontSize = 12, Foreground = Mute, Margin = new Thickness(4, 12, 4, 12),
                     TextWrapping = TextWrapping.Wrap
                 });
@@ -304,15 +351,19 @@ namespace HMWT_MUI.Windows
         {
             if (_playlistBox == null) return;
             _playlistBox.Children.Clear();
+            _playlistTrackIds.Clear();
 
             int? id = SelectedPlaylistId;
             if (id == null)
             {
                 if (_playlistTitle != null) _playlistTitle.Text = "Плейлист не выбран";
+                Reload();
                 return;
             }
 
             var tracks = AudioService.PlaylistTracks(id.Value);
+            _playlistTrackIds = new HashSet<int>(tracks.Select(t => t.Id));
+
             if (_playlistTitle != null)
                 _playlistTitle.Text = tracks.Count == 0
                     ? "Плейлист пуст"
@@ -326,6 +377,7 @@ namespace HMWT_MUI.Windows
                     FontSize = 11, Foreground = Mute, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(4, 4, 4, 4)
                 });
+                Reload();
                 return;
             }
 
@@ -347,7 +399,7 @@ namespace HMWT_MUI.Windows
                 Grid.SetColumn(name, 0);
                 row.Children.Add(name);
 
-                var play = IconButton("play", (s, e) => { _playlistMode = true; PlayTrack(track); },
+                var play = IconButton("play", (s, e) => PlayPlaylistTrack(track),
                     "Играть", 28, DmUiKit.ButtonKind.Primary, true);
                 Grid.SetColumn(play, 1);
                 row.Children.Add(play);
@@ -363,6 +415,9 @@ namespace HMWT_MUI.Windows
                 _playlistBox.Children.Add(row);
                 position++;
             }
+
+            // Обновить плюсики в библиотеке: трек уже в плейлисте.
+            Reload();
         }
 
         private void CreatePlaylist()
@@ -383,7 +438,7 @@ namespace HMWT_MUI.Windows
 
             AudioService.DeletePlaylist(id.Value);
             _playlistMode = false;
-            if (Host != null) Host.Loop = true;
+            if (Host != null) Host.Loop = false;
             ReloadPlaylists();
             ReloadPlaylistTracks();
         }
@@ -412,6 +467,28 @@ namespace HMWT_MUI.Windows
             PlayTrack(tracks[0]);
         }
 
+        /// <summary>
+        /// Запуск конкретного трека из плейлиста: очередь должна начинаться
+        /// с него, иначе «Дальше»/автопереход снова начинали плейлист с нуля.
+        /// </summary>
+        private void PlayPlaylistTrack(AudioTrackData track)
+        {
+            int? id = SelectedPlaylistId;
+            if (id == null)
+            {
+                _playlistMode = false;
+                PlayTrack(track);
+                return;
+            }
+
+            var tracks = AudioService.PlaylistTracks(id.Value);
+            int index = tracks.FindIndex(t => t.Id == track.Id);
+            _queue = tracks;
+            _queueIndex = index >= 0 ? index : 0;
+            _playlistMode = true;
+            PlayTrack(track);
+        }
+
         private void NextTrack()
         {
             if (_queue.Count == 0)
@@ -420,7 +497,21 @@ namespace HMWT_MUI.Windows
                 return;
             }
 
-            _queueIndex = (_queueIndex + 1) % _queue.Count;
+            if (_queueIndex + 1 >= _queue.Count)
+            {
+                // Конец плейлиста: не начинаем сначала.
+                _playlistMode = false;
+                _queue.Clear();
+                _queueIndex = 0;
+                _playingId = 0;
+                Host?.Stop();
+                if (RoomSession.Instance.IsActive)
+                    RoomSession.Instance.PublishAudioStop();
+                Reload();
+                return;
+            }
+
+            _queueIndex++;
             PlayTrack(_queue[_queueIndex]);
         }
 
@@ -433,12 +524,20 @@ namespace HMWT_MUI.Windows
                 return;
             }
 
+            if (_playlistTrackIds.Contains(track.Id))
+            {
+                NotePromptWindow.Message(this, "Плейлист",
+                    $"«{track.Name}» уже есть в этом плейлисте.");
+                return;
+            }
+
             AudioService.AddToPlaylist(id.Value, track.Id);
             ReloadPlaylistTracks();
         }
 
         private FrameworkElement BuildRow(AudioTrackData track)
         {
+            bool inPlaylist = _playlistTrackIds.Contains(track.Id);
             var row = new Border
             {
                 Background = Card,
@@ -463,7 +562,7 @@ namespace HMWT_MUI.Windows
             });
             text.Children.Add(new TextBlock
             {
-                Text = $"{SizeText(track.Size)} · {(track.Id == _playingId ? "играет" : "готов")}",
+                Text = $"{SizeText(track.Size)} · {(track.Id == _playingId ? "играет" : inPlaylist ? "в плейлисте" : "готов")}",
                 FontSize = 10,
                 Foreground = track.Id == _playingId ? Accent : Mute
             });
@@ -522,8 +621,14 @@ namespace HMWT_MUI.Windows
                 _playingId == track.Id ? "Заново" : "Играть", 30, DmUiKit.ButtonKind.Primary, true);
             buttons.Children.Add(play);
 
-            var toPlaylist = IconButton("plus", (s, e) => AddToPlaylist(track), "В плейлист",
-                30, DmUiKit.ButtonKind.Ghost);
+            var toPlaylist = inPlaylist
+                ? IconButton("check", (s, e) =>
+                {
+                    NotePromptWindow.Message(this, "Плейлист",
+                        $"«{track.Name}» уже есть в выбранном плейлисте.");
+                }, "Уже в плейлисте", 30, DmUiKit.ButtonKind.Ghost)
+                : IconButton("plus", (s, e) => AddToPlaylist(track), "В плейлист",
+                    30, DmUiKit.ButtonKind.Ghost);
             buttons.Children.Add(toPlaylist);
 
             var del = IconButton("trash", (s, e) =>
@@ -552,7 +657,15 @@ namespace HMWT_MUI.Windows
 
         private void PlayTrack(AudioTrackData track)
         {
-            if (Host != null) Host.Loop = !_playlistMode;
+            if (!_playlistMode)
+            {
+                _queue.Clear();
+                _queueIndex = 0;
+            }
+
+            // Плейлист сам переключает треки по Ended; одиночный трек
+            // из библиотеки не должен зацикливаться.
+            if (Host != null) Host.Loop = false;
             AudioLog.Write($"window play pid={System.Diagnostics.Process.GetCurrentProcess().Id} " +
                 $"hash={track.Hash} room={RoomSession.Instance.IsActive} host={RoomSession.Instance.IsHost}");
 
