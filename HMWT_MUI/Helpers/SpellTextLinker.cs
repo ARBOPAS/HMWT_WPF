@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Text.RegularExpressions;
 using HMWT_MUI.Services;
 
 namespace HMWT_MUI.Helpers
@@ -19,12 +20,17 @@ namespace HMWT_MUI.Helpers
         public static void Invalidate() => _names = null;
 
         public static void Build(TextBlock target, string text, Action<string> openSpell)
-            => BuildRich(target, text, openSpell, null, null);
+            => BuildRich(target, text, openSpell, null, null, null);
+
+        private static readonly Regex HitBonusPattern = new Regex(
+            @"(?<!\d)(?<hit>[+-]\s*\d{1,2})(?=\s*(?:к\s+)?(?:попаданию|атаке|атаками))",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>Одновременно подсвечивает заклинания и формулы броска:
         /// в описании Лича есть и «Бросок Камня», и «1d10».</summary>
         public static void BuildRich(TextBlock target, string text,
-            Action<string> openSpell, Action<FormulaPart> onDiceClick, RollTextStyle style)
+            Action<string> openSpell, Action<FormulaPart> onDiceClick, RollTextStyle style,
+            Action<int> onHitClick = null)
         {
             if (target == null) return;
             target.Inlines.Clear();
@@ -38,26 +44,42 @@ namespace HMWT_MUI.Helpers
 
             var names = Names();
             var dice = DiceFormulaParser.ParseDamages(text) ?? new List<FormulaPart>();
+            var hits = new List<(int Start, int Length, int Bonus)>();
+            if (onHitClick != null)
+            {
+                foreach (Match m in HitBonusPattern.Matches(text))
+                {
+                    string raw = m.Groups["hit"].Value.Replace(" ", "");
+                    if (int.TryParse(raw.Replace("+", ""), out int value))
+                        hits.Add((m.Index, m.Length, raw.StartsWith("-") ? -value : value));
+                }
+            }
+
             int index = 0;
             int diceIndex = 0;
+            int hitIndex = 0;
 
             while (index < text.Length)
             {
                 while (diceIndex < dice.Count && dice[diceIndex].Start < index)
                     diceIndex++;
+                while (hitIndex < hits.Count && hits[hitIndex].Start < index)
+                    hitIndex++;
 
                 int spellAt;
                 string spellName;
                 FindNextSpell(text, index, names, out spellAt, out spellName);
 
                 int diceAt = diceIndex < dice.Count ? dice[diceIndex].Start : int.MaxValue;
-                if (spellAt < 0 && diceAt == int.MaxValue)
+                int hitAt = hitIndex < hits.Count ? hits[hitIndex].Start : int.MaxValue;
+                if (spellAt < 0 && diceAt == int.MaxValue && hitAt == int.MaxValue)
                 {
                     target.Inlines.Add(new Run(text.Substring(index)) { Foreground = style.Text });
                     break;
                 }
 
-                int next = spellAt >= 0 && spellAt <= diceAt ? spellAt : diceAt;
+                int next = Math.Min(diceAt, hitAt);
+                if (spellAt >= 0 && spellAt < next) next = spellAt;
                 if (next > index)
                     target.Inlines.Add(new Run(text.Substring(index, next - index)) { Foreground = style.Text });
 
@@ -78,6 +100,26 @@ namespace HMWT_MUI.Helpers
                     link.Click += (s, e) => openSpell?.Invoke(spellName);
                     target.Inlines.Add(link);
                     index = spellAt + spellName.Length;
+                }
+                else if (hitAt >= 0 && hitAt == next)
+                {
+                    var hit = hits[hitIndex];
+                    var link = RollTextRenderer.BuildHitLink(
+                        text.Substring(hit.Start, hit.Length).Replace(" ", ""), onHitClick, style);
+                    if (link != null)
+                    {
+                        target.Inlines.Add(link);
+                        index = hit.Start + hit.Length;
+                    }
+                    else
+                    {
+                        target.Inlines.Add(new Run(text.Substring(hit.Start, hit.Length))
+                        {
+                            Foreground = style.Text
+                        });
+                        index = hit.Start + hit.Length;
+                    }
+                    hitIndex++;
                 }
                 else
                 {

@@ -519,7 +519,8 @@ namespace HMWT_MUI.Views
         }
 
         private static TextBlock BuildSpellLinkedText(string text,
-            FrameworkElement source, RollTextStyle style, Action<FormulaPart> onDice)
+            FrameworkElement source, RollTextStyle style, Action<FormulaPart> onDice,
+            Action<int> onHit = null)
         {
             var block = new TextBlock
             {
@@ -535,7 +536,7 @@ namespace HMWT_MUI.Views
                     info.ShowSpellByName(name);
                 else
                     SpellDetailWindow.Show(source, name);
-            }, onDice, style);
+            }, onDice, style, onHit);
             return block;
         }
 
@@ -546,7 +547,8 @@ namespace HMWT_MUI.Views
             panel.Children.Add(DmUiKit.SectionPanel(title));
             if (linkSpells)
                 panel.Children.Add(BuildSpellLinkedText(text, source, style,
-                    part => RollDicePart(source, monster, part, title, "")));
+                    part => RollDicePart(source, monster, part, title, ""),
+                    bonus => DmRolls.RollAttack(source, bonus, monster?.Name ?? "", "Атака")));
             else
                 panel.Children.Add(RollTextRenderer.Build(text.Trim(),
                     part => RollDicePart(source, monster, part, title, ""), style));

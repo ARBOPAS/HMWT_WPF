@@ -111,7 +111,12 @@ namespace HMWT_MUI.Services
         /// Загружает все записи из справочника заклинаний.
         /// </summary>
         /// <summary>Полная карточка заклинания из справочника по названию.
-        /// Нужна бестиарию: у монстра в тексте только имя, а показать надо описание.</summary>
+        /// Нужна бестиарию: у монстра в тексте только имя, а показать надо описание.
+        ///
+        /// SQLite lower() не умеет кириллицу, поэтому сравнение имён делаем
+        /// в C#: сначала точное без регистра, затем без ё/пунктуации и с
+        /// небольшой опечаткой. Иначе «злая насмешка» не находила
+        /// «Злая насмешка».</summary>
         public static SpellData LoadSpellByName(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
@@ -119,53 +124,159 @@ namespace HMWT_MUI.Services
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
-                using var cmd = new SqliteCommand(@"
-                    SELECT * FROM SpellReference
-                    WHERE lower(name) = lower(@name)
-                    ORDER BY
-                        CASE
-                            WHEN lower(COALESCE(source,'')) LIKE '%phb%' THEN 0
-                            WHEN lower(COALESCE(source,'')) LIKE '%srd%' THEN 1
-                            WHEN COALESCE(source,'') = 'custom' THEN 3
-                            ELSE 2
-                        END,
-                        id_spell
-                    LIMIT 1", conn);
-                cmd.Parameters.AddWithValue("@name", name.Trim());
+
+                int id = FindSpellId(conn, name);
+                if (id <= 0) return null;
+
+                using var cmd = new SqliteCommand(
+                    "SELECT * FROM SpellReference WHERE id_spell = @id LIMIT 1", conn);
+                cmd.Parameters.AddWithValue("@id", id);
                 using var r = cmd.ExecuteReader();
                 if (!r.Read()) return null;
 
-                return new SpellData
-                {
-                    IdSpell = ReadInt(r, "id_spell"),
-                    Name = ReadText(r, "name"),
-                    Level = ReadInt(r, "level"),
-                    School = ReadText(r, "school"),
-                    CastingTime = ReadText(r, "casting_time"),
-                    Range = ReadText(r, "range"),
-                    Components = ReadText(r, "components"),
-                    Duration = ReadText(r, "duration"),
-                    Description = ReadText(r, "description"),
-                    AtHigherLevels = ReadText(r, "at_higher_levels"),
-                    Classes = ReadText(r, "classes"),
-                    Source = ReadText(r, "source"),
-                    Material = ReadText(r, "material"),
-                    Page = ReadText(r, "page"),
-                    Concentration = ReadInt(r, "concentration") != 0,
-                    Ritual = ReadInt(r, "ritual") != 0,
-                    DamageFormula = ReadText(r, "damage_formula"),
-                    DamageType = ReadText(r, "damage_type"),
-                    PerLevelDamage = ReadText(r, "per_level_damage"),
-                    HealFormula = ReadText(r, "heal_formula"),
-                    HealPerLevel = ReadText(r, "heal_per_level"),
-                    SaveNote = ReadText(r, "save_note")
-                };
+                return ReadSpell(r);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SpellService] LoadSpellByName: {ex.Message}");
                 return null;
             }
+        }
+
+        private static SpellData ReadSpell(SqliteDataReader r)
+        {
+            return new SpellData
+            {
+                IdSpell = ReadInt(r, "id_spell"),
+                Name = ReadText(r, "name"),
+                Level = ReadInt(r, "level"),
+                School = ReadText(r, "school"),
+                CastingTime = ReadText(r, "casting_time"),
+                Range = ReadText(r, "range"),
+                Components = ReadText(r, "components"),
+                Duration = ReadText(r, "duration"),
+                Description = ReadText(r, "description"),
+                AtHigherLevels = ReadText(r, "at_higher_levels"),
+                Classes = ReadText(r, "classes"),
+                Source = ReadText(r, "source"),
+                Material = ReadText(r, "material"),
+                Page = ReadText(r, "page"),
+                Concentration = ReadInt(r, "concentration") != 0,
+                Ritual = ReadInt(r, "ritual") != 0,
+                DamageFormula = ReadText(r, "damage_formula"),
+                DamageType = ReadText(r, "damage_type"),
+                PerLevelDamage = ReadText(r, "per_level_damage"),
+                HealFormula = ReadText(r, "heal_formula"),
+                HealPerLevel = ReadText(r, "heal_per_level"),
+                SaveNote = ReadText(r, "save_note")
+            };
+        }
+
+        /// <summary>Ищет id заклинания без учёта регистра, ё/е и мелких опечаток.</summary>
+        private static int FindSpellId(SqliteConnection conn, string name)
+        {
+            var rows = new List<(int Id, string Name, string Source)>();
+            using (var cmd = new SqliteCommand(
+                "SELECT id_spell, name, COALESCE(source,'') AS source FROM SpellReference", conn))
+            using (var r = cmd.ExecuteReader())
+            {
+                while (r.Read())
+                {
+                    rows.Add((ReadInt(r, "id_spell"), ReadText(r, "name"), ReadText(r, "source")));
+                }
+            }
+
+            if (rows.Count == 0) return 0;
+
+            string trimmed = name.Trim();
+            var exact = rows
+                .Where(x => string.Equals(x.Name, trimmed, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(x => SourceRank(x.Source))
+                .ThenBy(x => x.Id)
+                .FirstOrDefault();
+            if (exact.Id > 0) return exact.Id;
+
+            string target = NormalizeSpellName(trimmed);
+            if (target.Length == 0) return 0;
+
+            var best = rows
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Source,
+                    Key = NormalizeSpellName(x.Name),
+                    Distance = Levenshtein(NormalizeSpellName(x.Name), target)
+                })
+                .Where(x => x.Key.Length > 0)
+                .OrderBy(x => x.Key == target ? 0 : x.Key.Contains(target) || target.Contains(x.Key) ? 1 : 2)
+                .ThenBy(x => x.Distance)
+                .ThenBy(x => SourceRank(x.Source))
+                .FirstOrDefault();
+
+            if (best == null) return 0;
+
+            // «Похоже» — это совпадение без ё/пунктуации, вхождение или
+            // опечатка не больше трети длины. Слишком короткие имена не
+            // угадываем, чтобы не открыть случайное заклинание.
+            bool similar = best.Key == target ||
+                           best.Key.Contains(target) || target.Contains(best.Key) ||
+                           best.Distance <= Math.Max(2, target.Length / 3);
+            return similar ? best.Id : 0;
+        }
+
+        private static int SourceRank(string source)
+        {
+            string s = (source ?? "").ToLowerInvariant();
+            if (s.Contains("phb")) return 0;
+            if (s.Contains("srd")) return 1;
+            if (s == "custom") return 3;
+            return 2;
+        }
+
+        private static string NormalizeSpellName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "";
+            var sb = new System.Text.StringBuilder(value.Length);
+            bool space = false;
+            foreach (char ch in value.Trim().ToLowerInvariant())
+            {
+                char c = ch == 'ё' ? 'е' : ch;
+                if (char.IsLetterOrDigit(c))
+                {
+                    sb.Append(c);
+                    space = false;
+                }
+                else if (!space)
+                {
+                    sb.Append(' ');
+                    space = true;
+                }
+            }
+            return sb.ToString().Trim();
+        }
+
+        private static int Levenshtein(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a)) return b?.Length ?? 0;
+            if (string.IsNullOrEmpty(b)) return a.Length;
+
+            var prev = new int[b.Length + 1];
+            var cur = new int[b.Length + 1];
+            for (int j = 0; j <= b.Length; j++) prev[j] = j;
+
+            for (int i = 1; i <= a.Length; i++)
+            {
+                cur[0] = i;
+                for (int j = 1; j <= b.Length; j++)
+                {
+                    int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    cur[j] = Math.Min(Math.Min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+                }
+                var swap = prev;
+                prev = cur;
+                cur = swap;
+            }
+            return prev[b.Length];
         }
 
         public static List<SpellRefRow> LoadSpellReference()
