@@ -189,15 +189,20 @@ namespace HMWT_MUI.Views
             RebuildFilterOptions();
             ApplyFilter();
 
-            // Выбранное существо могло быть удалено с другой вкладки
+            // Выбранное существо могло быть удалено с другой вкладки.
+            // Важно: _all — краткие записи без черт и действий. При простом
+            // присваивании _selected = again карточка теряла низ (черты,
+            // действия, описание) после Loaded/Refresh — именно это ломало
+            // переход из трекера инициативы. Поэтому догружаем полную запись.
             if (_selected != null)
             {
                 var again = _all.FirstOrDefault(m => m.Id == _selected.Id);
                 if (again == null) _selected = null;
-                else _selected = again;
+                else _selected = BestiaryService.Load(again.Id) ?? again;
             }
 
-            if (_selected == null && _shown.Count > 0) _selected = _shown[0];
+            if (_selected == null && _shown.Count > 0)
+                _selected = BestiaryService.Load(_shown[0].Id) ?? _shown[0];
             RenderCard();
         }
 
