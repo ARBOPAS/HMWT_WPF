@@ -191,6 +191,10 @@ namespace HMWT_MUI.Views
                 foreach (var action in actions) root.Children.Add(BuildAction(monster, action, source, style));
             }
 
+            if (!string.IsNullOrWhiteSpace(monster.Spells))
+                root.Children.Add(BuildTextSection("ЗАКЛИНАНИЯ И ПСИОНИКА", monster.Spells,
+                    monster, source, style, true));
+
             if (!string.IsNullOrWhiteSpace(monster.Equipment))
                 root.Children.Add(BuildTextSection("СНАРЯЖЕНИЕ", monster.Equipment, monster, source, style));
 
