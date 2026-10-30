@@ -38,6 +38,14 @@ namespace HMWT_MUI.Views
         private List<EncounterData> _encounters = new List<EncounterData>();
         private MonsterData _pickerSelected;
 
+        // Список для выбора существа. Держим краткие записи и не перечитываем
+        // базу на каждую букву/клик: LoadAll() разбирал JSON всех существ,
+        // из-за чего окно с полным списком заметно лагало.
+        private List<MonsterData> _pickerAll = new List<MonsterData>();
+        private readonly List<(Border Border, TextBlock Name, MonsterData Monster)> _pickerRows =
+            new List<(Border, TextBlock, MonsterData)>();
+        private int _pickerShownCount;
+
         public InitiativeView()
         {
             // Бойца изменили извне (например, состояния на карте) — перерисовываем
@@ -462,6 +470,7 @@ namespace HMWT_MUI.Views
         private void OpenPicker()
         {
             _pickerSelected = null;
+            _pickerAll = BestiaryService.LoadAllBrief();
             _pickerSearch.Text = "";
             FillPickerList();
             _pickerLayer.Visibility = Visibility.Visible;
@@ -472,21 +481,26 @@ namespace HMWT_MUI.Views
         private void FillPickerList()
         {
             _pickerList.Children.Clear();
-            var all = BestiaryService.LoadAll();
-            var shown = BestiaryService.Filter(all, _pickerSearch.Text);
+            _pickerRows.Clear();
 
-            _pickerStatus.Text = all.Count == 0
+            if (_pickerAll == null || _pickerAll.Count == 0)
+                _pickerAll = BestiaryService.LoadAllBrief();
+
+            var shown = BestiaryService.Filter(_pickerAll, _pickerSearch.Text ?? "");
+
+            _pickerStatus.Text = _pickerAll.Count == 0
                 ? "Бестиарий пуст. Откройте вкладку «Бестиарий» и создайте существ (или добавьте примеры)."
-                : $"Найдено: {shown.Count} из {all.Count}. Выбрано: {_pickerSelected?.Name ?? "—"}";
+                : $"Найдено: {shown.Count} из {_pickerAll.Count}. Выбрано: {_pickerSelected?.Name ?? "—"}";
 
             if (shown.Count == 0) return;
 
-            foreach (var monster in shown.Take(200))
+            // Для выбора достаточно первых совпадений; «показать все» не нужно,
+            // а сотни карточек в StackPanel — это lag на каждом клике.
+            foreach (var monster in shown.Take(120))
             {
                 bool selected = _pickerSelected != null && _pickerSelected.Id == monster.Id;
 
-                var row = new StackPanel { Orientation = Orientation.Horizontal };
-                row.Children.Add(new TextBlock
+                var name = new TextBlock
                 {
                     Text = monster.Name,
                     FontSize = 12,
@@ -495,7 +509,10 @@ namespace HMWT_MUI.Views
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     Foreground = selected ? DmUiKit.B("Gold") : DmUiKit.B("Ink"),
                     VerticalAlignment = VerticalAlignment.Center
-                });
+                };
+
+                var row = new StackPanel { Orientation = Orientation.Horizontal };
+                row.Children.Add(name);
                 row.Children.Add(new TextBlock
                 {
                     Text = monster.TypeLine(),
@@ -515,14 +532,38 @@ namespace HMWT_MUI.Views
                     selected ? DmUiKit.B("Gold") : DmUiKit.B("Line"), 6,
                     new Thickness(0, 0, 0, 4));
                 border.Cursor = Cursors.Hand;
+
+                var item = monster;
                 border.MouseLeftButtonUp += (s, e) =>
                 {
-                    _pickerSelected = monster;
-                    FillPickerList();
+                    _pickerSelected = item;
+                    UpdatePickerSelection();
                 };
 
                 _pickerList.Children.Add(border);
+                _pickerRows.Add((border, name, item));
             }
+        }
+
+        /// <summary>
+        /// Подсвечивает выбранную строку без пересборки всего списка:
+        /// пересборка сотен карточек на каждый клик и давала лаг.
+        /// </summary>
+        private void UpdatePickerSelection()
+        {
+            foreach (var row in _pickerRows)
+            {
+                bool selected = _pickerSelected != null && _pickerSelected.Id == row.Monster.Id;
+                row.Border.Background = selected
+                    ? DmUiKit.Fade(DmUiKit.B("Gold"), 0x22)
+                    : DmUiKit.B("Slate");
+                row.Border.BorderBrush = selected ? DmUiKit.B("Gold") : DmUiKit.B("Line");
+                row.Name.Foreground = selected ? DmUiKit.B("Gold") : DmUiKit.B("Ink");
+            }
+
+            _pickerStatus.Text = _pickerAll.Count == 0
+                ? "Бестиарий пуст. Откройте вкладку «Бестиарий» и создайте существ (или добавьте примеры)."
+                : $"Найдено: {_pickerShownCount} из {_pickerAll.Count}. Выбрано: {_pickerSelected?.Name ?? "—"}";
         }
 
         private void ConfirmPicker()
