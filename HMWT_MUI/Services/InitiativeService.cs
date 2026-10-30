@@ -137,6 +137,29 @@ namespace HMWT_MUI.Services
         }
 
         /// <summary>Активная группа боя или null, если бой не идёт.</summary>
+        private static int _selectedEncounterId;
+
+        /// <summary>
+        /// Группа, выбранная в трекере. Карта должна брать жетоны именно из неё,
+        /// а не из активного/первого боя: при двух боях это путало участников.
+        /// </summary>
+        public static int SelectedEncounterId => _selectedEncounterId;
+
+        public static void SelectEncounter(int encounterId)
+        {
+            if (encounterId > 0) _selectedEncounterId = encounterId;
+        }
+
+        public static EncounterData SelectedEncounter()
+        {
+            if (_selectedEncounterId > 0)
+            {
+                var selected = LoadEncounter(_selectedEncounterId);
+                if (selected != null) return selected;
+                _selectedEncounterId = 0;
+            }
+            return ActiveEncounter();
+        }
         public static EncounterData ActiveEncounter()
         {
             var all = LoadEncounters();

@@ -1211,10 +1211,18 @@ namespace HMWT_MUI.Views
         {
             if (!_isDm || _scene == null) return;
 
-            var encounters = _combatants.Values.Select(v => v.Encounter)
-                .GroupBy(e => e.Id).Select(g => g.First()).ToList();
+            // Берём именно ту группу, которая выбрана в трекере. Раньше
+            // предпочитался активный бой, и при двух боях на карту попадали
+            // участники второго, даже если в трекере выбран первый.
+            var encounter = InitiativeService.SelectedEncounter();
 
-            var encounter = encounters.FirstOrDefault(e => e.IsActive) ?? encounters.FirstOrDefault();
+            if (encounter == null)
+            {
+                var encounters = _combatants.Values.Select(v => v.Encounter)
+                    .GroupBy(e => e.Id).Select(g => g.First()).ToList();
+                encounter = encounters.FirstOrDefault(e => e.IsActive) ?? encounters.FirstOrDefault();
+            }
+
             if (encounter == null)
             {
                 DmRolls.Toast(this, "Сначала добавьте участников в трекер инициативы", true);
@@ -1224,7 +1232,9 @@ namespace HMWT_MUI.Views
             int added = MapService.SyncTokensFromEncounter(_scene, encounter);
             OpenScene(_scene);
             PublishMap();
-            DmRolls.Toast(this, added > 0 ? $"Добавлено жетонов: {added}" : "Все участники уже на карте");
+            DmRolls.Toast(this, added > 0
+                ? $"Добавлено жетонов из «{encounter.Name}»: {added}"
+                : $"Все участники «{encounter.Name}» уже на карте");
         }
 
         // ══════════════════════ СЕТКА ══════════════════════
