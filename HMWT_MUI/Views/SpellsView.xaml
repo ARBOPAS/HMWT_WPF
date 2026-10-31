@@ -321,7 +321,7 @@
                             <TextBlock Style="{StaticResource SectionHead}" Text="ИЗВЕСТНЫЕ ЗАКЛИНАНИЯ" VerticalAlignment="Center"/>
                             <TextBox x:Name="KnownSearchBox" Grid.Column="1" Width="190" Margin="10,0,8,0"
                                      Style="{StaticResource SearchBox}" Tag="Поиск по названию"/>
-                            <ComboBox x:Name="KnownSortCombo" Grid.Column="2" Width="132" SelectedIndex="0"
+                            <ComboBox x:Name="KnownSortCombo" Grid.Column="2" Width="150" SelectedIndex="0"
                                       Style="{StaticResource EditorComboBox}" ToolTip="Сортировка известных заклинаний">
                                 <ComboBoxItem Content="А-Я"/>
                                 <ComboBoxItem Content="Я-А"/>
@@ -1192,8 +1192,8 @@
         <!-- Подготовка заклинаний: настоящий оверлей поверх вкладки,
              с затемнением и центрированной карточкой. -->
         <Grid x:Name="PrepareOverlay" Panel.ZIndex="170" Visibility="Collapsed"
-              Background="{StaticResource B.Backdrop}" MouseLeftButtonUp="PrepareOverlay_BackdropClick">
-            <Border x:Name="PrepareCard" Width="560" Height="620"
+              Background="#66000000" MouseLeftButtonUp="PrepareOverlay_BackdropClick">
+            <Border x:Name="PrepareCard" Width="620" Height="620"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{StaticResource B.Panel}"
                     BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1"
@@ -1236,10 +1236,10 @@
                         <TextBlock Text="Поиск" Foreground="{StaticResource B.Mute}" FontSize="12"
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBox x:Name="PrepareSearchBox" Style="{StaticResource SearchBox}"
-                                 Width="300" Tag="Поиск по названию"/>
+                                 Width="280" Tag="Поиск по названию"/>
                         <TextBlock Text="Сортировка" Foreground="{StaticResource B.Mute}" FontSize="12"
                                    VerticalAlignment="Center" Margin="14,0,8,0"/>
-                        <ComboBox x:Name="PrepareSortCombo" Width="132" Height="30"
+                        <ComboBox x:Name="PrepareSortCombo" Width="150" Height="34"
                                   Style="{StaticResource EditorComboBox}" SelectedIndex="0">
                             <ComboBoxItem Content="А-Я"/>
                             <ComboBoxItem Content="Я-А"/>
