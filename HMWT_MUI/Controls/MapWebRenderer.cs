@@ -69,6 +69,21 @@ namespace HMWT_MUI.Controls
         /// <summary>Страница просит картинку карты заново (после перезагрузки WebView).</summary>
         public event Action ImageNeeded;
 
+        /// <summary>Показывает/скрывает полноэкранную «повязку» внутри WebGL-страницы.</summary>
+        public void SetBlindfold(bool on)
+        {
+            if (_core == null) return;
+            try
+            {
+                _core.ExecuteScriptAsync("window.__hmwtBlindfold && window.__hmwtBlindfold(" +
+                    (on ? "true" : "false") + ")");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("[MapWeb] blindfold: " + ex.Message);
+            }
+        }
+
         public bool IsReady { get; private set; }
 
         /// <summary>Модальный WPF-диалог должен быть выше HWND WebView2.</summary>

@@ -486,6 +486,7 @@ namespace HMWT_MUI.Views
             room.ShapeMovedLive += OnRemoteShapeMoved;
             room.MapTrailReceived += OnMapTrailReceived;
             room.StateChanged += OnRoomStateChanged;
+            room.SnapshotReceived += OnRoomSnapshotReceived;
         }
 
         private void UnsubscribeRoom()
@@ -503,6 +504,7 @@ namespace HMWT_MUI.Views
             room.ShapeMovedLive -= OnRemoteShapeMoved;
             room.MapTrailReceived -= OnMapTrailReceived;
             room.StateChanged -= OnRoomStateChanged;
+            room.SnapshotReceived -= OnRoomSnapshotReceived;
         }
 
         /// <summary>Мастер просит открыть существо в бестиарии (карточка жетона).</summary>
@@ -905,6 +907,16 @@ namespace HMWT_MUI.Views
         /// вкладки зависит от этого, поэтому перечитываем карту заново.
         /// </summary>
         /// <summary>Клиенту закрывают карту, пока ведущий переставляет сцену.</summary>
+        private void OnRoomSnapshotReceived(RoomSnapshot snapshot)
+        {
+            if (!_remote || snapshot == null) return;
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => ApplyBlindfoldState()));
+                return;
+            }
+            ApplyBlindfoldState();
+        }
         private void ApplyBlindfoldState()
         {
             if (_blindfoldOverlay == null) return;
@@ -913,9 +925,10 @@ namespace HMWT_MUI.Views
             bool was = _blindfoldActive;
             _blindfoldActive = on;
             _blindfoldOverlay.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-            // WebView2 — отдельное HWND-окно и всегда выше WPF. Пока повязка
-            // надета, прячем его целиком, иначе затемнение под ним не видно.
-            if (_webMapReady) _webMap.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+            // WebView2 — отдельное HWND-окно и всегда выше WPF. Поэтому основную
+            // повязку рисуем внутри страницы карты; WPF-слой остаётся запасным.
+            _webMap.SetBlindfold(on);
+            WebLog($"blindfold on={on} was={was} remote={_remote} active={RoomSession.Instance.IsActive}");
 
             if (was && !on) Refresh();
         }

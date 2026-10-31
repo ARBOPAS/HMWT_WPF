@@ -511,7 +511,13 @@ namespace HMWT_MUI.RoomUiTests
 
                 System.Threading.Thread.Sleep(900);
                 var players = session.GetPlayers();
-                Check("в отряде двое", players.Count == 2, $"участников: {players.Count}");
+                session.SetBlindfold(true);
+                System.Threading.Thread.Sleep(500);
+                Check("повязка уходит клиенту", guest.LastSnapshot?.Blindfold == true,
+                    "blind=" + (guest.LastSnapshot?.Blindfold.ToString() ?? "нет снимка"));
+                session.SetBlindfold(false);
+                System.Threading.Thread.Sleep(300);
+                Check("повязка снимается у клиента", guest.LastSnapshot?.Blindfold == false);                Check("в отряде двое", players.Count == 2, $"участников: {players.Count}");
                 Check("второй — игрок, не ведущий",
                     players.Any(p => p.CharacterName == "Тишь" && p.Role == RoomRole.Player));
                 Check("видны класс, уровень и здоровье второго",

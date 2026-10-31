@@ -39,6 +39,26 @@
   window.addEventListener('unhandledrejection', e =>
     showError(e.reason && e.reason.stack || e.reason));
 
+  // Повязка: полноэкранный слой внутри WebGL-страницы. WPF-оверлей над
+  // WebView2 не всегда виден из-за airspace, а этот слой точно перекрывает карту.
+  window.__hmwtBlindfold = on => {
+    let el = document.getElementById('hmwt-blindfold');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'hmwt-blindfold';
+      el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#0b0d16;' +
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+        'gap:8px;font-family:Segoe UI,sans-serif;color:#e6eaf5;' +
+        'padding:24px;text-align:center;';
+      el.innerHTML = '<div style="font-family:Georgia,serif;font-size:22px;font-weight:bold;' +
+        'color:#7fe3ff">ВЕДУЩИЙ ПЕРЕСОБИРАЕТ СЦЕНУ</div>' +
+        '<div style="font-size:13px;color:#8f98b5">Подождите немного — карта вернётся, ' +
+        'когда ведущий закончит.</div>';
+      document.body.appendChild(el);
+    }
+    el.style.display = on ? 'flex' : 'none';
+  };
+
   // ─────────────────────────── Pixi ───────────────────────────
 
   const app = new PIXI.Application({
