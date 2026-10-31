@@ -141,6 +141,7 @@ namespace HMWT_MUI.Views
             if (SpellbookOverlay != null && SpellbookOverlay.Visibility == Visibility.Visible) { SpellbookOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
             if (TagsOverlay != null && TagsOverlay.Visibility == Visibility.Visible) { TagsOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
             if (FullEditorOverlay != null && FullEditorOverlay.Visibility == Visibility.Visible) { CloseFullEditor(); e.Handled = true; return; }
+            if (PrepareOverlay != null && PrepareOverlay.Visibility == Visibility.Visible) { ClosePrepareOverlay(); e.Handled = true; return; }
             if (SlotsOverviewOverlay != null && SlotsOverviewOverlay.Visibility == Visibility.Visible) { SlotsOverviewOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
         }
         #endregion
@@ -822,242 +823,119 @@ namespace HMWT_MUI.Views
         #endregion
 
         #region === ПОДГОТОВКА ИЗ ИЗВЕСТНЫХ ===
+        private List<SpellData> _prepareKnown = new List<SpellData>();
+        private bool _prepareDragging;
+        private Point _prepareDragStart;
+        private double _prepareStartX, _prepareStartY;
+
         private void OpenPrepareFromKnown()
         {
-            var unpreparedKnown = _known
+            _prepareKnown = _known
                 .Where(s => !s.IsPrepared)
                 .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
-            if (unpreparedKnown.Count == 0)
+
+            if (_prepareKnown.Count == 0)
             {
-                MessageDialog.Info(this, "У персонажа пока нет известных заклинаний.\nСначала добавь их из справочника (кнопка «+» в разделе «Известные»).",
+                MessageDialog.Info(this,
+                    "У персонажа пока нет известных заклинаний.\nСначала добавь их из справочника (кнопка «+» в разделе «Известные»).",
                     "Нет доступных заклинаний");
                 return;
             }
 
-            var owner = Window.GetWindow(this) ?? Application.Current?.MainWindow;
-            var window = new Window
-            {
-                Title = "Подготовить заклинание",
-                Width = 560,
-                Height = 620,
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                ResizeMode = ResizeMode.NoResize,
-                WindowStartupLocation = WindowStartupLocation.Manual,
-                Background = Brushes.Transparent,
-                Owner = owner
-            };
+            PrepareSearchBox.Text = "";
+            PrepareSortCombo.SelectedIndex = 0;
+            PrepareDrag.X = 0;
+            PrepareDrag.Y = 0;
+            FillPrepareList();
+            PrepareOverlay.Visibility = Visibility.Visible;
+            PrepareSearchBox.Focus();
+        }
 
-            if (owner != null)
+        private void FillPrepareList()
+        {
+            if (PrepareList == null) return;
+            PrepareList.Items.Clear();
+
+            string query = (PrepareSearchBox?.Text ?? "").Trim();
+            bool descending = PrepareSortCombo?.SelectedIndex == 1;
+
+            var items = _prepareKnown
+                .Where(s => query.Length == 0 ||
+                            (s.Name ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            if (descending) items.Reverse();
+
+            foreach (var spell in items)
             {
-                window.Left = owner.Left + Math.Max(20, (owner.ActualWidth - window.Width) / 2);
-                window.Top = owner.Top + 70;
+                PrepareList.Items.Add(new ListBoxItem
+                {
+                    Content = spell.Name ?? "(без названия)",
+                    Tag = spell,
+                    Padding = new Thickness(12, 10, 12, 10),
+                    Cursor = Cursors.Hand,
+                    FontSize = 13
+                });
+            }
+        }
+
+        private void PrepareSearch_TextChanged(object sender, TextChangedEventArgs e) => FillPrepareList();
+        private void PrepareSort_SelectionChanged(object sender, SelectionChangedEventArgs e) => FillPrepareList();
+
+        private void ClosePrepareOverlay()
+        {
+            _prepareDragging = false;
+            PrepareOverlay.Visibility = Visibility.Collapsed;
+            PrepareDrag.X = 0;
+            PrepareDrag.Y = 0;
+        }
+
+        private void PrepareCancel_Click(object sender, RoutedEventArgs e) => ClosePrepareOverlay();
+
+        private void PrepareOverlay_BackdropClick(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource == PrepareOverlay) ClosePrepareOverlay();
+        }
+
+        private void PrepareConfirm_Click(object sender, RoutedEventArgs e)
+        {
+            if (PrepareList.SelectedItem is ListBoxItem item && item.Tag is SpellData spell)
+            {
+                SpellService.TogglePrepared(_characterId, spell.IdCharSpell, true);
+                LoadSpellsFromDb();
+                ApplyView();
+                ClosePrepareOverlay();
             }
             else
             {
-                window.Left = (SystemParameters.WorkArea.Width - window.Width) / 2;
-                window.Top = (SystemParameters.WorkArea.Height - window.Height) / 2;
+                MessageDialog.Info(this, "Выберите заклинание в списке.", "Подготовка");
             }
-            window.Left = Math.Max(SystemParameters.WorkArea.Left + 10,
-                Math.Min(window.Left, SystemParameters.WorkArea.Right - window.Width - 10));
-            window.Top = Math.Max(SystemParameters.WorkArea.Top + 10,
-                Math.Min(window.Top, SystemParameters.WorkArea.Bottom - window.Height - 10));
+        }
 
-            var mainBorder = new Border
-            {
-                Background = (Brush)FindResource("B.Panel"),
-                BorderBrush = (Brush)FindResource("B.AccentEdge"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(12),
-                Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, BlurRadius = 30, Opacity = 0.7 }
-            };
+        private void PrepareHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            _prepareDragging = true;
+            _prepareDragStart = e.GetPosition(PrepareOverlay);
+            _prepareStartX = PrepareDrag.X;
+            _prepareStartY = PrepareDrag.Y;
+            PrepareHeader.CaptureMouse();
+            e.Handled = true;
+        }
 
-            var grid = new Grid { Margin = new Thickness(24, 24, 24, 24) };
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        private void PrepareHeader_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_prepareDragging || e.LeftButton != MouseButtonState.Pressed) return;
+            Point p = e.GetPosition(PrepareOverlay);
+            PrepareDrag.X = _prepareStartX + (p.X - _prepareDragStart.X);
+            PrepareDrag.Y = _prepareStartY + (p.Y - _prepareDragStart.Y);
+        }
 
-            // ЗАГОЛОВОК + КРЕСТИК
-            var headerGrid = new Grid();
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var title = new TextBlock
-            {
-                Text = "ВЫБЕРИТЕ ДЛЯ ПОДГОТОВКИ",
-                FontFamily = (FontFamily)FindResource("F.Display"),
-                FontSize = 16,
-                Foreground = (Brush)FindResource("B.Accent"),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(title, 0);
-            headerGrid.Children.Add(title);
-
-            // КРЕСТИК ЗАКРЫТИЯ
-            var closeBtn = new Button
-            {
-                Content = new Helpers.IconView { Kind = "close", IconSize = 14, IconBrush = B("B.Mute") },
-                Width = 28,
-                Height = 28,
-                Cursor = Cursors.Hand,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Foreground = (Brush)FindResource("B.Mute"),
-                FontSize = 14,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            closeBtn.Click += (s, e) => window.Close();
-            closeBtn.MouseEnter += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Accent");
-            closeBtn.MouseLeave += (s, e) => closeBtn.Foreground = (Brush)FindResource("B.Mute");
-            Grid.SetColumn(closeBtn, 1);
-            headerGrid.Children.Add(closeBtn);
-
-            Grid.SetRow(headerGrid, 0);
-            Grid.SetColumnSpan(headerGrid, 2);
-            grid.Children.Add(headerGrid);
-
-            title.Cursor = Cursors.SizeAll;
-            title.MouseLeftButtonDown += (s, e) =>
-            {
-                if (e.LeftButton == MouseButtonState.Pressed) window.DragMove();
-            };
-
-            var listBox = new ListBox
-            {
-                Background = (Brush)FindResource("B.Slate"),
-                BorderBrush = (Brush)FindResource("B.Line"),
-                BorderThickness = new Thickness(1),
-                Foreground = (Brush)FindResource("B.Ink"),
-                Margin = new Thickness(0, 8, 0, 12)
-            };
-
-            var searchRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 12, 0, 0)
-            };
-            searchRow.Children.Add(new TextBlock
-            {
-                Text = "Поиск",
-                Foreground = (Brush)FindResource("B.Mute"),
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
-            });
-            var search = new TextBox
-            {
-                Width = 300,
-                Height = 30,
-                Background = (Brush)FindResource("B.Panel"),
-                Foreground = (Brush)FindResource("B.Ink"),
-                BorderBrush = (Brush)FindResource("B.Line"),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(7, 4, 7, 4),
-                VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "Поиск по названию"
-            };
-            searchRow.Children.Add(search);
-
-            searchRow.Children.Add(new TextBlock
-            {
-                Text = "Сортировка",
-                Foreground = (Brush)FindResource("B.Mute"),
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(14, 0, 8, 0)
-            });
-            var sort = new ComboBox
-            {
-                Width = 110,
-                Height = 30,
-                Style = FindResource("EditorComboBox") as Style,
-                SelectedIndex = 0
-            };
-            sort.Items.Add("А-Я");
-            sort.Items.Add("Я-А");
-            searchRow.Children.Add(sort);
-            Grid.SetRow(searchRow, 1);
-            grid.Children.Add(searchRow);
-
-            void FillPrepareList()
-            {
-                listBox.Items.Clear();
-                string query = (search.Text ?? "").Trim();
-                bool descending = sort.SelectedIndex == 1;
-
-                var items = unpreparedKnown
-                    .Where(s => query.Length == 0 ||
-                                (s.Name ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
-                    .ToList();
-                if (descending) items.Reverse();
-
-                foreach (var spell in items)
-                {
-                    listBox.Items.Add(new ListBoxItem
-                    {
-                        Content = spell.Name ?? "(без названия)",
-                        Tag = spell,
-                        Padding = new Thickness(12, 10, 12, 10),
-                        Cursor = Cursors.Hand,
-                        FontSize = 13
-                    });
-                }
-            }
-
-            search.TextChanged += (s, e) => FillPrepareList();
-            sort.SelectionChanged += (s, e) => FillPrepareList();
-            FillPrepareList();
-            Grid.SetRow(listBox, 2);
-            grid.Children.Add(listBox);
-
-            var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var btnCancel = new Button
-            {
-                Content = "Отмена",
-                Padding = new Thickness(16, 8, 16, 8),
-                Cursor = Cursors.Hand,
-                Background = Brushes.Transparent,
-                BorderBrush = (Brush)FindResource("B.Line"),
-                BorderThickness = new Thickness(1),
-                Foreground = (Brush)FindResource("B.Mute"),
-                FontSize = 12
-            };
-            btnCancel.Click += (s, e) => window.Close();
-
-            var btnPrepare = new Button
-            {
-                Content = "Подготовить",
-                Padding = new Thickness(20, 8, 20, 8),
-                Margin = new Thickness(12, 0, 0, 0),
-                Cursor = Cursors.Hand,
-                Background = (Brush)FindResource("B.Accent"),
-                BorderThickness = new Thickness(0),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x04, 0x22, 0x2A)),
-                FontSize = 12
-            };
-            btnPrepare.Click += (s, e) =>
-            {
-                if (listBox.SelectedItem is ListBoxItem selected && selected.Tag is SpellData spell)
-                {
-                    SpellService.TogglePrepared(_characterId, spell.IdCharSpell, true);
-                    LoadSpellsFromDb();
-                    ApplyView();
-                    window.DialogResult = true;
-                    window.Close();
-                }
-            };
-
-            btnPanel.Children.Add(btnCancel);
-            btnPanel.Children.Add(btnPrepare);
-            Grid.SetRow(btnPanel, 3);
-            grid.Children.Add(btnPanel);
-
-            mainBorder.Child = grid;
-            window.Content = mainBorder;
-            window.ShowDialog();
+        private void PrepareHeader_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _prepareDragging = false;
+            PrepareHeader.ReleaseMouseCapture();
         }
         #endregion
 
