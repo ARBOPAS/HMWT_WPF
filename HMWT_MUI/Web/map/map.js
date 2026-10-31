@@ -3351,5 +3351,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.15.2');
+  log('renderer ready v1.3.15.3');
 })();

@@ -16,8 +16,12 @@ namespace HMWT_MUI.Helpers
     public static class SpellTextLinker
     {
         private static List<string> _names;
+        private static List<(string Key, string Open)> _fuzzy;
 
-        public static void Invalidate() => _names = null;
+        public static void Invalidate() { _names = null; _fuzzy = null; }
+
+        private static readonly Regex RussianWord = new Regex(
+            @"[А-Яа-яЁё]{5,}", RegexOptions.Compiled);
 
         public static void Build(TextBlock target, string text, Action<string> openSpell)
             => BuildRich(target, text, openSpell, null, null, null);
@@ -68,7 +72,8 @@ namespace HMWT_MUI.Helpers
 
                 int spellAt;
                 string spellName;
-                FindNextSpell(text, index, names, out spellAt, out spellName);
+                int spellLength;
+                FindNextSpell(text, index, names, out spellAt, out spellName, out spellLength);
 
                 int diceAt = diceIndex < dice.Count ? dice[diceIndex].Start : int.MaxValue;
                 int hitAt = hitIndex < hits.Count ? hits[hitIndex].Start : int.MaxValue;
@@ -85,7 +90,7 @@ namespace HMWT_MUI.Helpers
 
                 if (spellAt >= 0 && spellAt == next)
                 {
-                    string visible = text.Substring(spellAt, spellName.Length);
+                    string visible = text.Substring(spellAt, spellLength);
                     var link = new Hyperlink(new Run(visible))
                     {
                         // Как кнопки броска: тёмная плашка и светлый текст,
@@ -99,7 +104,7 @@ namespace HMWT_MUI.Helpers
                     };
                     link.Click += (s, e) => openSpell?.Invoke(spellName);
                     target.Inlines.Add(link);
-                    index = spellAt + spellName.Length;
+                    index = spellAt + spellLength;
                 }
                 else if (hitAt >= 0 && hitAt == next)
                 {
@@ -132,11 +137,13 @@ namespace HMWT_MUI.Helpers
         }
 
         private static void FindNextSpell(string text, int start, List<string> names,
-            out int at, out string name)
+            out int at, out string name, out int length)
         {
             at = -1;
             name = null;
+            length = 0;
 
+            // Сначала точные названия: они важнее любых похожих слов.
             foreach (string candidate in names)
             {
                 int found = text.IndexOf(candidate, start, StringComparison.OrdinalIgnoreCase);
@@ -145,12 +152,93 @@ namespace HMWT_MUI.Helpers
                 bool leftOk = found == 0 || !char.IsLetterOrDigit(text[found - 1]);
                 bool rightOk = end >= text.Length || !char.IsLetterOrDigit(text[end]);
                 if (!leftOk || !rightOk) continue;
-                if (at < 0 || found < at || (found == at && candidate.Length > name.Length))
+                if (at < 0 || found < at || (found == at && candidate.Length > length))
                 {
                     at = found;
                     name = candidate;
+                    length = candidate.Length;
                 }
             }
+
+            // В бестиарии встречаются русские синонимы: «контрзаклинание»
+            // вместо справочного «Контрзаклятье (Counterspell)». Ищем
+            // ближайшее русское название, отбросив английское в скобках.
+            if (_fuzzy == null || _fuzzy.Count == 0) return;
+
+            foreach (Match m in RussianWord.Matches(text))
+            {
+                if (m.Index < start) continue;
+                // Точное название раньше или в этой же позиции — не трогаем.
+                if (at >= 0 && m.Index >= at) break;
+
+                string word = NormalizeRussian(m.Value);
+                if (word.Length < 5) continue;
+
+                string bestOpen = null;
+                double bestScore = 0;
+                int bestPrefix = 0;
+
+                foreach (var candidate in _fuzzy)
+                {
+                    if (Math.Abs(word.Length - candidate.Key.Length) > 4) continue;
+
+                    int prefix = CommonPrefix(word, candidate.Key);
+                    if (prefix < 5) continue;
+
+                    int distance = Levenshtein(word, candidate.Key);
+                    double score = 1.0 - distance / (double)Math.Max(word.Length, candidate.Key.Length);
+                    if (score < 0.64) continue;
+                    if (score > bestScore + 0.0001 ||
+                        (Math.Abs(score - bestScore) <= 0.0001 && prefix > bestPrefix))
+                    {
+                        bestScore = score;
+                        bestPrefix = prefix;
+                        bestOpen = candidate.Open;
+                    }
+                }
+
+                if (bestOpen != null)
+                {
+                    at = m.Index;
+                    name = bestOpen;
+                    length = m.Length;
+                    break;
+                }
+            }
+        }
+
+        private static string NormalizeRussian(string value)
+            => (value ?? "").Trim().ToLowerInvariant().Replace('ё', 'е');
+
+        private static int CommonPrefix(string a, string b)
+        {
+            int n = Math.Min(a.Length, b.Length);
+            int i = 0;
+            while (i < n && a[i] == b[i]) i++;
+            return i;
+        }
+
+        private static int Levenshtein(string a, string b)
+        {
+            var previous = new int[b.Length + 1];
+            var current = new int[b.Length + 1];
+            for (int j = 0; j <= b.Length; j++) previous[j] = j;
+
+            for (int i = 1; i <= a.Length; i++)
+            {
+                current[0] = i;
+                for (int j = 1; j <= b.Length; j++)
+                {
+                    int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    current[j] = Math.Min(
+                        Math.Min(previous[j] + 1, current[j - 1] + 1),
+                        previous[j - 1] + cost);
+                }
+                var swap = previous;
+                previous = current;
+                current = swap;
+            }
+            return previous[b.Length];
         }
 
         private static List<string> Names()
@@ -158,6 +246,9 @@ namespace HMWT_MUI.Helpers
             if (_names != null && _names.Count > 0) return _names;
 
             var names = new List<string>();
+            var fuzzy = new List<(string Key, string Open)>();
+            var fuzzyKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             try
             {
                 foreach (var row in SpellService.LoadSpellReference())
@@ -172,12 +263,23 @@ namespace HMWT_MUI.Helpers
                     string baseName = System.Text.RegularExpressions.Regex.Replace(
                         name, @"\s*[\(\[].*?[\)\]]\s*$", "").Trim();
                     if (baseName.Length >= 4) AddName(names, baseName);
+
+                    // Для нечёткого поиска — только однословные русские
+                    // названия: многословные уже ловятся точным сравнением.
+                    string key = NormalizeRussian(baseName);
+                    if (key.Length >= 5 && !baseName.Contains(" ") && !baseName.Contains("-") &&
+                        fuzzyKeys.Add(key))
+                    {
+                        fuzzy.Add((key, baseName));
+                    }
                 }
             }
             catch { }
 
             names.Sort((a, b) => b.Length.CompareTo(a.Length));
+            fuzzy.Sort((a, b) => b.Key.Length.CompareTo(a.Key.Length));
             _names = names;
+            _fuzzy = fuzzy;
             return _names;
         }
 
