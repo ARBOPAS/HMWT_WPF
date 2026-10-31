@@ -180,6 +180,25 @@ namespace HMWT_MUI.Net
         public event Action StateChanged;
         public event Action<FeedEntry> FeedReceived;
         public event Action<RoomSnapshot> SnapshotReceived;
+        public event Action<TradeMessage> TradeReceived;
+        public TradeMessage PendingTradeOffer { get; private set; }
+
+        public void ClearPendingTrade(string tradeId)
+        {
+            if (PendingTradeOffer != null &&
+                (tradeId == null || string.Equals(PendingTradeOffer.TradeId, tradeId, StringComparison.Ordinal)))
+                PendingTradeOffer = null;
+        }
+
+        private void HandleIncomingTrade(TradeMessage trade)
+        {
+            if (trade == null) return;
+            if (string.Equals(trade.Kind, "offer", StringComparison.Ordinal) &&
+                string.Equals(trade.ToPlayerId, MyPlayerId, StringComparison.Ordinal))
+                PendingTradeOffer = trade;
+            else ClearPendingTrade(trade.TradeId);
+            TradeReceived?.Invoke(trade);
+        }
 
         /// <summary>Карта боя изменилась: у хоста — своя, у игрока — пришла от хоста.</summary>
         public event Action MapChanged;
@@ -299,6 +318,7 @@ namespace HMWT_MUI.Net
                 _server.AudioStopped += () => AudioStopped?.Invoke();
                 _server.AudioGainChanged += a => AudioGainChanged?.Invoke(a);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
+        _server.TradeReceived += HandleIncomingTrade;
                 _server.Events.PeerLeft = (p, reason) => PeerDeparted?.Invoke(p, reason);
                 _server.Events.PlayerChanged = p =>
                 {
@@ -405,6 +425,7 @@ namespace HMWT_MUI.Net
                 _client.Events.MapSeenReceived = p => MapSeenAdded?.Invoke(p);
                 _client.Events.MapSeenSynced = list => MapSeenSynced?.Invoke(list);
                 _client.Events.PingReceived = (x, y) => Pinged?.Invoke(x, y);
+                _client.Events.TradeReceived = HandleIncomingTrade;
                 _client.Events.ChatImageReceived = (id, b64, ext) =>
                 {
                     lock (_clientFeedLock)
@@ -706,6 +727,7 @@ namespace HMWT_MUI.Net
                 _server.AudioStopped += () => AudioStopped?.Invoke();
                 _server.AudioGainChanged += a => AudioGainChanged?.Invoke(a);
                 _server.MapTrailAdded += (id, points) => MapTrailReceived?.Invoke(id, points);
+        _server.TradeReceived += HandleIncomingTrade;
                 // Событие в ленту (в том числе от гостя) должно дойти до интерфейса:
                 // иначе ведущий увидит реплику гостя только после своего действия
                 _server.Events.FeedAdded = e => FeedReceived?.Invoke(e);
@@ -803,6 +825,16 @@ namespace HMWT_MUI.Net
             {
                 _ = _client.SendRollAsync(formula, rollType, total, rolls, hidden && AmIGameMaster);
             }
+        }
+
+        /// <summary>Отправить сделку получателю через хоста.</summary>
+        public void SendTrade(TradeMessage trade)
+        {
+            if (!IsActive || trade == null) return;
+            if (string.IsNullOrWhiteSpace(trade.FromPlayerId)) trade.FromPlayerId = MyPlayerId;
+            if (string.IsNullOrWhiteSpace(trade.FromName)) trade.FromName = MyName();
+            if (IsHost) _server?.RouteTrade(trade);
+            else _ = _client?.SendTradeAsync(trade);
         }
 
         public void PublishChat(string text)

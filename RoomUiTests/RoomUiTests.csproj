@@ -178,6 +178,7 @@
       <Link>App\Views\RoomView.xaml.cs</Link>
       <DependentUpon>RoomView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="..\HMWT_MUI\Windows\TradeWindow.cs"><Link>App\Windows\TradeWindow.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Views\SettingsView.xaml.cs">
       <Link>App\Views\SettingsView.xaml.cs</Link>
       <DependentUpon>SettingsView.xaml</DependentUpon>

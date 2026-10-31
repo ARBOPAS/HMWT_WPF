@@ -370,7 +370,7 @@ namespace HMWT_MUI.Net
         ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.16.0";
+        public const string AppVersion = "1.3.17.0";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -409,7 +409,7 @@ namespace HMWT_MUI.Net
         /// 18 — <see cref="ZoneRollRequest"/>: хост просит владельца жетона
         /// бросить спас/проверку при входе в тёмную зону со скриптом.
         /// </summary>
-        public const int ProtocolVersion = 20;
+        public const int ProtocolVersion = 21;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -556,6 +556,7 @@ namespace HMWT_MUI.Net
         // ── игровые события ──
         public const string ChatSend = "chat_send";
         public const string ChatMessage = "chat_message";
+        public const string Trade = "trade";
         public const string RollSend = "roll_send";
         public const string RollMessage = "roll_message";
         public const string SystemNotice = "system_notice";   // «Гром отключился» — серым в ленте

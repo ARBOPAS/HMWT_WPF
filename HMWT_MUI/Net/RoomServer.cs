@@ -155,6 +155,9 @@ namespace HMWT_MUI.Net
         /// <summary>Игрок прислал пройденный путь жетона.</summary>
         public event Action<int, List<MapTrailPoint>> MapTrailAdded;
 
+        /// <summary>Сделка пришла ведущему (он не входит в _clients).</summary>
+        public event Action<TradeMessage> TradeReceived;
+
         private int _playerCounter;
 
         public RoomServerEvents Events { get; set; } = new RoomServerEvents();
@@ -510,6 +513,10 @@ namespace HMWT_MUI.Net
 
                     case MsgType.ChatSend:
                         HandleChat(conn, msg);
+                        break;
+
+                    case MsgType.Trade:
+                        HandleTrade(conn, msg.As<TradeMessage>());
                         break;
 
                     case MsgType.RollSend:
@@ -956,6 +963,45 @@ namespace HMWT_MUI.Net
 
             // Рассылаем всем, включая отправителя: так у всех одинаковый порядок
             _ = BroadcastAsync(new NetMessage(MsgType.ChatMessage, entry));
+        }
+
+        private void HandleTrade(ClientConnection conn, TradeMessage trade)
+        {
+            if (trade == null) return;
+            trade.FromPlayerId = conn.PlayerId;
+            trade.FromName = Describe(conn.Player);
+            RouteTrade(trade);
+        }
+
+        /// <summary>Маршрутизирует сделку получателю. Хост не входит в _clients —
+        /// ему сообщение отдаём событием.</summary>
+        public void RouteTrade(TradeMessage trade)
+        {
+            if (trade == null || string.IsNullOrWhiteSpace(trade.ToPlayerId)) return;
+            if (string.IsNullOrWhiteSpace(trade.TradeId)) trade.TradeId = Guid.NewGuid().ToString("N");
+
+            if (string.Equals(trade.Kind, "offer", StringComparison.Ordinal))
+            {
+                var entry = AddFeed(new FeedEntry
+                {
+                    Kind = FeedKind.System,
+                    AuthorId = trade.FromPlayerId,
+                    AuthorName = trade.FromName,
+                    Text = $"{trade.FromName} предлагает {trade.ToName} обмен"
+                });
+                BroadcastChat(entry);
+            }
+
+            bool hostTarget = _players.Any(p => p.Id == trade.ToPlayerId) &&
+                              !_clients.ContainsKey(trade.ToPlayerId);
+            if (hostTarget)
+            {
+                TradeReceived?.Invoke(trade);
+                return;
+            }
+
+            if (_clients.ContainsKey(trade.ToPlayerId))
+                _ = SendToAsync(trade.ToPlayerId, new NetMessage(MsgType.Trade, trade));
         }
 
         private static string NormalizeImageExtension(string extension)

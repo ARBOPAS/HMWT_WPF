@@ -392,6 +392,52 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("hidden")] public bool Hidden { get; set; }
     }
 
+    // ══════════════════════ ПЕРЕДАЧА ПРЕДМЕТОВ ══════════════════════
+
+    /// <summary>Предмет в предложении обмена. Все поля — снимок, а не ссылка
+    /// на чужую базу: у получателя своей копии предмета ещё нет.</summary>
+    public sealed class TradeItem
+    {
+        [JsonPropertyName("sourceId")] public int SourceItemId { get; set; }
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("category")] public string Category { get; set; } = "";
+        [JsonPropertyName("description")] public string Description { get; set; } = "";
+        [JsonPropertyName("qty")] public int Quantity { get; set; } = 1;
+        [JsonPropertyName("weight")] public decimal Weight { get; set; }
+        [JsonPropertyName("costGold")] public int CostGold { get; set; }
+        [JsonPropertyName("costSilver")] public int CostSilver { get; set; }
+        [JsonPropertyName("costCopper")] public int CostCopper { get; set; }
+        [JsonPropertyName("damageDice")] public string DamageDice { get; set; } = "";
+        [JsonPropertyName("damageType")] public string DamageType { get; set; } = "";
+        [JsonPropertyName("acBonus")] public int ArmorClassBonus { get; set; }
+        [JsonPropertyName("attuned")] public bool IsAttuned { get; set; }
+        [JsonPropertyName("charges")] public int Charges { get; set; }
+        [JsonPropertyName("maxCharges")] public int MaxCharges { get; set; }
+        [JsonPropertyName("recharge")] public string Recharge { get; set; } = "";
+        [JsonPropertyName("rechargeDice")] public string RechargeDice { get; set; } = "";
+        [JsonPropertyName("rarity")] public string Rarity { get; set; } = "";
+        [JsonPropertyName("notes")] public string Notes { get; set; } = "";
+        [JsonPropertyName("photo")] public string PhotoPath { get; set; } = "";
+        [JsonPropertyName("listPhoto")] public string ListPhotoPath { get; set; } = "";
+    }
+
+    /// <summary>Одно сообщение сделки: offer → accept/decline → commit.</summary>
+    public sealed class TradeMessage
+    {
+        [JsonPropertyName("id")] public string TradeId { get; set; } = "";
+        [JsonPropertyName("kind")] public string Kind { get; set; } = "";
+        [JsonPropertyName("from")] public string FromPlayerId { get; set; } = "";
+        [JsonPropertyName("fromName")] public string FromName { get; set; } = "";
+        [JsonPropertyName("to")] public string ToPlayerId { get; set; } = "";
+        [JsonPropertyName("toName")] public string ToName { get; set; } = "";
+        [JsonPropertyName("items")] public List<TradeItem> Items { get; set; } = new List<TradeItem>();
+        [JsonPropertyName("gold")] public int Gold { get; set; }
+        [JsonPropertyName("silver")] public int Silver { get; set; }
+        [JsonPropertyName("copper")] public int Copper { get; set; }
+        [JsonPropertyName("accepted")] public bool Accepted { get; set; }
+        [JsonPropertyName("error")] public string Error { get; set; } = "";
+    }
+
     // ══════════════════════ ИНИЦИАТИВА ══════════════════════
 
     /// <summary>

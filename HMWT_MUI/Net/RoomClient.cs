@@ -58,6 +58,7 @@ namespace HMWT_MUI.Net
 
         /// <summary>Хост прислал картинку из истории чата: (id, base64, ext).</summary>
         public Action<string, string, string> ChatImageReceived { get; set; }
+        public Action<TradeMessage> TradeReceived { get; set; }
         public Action<FeedEntry> FeedReceived { get; set; }
         public Action<string, string, bool> ConnectionChanged { get; set; }  // (состояние, текст, подключён)
         public Action<string, string> Failed { get; set; }                   // (код ошибки, текст)
@@ -528,6 +529,11 @@ namespace HMWT_MUI.Net
                             Events?.ChatImageReceived?.Invoke(image.ImageId, image.ImageBase64, image.ImageExtension);
                         break;
 
+                    case MsgType.Trade:
+                        var trade = msg.As<TradeMessage>();
+                        if (trade != null) Events?.TradeReceived?.Invoke(trade);
+                        break;
+
                     case MsgType.ChatMessage:
                     case MsgType.RollMessage:
                     case MsgType.SystemNotice:
@@ -595,6 +601,10 @@ namespace HMWT_MUI.Net
         /// <summary>Сообщение в общий чат.</summary>
         public Task SendChatAsync(string text)
             => SendAsync(new NetMessage(MsgType.ChatSend, new ChatSendRequest { Text = text ?? "" }));
+
+        /// <summary>Предложение/ответ/передача предметов через хоста.</summary>
+        public Task SendTradeAsync(TradeMessage trade)
+            => SendAsync(new NetMessage(MsgType.Trade, trade));
 
         /// <summary>Картинка/гифка в чат вместе с подписью.</summary>
         public Task SendChatImageAsync(string text, string base64, string extension, string fileName)

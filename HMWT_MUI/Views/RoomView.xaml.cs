@@ -56,6 +56,7 @@ namespace HMWT_MUI.Views
 
         /// <summary>Подписки на события комнаты уже висят.</summary>
         private bool _subscribed;
+        private TradeMessage _incomingTrade;
 
         /// <summary>Обработчик таймера фото уже подписан.</summary>
         private bool _photoRetryHooked;
@@ -161,6 +162,13 @@ namespace HMWT_MUI.Views
             _session.PeerDeparted += OnPeerDeparted;
             _session.PhotoUpdated += OnPhotoUpdated;
             _session.ChatImageReceived += OnChatImageReceived;
+            _session.TradeReceived += OnTradeReceived;
+            if (_session.PendingTradeOffer != null)
+            {
+                _incomingTrade = _session.PendingTradeOffer;
+                _renderedPlayersSignature = null;
+                UpdatePlayers();
+            }
         }
 
         /// <summary>Отписка при уходе с вкладки. Подписки не должны копиться.</summary>
@@ -175,6 +183,7 @@ namespace HMWT_MUI.Views
             _session.PeerDeparted -= OnPeerDeparted;
             _session.PhotoUpdated -= OnPhotoUpdated;
             _session.ChatImageReceived -= OnChatImageReceived;
+            _session.TradeReceived -= OnTradeReceived;
         }
 
         #region === ПОИСК РЕСУРСОВ ===
@@ -638,6 +647,9 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            if (_incomingTrade != null)
+                spPlayers.Children.Add(BuildIncomingTradeCard());
+
             foreach (var p in players)
                 spPlayers.Children.Add(BuildPlayerCard(p));
         }
@@ -886,8 +898,131 @@ namespace HMWT_MUI.Views
             Grid.SetColumn(info, 1);
             grid.Children.Add(info);
 
+            if (!isMe && p.State == PeerState.Online && p.CharacterId > 0)
+            {
+                var menu = new ContextMenu();
+                var tradeItem = new MenuItem { Header = "Передать предметы…" };
+                tradeItem.Click += (s, e) => OpenTrade(p);
+                menu.Items.Add(tradeItem);
+                card.ContextMenu = menu;
+            }
+
             card.Child = grid;
             return card;
+        }
+
+        private void OnTradeReceived(TradeMessage trade)
+        {
+            if (trade == null) return;
+            _ui.BeginInvoke(new Action(() =>
+            {
+                if (!string.Equals(trade.Kind, "offer", StringComparison.Ordinal)) return;
+                if (!string.Equals(trade.ToPlayerId, _session.GetMyPlayerId(), StringComparison.Ordinal)) return;
+
+                _incomingTrade = trade;
+                _renderedPlayersSignature = null;
+                UpdatePlayers();
+                ShowWindowToast($"{trade.FromName} предлагает обмен");
+            }));
+        }
+
+        private Border BuildIncomingTradeCard()
+        {
+            var card = new Border
+            {
+                Background = BrushRes("B.PanelHi", Color.FromRgb(0x1B, 0x23, 0x38)),
+                BorderBrush = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(new TextBlock
+            {
+                Text = "ОБМЕН ОТ " + (_incomingTrade.FromName ?? "ИГРОКА").ToUpperInvariant(),
+                FontFamily = FontRes("F.Display"),
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD))
+            });
+            int count = _incomingTrade.Items?.Count ?? 0;
+            text.Children.Add(new TextBlock
+            {
+                Text = $"{count} предмет(ов) · {_incomingTrade.Gold} з. · {_incomingTrade.Silver} с. · {_incomingTrade.Copper} м.",
+                FontSize = 11,
+                Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+            row.Children.Add(text);
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var open = new Button
+            {
+                Content = "Открыть",
+                Style = (Style)FindResource("RoomActionBtn"),
+                Padding = new Thickness(14, 6, 14, 6),
+                Cursor = Cursors.Hand
+            };
+            open.Click += (s, e) => OpenIncomingTrade();
+            buttons.Children.Add(open);
+
+            var decline = new Button
+            {
+                Content = "Отклонить",
+                Style = (Style)FindResource("RoomGhostBtn"),
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(8, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            decline.Click += (s, e) =>
+            {
+                var offer = _incomingTrade;
+                _incomingTrade = null;
+                if (offer != null)
+                    _session.SendTrade(new TradeMessage
+                    {
+                        TradeId = offer.TradeId,
+                        Kind = "decline",
+                        FromPlayerId = _session.GetMyPlayerId(),
+                        ToPlayerId = offer.FromPlayerId,
+                        ToName = offer.FromName
+                    });
+                _renderedPlayersSignature = null;
+                UpdatePlayers();
+            };
+            buttons.Children.Add(decline);
+
+            Grid.SetColumn(buttons, 1);
+            row.Children.Add(buttons);
+            card.Child = row;
+            return card;
+        }
+
+        private void OpenIncomingTrade()
+        {
+            var offer = _incomingTrade;
+            if (offer == null) return;
+            _incomingTrade = null;
+            _renderedPlayersSignature = null;
+            UpdatePlayers();
+
+            var from = _session.GetPlayers().FirstOrDefault(p => p.Id == offer.FromPlayerId);
+            if (from == null)
+                from = new PlayerInfo { Id = offer.FromPlayerId, CharacterName = offer.FromName, Name = offer.FromName };
+
+            new TradeWindow(Window.GetWindow(this), CharacterId, from, offer).ShowDialog();
+        }
+
+        private void OpenTrade(PlayerInfo target)
+        {
+            if (!_session.IsActive) return;
+            new TradeWindow(Window.GetWindow(this), CharacterId, target).ShowDialog();
         }
 
         private UIElement BuildHealthRow(PlayerInfo p)
