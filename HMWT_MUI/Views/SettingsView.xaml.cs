@@ -332,6 +332,43 @@ namespace HMWT_MUI.Views
             if (txtSaved != null) txtSaved.Text = text;
         }
 
+        private void BtnCleanupCache_Click(object sender, RoutedEventArgs e)
+        {
+            var report = CacheCleanupService.Scan();
+            if (report.Count == 0)
+            {
+                HMWT_MUI.Windows.MessageDialog.Info(this,
+                    "Нечего чистить: кэш карт и фотографий комнат уже в порядке.",
+                    "Очистка кэша");
+                return;
+            }
+
+            string text =
+                "Будут удалены только временные данные:\n" +
+                $"• карты: дубликаты, эскизы и скачанные копии — {report.MapFiles} файлов;\n" +
+                $"• старые фото комнат без ссылок — {report.PhotoFiles} файлов;\n" +
+                $"• всего: {report.Count} файлов, примерно {BytesText(report.Bytes)}.\n\n" +
+                "Карты из сцен, текущие аватары, Monsters, Audio и база не затрагиваются.";
+            if (!HMWT_MUI.Windows.MessageDialog.Confirm(this, text, "Очистка кэша",
+                    "Очистить", "Отмена", false))
+                return;
+
+            var result = CacheCleanupService.Clean();
+            string done = result.Errors.Count == 0
+                ? $"Удалено файлов: {result.Deleted}. Освобождено: {BytesText(result.Freed)}."
+                : $"Удалено файлов: {result.Deleted}. Освобождено: {BytesText(result.Freed)}.\n" +
+                  $"Не удалось удалить: {result.Errors.Count}. Например: {result.Errors[0]}";
+            HMWT_MUI.Windows.MessageDialog.Info(this, done, "Очистка кэша");
+        }
+
+        private static string BytesText(long bytes)
+        {
+            if (bytes >= 1024L * 1024 * 1024) return (bytes / 1024.0 / 1024 / 1024).ToString("0.0") + " ГБ";
+            if (bytes >= 1024L * 1024) return (bytes / 1024.0 / 1024).ToString("0.0") + " МБ";
+            if (bytes >= 1024) return (bytes / 1024.0).ToString("0") + " КБ";
+            return bytes + " Б";
+        }
+
         #endregion
     }
 }

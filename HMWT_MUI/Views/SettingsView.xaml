@@ -227,6 +227,18 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ОЧИСТКА КЭША -->
+                <Border Style="{StaticResource SetCard}">
+                    <StackPanel>
+                        <TextBlock Text="Кэш карт и фотографий" Style="{StaticResource SetHeader}"/>
+                        <TextBlock Style="{StaticResource SetNote}" Margin="0,6,0,14" TextWrapping="Wrap"
+                                   Text="Удаляет только временные файлы: эскизы карт, скачанные копии, дубликаты и фотографии комнат, на которые больше нет ссылок. Карты из сцен, аватары действующих игроков, бестиарий, аудио и база не затрагиваются. Перед удалением показывается отчёт."/>
+                        <Button x:Name="btnCleanupCache" Content="Очистить кэш…"
+                                Style="{StaticResource SetBtn}" HorizontalAlignment="Left"
+                                Click="BtnCleanupCache_Click"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- РЕСУРСЫ -->
                 <Border Style="{StaticResource SetCard}">
                     <StackPanel>
