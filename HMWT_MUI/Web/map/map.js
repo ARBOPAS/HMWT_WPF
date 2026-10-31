@@ -1974,40 +1974,40 @@
     if (!state || !state.grid || !state.grid.snap) return { x, y };
     const c = cellPx();
 
-    // Невидимая «сфера» из восьми секторов вокруг клетки, с которой начали
-    // тащить жетон. Направление берём от центра этой клетки к указателю:
-    // так диагональ не зависит от того, какая ось первой пересекла границу.
+    // Крест из восьми секторов вокруг ТЕКУЩЕЙ клетки жетона. Считаем шаги
+    // от неё, а не от точки, где начали тащить: иначе после смены
+    // направления накопленное расстояние давало прыжок на 3 клетки.
     const center = (v) => Math.round((v - c / 2) / c) * c + c / 2;
-    const ox = center(originX);
-    const oy = center(originY);
-    const dx = x - ox;
-    const dy = y - oy;
-    const ax = Math.abs(dx);
-    const ay = Math.abs(dy);
-
-    // Мёртвая зона: пока указатель почти в центре, жетон стоит.
-    if (Math.max(ax, ay) < c * 0.45) return { x: ox, y: oy };
+    let cx = center(originX);
+    let cy = center(originY);
 
     const dirs = [
       [1, 0], [1, 1], [0, 1], [-1, 1],
       [-1, 0], [-1, -1], [0, -1], [1, -1]
     ];
-    const sector = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
-    const dir = dirs[((sector % 8) + 8) % 8];
 
-    let steps;
-    if (dir[0] !== 0 && dir[1] !== 0)
-      steps = Math.max(ax, ay) / c;
-    else if (dir[0] !== 0)
-      steps = ax / c;
-    else
-      steps = ay / c;
+    for (let i = 0; i < 50; i++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
 
-    steps = Math.max(1, Math.round(steps));
-    return {
-      x: Math.max(0, Math.min(mapW, ox + dir[0] * steps * c)),
-      y: Math.max(0, Math.min(mapH, oy + dir[1] * steps * c))
-    };
+      // Мёртвая зона. Порог чуть больше половины клетки: после шага
+      // указатель оказывается примерно на границе старой клетки и не
+      // должен сразу тянуть жетон обратно.
+      if (Math.max(ax, ay) < c * 0.55) break;
+
+      const sector = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+      const dir = dirs[((sector % 8) + 8) % 8];
+
+      const nx = Math.max(0, Math.min(mapW, cx + dir[0] * c));
+      const ny = Math.max(0, Math.min(mapH, cy + dir[1] * c));
+      if (nx === cx && ny === cy) break;
+      cx = nx;
+      cy = ny;
+    }
+
+    return { x: cx, y: cy };
   }
 
   function snapWall(x, y) {
@@ -3351,5 +3351,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.15.1');
+  log('renderer ready v1.3.15.2');
 })();
