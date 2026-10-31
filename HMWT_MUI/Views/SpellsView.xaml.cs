@@ -2467,6 +2467,40 @@ namespace HMWT_MUI.Views
         {
             if (tb != null) tb.Text = (slots.TryGetValue(lvl, out int v) ? v : 0).ToString();
         }
+        private void BtnCleanupCache_Click(object sender, RoutedEventArgs e)
+        {
+            var report = Services.CacheCleanupService.Scan();
+            if (report.Count == 0)
+            {
+                MessageDialog.Info(this, "Нечего чистить: кэш карт и фотографий комнат уже в порядке.",
+                    "Очистка кэша");
+                return;
+            }
+
+            string text =
+                "Будут удалены только временные данные:\n" +
+                $"• карты: дубликаты, эскизы и скачанные копии — {report.MapFiles} файлов;\n" +
+                $"• старые фото комнат без ссылок — {report.PhotoFiles} файлов;\n" +
+                $"• всего: {report.Count} файлов, примерно {BytesText(report.Bytes)}.\n\n" +
+                "Карты, используемые в сценах, текущие аватары, Monsters, Audio и база не затрагиваются.";
+            if (!MessageDialog.Confirm(this, text, "Очистка кэша", "Очистить", "Отмена", false))
+                return;
+
+            var result = Services.CacheCleanupService.Clean();
+            string done = result.Errors.Count == 0
+                ? $"Удалено файлов: {result.Deleted}. Освобождено: {BytesText(result.Freed)}."
+                : $"Удалено файлов: {result.Deleted}. Освобождено: {BytesText(result.Freed)}.\n" +
+                  $"Не удалось удалить: {result.Errors.Count}. Например: {result.Errors[0]}";
+            MessageDialog.Info(this, done, "Очистка кэша");
+        }
+
+        private static string BytesText(long bytes)
+        {
+            if (bytes >= 1024L * 1024 * 1024) return (bytes / 1024.0 / 1024 / 1024).ToString("0.0") + " ГБ";
+            if (bytes >= 1024L * 1024) return (bytes / 1024.0 / 1024).ToString("0.0") + " МБ";
+            if (bytes >= 1024) return (bytes / 1024.0).ToString("0") + " КБ";
+            return bytes + " Б";
+        }
         private void BtnSaveSettings_Click(object sender, RoutedEventArgs e)
         {
             try

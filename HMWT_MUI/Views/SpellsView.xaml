@@ -1145,6 +1145,10 @@
                         <TextBlock x:Name="TxtSpellAttack" Text="  = —" Foreground="{StaticResource B.Accent}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
 
+                    <Button x:Name="BtnCleanupCache" Content="Очистить кэш…"
+                            Style="{StaticResource TextBtn}" HorizontalAlignment="Left"
+                            Margin="0,0,0,10" Click="BtnCleanupCache_Click"/>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
