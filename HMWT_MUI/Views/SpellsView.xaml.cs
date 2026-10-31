@@ -84,6 +84,11 @@ namespace HMWT_MUI.Views
             _searchDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
             _searchDebounce.Tick += (s, e) => { _searchDebounce.Stop(); ApplyView(); };
 
+            if (KnownSearchBox != null)
+                KnownSearchBox.TextChanged += (s, e) => ApplyView();
+            if (KnownSortCombo != null)
+                KnownSortCombo.SelectionChanged += (s, e) => ApplyView();
+
             WireEvents();
 
             try
@@ -549,6 +554,23 @@ namespace HMWT_MUI.Views
                 prep = FilterByTags(prep);
                 known = FilterByTags(known);
             }
+            known = FilterKnown(known);
+        }
+
+        /// <summary>Поиск и сортировка только по блоку известных заклинаний.</summary>
+        private List<SpellData> FilterKnown(List<SpellData> src)
+        {
+            var list = new List<SpellData>(src);
+            string q = (KnownSearchBox?.Text ?? "").Trim();
+            if (q.Length > 0)
+                list = list.Where(d => (d.Name ?? "").IndexOf(q,
+                    StringComparison.CurrentCultureIgnoreCase) >= 0).ToList();
+
+            bool descending = KnownSortCombo?.SelectedIndex == 1;
+            list.Sort((a, b) => descending
+                ? string.Compare(b.Name, a.Name, StringComparison.CurrentCultureIgnoreCase)
+                : string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
+            return list;
         }
         private List<SpellData> FilterByTags(List<SpellData> src)
         {
@@ -802,7 +824,10 @@ namespace HMWT_MUI.Views
         #region === ПОДГОТОВКА ИЗ ИЗВЕСТНЫХ ===
         private void OpenPrepareFromKnown()
         {
-            var unpreparedKnown = _known.Where(s => !s.IsPrepared).ToList();
+            var unpreparedKnown = _known
+                .Where(s => !s.IsPrepared)
+                .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
             if (unpreparedKnown.Count == 0)
             {
                 MessageDialog.Info(this, "У персонажа пока нет известных заклинаний.\nСначала добавь их из справочника (кнопка «+» в разделе «Известные»).",
@@ -810,18 +835,34 @@ namespace HMWT_MUI.Views
                 return;
             }
 
+            var owner = Window.GetWindow(this) ?? Application.Current?.MainWindow;
             var window = new Window
             {
                 Title = "Подготовить заклинание",
-                Width = 500,
-                Height = 600,
+                Width = 560,
+                Height = 620,
                 WindowStyle = WindowStyle.None,
                 AllowsTransparency = true,
                 ResizeMode = ResizeMode.NoResize,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                WindowStartupLocation = WindowStartupLocation.Manual,
                 Background = Brushes.Transparent,
-                Owner = Application.Current.MainWindow
+                Owner = owner
             };
+
+            if (owner != null)
+            {
+                window.Left = owner.Left + Math.Max(20, (owner.ActualWidth - window.Width) / 2);
+                window.Top = owner.Top + 70;
+            }
+            else
+            {
+                window.Left = (SystemParameters.WorkArea.Width - window.Width) / 2;
+                window.Top = (SystemParameters.WorkArea.Height - window.Height) / 2;
+            }
+            window.Left = Math.Max(SystemParameters.WorkArea.Left + 10,
+                Math.Min(window.Left, SystemParameters.WorkArea.Right - window.Width - 10));
+            window.Top = Math.Max(SystemParameters.WorkArea.Top + 10,
+                Math.Min(window.Top, SystemParameters.WorkArea.Bottom - window.Height - 10));
 
             var mainBorder = new Border
             {
@@ -877,27 +918,98 @@ namespace HMWT_MUI.Views
             Grid.SetColumnSpan(headerGrid, 2);
             grid.Children.Add(headerGrid);
 
+            title.Cursor = Cursors.SizeAll;
+            title.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.LeftButton == MouseButtonState.Pressed) window.DragMove();
+            };
+
             var listBox = new ListBox
             {
                 Background = (Brush)FindResource("B.Slate"),
                 BorderBrush = (Brush)FindResource("B.Line"),
                 BorderThickness = new Thickness(1),
                 Foreground = (Brush)FindResource("B.Ink"),
-                Margin = new Thickness(0, 12, 0, 16)
+                Margin = new Thickness(0, 8, 0, 12)
             };
 
-            foreach (var spell in unpreparedKnown)
+            var searchRow = new StackPanel
             {
-                var item = new ListBoxItem
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+            searchRow.Children.Add(new TextBlock
+            {
+                Text = "Поиск",
+                Foreground = (Brush)FindResource("B.Mute"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+            var search = new TextBox
+            {
+                Width = 300,
+                Height = 30,
+                Background = (Brush)FindResource("B.Panel"),
+                Foreground = (Brush)FindResource("B.Ink"),
+                BorderBrush = (Brush)FindResource("B.Line"),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(7, 4, 7, 4),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "Поиск по названию"
+            };
+            searchRow.Children.Add(search);
+
+            searchRow.Children.Add(new TextBlock
+            {
+                Text = "Сортировка",
+                Foreground = (Brush)FindResource("B.Mute"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(14, 0, 8, 0)
+            });
+            var sort = new ComboBox
+            {
+                Width = 110,
+                Height = 30,
+                Style = FindResource("EditorComboBox") as Style,
+                SelectedIndex = 0
+            };
+            sort.Items.Add("А-Я");
+            sort.Items.Add("Я-А");
+            searchRow.Children.Add(sort);
+            Grid.SetRow(searchRow, 1);
+            grid.Children.Add(searchRow);
+
+            void FillPrepareList()
+            {
+                listBox.Items.Clear();
+                string query = (search.Text ?? "").Trim();
+                bool descending = sort.SelectedIndex == 1;
+
+                var items = unpreparedKnown
+                    .Where(s => query.Length == 0 ||
+                                (s.Name ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                    .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+                if (descending) items.Reverse();
+
+                foreach (var spell in items)
                 {
-                    Content = spell.Name ?? "(без названия)",
-                    Tag = spell,
-                    Padding = new Thickness(12, 10, 12, 10),
-                    Cursor = Cursors.Hand,
-                    FontSize = 13
-                };
-                listBox.Items.Add(item);
+                    listBox.Items.Add(new ListBoxItem
+                    {
+                        Content = spell.Name ?? "(без названия)",
+                        Tag = spell,
+                        Padding = new Thickness(12, 10, 12, 10),
+                        Cursor = Cursors.Hand,
+                        FontSize = 13
+                    });
+                }
             }
+
+            search.TextChanged += (s, e) => FillPrepareList();
+            sort.SelectionChanged += (s, e) => FillPrepareList();
+            FillPrepareList();
             Grid.SetRow(listBox, 2);
             grid.Children.Add(listBox);
 

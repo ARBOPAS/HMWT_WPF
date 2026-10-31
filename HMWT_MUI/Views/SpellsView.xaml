@@ -312,7 +312,23 @@
                         </Grid>
                         <WrapPanel x:Name="PreparedCardsStack" Orientation="Horizontal" Margin="0,4,0,0"/>
                         <Border Height="1" Background="{StaticResource B.Line}" Margin="8,14"/>
-                        <TextBlock Style="{StaticResource SectionHead}" Text="ИЗВЕСТНЫЕ ЗАКЛИНАНИЯ" Margin="16,2,8,2"/>
+                        <Grid Margin="16,2,8,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource SectionHead}" Text="ИЗВЕСТНЫЕ ЗАКЛИНАНИЯ" VerticalAlignment="Center"/>
+                            <TextBox x:Name="KnownSearchBox" Grid.Column="1" Width="170" Margin="10,0,8,0"
+                                     Background="{StaticResource B.Panel}" Foreground="{StaticResource B.Ink}"
+                                     BorderBrush="{StaticResource B.Line}" BorderThickness="1" Padding="7,4"
+                                     ToolTip="Поиск по названию известного заклинания"/>
+                            <ComboBox x:Name="KnownSortCombo" Grid.Column="2" Width="110" SelectedIndex="0"
+                                      Style="{StaticResource EditorComboBox}" ToolTip="Сортировка известных заклинаний">
+                                <ComboBoxItem Content="А-Я"/>
+                                <ComboBoxItem Content="Я-А"/>
+                            </ComboBox>
+                        </Grid>
                         <Border Background="#0AFFFFFF" CornerRadius="8" Margin="8,6,8,0" Padding="0,6">
                             <WrapPanel x:Name="KnownCardsStack" Orientation="Horizontal"/>
                         </Border>

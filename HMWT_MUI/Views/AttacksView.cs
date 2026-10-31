@@ -27,6 +27,12 @@ namespace HMWT_MUI.Views
 
         private readonly WrapPanel _listHost = new WrapPanel { Orientation = Orientation.Horizontal };
         private readonly TextBlock _status = DmUiKit.Value("", 11, DmUiKit.B("Mute"));
+        private readonly TextBox _attackSearch = DmUiKit.Field("", 200, "Поиск по названию атаки");
+        private readonly ComboBox _attackSource = DmUiKit.Combo(
+            new[] { "Все", "Свои", "Из инвентаря", "Заклинания" }, "Все", false, 160);
+        private readonly ComboBox _attackSort = DmUiKit.Combo(
+            new[] { "А-Я", "Я-А", "По попаданию" }, "А-Я", false, 150);
+        private List<AttackData> _shownAttacks = new List<AttackData>();
 
         private Grid _root;
         private Border _editorLayer;
@@ -61,6 +67,9 @@ namespace HMWT_MUI.Views
             _characterId = characterId;
             _characterName = ReadCharacterName();
             BuildShell();
+            _attackSearch.TextChanged += (s, e) => RenderList();
+            _attackSource.SelectionChanged += (s, e) => RenderList();
+            _attackSort.SelectionChanged += (s, e) => RenderList();
             Loaded += (s, e) => Refresh();
             SizeChanged += (s, e) => UpdateListColumns();
         }
@@ -137,6 +146,15 @@ namespace HMWT_MUI.Views
                 "Частей урона может быть несколько: «Ещё один тип урона» в правке атаки. " +
                 "Серия («Мультиатака») бросает несколько атак одним нажатием: укус и два удара когтями."));
 
+            var attackFilters = new WrapPanel { Margin = new Thickness(0, 2, 0, 0) };
+            _attackSearch.Margin = new Thickness(0, 0, 8, 6);
+            _attackSource.Margin = new Thickness(0, 0, 8, 6);
+            _attackSort.Margin = new Thickness(0, 0, 8, 6);
+            attackFilters.Children.Add(_attackSearch);
+            attackFilters.Children.Add(_attackSource);
+            attackFilters.Children.Add(_attackSort);
+            header.Children.Add(attackFilters);
+
             Grid.SetRow(header, 0);
             _root.Children.Add(header);
 
@@ -179,25 +197,64 @@ namespace HMWT_MUI.Views
             RenderList();
         }
 
+        private List<AttackData> FilteredAttacks()
+        {
+            string query = (_attackSearch?.Text ?? "").Trim();
+            string source = (_attackSource?.SelectedItem as string) ?? "Все";
+
+            var shown = _attacks.Where(a =>
+            {
+                if (query.Length > 0 &&
+                    (a.Name ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) < 0)
+                    return false;
+
+                if (source == "Свои" && a.Source != AttackSources.Manual) return false;
+                if (source == "Из инвентаря" && a.Source != AttackSources.Inventory) return false;
+                if (source == "Заклинания" && a.Source != AttackSources.Spell) return false;
+                return true;
+            }).ToList();
+
+            switch (_attackSort?.SelectedIndex ?? 0)
+            {
+                case 1:
+                    shown.Sort((a, b) => string.Compare(b.Name, a.Name,
+                        StringComparison.CurrentCultureIgnoreCase));
+                    break;
+                case 2:
+                    shown.Sort((a, b) => b.AttackBonus.CompareTo(a.AttackBonus));
+                    break;
+                default:
+                    shown.Sort((a, b) => string.Compare(a.Name, b.Name,
+                        StringComparison.CurrentCultureIgnoreCase));
+                    break;
+            }
+            return shown;
+        }
+
         private void RenderList()
         {
             _listHost.Children.Clear();
 
+            _shownAttacks = FilteredAttacks();
             int prof = AttackService.ProficiencyBonus(_characterId);
             string ability = AttackAbilities.Title(_attacks.FirstOrDefault(a => a.AutoBonus)?.Ability ?? "str");
             _status.Text = _attacks.Count == 0
                 ? "атак пока нет"
-                : $"атак: {_attacks.Count} · мастерство +{prof} · попадание от {ability.ToLowerInvariant()}";
+                : _shownAttacks.Count == _attacks.Count
+                    ? $"атак: {_attacks.Count} · мастерство +{prof} · попадание от {ability.ToLowerInvariant()}"
+                    : $"атак: {_shownAttacks.Count} из {_attacks.Count} · мастерство +{prof}";
 
-            if (_attacks.Count == 0)
+            if (_shownAttacks.Count == 0)
             {
-                _listHost.Children.Add(DmUiKit.EmptyState("Атак пока нет",
-                    "Нажмите «Из инвентаря», чтобы собрать атаки по оружию, «Из заклинаний» — по заклинаниям с уроном, " +
-                    "или заведите свою атаку вручную."));
+                _listHost.Children.Add(DmUiKit.EmptyState(
+                    _attacks.Count == 0 ? "Атак пока нет" : "Ничего не найдено",
+                    _attacks.Count == 0
+                        ? "Нажмите «Из инвентаря», чтобы собрать атаки по оружию, «Из заклинаний» — по заклинаниям с уроном, или заведите свою атаку вручную."
+                        : "Измените поиск или фильтр источника."));
                 return;
             }
 
-            foreach (var attack in _attacks)
+            foreach (var attack in _shownAttacks)
                 _listHost.Children.Add(attack.IsMulti ? BuildSeriesCard(attack) : BuildAttackCard(attack));
 
             // Сводка заполняет вторую колонку, когда атак мало, и даёт
@@ -233,8 +290,8 @@ namespace HMWT_MUI.Views
                 Margin = new Thickness(0, 0, 0, 8)
             });
 
-            var singles = _attacks.Where(a => !a.IsMulti).ToList();
-            int series = _attacks.Count(a => a.IsMulti);
+            var singles = _shownAttacks.Where(a => !a.IsMulti).ToList();
+            int series = _shownAttacks.Count(a => a.IsMulti);
 
             int bestAverage = 0;
             string bestName = "";
@@ -258,15 +315,15 @@ namespace HMWT_MUI.Views
                     Margin = new Thickness(0, 0, 0, 5)
                 });
 
-            Line($"Всего атак: {_attacks.Count}" + (series > 0 ? $" · серий: {series}" : ""), DmUiKit.B("Ink"));
+            Line($"Всего атак: {_shownAttacks.Count}" + (series > 0 ? $" · серий: {series}" : ""), DmUiKit.B("Ink"));
             Line($"Обычных атак: {singles.Count} · средний урон: {averageAll}", DmUiKit.B("Mute"));
 
             if (bestAverage > 0)
                 Line($"Сильнейшая: {bestName} — в среднем {bestAverage}", DmUiKit.B("Gold"));
 
-            int actions = _attacks.Count(a => a.Section == AttackSections.Action);
-            int bonus = _attacks.Count(a => a.Section == AttackSections.Bonus);
-            int reactions = _attacks.Count(a => a.Section == AttackSections.Reaction);
+            int actions = _shownAttacks.Count(a => a.Section == AttackSections.Action);
+            int bonus = _shownAttacks.Count(a => a.Section == AttackSections.Bonus);
+            int reactions = _shownAttacks.Count(a => a.Section == AttackSections.Reaction);
             if (actions + bonus + reactions > 0)
                 Line($"Действия: {actions} · бонусные: {bonus} · реакции: {reactions}", DmUiKit.B("Mute"));
 
