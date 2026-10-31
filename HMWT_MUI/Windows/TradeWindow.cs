@@ -496,6 +496,7 @@ namespace HMWT_MUI.Windows
                 ToPlayerId = _incoming.FromPlayerId,
                 ToName = _incoming.FromName
             };
+            _room.ClearPendingTrade(_incoming.TradeId);
             _room.SendTrade(accept);
             _status.Text = "Подтверждено. Ждём, пока отправитель передаст предметы…";
         }
