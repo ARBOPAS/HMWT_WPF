@@ -283,8 +283,9 @@
                      сообщение не отображалось. MinWidth у кнопки не даёт ей сжаться
                      на узких экранах, а поле растягивается по ширине -->
                 <TextBox Grid.Column="0" x:Name="txtChatInput" Style="{StaticResource RoomField}"
-                         MinHeight="46" MaxHeight="120" AcceptsReturn="False" TextWrapping="NoWrap"
-                         ToolTip="Enter — отправить" KeyDown="TxtChatInput_KeyDown"/>
+                         MinHeight="46" MaxHeight="150" AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
+                         ToolTip="Enter — отправить, Shift+Enter — новая строка" KeyDown="TxtChatInput_KeyDown"/>
                 <Button Grid.Column="1" x:Name="btnAttachImage" Content="Картинка" Style="{StaticResource RoomGhostBtn}"
                         Margin="10,0,0,0" MinWidth="96" MinHeight="46" Click="BtnAttachImage_Click"
                         ToolTip="Отправить картинку или гифку в чат"/>
