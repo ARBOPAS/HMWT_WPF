@@ -236,23 +236,49 @@ namespace HMWT_MUI.Views
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
 
-        /// <summary>Секущие области обзора — их WebView и вырезает из тумана.</summary>
         /// <summary>Жетон текущего участника боя (0 — нет боя).</summary>
         private int CurrentTurnTokenId()
         {
             try
             {
-                var state = RoomSession.Instance.GetInitiative();
-                if (state?.Combatants == null) return 0;
+                int currentId = 0;
+                int currentCharId = 0;
+                string currentName = "";
 
-                var current = state.Combatants.FirstOrDefault(c => c != null && c.IsCurrent);
-                if (current == null) return 0;
+                if (RoomSession.Instance.IsActive)
+                {
+                    var state = RoomSession.Instance.GetInitiative();
+                    var current = state?.Combatants?.FirstOrDefault(c => c != null && c.IsCurrent);
+                    if (current != null)
+                    {
+                        currentId = current.Id;
+                        currentCharId = current.CharacterId;
+                        currentName = current.Name ?? "";
+                    }
+                }
+                else
+                {
+                    // В локальной игре (без комнаты) GetInitiative пуст —
+                    // раньше из-за этого подсветка хода не работала вообще.
+                    var encounter = Services.InitiativeService.ActiveEncounter();
+                    var current = encounter?.Combatants?
+                        .FirstOrDefault(c => c != null && c.IsCurrent);
+                    if (current != null)
+                    {
+                        currentId = current.Id;
+                        currentCharId = current.CharacterId;
+                        currentName = current.Name ?? "";
+                    }
+                }
+
+                if (currentId <= 0) return 0;
 
                 var token = _scene?.Tokens?.FirstOrDefault(t =>
-                    t.CombatantId == current.Id ||
-                    (current.CharacterId > 0 && t.OwnerCharacterId == current.CharacterId) ||
-                    (t.CombatantId == 0 && !string.IsNullOrWhiteSpace(current.Name) &&
-                     string.Equals((t.Label ?? "").Trim(), current.Name.Trim(), StringComparison.OrdinalIgnoreCase)));
+                    t.CombatantId == currentId ||
+                    (currentCharId > 0 && t.OwnerCharacterId == currentCharId) ||
+                    (t.CombatantId == 0 && !string.IsNullOrWhiteSpace(currentName) &&
+                     string.Equals((t.Label ?? "").Trim(), currentName.Trim(),
+                         StringComparison.OrdinalIgnoreCase)));
 
                 return token?.Id ?? 0;
             }

@@ -1000,8 +1000,10 @@ namespace HMWT_MUI.Views
         {
             try
             {
-                // Индекс 0 — «0-9» = показывать все уровни
-                int max = CmbMaxLevel?.SelectedIndex ?? 0;
+                // 0-9 = показывать все уровни; иначе — конкретный уровень.
+                int max = 0;
+                if (CmbMaxLevel?.SelectedItem is ComboBoxItem item)
+                    int.TryParse((item.Content ?? "").ToString(), out max);
                 if (max <= 0) max = 9;
                 if (TabAll?.Parent is Panel tabs)
                 {
@@ -2447,8 +2449,23 @@ namespace HMWT_MUI.Views
                 if (CmbSpellStat != null) CmbSpellStat.SelectedIndex = stat == "Intelligence" ? 0 : stat == "Wisdom" ? 1 : 2;
                 if (CmbMaxLevel != null)
                 {
-                    // 0 = «0-9» (все уровни), дальше уровень-ограничитель
-                    int ml = GetIntSetting(SKey("MaxLevel"), 0);
+                    // 0 = «0-9» (все уровни), дальше уровень-ограничитель.
+                    // В старом списке был лишний пункт «1», поэтому индекс
+                    // съезжал: выбранный 4-й уровень показывал V. MaxLevelV2
+                    // хранит уже правильный уровень; старый MaxLevel (индекс)
+                    // переводим один раз.
+                    int ml;
+                    string v2 = GetStringSetting(SKey("MaxLevelV2"), null);
+                    if (!string.IsNullOrEmpty(v2) && int.TryParse(v2, out int saved))
+                    {
+                        ml = saved;
+                    }
+                    else
+                    {
+                        int legacy = GetIntSetting(SKey("MaxLevel"), 0);
+                        ml = legacy >= 2 ? legacy - 1 : legacy;
+                        SetSetting(SKey("MaxLevelV2"), Clamp(ml, 0, 9).ToString());
+                    }
                     CmbMaxLevel.SelectedIndex = Clamp(ml, 0, 9);
                 }
                 ApplyMaxLevelTabs();
@@ -2474,7 +2491,7 @@ namespace HMWT_MUI.Views
                 SetSetting(SKey("PreparedLimit"), ParseClamped(TxtPreparedLimit?.Text, 0, 999, 0).ToString());
                 string statKey = CmbSpellStat?.SelectedIndex == 0 ? "Intelligence" : CmbSpellStat?.SelectedIndex == 1 ? "Wisdom" : "Charisma";
                 SetSetting(SKey("SpellStat"), statKey);
-                SetSetting(SKey("MaxLevel"), (CmbMaxLevel?.SelectedIndex ?? 9).ToString());
+                SetSetting(SKey("MaxLevelV2"), (CmbMaxLevel?.SelectedIndex ?? 9).ToString());
                 LoadSpellSlotsForLevel(_currentLevel);
                 ApplyView();
                 ApplyMaxLevelTabs();

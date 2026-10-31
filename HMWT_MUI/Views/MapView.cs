@@ -913,7 +913,11 @@ namespace HMWT_MUI.Views
             _selfNameCache = null;
 
             bool active = _inRoom;
-            if (active == _lastRoomActive) return;
+            if (active == _lastRoomActive)
+            {
+                if (active) PushWebMap();
+                return;
+            }
             _lastRoomActive = active;
             if (!active) _mapAssetAsked.Clear();
             if (_shapeButton != null) _shapeButton.IsEnabled = _isDm || _remote;
@@ -1081,6 +1085,23 @@ namespace HMWT_MUI.Views
             LoadCombatants();
 
             bool changed = false;
+
+            // Сопряжение с трекером: если участник боя удалён, его жетон
+            // больше некому показывать — убираем и с карты. Только на стороне
+            // ведущего: у клиента своей базы боёв нет.
+            if (!_remote && _isDm)
+            {
+                var orphans = _scene.Tokens
+                    .Where(t => t.CombatantId > 0 && !_combatants.ContainsKey(t.CombatantId))
+                    .ToList();
+                foreach (var orphan in orphans)
+                {
+                    MapService.DeleteToken(orphan.Id);
+                    _scene.Tokens.Remove(orphan);
+                    changed = true;
+                }
+            }
+
             foreach (var token in _scene.Tokens)
             {
                 if (token.CombatantId <= 0) continue;
@@ -1105,14 +1126,13 @@ namespace HMWT_MUI.Views
                 if (token.IsPlayer != isPlayer) { token.IsPlayer = isPlayer; changed = true; }
             }
 
-            if (!changed) return;
-
+            // Смена хода не меняет хиты/состояния, но подсветку обновить нужно.
             if (_webMapReady)
             {
                 PushWebMap();
-                if (_inRoom && !_remote) PublishMap();
+                if (changed && _inRoom && !_remote) PublishMap();
             }
-            else
+            else if (changed)
             {
                 RebuildTokens();
             }

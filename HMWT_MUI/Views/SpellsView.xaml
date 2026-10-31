@@ -1044,7 +1044,6 @@
                             <ComboBox x:Name="CmbMaxLevel" Width="76" SelectedIndex="0" Style="{StaticResource EditorComboBox}" ToolTip="До какого уровня показывать табы. «0-9» — все уровни">
                                 <ComboBoxItem Content="0-9"/>
                                 <ComboBoxItem Content="1"/>
-                                <ComboBoxItem>1</ComboBoxItem>
                                 <ComboBoxItem Content="2"/>
                                 <ComboBoxItem Content="3"/>
                                 <ComboBoxItem Content="4"/>

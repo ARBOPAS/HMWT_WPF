@@ -1393,6 +1393,15 @@
       node._frame.drawCircle(0, 0, r + 3);
     }
 
+    // Чей сейчас ход: отдельное голубое кольцо, чтобы мастер не искал
+    // нужный жетон глазами по всей карте.
+    if (t.id === turnTokenId) {
+      node._frame.lineStyle(3, 0x7fe3ff, 1);
+      node._frame.drawCircle(0, 0, r + 7);
+      node._frame.lineStyle(1, 0x7fe3ff, 0.35);
+      node._frame.drawCircle(0, 0, r + 10);
+    }
+
     if (enemyInSight) {
       node._frame.lineStyle(2.5, 0xff5a5a, 0.95);
       node._frame.drawCircle(0, 0, r + 2);
@@ -3342,5 +3351,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.15.0');
+  log('renderer ready v1.3.15.1');
 })();
