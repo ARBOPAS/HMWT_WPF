@@ -36,8 +36,15 @@ namespace HMWT_MUI.Windows
         private readonly ComboBox _category = new ComboBox();
         private readonly ComboBox _sort = new ComboBox();
         private readonly TextBox _gold = new TextBox();
+        private readonly TextBox _electrum = new TextBox();
         private readonly TextBox _silver = new TextBox();
         private readonly TextBox _copper = new TextBox();
+        private readonly TextBlock _balance = new TextBlock();
+        private readonly Dictionary<int, int> _quantities = new Dictionary<int, int>();
+        private bool _accepted;
+        private bool _completed;
+        private bool _closeSent;
+        private System.Windows.Threading.DispatcherTimer _waitTimer;
         private readonly TextBlock _status = new TextBlock();
         private readonly Button _primary;
         private readonly Button _cancel;
@@ -58,8 +65,11 @@ namespace HMWT_MUI.Windows
             MinWidth = 820;
             MinHeight = 520;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            ResizeMode = ResizeMode.NoResize;
             Owner = owner;
-            Background = (Brush)FindResource("B.Void");
+            Background = Brushes.Transparent;
             Foreground = (Brush)FindResource("B.Ink");
 
             _primary = new Button
@@ -82,7 +92,7 @@ namespace HMWT_MUI.Windows
             LoadInventory();
             LoadMoney();
             _room.TradeReceived += OnTrade;
-            Closed += (s, e) => _room.TradeReceived -= OnTrade;
+            Closed += OnClosed;
             if (_incoming != null) ShowIncomingOffer();
         }
 
@@ -105,6 +115,11 @@ namespace HMWT_MUI.Windows
                 Foreground = (Brush)FindResource("B.Accent")
             };
             head.Children.Add(title);
+            head.Cursor = Cursors.SizeAll;
+            head.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.LeftButton == MouseButtonState.Pressed) DragMove();
+            };
             var close = new Button
             {
                 Content = new Helpers.IconView { Kind = "close", IconSize = 14, IconBrush = (Brush)FindResource("B.Mute") },
@@ -146,7 +161,18 @@ namespace HMWT_MUI.Windows
             Grid.SetRow(bottom, 2);
             root.Children.Add(bottom);
 
-            Content = root;
+            Content = new Border
+            {
+                Background = (Brush)FindResource("B.Panel"),
+                BorderBrush = (Brush)FindResource("B.AccentEdge"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Child = root,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = Colors.Black, BlurRadius = 30, ShadowDepth = 0, Opacity = 0.7
+                }
+            };
         }
 
         private UIElement BuildLeftPanel()
@@ -174,6 +200,11 @@ namespace HMWT_MUI.Windows
             if (_incoming == null)
             {
                 var filters = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                if (TryFindResource("SearchBox") is Style searchStyle)
+                {
+                    _search.Style = searchStyle;
+                    _search.Tag = "Поиск по инвентарю";
+                }
                 _search.Width = 210;
                 _search.Height = 30;
                 _search.Padding = new Thickness(7, 4, 7, 4);
@@ -190,6 +221,7 @@ namespace HMWT_MUI.Windows
                 _category.Background = (Brush)FindResource("B.Slate");
                 _category.Foreground = (Brush)FindResource("B.Ink");
                 _category.BorderBrush = (Brush)FindResource("B.Line");
+                if (TryFindResource("EditorComboBox") is Style comboStyle) _category.Style = comboStyle;
                 _category.SelectionChanged += (s, e) => RefreshLeft();
                 filters.Children.Add(_category);
 
@@ -203,6 +235,7 @@ namespace HMWT_MUI.Windows
                 _sort.Items.Add("По категории");
                 _sort.Items.Add("По цене");
                 _sort.SelectedIndex = 0;
+                if (TryFindResource("EditorComboBox") is Style sortStyle) _sort.Style = sortStyle;
                 _sort.SelectionChanged += (s, e) => RefreshLeft();
                 filters.Children.Add(_sort);
                 stack.Children.Add(filters);
@@ -220,11 +253,24 @@ namespace HMWT_MUI.Windows
                 var goldRow = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
                 goldRow.Children.Add(Label("Золото"));
                 goldRow.Children.Add(MoneyField(_gold));
+                goldRow.Children.Add(Label("Электрум"));
+                goldRow.Children.Add(MoneyField(_electrum));
                 goldRow.Children.Add(Label("Серебро"));
                 goldRow.Children.Add(MoneyField(_silver));
                 goldRow.Children.Add(Label("Медь"));
                 goldRow.Children.Add(MoneyField(_copper));
+                foreach (var box in new[] { _gold, _electrum, _silver, _copper })
+                {
+                    box.Background = (Brush)FindResource("B.Slate");
+                    box.Foreground = (Brush)FindResource("B.Ink");
+                    box.BorderBrush = (Brush)FindResource("B.Line");
+                    box.BorderThickness = new Thickness(1);
+                }
                 stack.Children.Add(goldRow);
+                _balance.Foreground = (Brush)FindResource("B.Mute");
+                _balance.FontSize = 11;
+                _balance.Margin = new Thickness(0, 6, 0, 0);
+                stack.Children.Add(_balance);
             }
 
             panel.Child = stack;
@@ -315,8 +361,10 @@ namespace HMWT_MUI.Windows
             {
                 var money = _money.LoadMoney();
                 _gold.Text = money.Gold.ToString();
+                _electrum.Text = money.Electrum.ToString();
                 _silver.Text = money.Silver.ToString();
                 _copper.Text = money.Copper.ToString();
+                _balance.Text = $"У вас: {money.Gold} з. · {money.Electrum} э. · {money.Silver} с. · {money.Copper} м.";
             }
             catch { }
         }
@@ -334,10 +382,10 @@ namespace HMWT_MUI.Windows
                         Foreground = (Brush)FindResource("B.Ink"),
                         Margin = new Thickness(0, 2, 0, 0)
                     });
-                if ((_incoming.Gold + _incoming.Silver + _incoming.Copper) > 0)
+                if ((_incoming.Gold + _incoming.Electrum + _incoming.Silver + _incoming.Copper) > 0)
                     _leftList.Children.Add(new TextBlock
                     {
-                        Text = $"Монеты: {_incoming.Gold} з. · {_incoming.Silver} с. · {_incoming.Copper} м.",
+                        Text = $"Монеты: {_incoming.Gold} з. · {_incoming.Electrum} э. · {_incoming.Silver} с. · {_incoming.Copper} м.",
                         FontSize = 12,
                         Foreground = (Brush)FindResource("B.Accent"),
                         Margin = new Thickness(0, 8, 0, 0)
@@ -359,17 +407,67 @@ namespace HMWT_MUI.Windows
 
             foreach (var item in filtered)
             {
+                var row = new Grid { Margin = new Thickness(0, 2, 0, 3) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+
+                var qty = new TextBox
+                {
+                    Text = (_quantities.TryGetValue(item.Id, out int kept) ? kept : item.Quantity).ToString(),
+                    Width = 40,
+                    Height = 24,
+                    TextAlignment = TextAlignment.Center,
+                    VerticalContentAlignment = VerticalAlignment.Center,
+                    Background = (Brush)FindResource("B.Slate"),
+                    Foreground = (Brush)FindResource("B.Ink"),
+                    BorderBrush = (Brush)FindResource("B.Line"),
+                    BorderThickness = new Thickness(1),
+                    IsEnabled = false,
+                    Tag = item
+                };
+
                 var check = new CheckBox
                 {
                     Content = BuildItemText(item),
                     Tag = item,
                     IsChecked = _selected.Any(x => x.Id == item.Id),
-                    Margin = new Thickness(0, 0, 0, 4),
-                    Cursor = Cursors.Hand
+                    Cursor = Cursors.Hand,
+                    VerticalContentAlignment = VerticalAlignment.Center
                 };
-                check.Checked += (s, e) => { if (!_selected.Any(x => x.Id == item.Id)) _selected.Add(item); RefreshRight(); };
-                check.Unchecked += (s, e) => { _selected.RemoveAll(x => x.Id == item.Id); RefreshRight(); };
-                _leftList.Children.Add(check);
+                qty.IsEnabled = check.IsChecked == true;
+                qty.TextChanged += (s, e) =>
+                {
+                    if (!(qty.IsEnabled)) return;
+                    if (int.TryParse(qty.Text, out int n))
+                    {
+                        n = Math.Max(1, Math.Min(item.Quantity, n));
+                        _quantities[item.Id] = n;
+                        RefreshRight();
+                    }
+                };
+                check.Checked += (s, e) =>
+                {
+                    if (!_selected.Any(x => x.Id == item.Id)) _selected.Add(item);
+                    qty.IsEnabled = true;
+                    if (!int.TryParse(qty.Text, out int n) || n < 1 || n > item.Quantity)
+                        qty.Text = item.Quantity.ToString();
+                    _quantities[item.Id] = Math.Max(1, Math.Min(item.Quantity,
+                        int.TryParse(qty.Text, out int q) ? q : item.Quantity));
+                    RefreshRight();
+                };
+                check.Unchecked += (s, e) =>
+                {
+                    _selected.RemoveAll(x => x.Id == item.Id);
+                    _quantities.Remove(item.Id);
+                    qty.IsEnabled = false;
+                    RefreshRight();
+                };
+
+                Grid.SetColumn(check, 0);
+                row.Children.Add(check);
+                Grid.SetColumn(qty, 1);
+                row.Children.Add(qty);
+                _leftList.Children.Add(row);
             }
 
             if (filtered.Count == 0)
@@ -402,16 +500,16 @@ namespace HMWT_MUI.Windows
                 foreach (var item in _selected)
                     _rightList.Children.Add(new TextBlock
                     {
-                        Text = "• " + item.Name + (item.Quantity > 1 ? " ×" + item.Quantity : ""),
+                        Text = "• " + item.Name + " ×" + SelectedQuantity(item),
                         FontSize = 13,
                         Foreground = (Brush)FindResource("B.Ink"),
                         Margin = new Thickness(0, 2, 0, 0)
                     });
-                int g = ParseMoney(_gold), s = ParseMoney(_silver), c = ParseMoney(_copper);
-                if (g + s + c > 0)
+                int g = ParseMoney(_gold), e = ParseMoney(_electrum), s = ParseMoney(_silver), c = ParseMoney(_copper);
+                if (g + e + s + c > 0)
                     _rightList.Children.Add(new TextBlock
                     {
-                        Text = $"Монеты: {g} з. · {s} с. · {c} м.",
+                        Text = $"Монеты: {g} з. · {e} э. · {s} с. · {c} м.",
                         FontSize = 12,
                         Foreground = (Brush)FindResource("B.Accent"),
                         Margin = new Thickness(0, 8, 0, 0)
@@ -435,6 +533,7 @@ namespace HMWT_MUI.Windows
             _category.IsEnabled = false;
             _sort.IsEnabled = false;
             _gold.IsEnabled = false;
+            _electrum.IsEnabled = false;
             _silver.IsEnabled = false;
             _copper.IsEnabled = false;
             _status.Text = "Проверьте предметы и нажмите «Принять». Предметы перейдут вам только после подтверждения.";
@@ -458,7 +557,7 @@ namespace HMWT_MUI.Windows
                 Fail("Получатель не выбран.");
                 return;
             }
-            if (_selected.Count == 0 && ParseMoney(_gold) + ParseMoney(_silver) + ParseMoney(_copper) == 0)
+            if (_selected.Count == 0 && ParseMoney(_gold) + ParseMoney(_electrum) + ParseMoney(_silver) + ParseMoney(_copper) == 0)
             {
                 Fail("Выберите предметы или укажите монеты.");
                 return;
@@ -473,14 +572,16 @@ namespace HMWT_MUI.Windows
                            ?? _room.GetPlayers().FirstOrDefault(p => p.Id == _room.MyPlayerId)?.Name ?? "Игрок",
                 ToPlayerId = _other.Id,
                 ToName = _other.CharacterName ?? _other.Name,
-                Items = _selected.Select(ToTradeItem).ToList(),
+                Items = _selected.Select(i => ToTradeItem(i, SelectedQuantity(i))).ToList(),
                 Gold = ParseMoney(_gold),
+                Electrum = ParseMoney(_electrum),
                 Silver = ParseMoney(_silver),
                 Copper = ParseMoney(_copper)
             };
             _pending = offer;
             _room.SendTrade(offer);
             _status.Text = "Предложение отправлено. Ждём подтверждения…";
+            StartTimeout(60, "Получатель не ответил — предложение отменено.");
         }
 
         private void AcceptOffer()
@@ -497,8 +598,10 @@ namespace HMWT_MUI.Windows
                 ToName = _incoming.FromName
             };
             _room.ClearPendingTrade(_incoming.TradeId);
+            _accepted = true;
             _room.SendTrade(accept);
             _status.Text = "Подтверждено. Ждём, пока отправитель передаст предметы…";
+            StartTimeout(20, "Отправитель не передал предметы — возможно, он закрыл окно.");
         }
 
         private void OnCancel(object sender, RoutedEventArgs e)
@@ -525,6 +628,7 @@ namespace HMWT_MUI.Windows
                     ToName = _pending.ToName
                 });
             }
+            _closeSent = true;
             Close();
         }
 
@@ -536,11 +640,13 @@ namespace HMWT_MUI.Windows
                 if (!string.Equals(msg.TradeId, _incoming?.TradeId ?? _pending?.TradeId,
                         StringComparison.Ordinal)) return;
 
+                StopTimeout();
                 if (_incoming == null && string.Equals(msg.Kind, "accept", StringComparison.Ordinal))
                 {
                     CommitTransfer();
                 }
-                else if (_incoming == null && string.Equals(msg.Kind, "decline", StringComparison.Ordinal))
+                else if (_incoming == null && (string.Equals(msg.Kind, "decline", StringComparison.Ordinal) ||
+                                                string.Equals(msg.Kind, "cancel", StringComparison.Ordinal)))
                 {
                     Fail("Получатель отклонил передачу.");
                 }
@@ -570,7 +676,8 @@ namespace HMWT_MUI.Windows
             }
 
             var money = _money.LoadMoney();
-            if (money.Gold < _pending.Gold || money.Silver < _pending.Silver || money.Copper < _pending.Copper)
+            if (money.Gold < _pending.Gold || money.Electrum < _pending.Electrum ||
+                money.Silver < _pending.Silver || money.Copper < _pending.Copper)
                 error = "Недостаточно монет — передача отменена.";
 
             if (error != null)
@@ -598,10 +705,13 @@ namespace HMWT_MUI.Windows
             }
 
             money.Gold -= _pending.Gold;
+            money.Electrum -= _pending.Electrum;
             money.Silver -= _pending.Silver;
             money.Copper -= _pending.Copper;
             _money.SaveMoney(money);
 
+            _completed = true;
+            StopTimeout();
             _pending.Kind = "commit";
             _room.SendTrade(_pending);
             _status.Text = "Передано. Получатель получит предметы.";
@@ -623,10 +733,13 @@ namespace HMWT_MUI.Windows
 
                 var money = _money.LoadMoney();
                 money.Gold += msg.Gold;
+                money.Electrum += msg.Electrum;
                 money.Silver += msg.Silver;
                 money.Copper += msg.Copper;
                 _money.SaveMoney(money);
 
+                _completed = true;
+                StopTimeout();
                 _status.Text = "Предметы и монеты получены.";
                 _primary.IsEnabled = false;
                 var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
@@ -647,18 +760,78 @@ namespace HMWT_MUI.Windows
             _status.Foreground = (Brush)FindResource("B.Danger");
         }
 
+        private void StartTimeout(int seconds, string message)
+        {
+            StopTimeout();
+            _waitTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(seconds)
+            };
+            _waitTimer.Tick += (s, e) =>
+            {
+                StopTimeout();
+                if (_completed) return;
+                Fail(message);
+                Close();
+            };
+            _waitTimer.Start();
+        }
+
+        private void StopTimeout()
+        {
+            if (_waitTimer == null) return;
+            _waitTimer.Stop();
+            _waitTimer = null;
+        }
+
+        private void OnClosed(object sender, EventArgs e)
+        {
+            _room.TradeReceived -= OnTrade;
+            StopTimeout();
+            if (_completed || _closeSent) return;
+            _closeSent = true;
+
+            if (_incoming != null)
+            {
+                _room.SendTrade(new TradeMessage
+                {
+                    TradeId = _incoming.TradeId,
+                    Kind = _accepted ? "cancel" : "decline",
+                    FromPlayerId = _room.MyPlayerId,
+                    ToPlayerId = _incoming.FromPlayerId,
+                    ToName = _incoming.FromName
+                });
+            }
+            else if (_incoming == null && _pending != null)
+            {
+                _room.SendTrade(new TradeMessage
+                {
+                    TradeId = _pending.TradeId,
+                    Kind = "cancel",
+                    FromPlayerId = _room.MyPlayerId,
+                    ToPlayerId = _pending.ToPlayerId,
+                    ToName = _pending.ToName
+                });
+            }
+        }
+
         private static int ParseMoney(TextBox box)
         {
             return int.TryParse((box.Text ?? "").Trim(), out int value) ? Math.Max(0, Math.Min(999999, value)) : 0;
         }
 
-        private static TradeItem ToTradeItem(ItemData item) => new TradeItem
+        private int SelectedQuantity(ItemData item)
+            => _quantities.TryGetValue(item.Id, out int q)
+                ? Math.Max(1, Math.Min(item.Quantity, q))
+                : Math.Max(1, item.Quantity);
+
+        private static TradeItem ToTradeItem(ItemData item, int quantity) => new TradeItem
         {
             SourceItemId = item.Id,
             Name = item.Name ?? "",
             Category = item.Category ?? "",
             Description = item.Description ?? "",
-            Quantity = Math.Max(1, item.Quantity),
+            Quantity = Math.Max(1, quantity),
             Weight = item.Weight,
             CostGold = item.CostGold,
             CostSilver = item.CostSilver,

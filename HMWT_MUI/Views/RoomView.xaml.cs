@@ -916,7 +916,20 @@ namespace HMWT_MUI.Views
             if (trade == null) return;
             _ui.BeginInvoke(new Action(() =>
             {
-                if (!string.Equals(trade.Kind, "offer", StringComparison.Ordinal)) return;
+                if (trade.Kind != "offer")
+                {
+                    if ((trade.Kind == "cancel" || trade.Kind == "decline") &&
+                        _incomingTrade != null &&
+                        string.Equals(_incomingTrade.TradeId, trade.TradeId, StringComparison.Ordinal))
+                    {
+                        _incomingTrade = null;
+                        _session.ClearPendingTrade(trade.TradeId);
+                        _renderedPlayersSignature = null;
+                        UpdatePlayers();
+                        ShowWindowToast($"{trade.FromName} отменил обмен");
+                    }
+                    return;
+                }
                 if (!string.Equals(trade.ToPlayerId, _session.GetMyPlayerId(), StringComparison.Ordinal)) return;
 
                 _incomingTrade = trade;
@@ -954,7 +967,7 @@ namespace HMWT_MUI.Views
             int count = _incomingTrade.Items?.Count ?? 0;
             text.Children.Add(new TextBlock
             {
-                Text = $"{count} предмет(ов) · {_incomingTrade.Gold} з. · {_incomingTrade.Silver} с. · {_incomingTrade.Copper} м.",
+                Text = $"{count} предмет(ов) · {_incomingTrade.Gold} з. · {_incomingTrade.Electrum} э. · {_incomingTrade.Silver} с. · {_incomingTrade.Copper} м.",
                 FontSize = 11,
                 Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
                 Margin = new Thickness(0, 3, 0, 0)
