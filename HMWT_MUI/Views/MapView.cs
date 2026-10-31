@@ -283,6 +283,9 @@ namespace HMWT_MUI.Views
         private readonly TextBox _shapeField = DmUiKit.Field("4", 52, "Клетки");
         private readonly CheckBox _measureCheck = DmUiKit.Check("Линейка", false);
         private readonly CheckBox _pingCheck = DmUiKit.Check("Пинг", false);
+        private readonly CheckBox _blindfoldCheck = DmUiKit.Check("Повязки", false);
+        private Border _blindfoldOverlay;
+        private bool _blindfoldActive;
         private readonly Canvas _measureLayer = new Canvas { IsHitTestVisible = false };
         private readonly Canvas _pingLayer = new Canvas { IsHitTestVisible = false };
         private System.Windows.Shapes.Line _measureLine;
@@ -901,6 +904,21 @@ namespace HMWT_MUI.Views
         /// Вкладку открыли/закрыли, вошли в комнату или вышли из неё. Роль
         /// вкладки зависит от этого, поэтому перечитываем карту заново.
         /// </summary>
+        /// <summary>Клиенту закрывают карту, пока ведущий переставляет сцену.</summary>
+        private void ApplyBlindfoldState()
+        {
+            if (_blindfoldOverlay == null) return;
+
+            bool on = _remote && RoomSession.Instance.IsActive && RoomSession.Instance.Blindfold;
+            bool was = _blindfoldActive;
+            _blindfoldActive = on;
+            _blindfoldOverlay.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            // WebView2 — отдельное HWND-окно и всегда выше WPF. Пока повязка
+            // надета, прячем его целиком, иначе затемнение под ним не видно.
+            if (_webMapReady) _webMap.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+
+            if (was && !on) Refresh();
+        }
         private void OnRoomStateChanged()
         {
             if (!Dispatcher.CheckAccess())

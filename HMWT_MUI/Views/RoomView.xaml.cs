@@ -76,11 +76,14 @@ namespace HMWT_MUI.Views
         }
 
         private bool _audioVolumeReady;
+        private bool _initiativeCollapsed;
+        private bool _lastSessionActive;
 
         public RoomView()
         {
             InitializeComponent();
             _ui = Dispatcher;
+            _lastSessionActive = _session.IsActive;
 
             // Громкость общая для приложения: ползунок живёт и в «Отряде»,
             // и в аудиотеке ведущего, значение одно.
@@ -206,6 +209,9 @@ namespace HMWT_MUI.Views
 
         private void OnSessionStateChanged() => _ui.BeginInvoke(new Action(() =>
         {
+            bool wasActive = _lastSessionActive;
+            _lastSessionActive = _session.IsActive;
+
             if (!_session.IsActive)
             {
                 _requestedChatImages.Clear();
@@ -213,6 +219,17 @@ namespace HMWT_MUI.Views
                 _chatImageTimer.Stop();
                 _renderedFeedCount = -1;
             }
+            else if (!wasActive)
+            {
+                ShowWindowToast("Связь с отрядом восстановлена");
+            }
+
+            if (wasActive && !_session.IsActive)
+            {
+                ShowWindowToast("Соединение с отрядом разорвано. Возможно, ведущий закрыл комнату.", true);
+                txtFeedHint.Text = "Соединение с отрядом разорвано";
+            }
+
             RefreshAll();
         }));
 
@@ -384,6 +401,12 @@ namespace HMWT_MUI.Views
         /// свой, а бой ведёт один человек. Когда бой не идёт, блока не видно —
         /// лента не должна съезжать из-за пустой рамки.
         /// </summary>
+        private void BtnInitiativeCollapse_Click(object sender, RoutedEventArgs e)
+        {
+            _initiativeCollapsed = !_initiativeCollapsed;
+            spInitiative.Visibility = _initiativeCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            btnInitiativeCollapse.Content = _initiativeCollapsed ? "Развернуть" : "Свернуть";
+        }
         private void UpdateInitiative()
         {
             try

@@ -143,9 +143,18 @@ namespace HMWT_MUI.Views
             Render();
         }
 
-        /// <summary>Перечитывает активный бой из базы и перерисовывает.</summary>
+        /// <summary>Перечитывает выбранный бой из базы и перерисовывает.</summary>
         public void Refresh()
         {
+            int selectedId = InitiativeService.SelectedEncounterId;
+            if (selectedId > 0)
+            {
+                // Трекер мог переключиться на другую группу, пока это окно
+                // было закрыто. Нельзя оставаться на старом бое.
+                var selected = InitiativeService.LoadEncounter(selectedId);
+                if (selected != null) _encounter = selected;
+            }
+
             if (_encounter == null)
             {
                 _encounter = InitiativeService.EnsureWorkingEncounter();

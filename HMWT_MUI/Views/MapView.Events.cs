@@ -461,6 +461,89 @@ namespace HMWT_MUI.Views
                     }
                     break;
 
+                case "rename":
+                    {
+                        if (!_isDm) return;
+                        string oldName = token.Label ?? "Жетон";
+                        string name = Windows.NotePromptWindow.AskText(
+                            Window.GetWindow(this), "Переименовать жетон",
+                            "Новое имя", oldName, "Переименовать");
+                        if (string.IsNullOrWhiteSpace(name) || name.Trim() == oldName) return;
+                        name = name.Trim();
+
+                        token.Label = name;
+                        // Бестиарий не трогаем: переименовывается именно копия
+                        // в трекере/на карте, а не исходное существо.
+                        if (token.CombatantId > 0 &&
+                            _combatants.TryGetValue(token.CombatantId, out var renameLinked) &&
+                            renameLinked.Combatant != null)
+                        {
+                            renameLinked.Combatant.Name = name;
+                            InitiativeService.SaveCombatant(renameLinked.Encounter, renameLinked.Combatant);
+                        }
+
+                        MapService.SaveToken(token);
+                        PublishMap();
+                        RebuildTokens();
+                    }
+                    break;
+
+                case "bestiary":
+                    {
+                        if (!_isDm) return;
+                        int monsterId = 0;
+                        if (token.CombatantId > 0 &&
+                            _combatants.TryGetValue(token.CombatantId, out var bestiaryLinked) &&
+                            bestiaryLinked.Combatant != null)
+                            monsterId = bestiaryLinked.Combatant.MonsterId;
+
+                        if (monsterId <= 0)
+                        {
+                            // Временный жетон: создаём пустую карточку с именем,
+                            // чтобы тут же можно было поставить аватар.
+                            var monster = new MonsterData
+                            {
+                                Name = string.IsNullOrWhiteSpace(token.Label) ? "Без имени" : token.Label,
+                                IsCustom = true
+                            };
+                            monsterId = BestiaryService.Save(monster);
+                            if (monsterId > 0 && token.CombatantId > 0 &&
+                                _combatants.TryGetValue(token.CombatantId, out var blankLinked) &&
+                                blankLinked.Combatant != null)
+                            {
+                                blankLinked.Combatant.MonsterId = monsterId;
+                                InitiativeService.SaveCombatant(blankLinked.Encounter, blankLinked.Combatant);
+                            }
+                            else if (monsterId > 0 && token.CombatantId <= 0)
+                            {
+                                // Метка без боя: заводим участника, чтобы портрет
+                                // из новой карточки сразу появился на жетоне.
+                                var encounter = InitiativeService.SelectedEncounter()
+                                                ?? InitiativeService.EnsureWorkingEncounter();
+                                if (encounter != null)
+                                {
+                                    var combatant = new CombatantData
+                                    {
+                                        EncounterId = encounter.Id,
+                                        Name = token.Label ?? "Без имени",
+                                        MonsterId = monsterId,
+                                        Kind = CombatantKind.Creature
+                                    };
+                                    int id = InitiativeService.SaveCombatant(encounter, combatant);
+                                    if (id > 0)
+                                    {
+                                        token.CombatantId = id;
+                                        MapService.SaveToken(token);
+                                        PublishMap();
+                                    }
+                                }
+                            }
+                        }
+
+                        if (monsterId > 0) OpenMonsterRequested?.Invoke(monsterId);
+                    }
+                    break;
+
                 case "remove":
                     if (!_isDm) return;
                     MapService.DeleteToken(token.Id);

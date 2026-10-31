@@ -96,6 +96,9 @@ namespace HMWT_MUI.Net
         /// </summary>
         private InitiativeState _initiative = new InitiativeState();
 
+        /// <summary>Игрокам закрыт обзор карты, пока ведущий переставляет сцену.</summary>
+        private bool _blindfold;
+
         /// <summary>
         /// Отложенная синхронизация жетонов с трекером: SaveCombatant зовут
         /// пачками (броски инициативы, состояния), а карту на каждый вызов
@@ -1035,6 +1038,18 @@ namespace HMWT_MUI.Net
         #region === АУДИО ===
 
         /// <summary>Снимок «что играет» с позицией на сейчас (для опоздавших).</summary>
+        /// <summary>Ведущий закрывает/открывает игрокам обзор карты.</summary>
+        public void SetBlindfold(bool on)
+        {
+            lock (_stateLock) _blindfold = on;
+            _ = BroadcastSnapshotAsync();
+        }
+
+        public bool GetBlindfold()
+        {
+            lock (_stateLock) return _blindfold;
+        }
+
         private AudioState BuildAudioSnapshot()
         {
             AudioState audio;
@@ -1330,7 +1345,8 @@ namespace HMWT_MUI.Net
                     ProtocolVersion = NetVersions.ProtocolVersion,
                     DataFingerprint = _dataFingerprint,
                     Initiative = initiative,
-                    Audio = BuildAudioSnapshot()
+                    Audio = BuildAudioSnapshot(),
+                    Blindfold = _blindfold
                 };
             }
         }

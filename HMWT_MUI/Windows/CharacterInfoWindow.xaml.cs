@@ -3654,7 +3654,7 @@ namespace HMWT_MUI
                     return;
                 }
 
-                var encounter = InitiativeService.ActiveEncounter();
+                var encounter = InitiativeService.SelectedEncounter();
                 if (encounter == null)
                 {
                     txtInitiativeStatus.Text = "Инициатива";

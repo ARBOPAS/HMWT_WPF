@@ -226,11 +226,13 @@ namespace HMWT_MUI.Views
                 _pendingShape = null;
                 ClearMeasure();
                 _viewport.Cursor = Cursors.Cross;
+                PushWebMap();
             };
             _measureCheck.Unchecked += (s, e) =>
             {
                 ClearMeasure();
                 _viewport.Cursor = Cursors.Arrow;
+                PushWebMap();
             };
             bar.Children.Add(_measureCheck);
 
@@ -245,8 +247,9 @@ namespace HMWT_MUI.Views
                 _measureCheck.IsChecked = false;
                 _pendingShape = null;
                 _viewport.Cursor = Cursors.Cross;
+                PushWebMap();
             };
-            _pingCheck.Unchecked += (s, e) => _viewport.Cursor = Cursors.Arrow;
+            _pingCheck.Unchecked += (s, e) => { _viewport.Cursor = Cursors.Arrow; PushWebMap(); };
             _pingCheck.Visibility = Visibility.Collapsed;
 
             // ── стены: ломают обзор, за ними туман не рассеивается ──
@@ -295,20 +298,20 @@ namespace HMWT_MUI.Views
             _wallCheck.Margin = new Thickness(0, 0, 10, 0);
             _wallCheck.IsEnabled = _isDm;
             _wallCheck.ToolTip = "Тяните мышью по карте, чтобы нарисовать стену. ПКМ по стене — убрать.";
-            _wallCheck.Checked += (s, e) => { _wallStart = null; _viewport.Cursor = Cursors.Cross; };
-            _wallCheck.Unchecked += (s, e) => { _wallStart = null; _viewport.Cursor = Cursors.Arrow; };
+            _wallCheck.Checked += (s, e) => { _wallStart = null; _viewport.Cursor = Cursors.Cross; PushWebMap(); };
+            _wallCheck.Unchecked += (s, e) => { _wallStart = null; _viewport.Cursor = Cursors.Arrow; PushWebMap(); };
             dmBar.Children.Add(_wallCheck);
 
             // ── кисть ──
             _drawCheck.Margin = new Thickness(0, 0, 6, 0);
             _drawCheck.IsEnabled = _isDm || _remote;
-            _drawCheck.Checked += (s, e) => { _strokePoints = null; _viewport.Cursor = Cursors.Pen; };
-            _drawCheck.Unchecked += (s, e) => { _strokePoints = null; _eraserCheck.IsChecked = false; _viewport.Cursor = Cursors.Arrow; };
+            _drawCheck.Checked += (s, e) => { _strokePoints = null; _viewport.Cursor = Cursors.Pen; PushWebMap(); };
+            _drawCheck.Unchecked += (s, e) => { _strokePoints = null; _eraserCheck.IsChecked = false; _viewport.Cursor = Cursors.Arrow; PushWebMap(); };
             dmBar.Children.Add(_drawCheck);
 
             _eraserCheck.Margin = new Thickness(0, 0, 6, 0);
             _eraserCheck.IsEnabled = _isDm || _remote;
-            _eraserCheck.Checked += (s, e) => { if (_drawCheck.IsChecked != true) _drawCheck.IsChecked = true; };
+            _eraserCheck.Checked += (s, e) => { if (_drawCheck.IsChecked != true) _drawCheck.IsChecked = true; PushWebMap(); };
             dmBar.Children.Add(_eraserCheck);
 
             var brushColor = new Button
@@ -357,6 +360,12 @@ namespace HMWT_MUI.Views
             tokens.IsEnabled = _isDm;
             dmBar.Children.Add(tokens);
 
+            _blindfoldCheck.Margin = new Thickness(10, 0, 0, 0);
+            _blindfoldCheck.ToolTip = "Закрыть игрокам обзор карты: они увидят только «ведущий пересобирает сцену»";
+            _blindfoldCheck.Checked += (s, e) => { if (_inRoom && _isDm) RoomSession.Instance.SetBlindfold(true); };
+            _blindfoldCheck.Unchecked += (s, e) => { if (_inRoom && _isDm) RoomSession.Instance.SetBlindfold(false); };
+            dmBar.Children.Add(_blindfoldCheck);
+
             _status.FontSize = 11;
             _status.Foreground = DmUiKit.B("Mute");
             _status.VerticalAlignment = VerticalAlignment.Center;
@@ -383,7 +392,7 @@ namespace HMWT_MUI.Views
                 foreach (var el in new UIElement[]
                 {
                     open, newScene, delScene, _cellSlider, _gridThicknessSlider,
-                    _cellField, gridColor, trailColor, _wallCheck, tokens
+                    _cellField, gridColor, trailColor, _wallCheck, tokens, _blindfoldCheck
                 })
                 {
                     if (el != null) el.Visibility = Visibility.Collapsed;
@@ -446,6 +455,39 @@ namespace HMWT_MUI.Views
             viewportHost.Children.Add(_measureLayer);
             viewportHost.Children.Add(_pingLayer);
             viewportHost.Children.Add(_webMap);
+
+            _blindfoldOverlay = new Border
+            {
+                Background = DmUiKit.B("Void"),
+                Visibility = Visibility.Collapsed,
+                Child = new StackPanel
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = "ВЕДУЩИЙ ПЕРЕСОБИРАЕТ СЦЕНУ",
+                            FontFamily = DmUiKit.Display,
+                            FontSize = 20,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = DmUiKit.B("Accent"),
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        },
+                        new TextBlock
+                        {
+                            Text = "Подождите немного — карта вернётся, когда ведущий закончит.",
+                            FontSize = 13,
+                            Foreground = DmUiKit.B("Mute"),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Margin = new Thickness(0, 8, 0, 0)
+                        }
+                    }
+                }
+            };
+            Panel.SetZIndex(_blindfoldOverlay, 100);
+            viewportHost.Children.Add(_blindfoldOverlay);
             _viewport.Child = viewportHost;
             // Подгонка по размеру — только для нативного WPF-слоя. Когда карту
             // рисует WebGL, масштаб и панорама принадлежат ему: любой viewFit

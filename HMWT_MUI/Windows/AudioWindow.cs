@@ -130,6 +130,7 @@ namespace HMWT_MUI.Windows
 
             _master = new Slider
             {
+                Style = TryFindResource("AudioSlider") as Style,
                 Minimum = 0, Maximum = 100, Width = 130,
                 Value = Math.Round(AudioSettings.Master * 100),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -587,6 +588,7 @@ namespace HMWT_MUI.Windows
 
             var slider = new Slider
             {
+                Style = TryFindResource("AudioSlider") as Style,
                 Minimum = 0, Maximum = 200, Width = 120,
                 Value = Math.Round(track.Gain * 100),
                 VerticalAlignment = VerticalAlignment.Center

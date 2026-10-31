@@ -1159,6 +1159,17 @@ namespace HMWT_MUI.Net
             return _client?.LastSnapshot?.Initiative ?? new InitiativeState();
         }
 
+        /// <summary>Ведущий закрыл игрокам обзор карты.</summary>
+        public bool Blindfold => IsActive && (IsHost ? (_server?.GetBlindfold() ?? false)
+                                                    : (_client?.LastSnapshot?.Blindfold ?? false));
+
+        public void SetBlindfold(bool on)
+        {
+            if (!IsActive || !IsHost) return;
+            _server?.SetBlindfold(on);
+            StateChanged?.Invoke();
+        }
+
         /// <summary>Системная запись в ленту: «Инициатива: Гоблин — 17, ...».</summary>
         public void PublishSystemNotice(string text)
         {

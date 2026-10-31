@@ -37,6 +37,8 @@ namespace HMWT_MUI.Views
         private Border _editorLayer;
         private MonsterEditor _editor;
 
+        private static List<MonsterData> _briefCache;
+
         private List<MonsterData> _all = new List<MonsterData>();
         private List<MonsterData> _shown = new List<MonsterData>();
         private MonsterData _selected;
@@ -82,7 +84,7 @@ namespace HMWT_MUI.Views
                 DmUiKit.ButtonKind.Primary, "Создать своё существо", 160, 30));
             buttons.Children.Add(DmUiKit.Action("Примеры", (s, e) => AddSamples(), DmUiKit.ButtonKind.Ghost,
                 "Добавить гоблина и волка как образцы заполнения", 100, 30));
-            buttons.Children.Add(DmUiKit.Action("Обновить", (s, e) => Refresh(), DmUiKit.ButtonKind.Ghost, null, 100, 30));
+            buttons.Children.Add(DmUiKit.Action("Обновить", (s, e) => Refresh(true), DmUiKit.ButtonKind.Ghost, null, 100, 30));
             buttons.Children.Add(DmUiKit.Action("Экспорт пака", (s, e) => ExportPack(), DmUiKit.ButtonKind.Ghost,
                 "Сохранить бестиарий в файл .hmwtpack — его можно отдать другим", 130, 30));
             buttons.Children.Add(DmUiKit.Action("Импорт пака", (s, e) => ImportPack(), DmUiKit.ButtonKind.Ghost,
@@ -147,7 +149,8 @@ namespace HMWT_MUI.Views
             _editor.Saved += saved =>
             {
                 CloseEditor();
-                Refresh();
+                _briefCache = null;
+                Refresh(true);
                 SelectMonster(saved.Id);
                 DmRolls.Toast(this, $"Бестиарий обновлён: {saved.Name}");
             };
@@ -174,11 +177,19 @@ namespace HMWT_MUI.Views
         // ══════════════════════ ДАННЫЕ ══════════════════════
 
         /// <summary>Перечитывает бестиарий из базы.</summary>
-        public void Refresh()
+        public void Refresh(bool force = false)
         {
             try
             {
-                _all = BestiaryService.LoadAllBrief();
+                if (!force && _briefCache != null)
+                {
+                    _all = _briefCache;
+                }
+                else
+                {
+                    _all = BestiaryService.LoadAllBrief();
+                    _briefCache = _all;
+                }
             }
             catch (Exception ex)
             {
@@ -506,7 +517,8 @@ namespace HMWT_MUI.Views
                     return;
                 }
 
-                Refresh();
+                _briefCache = null;
+                Refresh(true);
                 DmRolls.Toast(this, $"Из пака добавлено: {added}, пропущено: {skipped}");
                 if (added == 0 && skipped > 0)
                 {
@@ -568,6 +580,7 @@ namespace HMWT_MUI.Views
                 "Удаление существа", "Удалить");
             if (!confirmed) return;
 
+            _briefCache = null;
             if (!BestiaryService.Delete(monster.Id))
             {
                 DmRolls.Toast(this, "Не удалось удалить существо", true);

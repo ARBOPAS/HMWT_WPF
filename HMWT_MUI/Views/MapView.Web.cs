@@ -260,7 +260,7 @@ namespace HMWT_MUI.Views
                 {
                     // В локальной игре (без комнаты) GetInitiative пуст —
                     // раньше из-за этого подсветка хода не работала вообще.
-                    var encounter = Services.InitiativeService.ActiveEncounter();
+                    var encounter = Services.InitiativeService.SelectedEncounter();
                     var current = encounter?.Combatants?
                         .FirstOrDefault(c => c != null && c.IsCurrent);
                     if (current != null)

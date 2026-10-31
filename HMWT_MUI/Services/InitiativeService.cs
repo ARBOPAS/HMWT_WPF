@@ -172,6 +172,15 @@ namespace HMWT_MUI.Services
         /// </summary>
         public static EncounterData EnsureWorkingEncounter()
         {
+            // Сначала выбранный в трекере бой: иначе после завершения
+            // старого боя панель «Инициатива» снова показывала его.
+            if (_selectedEncounterId > 0)
+            {
+                var selected = LoadEncounter(_selectedEncounterId);
+                if (selected != null) return selected;
+                _selectedEncounterId = 0;
+            }
+
             var all = LoadEncounters();
             var active = all.FirstOrDefault(e => e.IsActive);
             if (active != null) return active;

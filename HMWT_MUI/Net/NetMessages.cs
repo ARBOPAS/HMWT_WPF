@@ -678,5 +678,8 @@ namespace HMWT_MUI.Net
 
         /// <summary>Что играет в комнате (null — тишина).</summary>
         [JsonPropertyName("audio")] public AudioState Audio { get; set; }
+
+        /// <summary>Ведущий закрыл игрокам обзор карты («повязка на глаза»).</summary>
+        [JsonPropertyName("blind")] public bool Blindfold { get; set; }
     }
 }

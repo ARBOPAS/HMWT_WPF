@@ -58,7 +58,7 @@
                                 ToolTip="Общая громкость звука у вас. В комнату не передаётся.">
                         <TextBlock Text="Громкость" FontSize="11" Foreground="{StaticResource B.Mute}"
                                    VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <Slider x:Name="sldVolume" Width="96" Minimum="0" Maximum="100"
+                        <Slider x:Name="sldVolume" Width="96" Minimum="0" Maximum="100" Style="{StaticResource AudioSlider}"
                                 VerticalAlignment="Center" ValueChanged="SldVolume_ValueChanged"
                                 ToolTip="Громкость музыки и звуков у вас"/>
                     </StackPanel>
@@ -231,10 +231,14 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="ИНИЦИАТИВА" FontFamily="{StaticResource F.Display}"
                                            FontSize="12" FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
-                                <TextBlock Grid.Column="1" x:Name="txtInitiativeRound" Text="" FontSize="11"
+                                <Button x:Name="btnInitiativeCollapse" Grid.Column="1" Content="Свернуть"
+                                        Style="{StaticResource TextBtn}" FontSize="10" Margin="0,0,8,0"
+                                        Click="BtnInitiativeCollapse_Click"/>
+                                <TextBlock Grid.Column="2" x:Name="txtInitiativeRound" Text="" FontSize="11"
                                            Foreground="{StaticResource B.Frost}" VerticalAlignment="Center"/>
                             </Grid>
                             <StackPanel x:Name="spInitiative"/>

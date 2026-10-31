@@ -2336,68 +2336,69 @@
     }
     items.push({ text: 'Размер', children: sizeItems });
 
-    items.push({ separator: true });
+    // Обзор — подменю, а не восемь пунктов подряд.
+    const visionItems = [];
     for (const a of [360, 120, 90, 60])
-      items.push({
-        text: a >= 360 ? 'Обзор: круговой 360°' : 'Конус ' + a + '°',
+      visionItems.push({
+        text: a >= 360 ? 'Круговой 360°' : 'Конус ' + a + '°',
         check: Math.abs((token.viewAngle || 360) - a) < 1,
         action: 'viewAngle', value: String(a)
       });
+    items.push({ text: 'Обзор', children: visionItems });
 
     items.push({ text: 'Повернуть взгляд ⟳', action: 'facing', value: String(screenTurn(45)) });
     items.push({ text: 'Повернуть взгляд ⟲', action: 'facing', value: String(screenTurn(-45)) });
-    items.push({ text: 'Поворот: Q / E на клавиатуре', disabled: true });
 
-    items.push({ separator: true });
+    // Радиус обзора — тоже подменю.
+    const revealItems = [];
+    const visionOn = (token.revealCells || 0) > 0;
+    revealItems.push({
+      text: visionOn ? 'Выключить обзор' : 'Включить обзор (6 кл.)',
+      action: 'reveal', value: visionOn ? '0' : '6'
+    });
     for (const r of [4, 6, 8, 12])
-      items.push({
-        text: 'Радиус обзора: ' + r + ' кл.',
+      revealItems.push({
+        text: r + ' кл.',
         check: Math.abs((token.revealCells || 0) - r) < 0.5,
         action: 'reveal', value: String(r)
       });
+    items.push({ text: 'Радиус обзора', children: revealItems });
 
-    // У каждого игрока свой обзор: можно выключить совсем.
-    const visionOn = (token.revealCells || 0) > 0;
-    items.push({
-      text: visionOn ? 'Обзор: выключить' : 'Обзор: включить (6 кл.)',
-      action: 'reveal', value: visionOn ? '0' : '6'
-    });
-
-    items.push({ separator: true });
-    items.push({
-      text: 'Цвет обзора: по умолчанию',
-      check: !token.viewColor,
-      action: 'viewcolor', value: ''
-    });
-    // Полностью прозрачная заливка: остаётся только контур сектора. Нужно,
-    // когда цвет закрывает карту под конусом.
-    items.push({
-      text: 'Цвет обзора: без заливки (только рамка)',
-      check: sameColor(token.viewColor, '#00000000'),
-      action: 'viewcolor', value: '#00000000'
-    });
+    const viewColorItems = [
+      { text: 'По умолчанию', check: !token.viewColor, action: 'viewcolor', value: '' },
+      {
+        text: 'Без заливки (только рамка)',
+        check: sameColor(token.viewColor, '#00000000'),
+        action: 'viewcolor', value: '#00000000'
+      }
+    ];
     for (const c of FRAME_COLORS)
-      items.push({
-        text: 'Цвет обзора: ' + c.name,
+      viewColorItems.push({
+        text: c.name,
         color: c.hex,
         check: sameColor(token.viewColor, c.hex),
         action: 'viewcolor', value: c.hex
       });
+    items.push({ text: 'Цвет обзора', children: viewColorItems });
 
     if (isDm) {
-      items.push({ separator: true });
-      items.push({
-        text: 'Рамка: по умолчанию',
-        check: !token.frameColor,
-        action: 'frame', value: ''
-      });
+      const frameItems = [
+        { text: 'По умолчанию', check: !token.frameColor, action: 'frame', value: '' }
+      ];
       for (const c of FRAME_COLORS)
-        items.push({
-          text: 'Рамка: ' + c.name,
+        frameItems.push({
+          text: c.name,
           color: c.hex,
           check: sameColor(token.frameColor, c.hex),
           action: 'frame', value: c.hex
         });
+      items.push({ text: 'Цвет рамки', children: frameItems });
+
+      items.push({ separator: true });
+      // В бестиарий можно перейти прямо с жетона: не нужно искать его
+      // в инициативе. Для временного жетона создастся пустая карточка.
+      items.push({ text: 'Показать в бестиарии', action: 'bestiary', value: '' });
+      items.push({ text: 'Переименовать…', action: 'rename', value: '' });
 
       items.push({ separator: true });
       // Состояния — подменю с галочками: окно с картой поверх WebGL прятало
@@ -2629,6 +2630,16 @@
   app.view.addEventListener('pointerdown', e => {
     hideMenu();
     try { lastScenePointer = toScene(e); } catch (_) { }
+
+    // Средняя кнопка всегда двигает обзор, даже если под курсором фигура:
+    // раньше приходилось искать пустое место, чтобы не утащить круг.
+    if (e.button === 1) {
+      const p = screenPoint(e);
+      drag = { kind: 'pan', sx: p.x, sy: p.y, wx: world.x, wy: world.y };
+      app.view.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
 
     if (e.button === 2) {
       const sp = toScene(e);
@@ -3351,5 +3362,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.15.3');
+  log('renderer ready v1.3.16.0');
 })();
