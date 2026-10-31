@@ -153,7 +153,8 @@ namespace HMWT_MUI.Net
         }
 
         /// <summary>Подключены ли мы к комнате в любом качестве.</summary>
-        public bool IsActive => Mode != SessionMode.Offline;
+        public bool IsActive => Mode != SessionMode.Offline &&
+                                (Mode != SessionMode.Client || _client?.IsConnected == true);
 
         /// <summary>Меня зан ли я её (хост) или присоединился.</summary>
         public bool IsHost => Mode == SessionMode.Host;
@@ -1658,6 +1659,9 @@ namespace HMWT_MUI.Net
 
         public List<PlayerInfo> GetPlayers()
         {
+            if (Mode == SessionMode.Client && _client?.IsConnected != true)
+                return new List<PlayerInfo>();
+
             var players = IsHost
                 ? (_server?.GetPlayers() ?? new List<PlayerInfo>())
                 : (_client?.GetPlayers() ?? new List<PlayerInfo>());

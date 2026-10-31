@@ -194,7 +194,8 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            int previousId = _panel.Encounter?.Id ?? 0;
+            int previousId = InitiativeService.SelectedEncounterId;
+            if (previousId <= 0) previousId = _panel.Encounter?.Id ?? 0;
             _encounters = InitiativeService.LoadEncounters();
 
             if (_encounters.Count == 0)
@@ -245,6 +246,7 @@ namespace HMWT_MUI.Views
 
             var fresh = InitiativeService.LoadEncounter(_encounters[index].Id) ?? _encounters[index];
             _encounters[index] = fresh;
+            InitiativeService.SelectEncounter(fresh.Id);
             _panel.Show(fresh);
             UpdateStatus();
         }

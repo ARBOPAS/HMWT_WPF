@@ -49,6 +49,15 @@ namespace HMWT_MUI.Views
             Loaded += (s, e) => Refresh();
         }
 
+        private void OnSelectionChanged()
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(Refresh));
+                return;
+            }
+            Refresh();
+        }
         public EncounterData Encounter => _encounter;
 
         // ══════════════════════ СБОРКА ══════════════════════

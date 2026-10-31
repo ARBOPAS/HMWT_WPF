@@ -145,9 +145,14 @@ namespace HMWT_MUI.Services
         /// </summary>
         public static int SelectedEncounterId => _selectedEncounterId;
 
+        /// <summary>Выбор группы в трекере изменился — обновить все открытые панели.</summary>
+        public static event Action SelectionChanged;
+
         public static void SelectEncounter(int encounterId)
         {
-            if (encounterId > 0) _selectedEncounterId = encounterId;
+            if (encounterId <= 0 || encounterId == _selectedEncounterId) return;
+            _selectedEncounterId = encounterId;
+            try { SelectionChanged?.Invoke(); } catch { }
         }
 
         public static EncounterData SelectedEncounter()
