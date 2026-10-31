@@ -432,6 +432,7 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("toName")] public string ToName { get; set; } = "";
         [JsonPropertyName("items")] public List<TradeItem> Items { get; set; } = new List<TradeItem>();
         [JsonPropertyName("gold")] public int Gold { get; set; }
+        [JsonPropertyName("platinum")] public int Platinum { get; set; }
         [JsonPropertyName("electrum")] public int Electrum { get; set; }
         [JsonPropertyName("silver")] public int Silver { get; set; }
         [JsonPropertyName("copper")] public int Copper { get; set; }

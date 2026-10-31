@@ -36,6 +36,7 @@ namespace HMWT_MUI.Windows
         private readonly ComboBox _category = new ComboBox();
         private readonly ComboBox _sort = new ComboBox();
         private readonly TextBox _gold = new TextBox();
+        private readonly TextBox _platinum = new TextBox();
         private readonly TextBox _electrum = new TextBox();
         private readonly TextBox _silver = new TextBox();
         private readonly TextBox _copper = new TextBox();
@@ -199,34 +200,40 @@ namespace HMWT_MUI.Windows
 
             if (_incoming == null)
             {
-                var filters = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+                var filters = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                filters.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                filters.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                filters.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 if (TryFindResource("SearchBox") is Style searchStyle)
                 {
                     _search.Style = searchStyle;
                     _search.Tag = "Поиск по инвентарю";
                 }
-                _search.Width = 210;
-                _search.Height = 30;
-                _search.Padding = new Thickness(7, 4, 7, 4);
+                _search.Width = double.NaN;
+                _search.MinWidth = 140;
+                _search.Height = 32;
+                _search.Padding = new Thickness(28, 4, 7, 4);
                 _search.Background = (Brush)FindResource("B.Slate");
                 _search.Foreground = (Brush)FindResource("B.Ink");
                 _search.BorderBrush = (Brush)FindResource("B.Line");
                 _search.BorderThickness = new Thickness(1);
                 _search.TextChanged += (s, e) => RefreshLeft();
+                Grid.SetColumn(_search, 0);
                 filters.Children.Add(_search);
 
-                _category.Width = 170;
-                _category.Height = 30;
+                _category.Width = 138;
+                _category.Height = 32;
                 _category.Margin = new Thickness(8, 0, 0, 0);
                 _category.Background = (Brush)FindResource("B.Slate");
                 _category.Foreground = (Brush)FindResource("B.Ink");
                 _category.BorderBrush = (Brush)FindResource("B.Line");
                 if (TryFindResource("EditorComboBox") is Style comboStyle) _category.Style = comboStyle;
                 _category.SelectionChanged += (s, e) => RefreshLeft();
+                Grid.SetColumn(_category, 1);
                 filters.Children.Add(_category);
 
-                _sort.Width = 160;
-                _sort.Height = 30;
+                _sort.Width = 138;
+                _sort.Height = 32;
                 _sort.Margin = new Thickness(8, 0, 0, 0);
                 _sort.Background = (Brush)FindResource("B.Slate");
                 _sort.Foreground = (Brush)FindResource("B.Ink");
@@ -237,6 +244,7 @@ namespace HMWT_MUI.Windows
                 _sort.SelectedIndex = 0;
                 if (TryFindResource("EditorComboBox") is Style sortStyle) _sort.Style = sortStyle;
                 _sort.SelectionChanged += (s, e) => RefreshLeft();
+                Grid.SetColumn(_sort, 2);
                 filters.Children.Add(_sort);
                 stack.Children.Add(filters);
             }
@@ -250,23 +258,43 @@ namespace HMWT_MUI.Windows
 
             if (_incoming == null)
             {
-                var goldRow = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-                goldRow.Children.Add(Label("Золото"));
-                goldRow.Children.Add(MoneyField(_gold));
-                goldRow.Children.Add(Label("Электрум"));
-                goldRow.Children.Add(MoneyField(_electrum));
-                goldRow.Children.Add(Label("Серебро"));
-                goldRow.Children.Add(MoneyField(_silver));
-                goldRow.Children.Add(Label("Медь"));
-                goldRow.Children.Add(MoneyField(_copper));
-                foreach (var box in new[] { _gold, _electrum, _silver, _copper })
+                var goldGrid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+                for (int c = 0; c < 3; c++)
+                    goldGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                goldGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                goldGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                void MoneyCell(string label, TextBox box, int row, int col)
                 {
+                    var cell = new StackPanel { Margin = new Thickness(0, 0, 8, 6) };
+                    cell.Children.Add(new TextBlock
+                    {
+                        Text = label,
+                        Foreground = (Brush)FindResource("B.Mute"),
+                        FontSize = 11,
+                        Margin = new Thickness(0, 0, 0, 3)
+                    });
+                    MoneyField(box);
+                    if (TryFindResource("NumField") is Style moneyStyle) box.Style = moneyStyle;
+                    box.HorizontalAlignment = HorizontalAlignment.Stretch;
+                    box.Width = double.NaN;
                     box.Background = (Brush)FindResource("B.Slate");
                     box.Foreground = (Brush)FindResource("B.Ink");
                     box.BorderBrush = (Brush)FindResource("B.Line");
                     box.BorderThickness = new Thickness(1);
+                    cell.Children.Add(box);
+                    Grid.SetRow(cell, row);
+                    Grid.SetColumn(cell, col);
+                    goldGrid.Children.Add(cell);
                 }
-                stack.Children.Add(goldRow);
+
+                MoneyCell("Платина", _platinum, 0, 0);
+                MoneyCell("Золото", _gold, 0, 1);
+                MoneyCell("Электрум", _electrum, 0, 2);
+                MoneyCell("Серебро", _silver, 1, 0);
+                MoneyCell("Медь", _copper, 1, 1);
+
+                stack.Children.Add(goldGrid);
                 _balance.Foreground = (Brush)FindResource("B.Mute");
                 _balance.FontSize = 11;
                 _balance.Margin = new Thickness(0, 6, 0, 0);
@@ -361,10 +389,11 @@ namespace HMWT_MUI.Windows
             {
                 var money = _money.LoadMoney();
                 _gold.Text = money.Gold.ToString();
+                _platinum.Text = money.Platinum.ToString();
                 _electrum.Text = money.Electrum.ToString();
                 _silver.Text = money.Silver.ToString();
                 _copper.Text = money.Copper.ToString();
-                _balance.Text = $"У вас: {money.Gold} з. · {money.Electrum} э. · {money.Silver} с. · {money.Copper} м.";
+                _balance.Text = $"У вас: {money.Platinum} п. · {money.Gold} з. · {money.Electrum} э. · {money.Silver} с. · {money.Copper} м.";
             }
             catch { }
         }
@@ -382,10 +411,10 @@ namespace HMWT_MUI.Windows
                         Foreground = (Brush)FindResource("B.Ink"),
                         Margin = new Thickness(0, 2, 0, 0)
                     });
-                if ((_incoming.Gold + _incoming.Electrum + _incoming.Silver + _incoming.Copper) > 0)
+                if ((_incoming.Platinum + _incoming.Gold + _incoming.Electrum + _incoming.Silver + _incoming.Copper) > 0)
                     _leftList.Children.Add(new TextBlock
                     {
-                        Text = $"Монеты: {_incoming.Gold} з. · {_incoming.Electrum} э. · {_incoming.Silver} с. · {_incoming.Copper} м.",
+                        Text = $"Монеты: {_incoming.Platinum} п. · {_incoming.Gold} з. · {_incoming.Electrum} э. · {_incoming.Silver} с. · {_incoming.Copper} м.",
                         FontSize = 12,
                         Foreground = (Brush)FindResource("B.Accent"),
                         Margin = new Thickness(0, 8, 0, 0)
@@ -409,22 +438,72 @@ namespace HMWT_MUI.Windows
             {
                 var row = new Grid { Margin = new Thickness(0, 2, 0, 3) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(94) });
 
                 var qty = new TextBox
                 {
                     Text = (_quantities.TryGetValue(item.Id, out int kept) ? kept : item.Quantity).ToString(),
-                    Width = 40,
-                    Height = 24,
+                    Width = 28,
+                    Height = 22,
                     TextAlignment = TextAlignment.Center,
                     VerticalContentAlignment = VerticalAlignment.Center,
-                    Background = (Brush)FindResource("B.Slate"),
+                    Background = Brushes.Transparent,
                     Foreground = (Brush)FindResource("B.Ink"),
-                    BorderBrush = (Brush)FindResource("B.Line"),
-                    BorderThickness = new Thickness(1),
+                    BorderThickness = new Thickness(0),
+                    FontSize = 12,
                     IsEnabled = false,
                     Tag = item
                 };
+
+                var qtyBox = new Border
+                {
+                    Width = 88,
+                    Height = 26,
+                    CornerRadius = new CornerRadius(6),
+                    Background = (Brush)FindResource("B.Slate"),
+                    BorderBrush = (Brush)FindResource("B.Line"),
+                    BorderThickness = new Thickness(1),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Child = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center }
+                };
+                var qtyPanel = (StackPanel)qtyBox.Child;
+
+                Border QtyButton(string text, int delta)
+                {
+                    var button = new Border
+                    {
+                        Width = 20,
+                        Height = 20,
+                        CornerRadius = new CornerRadius(4),
+                        Background = Brushes.Transparent,
+                        Cursor = Cursors.Hand,
+                        Child = new TextBlock
+                        {
+                            Text = text,
+                            FontSize = 14,
+                            Foreground = (Brush)FindResource("B.Accent"),
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    };
+                    button.MouseLeftButtonDown += (s, e) =>
+                    {
+                        e.Handled = true;
+                        if (!qty.IsEnabled) return;
+                        int n = int.TryParse(qty.Text, out int parsed) ? parsed : item.Quantity;
+                        n = Math.Max(1, Math.Min(item.Quantity, n + delta));
+                        qty.Text = n.ToString();
+                        _quantities[item.Id] = n;
+                        RefreshRight();
+                    };
+                    button.MouseEnter += (s, e) => button.Background = (Brush)FindResource("B.PanelHi");
+                    button.MouseLeave += (s, e) => button.Background = Brushes.Transparent;
+                    return button;
+                }
+
+                qtyPanel.Children.Add(QtyButton("−", -1));
+                qtyPanel.Children.Add(qty);
+                qtyPanel.Children.Add(QtyButton("+", 1));
 
                 var check = new CheckBox
                 {
@@ -434,13 +513,35 @@ namespace HMWT_MUI.Windows
                     Cursor = Cursors.Hand,
                     VerticalContentAlignment = VerticalAlignment.Center
                 };
+                if (TryFindResource("CustomCheckBox") is Style checkStyle) check.Style = checkStyle;
                 qty.IsEnabled = check.IsChecked == true;
+                qtyBox.Opacity = qty.IsEnabled ? 1 : 0.5;
+                qty.LostFocus += (s, e) =>
+                {
+                    if (!qty.IsEnabled) return;
+                    int n = int.TryParse(qty.Text, out int parsed) ? parsed : item.Quantity;
+                    n = Math.Max(1, Math.Min(item.Quantity, n));
+                    qty.Text = n.ToString();
+                    _quantities[item.Id] = n;
+                    RefreshRight();
+                };
                 qty.TextChanged += (s, e) =>
                 {
-                    if (!(qty.IsEnabled)) return;
+                    if (!qty.IsEnabled) return;
                     if (int.TryParse(qty.Text, out int n))
                     {
-                        n = Math.Max(1, Math.Min(item.Quantity, n));
+                        if (n > item.Quantity)
+                        {
+                            n = item.Quantity;
+                            qty.Text = n.ToString();
+                            qty.CaretIndex = qty.Text.Length;
+                        }
+                        if (n < 1)
+                        {
+                            n = 1;
+                            qty.Text = "1";
+                            qty.CaretIndex = 1;
+                        }
                         _quantities[item.Id] = n;
                         RefreshRight();
                     }
@@ -449,6 +550,7 @@ namespace HMWT_MUI.Windows
                 {
                     if (!_selected.Any(x => x.Id == item.Id)) _selected.Add(item);
                     qty.IsEnabled = true;
+                    qtyBox.Opacity = 1;
                     if (!int.TryParse(qty.Text, out int n) || n < 1 || n > item.Quantity)
                         qty.Text = item.Quantity.ToString();
                     _quantities[item.Id] = Math.Max(1, Math.Min(item.Quantity,
@@ -460,13 +562,14 @@ namespace HMWT_MUI.Windows
                     _selected.RemoveAll(x => x.Id == item.Id);
                     _quantities.Remove(item.Id);
                     qty.IsEnabled = false;
+                    qtyBox.Opacity = 0.5;
                     RefreshRight();
                 };
 
                 Grid.SetColumn(check, 0);
                 row.Children.Add(check);
-                Grid.SetColumn(qty, 1);
-                row.Children.Add(qty);
+                Grid.SetColumn(qtyBox, 1);
+                row.Children.Add(qtyBox);
                 _leftList.Children.Add(row);
             }
 
@@ -478,10 +581,22 @@ namespace HMWT_MUI.Windows
         private static StackPanel BuildItemText(ItemData item)
         {
             var stack = new StackPanel();
-            stack.Children.Add(new TextBlock { Text = item.Name ?? "(без названия)", FontSize = 13 });
+            stack.Children.Add(new TextBlock
+            {
+                Text = item.Name ?? "(без названия)",
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 12.5,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xE6, 0xEA, 0xF5))
+            });
             string sub = (item.Category ?? "") + (item.Quantity > 1 ? " · " + item.Quantity + " шт." : "");
             if (sub.Trim().Length > 0)
-                stack.Children.Add(new TextBlock { Text = sub.Trim(), FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x95, 0xB4)) });
+                stack.Children.Add(new TextBlock
+                {
+                    Text = sub.Trim(),
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x8B, 0x95, 0xB4))
+                });
             return stack;
         }
 
@@ -505,11 +620,11 @@ namespace HMWT_MUI.Windows
                         Foreground = (Brush)FindResource("B.Ink"),
                         Margin = new Thickness(0, 2, 0, 0)
                     });
-                int g = ParseMoney(_gold), e = ParseMoney(_electrum), s = ParseMoney(_silver), c = ParseMoney(_copper);
-                if (g + e + s + c > 0)
+                int p = ParseMoney(_platinum), g = ParseMoney(_gold), e = ParseMoney(_electrum), s = ParseMoney(_silver), c = ParseMoney(_copper);
+                if (p + g + e + s + c > 0)
                     _rightList.Children.Add(new TextBlock
                     {
-                        Text = $"Монеты: {g} з. · {e} э. · {s} с. · {c} м.",
+                        Text = $"Монеты: {p} п. · {g} з. · {e} э. · {s} с. · {c} м.",
                         FontSize = 12,
                         Foreground = (Brush)FindResource("B.Accent"),
                         Margin = new Thickness(0, 8, 0, 0)
@@ -533,6 +648,7 @@ namespace HMWT_MUI.Windows
             _category.IsEnabled = false;
             _sort.IsEnabled = false;
             _gold.IsEnabled = false;
+            _platinum.IsEnabled = false;
             _electrum.IsEnabled = false;
             _silver.IsEnabled = false;
             _copper.IsEnabled = false;
@@ -557,7 +673,7 @@ namespace HMWT_MUI.Windows
                 Fail("Получатель не выбран.");
                 return;
             }
-            if (_selected.Count == 0 && ParseMoney(_gold) + ParseMoney(_electrum) + ParseMoney(_silver) + ParseMoney(_copper) == 0)
+            if (_selected.Count == 0 && ParseMoney(_platinum) + ParseMoney(_gold) + ParseMoney(_electrum) + ParseMoney(_silver) + ParseMoney(_copper) == 0)
             {
                 Fail("Выберите предметы или укажите монеты.");
                 return;
@@ -574,6 +690,7 @@ namespace HMWT_MUI.Windows
                 ToName = _other.CharacterName ?? _other.Name,
                 Items = _selected.Select(i => ToTradeItem(i, SelectedQuantity(i))).ToList(),
                 Gold = ParseMoney(_gold),
+                Platinum = ParseMoney(_platinum),
                 Electrum = ParseMoney(_electrum),
                 Silver = ParseMoney(_silver),
                 Copper = ParseMoney(_copper)
@@ -676,8 +793,9 @@ namespace HMWT_MUI.Windows
             }
 
             var money = _money.LoadMoney();
-            if (money.Gold < _pending.Gold || money.Electrum < _pending.Electrum ||
-                money.Silver < _pending.Silver || money.Copper < _pending.Copper)
+            if (money.Platinum < _pending.Platinum || money.Gold < _pending.Gold ||
+                money.Electrum < _pending.Electrum || money.Silver < _pending.Silver ||
+                money.Copper < _pending.Copper)
                 error = "Недостаточно монет — передача отменена.";
 
             if (error != null)
@@ -704,6 +822,7 @@ namespace HMWT_MUI.Windows
                 }
             }
 
+            money.Platinum -= _pending.Platinum;
             money.Gold -= _pending.Gold;
             money.Electrum -= _pending.Electrum;
             money.Silver -= _pending.Silver;
@@ -732,6 +851,7 @@ namespace HMWT_MUI.Windows
                 }
 
                 var money = _money.LoadMoney();
+                money.Platinum += msg.Platinum;
                 money.Gold += msg.Gold;
                 money.Electrum += msg.Electrum;
                 money.Silver += msg.Silver;
