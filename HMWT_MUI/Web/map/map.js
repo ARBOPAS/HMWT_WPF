@@ -1961,45 +1961,44 @@
     return screenToScene(screenPoint(e));
   }
 
-  function snapPoint(x, y, prevX, prevY) {
+  function snapPoint(x, y, originX, originY) {
     if (!state || !state.grid || !state.grid.snap) return { x, y };
     const c = cellPx();
 
-    // Центр клетки под курсором.
+    // Невидимая «сфера» из восьми секторов вокруг клетки, с которой начали
+    // тащить жетон. Направление берём от центра этой клетки к указателю:
+    // так диагональ не зависит от того, какая ось первой пересекла границу.
     const center = (v) => Math.round((v - c / 2) / c) * c + c / 2;
+    const ox = center(originX);
+    const oy = center(originY);
+    const dx = x - ox;
+    const dy = y - oy;
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
 
-    if (prevX === undefined || prevX === null ||
-        prevY === undefined || prevY === null) {
-      return { x: center(x), y: center(y) };
-    }
+    // Мёртвая зона: пока указатель почти в центре, жетон стоит.
+    if (Math.max(ax, ay) < c * 0.45) return { x: ox, y: oy };
 
-    // Считаем от центра текущей клетки, а не от «сырой» позиции жетона:
-    // так диагональ не зависит от того, где именно остановился указатель.
-    const prevCx = center(prevX);
-    const prevCy = center(prevY);
-    const dx = x - prevCx;
-    const dy = y - prevCy;
+    const dirs = [
+      [1, 0], [1, 1], [0, 1], [-1, 1],
+      [-1, 0], [-1, -1], [0, -1], [1, -1]
+    ];
+    const sector = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+    const dir = dirs[((sector % 8) + 8) % 8];
 
-    // Диагональ включается, когда указатель ушёл примерно на треть клетки
-    // по обеим осям. Раньше оси проверялись независимо: одна успевала
-    // перескочить, вторая оставалась — и жетон «объезжал» угол.
-    const diagonal = Math.abs(dx) >= c * 0.35 && Math.abs(dy) >= c * 0.35;
-    const pastX = Math.abs(dx) >= c * 0.5;
-    const pastY = Math.abs(dy) >= c * 0.5;
+    let steps;
+    if (dir[0] !== 0 && dir[1] !== 0)
+      steps = Math.max(ax, ay) / c;
+    else if (dir[0] !== 0)
+      steps = ax / c;
+    else
+      steps = ay / c;
 
-    if (diagonal)
-    {
-      // Даже если указатель ещё не дошёл до центра соседней клетки, но
-      // ушёл по обеим осям — идём в диагональную клетку, а не стоим.
-      const step = (delta) =>
-      {
-        const n = Math.round(delta / c);
-        return n !== 0 ? n : (delta >= 0 ? 1 : -1);
-      };
-      return { x: prevCx + step(dx) * c, y: prevCy + step(dy) * c };
-    }
-    if (!pastX && !pastY) return { x: prevCx, y: prevCy };
-    return { x: center(x), y: center(y) };
+    steps = Math.max(1, Math.round(steps));
+    return {
+      x: Math.max(0, Math.min(mapW, ox + dir[0] * steps * c)),
+      y: Math.max(0, Math.min(mapH, oy + dir[1] * steps * c))
+    };
   }
 
   function snapWall(x, y) {
@@ -2547,10 +2546,28 @@
   }
 
   function trailMeasure(points) {
-    let pixels = 0;
-    for (let i = 1; i < points.length; i++)
-      pixels += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-    showMeasure('путь ' + measureText(pixels / Math.max(1, cellPx())));
+    const c = Math.max(1, cellPx());
+    let cells = 0;
+
+    if (state && state.grid && state.grid.snap) {
+      // Для сетки считаем клетки, а не пиксельную длину ломаной: диагональный
+      // шаг — это одна клетка (5 футов), а не 1,4 из-за гипотенузы.
+      let prev = null;
+      for (const p of points) {
+        const col = Math.round((p.x - c / 2) / c);
+        const row = Math.round((p.y - c / 2) / c);
+        if (prev)
+          cells += Math.max(Math.abs(col - prev.col), Math.abs(row - prev.row));
+        prev = { col: col, row: row };
+      }
+    } else {
+      let pixels = 0;
+      for (let i = 1; i < points.length; i++)
+        pixels += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+      cells = pixels / c;
+    }
+
+    showMeasure('путь ' + measureText(cells));
   }
 
   function drawRuler(from, to) {
@@ -2751,6 +2768,7 @@
     drag = {
       kind: 'token', id: hit.id, node: hit.node, token: t,
       offsetX: sp.x - t.x, offsetY: sp.y - t.y,
+      originX: t.x, originY: t.y,
       path: [{ x: t.x, y: t.y }]
     };
 
@@ -2776,9 +2794,9 @@
     const t = drag.token;
     let x = sp.x - drag.offsetX;
     let y = sp.y - drag.offsetY;
-    // Опираемся на текущую клетку жетона: так ход по диагонали не «застревает»
-    // на углу, а смена клетки происходит целым шагом по обеим осям.
-    const snapped = snapPoint(x, y, t.x, t.y);
+    // Центр клетки, с которой начали тащить: от него считаем восемь
+    // направлений, а не округляем оси по отдельности.
+    const snapped = snapPoint(x, y, drag.originX ?? t.x, drag.originY ?? t.y);
     x = snapped.x;
     y = snapped.y;
 
@@ -3324,5 +3342,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.14.9');
+  log('renderer ready v1.3.15.0');
 })();
