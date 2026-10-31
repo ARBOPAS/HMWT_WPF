@@ -1965,17 +1965,41 @@
     if (!state || !state.grid || !state.grid.snap) return { x, y };
     const c = cellPx();
 
-    // Гистерезис: жетон остаётся в текущей клетке, пока курсор не ушёл от её
-    // центра больше чем на 60%. Без этого оси округлялись по очереди и жетон
-    // «объезжал» клетку по сторонам вместо хода по диагонали.
-    const snapAxis = (v, prev) => {
-      const center = Math.round((v - c / 2) / c) * c + c / 2;
-      if (prev === undefined || prev === null) return center;
-      if (Math.abs(v - prev) < c * 0.6) return prev;
-      return center;
-    };
+    // Центр клетки под курсором.
+    const center = (v) => Math.round((v - c / 2) / c) * c + c / 2;
 
-    return { x: snapAxis(x, prevX), y: snapAxis(y, prevY) };
+    if (prevX === undefined || prevX === null ||
+        prevY === undefined || prevY === null) {
+      return { x: center(x), y: center(y) };
+    }
+
+    // Считаем от центра текущей клетки, а не от «сырой» позиции жетона:
+    // так диагональ не зависит от того, где именно остановился указатель.
+    const prevCx = center(prevX);
+    const prevCy = center(prevY);
+    const dx = x - prevCx;
+    const dy = y - prevCy;
+
+    // Диагональ включается, когда указатель ушёл примерно на треть клетки
+    // по обеим осям. Раньше оси проверялись независимо: одна успевала
+    // перескочить, вторая оставалась — и жетон «объезжал» угол.
+    const diagonal = Math.abs(dx) >= c * 0.35 && Math.abs(dy) >= c * 0.35;
+    const pastX = Math.abs(dx) >= c * 0.5;
+    const pastY = Math.abs(dy) >= c * 0.5;
+
+    if (diagonal)
+    {
+      // Даже если указатель ещё не дошёл до центра соседней клетки, но
+      // ушёл по обеим осям — идём в диагональную клетку, а не стоим.
+      const step = (delta) =>
+      {
+        const n = Math.round(delta / c);
+        return n !== 0 ? n : (delta >= 0 ? 1 : -1);
+      };
+      return { x: prevCx + step(dx) * c, y: prevCy + step(dy) * c };
+    }
+    if (!pastX && !pastY) return { x: prevCx, y: prevCy };
+    return { x: center(x), y: center(y) };
   }
 
   function snapWall(x, y) {
@@ -3300,5 +3324,5 @@
     window.chrome.webview.postMessage({ type: 'ready' });
   }
 
-  log('renderer ready v1.3.14.8');
+  log('renderer ready v1.3.14.9');
 })();
