@@ -920,7 +920,7 @@ namespace HMWT_MUI.Views
             _prepareDragStart = e.GetPosition(PrepareOverlay);
             _prepareStartX = PrepareDrag.X;
             _prepareStartY = PrepareDrag.Y;
-            PrepareHeader.CaptureMouse();
+            PrepareDragArea.CaptureMouse();
             e.Handled = true;
         }
 
@@ -935,7 +935,7 @@ namespace HMWT_MUI.Views
         private void PrepareHeader_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             _prepareDragging = false;
-            PrepareHeader.ReleaseMouseCapture();
+            PrepareDragArea.ReleaseMouseCapture();
         }
         #endregion
 

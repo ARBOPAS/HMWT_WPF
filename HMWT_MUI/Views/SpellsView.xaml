@@ -1212,20 +1212,23 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <Grid x:Name="PrepareHeader" MouseLeftButtonDown="PrepareHeader_MouseLeftButtonDown"
-                          MouseMove="PrepareHeader_MouseMove" MouseLeftButtonUp="PrepareHeader_MouseLeftButtonUp">
+                    <Grid x:Name="PrepareHeader">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="ВЫБЕРИТЕ ДЛЯ ПОДГОТОВКИ"
-                                   FontFamily="{StaticResource F.Display}" FontSize="16"
-                                   Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"
-                                   Cursor="SizeAll" ToolTip="Потяните, чтобы переместить окно"/>
-                        <Button Grid.Column="1" Width="28" Height="28" Cursor="Hand"
-                                Background="Transparent" BorderThickness="0"
+                        <Border x:Name="PrepareDragArea" Background="Transparent" Cursor="SizeAll"
+                                ToolTip="Потяните, чтобы переместить окно"
+                                MouseLeftButtonDown="PrepareHeader_MouseLeftButtonDown"
+                                MouseMove="PrepareHeader_MouseMove"
+                                MouseLeftButtonUp="PrepareHeader_MouseLeftButtonUp">
+                            <TextBlock Text="ВЫБЕРИТЕ ДЛЯ ПОДГОТОВКИ"
+                                       FontFamily="{StaticResource F.Display}" FontSize="16"
+                                       Foreground="{StaticResource B.Accent}" VerticalAlignment="Center"/>
+                        </Border>
+                        <Button Grid.Column="1" Style="{StaticResource GhostCloseBtn}"
                                 Click="PrepareCancel_Click" ToolTip="Закрыть">
-                            <helpers:IconView Kind="close" IconSize="14" IconBrush="{StaticResource B.Mute}"/>
+                            <helpers:IconView Kind="close" IconSize="14" IconBrush="{StaticResource B.Ink}"/>
                         </Button>
                     </Grid>
 
