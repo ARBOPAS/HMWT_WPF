@@ -350,9 +350,10 @@
   // ─────────────────────────── карта-картинка ───────────────────────────
 
   function applyMapSpriteSize() {
-    if (!mapSprite || mapSprite.destroyed) return;
+    if (!mapSprite || mapSprite.destroyed || !mapSprite.texture) return;
     const tex = mapSprite.texture;
-    if (tex && tex.baseTexture && !tex.baseTexture.valid) return;
+    if (!tex || !tex.baseTexture || tex.baseTexture.destroyed) return;
+    if (!tex.baseTexture.valid) return;
     mapSprite.width = mapW;
     mapSprite.height = mapH;
   }
@@ -525,7 +526,7 @@
     if (!url) return;
 
     const tex = texture(url);
-    if (!tex || !tex.baseTexture) return;
+    if (!tex || !tex.baseTexture || tex.baseTexture.destroyed) return;
 
     try {
       mapSprite = new PIXI.Sprite(tex);
