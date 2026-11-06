@@ -2226,17 +2226,22 @@ namespace HMWT_MUI.Net
             }
         }
 
-        private async Task SendToAsync(string playerId, NetMessage message)
+        /// <summary>
+        /// Личное сообщение одному участнику (передача предметов, скрытый бросок).
+        ///
+        /// Пишет ТОЛЬКО через <see cref="SendSafeAsync"/>, то есть под замком
+        /// соединения. Раньше здесь был прямой вызов NetFraming.WriteAsync, и
+        /// получалось вот что: предложение обмена одновременно уходило личным
+        /// сообщением и системной строкой в общую ленту. Две записи в один сокет
+        /// шли параллельно и перемешивались между заголовком длины и телом;
+        /// клиент читал мусор, рвал соединение и переподключался — со стороны
+        /// это выглядело как «клиента выбросило из отряда». Личный бросок ведущего
+        /// ломал связь так же.
+        /// </summary>
+        private Task SendToAsync(string playerId, NetMessage message)
         {
-            if (!_clients.TryGetValue(playerId, out var c)) return;
-            try
-            {
-                await NetFraming.WriteAsync(c.Stream, message, c.Cts.Token).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[RoomServer] отправка не удалась: {ex.Message}");
-            }
+            if (!_clients.TryGetValue(playerId, out var c)) return Task.CompletedTask;
+            return SendSafeAsync(c, message);
         }
 
         /// <summary>
@@ -2828,6 +2833,12 @@ namespace HMWT_MUI.Net
         private void Log(string text)
         {
             Debug.WriteLine("[RoomServer] " + text);
+
+            // Пишем и в room-log.txt: без этого разрывы связи («покинул комнату
+            // (таймаут)») существовали только в отладчике, и по жалобе «игрока
+            // выбросило» в журнале не было ни строчки.
+            LogRoomLine(text);
+
             Events?.Log?.Invoke(text);
         }
 

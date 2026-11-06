@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+using Microsoft.Data.Sqlite;
 using System;
 
 namespace HMWT_MUI.Services
@@ -29,6 +29,16 @@ namespace HMWT_MUI.Services
 
     public class MoneyService
     {
+        /// <summary>
+        /// Деньги персонажа изменились: сделка, магазин, отдых, калькулятор.
+        ///
+        /// Зачем событие: лист персонажа держит свою копию денег (_currentMoney)
+        /// и при закрытии окна записывает её обратно в базу. Обмен менял базу
+        /// напрямую, а окно об этом не знало — и старая копия затирала перевод.
+        /// Со стороны это выглядело так, будто монеты вообще не передаются.
+        /// </summary>
+        public static event Action<int> Changed;
+
         private readonly int _characterId;
         public MoneyService(int characterId) => _characterId = characterId;
 
@@ -72,6 +82,10 @@ namespace HMWT_MUI.Services
             cmd.Parameters.AddWithValue("@s", money.Silver);
             cmd.Parameters.AddWithValue("@c", money.Copper);
             cmd.ExecuteNonQuery();
+
+            // Сообщаем остальному приложению уже после записи, чтобы обработчик
+            // прочитал новые числа, а не старые.
+            try { Changed?.Invoke(_characterId); } catch { }
         }
 
 

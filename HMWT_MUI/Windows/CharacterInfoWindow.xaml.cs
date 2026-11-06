@@ -145,6 +145,11 @@ namespace HMWT_MUI
 
             LoadCharacter(characterId);
 
+            // Деньги могли изменить снаружи: обмен в «Отряде», магазин, отдых.
+            // Окно держит свою копию и пишет её при закрытии — без подписки
+            // эта копия затирала перевод, и монеты «не передавались».
+            MoneyService.Changed += CharacterInfoWindow_MoneyChanged;
+
             // ── Комната: показываем состояние и отдаём отряду данные персонажа ──
             RoomSession.Instance.StateChanged += RoomSession_StateChanged;
 
@@ -167,9 +172,13 @@ namespace HMWT_MUI
             };
             Closed += (_, __) =>
             {
-                // Деньги пишем и при закрытии окна: калькулятор мог остаться
-                // открытым, а правки в нём — несохранёнными
-                try { if (_currentMoney != null) _moneyService?.SaveMoney(_currentMoney); } catch { }
+                // Сначала отписываемся: запись денег ниже сама вызвала бы обработчик.
+                MoneyService.Changed -= CharacterInfoWindow_MoneyChanged;
+
+                // Деньги при закрытии НЕ пишем. Каждая правка калькулятора и так
+                // сохраняется сразу (SaveMoneyNow), а запись копии при закрытии
+                // затирала всё, что изменилось снаружи, — обмен в «Отряде»
+                // и покупки в магазине. Именно из-за неё монеты «не передавались».
 
                 // Тот же случай со списком состояний: он мог быть раскрыт
                 SaveConditionsFromUi();
@@ -1617,6 +1626,33 @@ namespace HMWT_MUI
             btnGoldDisplayToggle.ToolTip = _goldExpanded
                 ? "Режим: все монеты (клик — свернуть до золота)"
                 : "Режим: только золото (клик — показать все монеты)";
+        }
+
+        /// <summary>
+        /// Деньги этого персонажа изменились где-то ещё (обмен, магазин).
+        /// Перечитываем из базы — иначе при закрытии окна запишем старую копию.
+        /// </summary>
+        private void CharacterInfoWindow_MoneyChanged(int characterId)
+        {
+            if (characterId != _characterId) return;
+
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => CharacterInfoWindow_MoneyChanged(characterId)));
+                return;
+            }
+
+            try
+            {
+                _currentMoney = _moneyService?.LoadMoney();
+                UpdateHeaderGoldDisplay();
+                if (_isCalcOpen) UpdateCalcUI();
+                _currentInfoView?.RefreshEquipmentSummary();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[CharacterInfoWindow] монеты изменились: {ex.Message}");
+            }
         }
 
         private void UpdateHeaderGoldDisplay()

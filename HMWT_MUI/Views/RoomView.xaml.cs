@@ -58,6 +58,13 @@ namespace HMWT_MUI.Views
         private bool _subscribed;
         private TradeMessage _incomingTrade;
 
+        /// <summary>
+        /// Карточка входящего обмена не должна висеть вечно: отправитель мог
+        /// просто закрыть окно, и тогда ждать ответа не от кого.
+        /// </summary>
+        private readonly DispatcherTimer _tradeCardTimer =
+            new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+
         /// <summary>Обработчик таймера фото уже подписан.</summary>
         private bool _photoRetryHooked;
 
@@ -95,6 +102,20 @@ namespace HMWT_MUI.Views
             // и отбрасывает те, что пришли слишком часто.
             _chatImageTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
             _chatImageTimer.Tick += (s, e) => UpdateFeed();
+
+            // Предложение обмена живёт две минуты. Дальше карточка убирается:
+            // иначе у получателя навсегда остаётся «обмен от…» от сделки,
+            // которую отправитель давно закрыл.
+            _tradeCardTimer.Tick += (s, e) =>
+            {
+                _tradeCardTimer.Stop();
+                if (_incomingTrade == null) return;
+                _incomingTrade = null;
+                _session.ClearPendingTrade(null);
+                _renderedPlayersSignature = null;
+                UpdatePlayers();
+                ShowWindowToast("Предложение обмена устарело");
+            };
 
             // Лента на WebView2: гифки и картинки не грузят поток WPF.
             // Пока движок не поднялся — остаётся старая нативная лента.
@@ -166,6 +187,8 @@ namespace HMWT_MUI.Views
             if (_session.PendingTradeOffer != null)
             {
                 _incomingTrade = _session.PendingTradeOffer;
+                _tradeCardTimer.Stop();
+                _tradeCardTimer.Start();
                 _renderedPlayersSignature = null;
                 UpdatePlayers();
             }
@@ -227,6 +250,11 @@ namespace HMWT_MUI.Views
                 _chatImageRequestedAt.Clear();
                 _chatImageTimer.Stop();
                 _renderedFeedCount = -1;
+
+                // Из комнаты вышли — висящая карточка обмена уже ни к чему:
+                // отправителя рядом нет, а ответить ему некуда.
+                _tradeCardTimer.Stop();
+                _incomingTrade = null;
             }
             else if (!wasActive)
             {
@@ -900,11 +928,8 @@ namespace HMWT_MUI.Views
 
             if (!isMe && p.State == PeerState.Online && p.CharacterId > 0)
             {
-                var menu = new ContextMenu();
-                var tradeItem = new MenuItem { Header = "Передать предметы…" };
-                tradeItem.Click += (s, e) => OpenTrade(p);
-                menu.Items.Add(tradeItem);
-                card.ContextMenu = menu;
+                card.ContextMenu = CreateTradeMenu(p, OpenTrade);
+                card.ToolTip = "Правый клик — передать предметы";
             }
 
             card.Child = grid;
@@ -922,6 +947,7 @@ namespace HMWT_MUI.Views
                         _incomingTrade != null &&
                         string.Equals(_incomingTrade.TradeId, trade.TradeId, StringComparison.Ordinal))
                     {
+                        _tradeCardTimer.Stop();
                         _incomingTrade = null;
                         _session.ClearPendingTrade(trade.TradeId);
                         _renderedPlayersSignature = null;
@@ -932,55 +958,160 @@ namespace HMWT_MUI.Views
                 }
                 if (!string.Equals(trade.ToPlayerId, _session.GetMyPlayerId(), StringComparison.Ordinal)) return;
 
+                // Новое предложение отменяет старое: держать два нельзя, иначе
+                // отправитель первой сделки будет ждать ответа, которого не будет.
+                if (_incomingTrade != null &&
+                    !string.Equals(_incomingTrade.TradeId, trade.TradeId, StringComparison.Ordinal))
+                {
+                    _session.SendTrade(new TradeMessage
+                    {
+                        TradeId = _incomingTrade.TradeId,
+                        Kind = "decline",
+                        FromPlayerId = _session.GetMyPlayerId(),
+                        ToPlayerId = _incomingTrade.FromPlayerId,
+                        ToName = _incomingTrade.FromName,
+                        Error = "Пришло новое предложение — старое отклонено."
+                    });
+                }
+
                 _incomingTrade = trade;
+                _tradeCardTimer.Stop();
+                _tradeCardTimer.Start();
                 _renderedPlayersSignature = null;
                 UpdatePlayers();
                 ShowWindowToast($"{trade.FromName} предлагает обмен");
             }));
         }
 
+        /// <summary>
+        /// Меню по правой кнопке на карточке участника.
+        ///
+        /// Стиль ставится ЯВНО. В DesignTokens есть готовые DarkMenu/DarkMenuItem,
+        /// но они лежат с ключом, а неявного стиля на ContextMenu нет — поэтому
+        /// меню, созданное через new ContextMenu(), оставалось системным белым.
+        /// Отсюда и «чужое» меню посреди тёмного отряда.
+        /// </summary>
+        internal ContextMenu CreateTradeMenu(PlayerInfo target, Action<PlayerInfo> onTrade)
+        {
+            var menu = new ContextMenu
+            {
+                Style = Res<Style>("DarkMenu"),
+                FontFamily = FontRes("F.Body"),
+                FontSize = 12,
+                Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint,
+                // Запасной вариант, если токены почему-то не поднялись: даже без
+                // шаблона меню останется тёмным, а не белым.
+                Background = BrushRes("B.Slate", Color.FromRgb(0x11, 0x17, 0x29)),
+                Foreground = BrushRes("B.Ink", Color.FromRgb(0xE6, 0xEA, 0xF5)),
+                BorderBrush = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD))
+            };
+
+            var item = new MenuItem
+            {
+                Header = "Передать предметы…",
+                Style = Res<Style>("DarkMenuItem")
+            };
+            item.Click += (s, e) => onTrade?.Invoke(target);
+            menu.Items.Add(item);
+
+            return menu;
+        }
+
+        /// <summary>Сколько и каких монет предлагают — коротко, в одну строку.</summary>
+        private static string CoinsShort(TradeMessage trade)
+        {
+            if (trade == null) return "";
+            var parts = new List<string>();
+            if (trade.Platinum > 0) parts.Add(trade.Platinum + " п.");
+            if (trade.Gold > 0) parts.Add(trade.Gold + " з.");
+            if (trade.Electrum > 0) parts.Add(trade.Electrum + " э.");
+            if (trade.Silver > 0) parts.Add(trade.Silver + " с.");
+            if (trade.Copper > 0) parts.Add(trade.Copper + " м.");
+            return string.Join(" · ", parts);
+        }
+
+        /// <summary>
+        /// Карточка входящего предложения.
+        ///
+        /// Кнопки вынесены отдельной строкой во всю ширину карточки. Раньше они
+        /// стояли в той же строке, что и текст, и на колонке в 300 точек
+        /// «Открыть» с «Отклонить» наезжали на название обмена.
+        /// </summary>
         private Border BuildIncomingTradeCard()
         {
+            var accent = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD));
+
             var card = new Border
             {
                 Background = BrushRes("B.PanelHi", Color.FromRgb(0x1B, 0x23, 0x38)),
-                BorderBrush = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD)),
+                BorderBrush = accent,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(10),
+                Padding = new Thickness(10, 9, 10, 10),
                 Margin = new Thickness(0, 0, 0, 8)
             };
 
-            var row = new Grid();
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var stack = new StackPanel();
 
-            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock
+            // ── заголовок: значок и имя отправителя ──
+            var head = new Grid();
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            head.Children.Add(new IconView
+            {
+                Kind = "swap",
+                IconSize = 14,
+                IconBrush = accent,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            });
+
+            var title = new TextBlock
             {
                 Text = "ОБМЕН ОТ " + (_incomingTrade.FromName ?? "ИГРОКА").ToUpperInvariant(),
                 FontFamily = FontRes("F.Display"),
-                FontSize = 12,
+                FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = BrushRes("B.Accent", Color.FromRgb(0x5F, 0xD4, 0xDD))
-            });
-            int count = _incomingTrade.Items?.Count ?? 0;
-            text.Children.Add(new TextBlock
-            {
-                Text = $"{count} предмет(ов) · {_incomingTrade.Platinum} п. · {_incomingTrade.Gold} з. · {_incomingTrade.Electrum} э. · {_incomingTrade.Silver} с. · {_incomingTrade.Copper} м.",
-                FontSize = 11,
-                Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
-                Margin = new Thickness(0, 3, 0, 0)
-            });
-            row.Children.Add(text);
+                Foreground = accent,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.NoWrap,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            title.ToolTip = title.Text;
+            Grid.SetColumn(title, 1);
+            head.Children.Add(title);
+            stack.Children.Add(head);
 
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            // ── что предлагают: предметы и монеты коротко ──
+            int count = _incomingTrade.Items?.Count ?? 0;
+            string coins = CoinsShort(_incomingTrade);
+            string summary = (count > 0 ? "Предметов: " + count : "Только монеты")
+                             + (coins.Length > 0 ? " · " + coins : "");
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = summary,
+                FontSize = 10.5,
+                Foreground = BrushRes("B.Mute", Color.FromRgb(0x8B, 0x95, 0xB4)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 9)
+            });
+
+            // ── кнопки: своя строка, две равные доли, без наездов ──
+            var buttons = new Grid();
+            buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
             var open = new Button
             {
                 Content = "Открыть",
-                Style = (Style)FindResource("RoomActionBtn"),
-                Padding = new Thickness(14, 6, 14, 6),
-                Cursor = Cursors.Hand
+                Style = Res<Style>("RoomActionBtn"),
+                Height = 30,
+                Padding = new Thickness(0),
+                FontSize = 11.5,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 3, 0)
             };
             open.Click += (s, e) => OpenIncomingTrade();
             buttons.Children.Add(open);
@@ -988,39 +1119,51 @@ namespace HMWT_MUI.Views
             var decline = new Button
             {
                 Content = "Отклонить",
-                Style = (Style)FindResource("RoomGhostBtn"),
-                Padding = new Thickness(12, 6, 12, 6),
-                Margin = new Thickness(8, 0, 0, 0),
-                Cursor = Cursors.Hand
+                Style = Res<Style>("RoomGhostBtn"),
+                Height = 30,
+                Padding = new Thickness(0),
+                FontSize = 11.5,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(3, 0, 0, 0)
             };
-            decline.Click += (s, e) =>
-            {
-                var offer = _incomingTrade;
-                _incomingTrade = null;
-                if (offer != null)
-                    _session.SendTrade(new TradeMessage
-                    {
-                        TradeId = offer.TradeId,
-                        Kind = "decline",
-                        FromPlayerId = _session.GetMyPlayerId(),
-                        ToPlayerId = offer.FromPlayerId,
-                        ToName = offer.FromName
-                    });
-                _renderedPlayersSignature = null;
-                UpdatePlayers();
-            };
+            decline.Click += (s, e) => DeclineIncomingTrade();
+            Grid.SetColumn(decline, 1);
             buttons.Children.Add(decline);
 
-            Grid.SetColumn(buttons, 1);
-            row.Children.Add(buttons);
-            card.Child = row;
+            stack.Children.Add(buttons);
+            card.Child = stack;
             return card;
+        }
+
+        /// <summary>Отказ от предложения: карточка убирается сразу, отправитель узнаёт.</summary>
+        private void DeclineIncomingTrade()
+        {
+            var offer = _incomingTrade;
+            if (offer == null) return;
+
+            _tradeCardTimer.Stop();
+            _incomingTrade = null;
+            _session.ClearPendingTrade(offer.TradeId);
+
+            _session.SendTrade(new TradeMessage
+            {
+                TradeId = offer.TradeId,
+                Kind = "decline",
+                FromPlayerId = _session.GetMyPlayerId(),
+                ToPlayerId = offer.FromPlayerId,
+                ToName = offer.FromName
+            });
+
+            _renderedPlayersSignature = null;
+            UpdatePlayers();
         }
 
         private void OpenIncomingTrade()
         {
             var offer = _incomingTrade;
             if (offer == null) return;
+
+            _tradeCardTimer.Stop();
             _incomingTrade = null;
             _renderedPlayersSignature = null;
             UpdatePlayers();

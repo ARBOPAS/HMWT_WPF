@@ -860,7 +860,29 @@ namespace HMWT_MUI.Net
         private void Log(string text)
         {
             Debug.WriteLine("[RoomClient] " + text);
+            LogRoomLine(text);
             Events?.Log?.Invoke(text);
+        }
+
+        /// <summary>
+        /// Строка в общий room-log. У гостя нет своего журнала, а без причины
+        /// разрыва («разрыв: …») по жалобе «выбросило из отряда» ничего не понять.
+        /// </summary>
+        private static readonly object LogLock = new object();
+
+        private static void LogRoomLine(string text)
+        {
+            try
+            {
+                string dir = HMWT_MUI.PhotoHelper.GetWritableRoot();
+                Directory.CreateDirectory(dir);
+                lock (LogLock)
+                {
+                    File.AppendAllText(Path.Combine(dir, "room-log.txt"),
+                        $"{DateTime.Now:HH:mm:ss.fff} гость: {text}\r\n");
+                }
+            }
+            catch { }
         }
 
         /// <summary>Лента из последнего снимка (для восстановления вида после переподключения).</summary>

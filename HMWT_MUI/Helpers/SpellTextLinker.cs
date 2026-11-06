@@ -20,6 +20,52 @@ namespace HMWT_MUI.Helpers
 
         public static void Invalidate() { _names = null; _fuzzy = null; }
 
+        /// <summary>
+        /// Как <see cref="MatchExact"/>, но с той же нечёткостью, что и ссылки
+        /// в тексте: в бестиарии «Контрзаклинание» и «Удержание личности»,
+        /// а в справочнике — «Контрзаклятье» и «Удержание персоны».
+        /// </summary>
+        public static string MatchLoose(string text)
+        {
+            string exact = MatchExact(text);
+            if (exact != null) return exact;
+
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            string probe = Regex.Replace(text.Trim(), @"\s*[\(\[].*?[\)\]]\s*$", "").Trim();
+            if (probe.Length < 4) return null;
+
+            try
+            {
+                FindNextSpell(probe, 0, Names(), out int at, out string name, out int length);
+                if (at == 0 && name != null && length >= probe.Length - 2) return name;
+            }
+            catch { }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Точное совпадение названия со справочником. Нужно плашкам в карточке
+        /// существа: по нему видно, есть ли заклинание в базе (тогда плашка
+        /// нажимается), и какое у него каноническое имя для окна описания.
+        /// «Щит (Shield)» и «Щит» считаются одним заклинанием.
+        /// </summary>
+        public static string MatchExact(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
+            string probe = text.Trim();
+            string baseName = Regex.Replace(probe, @"\s*[\(\[].*?[\)\]]\s*$", "").Trim();
+
+            foreach (string name in Names())
+            {
+                if (string.Equals(name, probe, StringComparison.OrdinalIgnoreCase)) return name;
+                if (string.Equals(name, baseName, StringComparison.OrdinalIgnoreCase)) return name;
+            }
+            return null;
+        }
+
         private static readonly Regex RussianWord = new Regex(
             @"[А-Яа-яЁё]{5,}", RegexOptions.Compiled);
 

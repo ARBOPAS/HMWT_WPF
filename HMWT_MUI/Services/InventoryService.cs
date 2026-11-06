@@ -361,11 +361,6 @@ namespace HMWT_MUI.Services
             using var tx = conn.BeginTransaction();
             try
             {
-                using (var unequip = new SqliteCommand("UPDATE EquipmentCells SET id_item=NULL WHERE id_item=@itemId", conn, tx))
-                {
-                    unequip.Parameters.AddWithValue("@itemId", itemId);
-                    unequip.ExecuteNonQuery();
-                }
                 using (var get = new SqliteCommand("SELECT quantity FROM Inventory WHERE id_item=@id AND id_character=@charId", conn, tx))
                 {
                     get.Parameters.AddWithValue("@id", itemId);
@@ -375,6 +370,15 @@ namespace HMWT_MUI.Services
                     int newQty = Convert.ToInt32(res) - quantityToRemove;
                     if (newQty <= 0)
                     {
+                        // Ячейку снаряжения освобождаем только когда строка исчезает
+                        // целиком. Раньше её чистили всегда, и при передаче части
+                        // стопки (например, 5 стрел из 20) оставшиеся стрелы
+                        // оказывались снятыми с экипировки без всякой причины.
+                        using (var unequip = new SqliteCommand("UPDATE EquipmentCells SET id_item=NULL WHERE id_item=@itemId", conn, tx))
+                        {
+                            unequip.Parameters.AddWithValue("@itemId", itemId);
+                            unequip.ExecuteNonQuery();
+                        }
                         using var del = new SqliteCommand("DELETE FROM Inventory WHERE id_item=@id AND id_character=@charId", conn, tx);
                         del.Parameters.AddWithValue("@id", itemId);
                         del.Parameters.AddWithValue("@charId", _characterId);

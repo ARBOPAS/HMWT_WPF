@@ -26,6 +26,9 @@ namespace HMWT_MUI.Views
         /// </summary>
         private HashSet<string> _expertSkills = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>Подписка на изменение денег уже висит.</summary>
+        private bool _moneyHooked;
+
         public CharacterInfoView(int characterId)
         {
             InitializeComponent();
@@ -42,8 +45,39 @@ namespace HMWT_MUI.Views
 
             LoadCharacterData();
 
-            Loaded += (_, __) => ApplyAdaptiveLayout();
+            Loaded += (_, __) =>
+            {
+                ApplyAdaptiveLayout();
+
+                // Сводка внизу листа показывает золото. Деньги меняет не только
+                // лист: обмен в «Отряде» и магазин пишут в GoldTable напрямую,
+                // и без подписки в строке оставалось старое число.
+                if (!_moneyHooked)
+                {
+                    _moneyHooked = true;
+                    MoneyService.Changed += OnMoneyChanged;
+                }
+            };
+            Unloaded += (_, __) =>
+            {
+                if (!_moneyHooked) return;
+                _moneyHooked = false;
+                MoneyService.Changed -= OnMoneyChanged;
+            };
             SizeChanged += (_, __) => ApplyAdaptiveLayout();
+        }
+
+        private void OnMoneyChanged(int characterId)
+        {
+            if (characterId != _characterId) return;
+
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnMoneyChanged(characterId)));
+                return;
+            }
+
+            RefreshEquipmentSummary();
         }
 
         /// <summary>

@@ -503,6 +503,21 @@ namespace HMWT_MUI.Views
             textPage.Children.Add(DmUiKit.FieldBlock("ВВОДНЫЙ ТЕКСТ ЛЕГЕНДАРНЫХ ДЕЙСТВИЙ", _legendaryIntro));
             textPage.Children.Add(DmUiKit.FieldBlock("ЛОГОВО", _lairText));
             textPage.Children.Add(DmUiKit.FieldBlock("ЗАКЛИНАНИЯ И ПСИОНИКА", _spells));
+
+            // Приведение текста к виду «один круг — одна строка». Нужно потому,
+            // что импортированные существа часто несут весь блок одной строкой:
+            // карточка его разберёт и так, но в редакторе с ним невозможно работать.
+            var spellsTools = new WrapPanel { Margin = new Thickness(0, 2, 0, 10) };
+            spellsTools.Children.Add(DmUiKit.Action("Разложить по кругам", (s, e) =>
+            {
+                string formatted = MonsterSpellSheet.Format(_spells.Text);
+                if (string.IsNullOrWhiteSpace(formatted)) return;
+
+                _spells.Text = formatted;
+                _spells.CaretIndex = 0;
+            }, DmUiKit.ButtonKind.Ghost,
+                "Переписать так: «1 круг (4): Щит, Туманный шаг» — по строке на круг", 208, 28));
+            textPage.Children.Add(spellsTools);
             textPage.Children.Add(DmUiKit.FieldBlock("СНАРЯЖЕНИЕ", _equipment));
             textPage.Children.Add(DmUiKit.FieldBlock("ОПИСАНИЕ И ВНЕШНОСТЬ", _description));
 

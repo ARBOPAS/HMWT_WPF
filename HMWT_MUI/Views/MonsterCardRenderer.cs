@@ -192,8 +192,7 @@ namespace HMWT_MUI.Views
             }
 
             if (!string.IsNullOrWhiteSpace(monster.Spells))
-                root.Children.Add(BuildTextSection("ЗАКЛИНАНИЯ И ПСИОНИКА", monster.Spells,
-                    monster, source, style, true));
+                root.Children.Add(BuildSpellSection(monster, source, style));
 
             if (!string.IsNullOrWhiteSpace(monster.Equipment))
                 root.Children.Add(BuildTextSection("СНАРЯЖЕНИЕ", monster.Equipment, monster, source, style));
@@ -530,14 +529,51 @@ namespace HMWT_MUI.Views
                 TextWrapping = TextWrapping.Wrap,
                 LineHeight = Math.Max(16, style.FontSize * 1.35)
             };
-            SpellTextLinker.BuildRich(block, text.Trim(), name =>
-            {
-                if (Window.GetWindow(source) is CharacterInfoWindow info)
-                    info.ShowSpellByName(name);
-                else
-                    SpellDetailWindow.Show(source, name);
-            }, onDice, style, onHit);
+            SpellTextLinker.BuildRich(block, text.Trim(), name => OpenSpell(source, name), onDice, style, onHit);
             return block;
+        }
+
+        /// <summary>
+        /// Раздел заклинаний. Если текст разложился по кругам — рисуем строки
+        /// с плашками (см. <see cref="MonsterSpellBlock"/>), иначе как раньше:
+        /// одним абзацем со ссылками.
+        /// </summary>
+        private static UIElement BuildSpellSection(MonsterData monster,
+            FrameworkElement source, RollTextStyle style)
+        {
+            var sheet = MonsterSpellSheet.Parse(monster.Spells);
+
+            var panel = new StackPanel();
+            panel.Children.Add(DmUiKit.SectionPanel("ЗАКЛИНАНИЯ И ПСИОНИКА"));
+
+            if (!sheet.IsStructured)
+            {
+                panel.Children.Add(BuildSpellLinkedText(monster.Spells, source, style,
+                    part => RollDicePart(source, monster, part, "Заклинания", ""),
+                    bonus => DmRolls.RollAttack(source, bonus, monster?.Name ?? "", "Заклинание")));
+                return panel;
+            }
+
+            // Вступление («Врождённое колдовство 14-го уровня, Сл спасброска 16…»)
+            // остаётся текстом: это проза, а не список кругов.
+            if (!string.IsNullOrWhiteSpace(sheet.Intro))
+            {
+                panel.Children.Add(BuildSpellLinkedText(sheet.Intro, source, style,
+                    part => RollDicePart(source, monster, part, "Заклинания", ""),
+                    bonus => DmRolls.RollAttack(source, bonus, monster?.Name ?? "", "Заклинание")));
+            }
+
+            panel.Children.Add(MonsterSpellBlock.Build(sheet, SpellTextLinker.MatchLoose,
+                name => OpenSpell(source, name)));
+            return panel;
+        }
+
+        private static void OpenSpell(FrameworkElement source, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            if (Window.GetWindow(source) is CharacterInfoWindow info) info.ShowSpellByName(name);
+            else SpellDetailWindow.Show(source, name);
         }
 
         private static UIElement BuildTextSection(string title, string text, MonsterData monster,

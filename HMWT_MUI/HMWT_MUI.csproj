@@ -200,6 +200,7 @@
     <Compile Include="Services\ClientRoomHistory.cs" />
     <Compile Include="Services\InventoryService.cs" />
     <Compile Include="Services\MoneyService.cs" />
+    <Compile Include="Services\MonsterSpellSheet.cs" />
     <Compile Include="Services\MapService.cs" />
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
@@ -289,6 +290,7 @@
     <Compile Include="Helpers\UpnpProbe.cs" />
     <Compile Include="Helpers\DmRolls.cs" />
     <Compile Include="Views\MonsterCardRenderer.cs" />
+    <Compile Include="Views\MonsterSpellBlock.cs" />
     <Compile Include="Views\MapView.cs" />
     <Compile Include="Views\MapView.Web.cs" />
     <Compile Include="Views\MapView.Events.cs" />

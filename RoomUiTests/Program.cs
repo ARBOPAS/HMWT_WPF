@@ -17,6 +17,7 @@ using HMWT_MUI.Net;
 using HMWT_MUI.Helpers;
 using HMWT_MUI.Services;
 using HMWT_MUI.Views;
+using HMWT_MUI.Windows;
 
 namespace HMWT_MUI.RoomUiTests
 {
@@ -373,6 +374,28 @@ namespace HMWT_MUI.RoomUiTests
             Say("═══ ВКЛАДКА НАСТРОЕК ═══");
             CheckSettingsView();
 
+            // ── Окно передачи предметов ──
+            //
+            // Окно собирается кодом, поэтому проверяем не «есть ли файл», а как
+            // оно реально выглядит: рисуем его в картинку и смотрим на пиксели.
+            // Тёмный фон, светлый текст, все пять монет, фильтры в одну строку,
+            // кламп количества и корзина передачи.
+            Say("");
+            Say("═══ ПЕРЕДАЧА ПРЕДМЕТОВ ═══");
+            CheckTradeProtocol();
+            CheckTradeWindow();
+            CheckTradeMoney();
+            CheckTradeCardAndMenu();
+
+            // ── Заклинания в карточке существа ──
+            //
+            // Блок «Заклинания и псионика» раньше был одним абзацем. Проверяем
+            // и разбор («круг» / «уровень», ячейки, вступление), и вид: строки
+            // по кругам с плашками заклинаний.
+            Say("");
+            Say("═══ ЗАКЛИНАНИЯ В КАРТОЧКЕ СУЩЕСТВА ═══");
+            CheckMonsterSpells();
+
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
             CheckPhotoTransfer();
@@ -398,6 +421,15 @@ namespace HMWT_MUI.RoomUiTests
             Say("");
             Say("═══ ВЕРСИЯ ПРИЛОЖЕНИЯ ═══");
             CheckVersionConsistency();
+
+            // ── Кодировка исходников ──
+            //
+            // Файл, переписанный «не той» кодировкой, компилируется без единой
+            // ошибки: русский текст просто превращается в «РЎСѓС‰РµСЃС‚РІРѕ»
+            // и уезжает в интерфейс. Проверка дешёвая — ловим характерные пары.
+            Say("");
+            Say("═══ КОДИРОВКА ИСХОДНИКОВ ═══");
+            CheckSourceEncoding();
 
             // ── Связка «персонаж ↔ участник боя ↔ жетон» по character_id ──
             //
@@ -446,7 +478,7 @@ namespace HMWT_MUI.RoomUiTests
                 CharacterRace = "Полуорк", Level = 3, Hp = 24, MaxHp = 30, ArmorClass = 16
             };
 
-            if (!session.CreateRoom("Проверка интерфейса", me, 47777, out string error))
+            if (!session.CreateRoom("Проверка интерфейса", me, FindFreeRoomPort(), out string error))
             {
                 Check("комната создана", false, error);
                 return;
@@ -492,12 +524,12 @@ namespace HMWT_MUI.RoomUiTests
                 CheckTrackerToMap(session);
 
                 Say("  подключаю второго участника по сети…");
-                var guest = new RoomClient("127.0.0.1", 47777, session.Key, session.RoomId, "");
+                var guest = new RoomClient("127.0.0.1", session.Port, session.Key, session.RoomId, "");
 
                 // Счётчик при входе через RoomSession: проверяем именно момент входа
                 Say("");
                 Say("═══ СЧЁТЧИК УЧАСТНИКОВ ПРИ ВХОДЕ ═══");
-                CheckClientCountOnJoin(session.Key, session.RoomId);
+                CheckClientCountOnJoin(session.Key, session.RoomId, session.Port);
                 Say("");
                 bool joined = guest.ConnectAsync(new PlayerInfo
                 {
@@ -545,6 +577,15 @@ namespace HMWT_MUI.RoomUiTests
                 Say("");
                 Say("═══ АУДИО В КОМНАТЕ ═══");
                 CheckAudioRoom(session, guest);
+
+                // ── Обмен не рвёт связь ──
+                // Каждое предложение уходит и личным сообщением, и системной
+                // строкой в ленту. Раньше две записи в один сокет шли без замка,
+                // клиент читал мусор и выпадал из отряда с переподключением.
+                Say("");
+                Say("═══ ПЕРЕДАЧА ПРЕДМЕТОВ: СЕТЬ ═══");
+                CheckTradeTransport(session, guest);
+                CheckTradeEndToEnd(session, guest);
 
                 session.PublishChat("Все в сборе? Начинаем спуск в подземелье.");
                 session.PublishRoll("1d20+5", "Проверка Восприятия", 22, new List<int> { 17 });
@@ -1669,7 +1710,7 @@ namespace HMWT_MUI.RoomUiTests
         /// список участников был ещё пуст, и статус залипал как 0/8 до следующего
         /// снимка. Здесь проверяем именно момент входа, без ожидания.
         /// </summary>
-        private static void CheckClientCountOnJoin(string key, string roomId)
+        private static void CheckClientCountOnJoin(string key, string roomId, int port)
         {
             // Отдельный экземпляр: общий занят хостом, а JoinRoom на активной
             // сессии не выполнить. Конструктор, а не GetUninitializedObject —
@@ -1689,7 +1730,7 @@ namespace HMWT_MUI.RoomUiTests
                     Level = 1, Hp = 7, MaxHp = 8, ArmorClass = 14
                 };
 
-                bool joined = client.JoinRoom("127.0.0.1", 47777, key, me, out string error);
+                bool joined = client.JoinRoom("127.0.0.1", port, key, me, out string error);
                 Check("гость вошёл через RoomSession", joined, error);
 
                 if (!joined) return;
@@ -2797,6 +2838,1107 @@ namespace HMWT_MUI.RoomUiTests
                 current = VisualTreeHelper.GetParent(current);
             }
             return false;
+        }
+
+        #endregion
+
+        #region === ПЕРЕДАЧА ПРЕДМЕТОВ ===
+
+        /// <summary>
+        /// Обмен переживает сериализацию: в сообщении едут все пять монет и
+        /// количество предмета. Проверка дешёвая, но ловит опечатку в имени
+        /// поля, из-за которой платина терялась бы по дороге.
+        /// Ещё здесь проверяется защита от повтора: один и тот же номер сделки
+        /// не должен начислиться дважды.
+        /// </summary>
+        private static void CheckTradeProtocol()
+        {
+            var message = new TradeMessage
+            {
+                TradeId = "trade-proto",
+                Kind = "offer",
+                FromPlayerId = "a",
+                FromName = "Гром",
+                ToPlayerId = "b",
+                ToName = "Тишь",
+                Platinum = 1,
+                Gold = 2,
+                Electrum = 3,
+                Silver = 4,
+                Copper = 5,
+                Items = new List<TradeItem>
+                {
+                    new TradeItem
+                    {
+                        SourceItemId = 77, Name = "Стрелы", Category = "Боеприпасы",
+                        Quantity = 13, Weight = 0.05m, Rarity = "обычный"
+                    }
+                }
+            };
+
+            var envelope = new NetMessage(MsgType.Trade, message);
+            var back = envelope.As<TradeMessage>();
+
+            Check("обмен разбирается из конверта", back != null, "конверт пуст");
+            if (back == null) return;
+
+            Check("в обмене едут все пять монет",
+                back.Platinum == 1 && back.Gold == 2 && back.Electrum == 3 &&
+                back.Silver == 4 && back.Copper == 5,
+                $"{back.Platinum} п. · {back.Gold} з. · {back.Electrum} э. · {back.Silver} с. · {back.Copper} м.");
+            Check("платина не путается с золотом", back.Platinum == 1 && back.Gold == 2);
+            Check("количество предмета не теряется",
+                back.Items.Count == 1 && back.Items[0].Quantity == 13 && back.Items[0].SourceItemId == 77,
+                back.Items.Count == 0 ? "предметов нет" : $"шт: {back.Items[0].Quantity}");
+
+            string id = Guid.NewGuid().ToString("N");
+            Check("номер сделки запоминается", TradeWindow.MarkCommitApplied(id));
+            Check("повтор с тем же номером не применяется", !TradeWindow.MarkCommitApplied(id));
+            TradeWindow.UnmarkCommitApplied(id);
+            Check("снятая отметка снова пропускает передачу", TradeWindow.MarkCommitApplied(id));
+        }
+
+        /// <summary>
+        /// Окно отправителя и окно получателя: рисуем в картинку и смотрим.
+        ///
+        /// Проверяется то, из-за чего окно переделывали: тёмный фон без системной
+        /// шапки, светлый текст, все пять монет, фильтры в одну строку, баланс,
+        /// кламп количества по остатку и корзина передачи.
+        /// </summary>
+        private static void CheckTradeWindow()
+        {
+            int characterId = FindCharacterWithInventory(out int itemCount);
+            if (characterId <= 0)
+            {
+                Say("  [ПРОПУСК] в базе нет персонажа с инвентарём");
+                return;
+            }
+            Say($"  персонаж {characterId}, предметов в инвентаре: {itemCount}");
+
+            var other = new PlayerInfo
+            {
+                Id = "trade-peer",
+                Name = "Лиза",
+                CharacterName = "Тишь",
+                CharacterClass = "Плут",
+                Level = 3,
+                CharacterId = 987651,
+                State = PeerState.Online
+            };
+
+            // ── отправитель ──
+            var sender = new TradeWindow(null, characterId, other);
+            try
+            {
+                sender.WindowStartupLocation = WindowStartupLocation.Manual;
+                sender.Left = -6000;
+                sender.Top = -6000;
+                sender.Show();
+                Pump();
+                sender.UpdateLayout();
+
+                Check("окно передачи без системной шапки", sender.WindowStyle == WindowStyle.None);
+                Check("окно передачи рисует себя само", sender.AllowsTransparency);
+
+                var frame = sender.Content as Border;
+                var background = frame?.Background as SolidColorBrush;
+                Check("фон окна — тёмный токен B.Panel",
+                    background != null && LuminanceOf(background.Color) < 0.25,
+                    background == null ? "фон не задан" : background.Color.ToString());
+
+                Check("внизу виден баланс «У вас: … п. · … з. · … э. · … с. · … м.»",
+                    sender.BalanceText.StartsWith("У вас:") &&
+                    sender.BalanceText.Contains(" п. · ") && sender.BalanceText.Contains(" э. · ") &&
+                    sender.BalanceText.Contains(" м."),
+                    sender.BalanceText);
+
+                Check("рядом показано, сколько останется",
+                    sender.RemainingText.StartsWith("Останется:"), sender.RemainingText);
+
+                int labels = CountTexts(sender, "ПЛАТИНА", "ЗОЛОТО", "ЭЛЕКТРУМ", "СЕРЕБРО", "МЕДЬ");
+                Check("в сетке монет все пять подписей", labels == 5, $"найдено: {labels}");
+
+                var searchBox = FindDescendants<TextBox>(sender).FirstOrDefault(t => (t.Tag as string) == "Найти предмет");
+                var combos = FindDescendants<ComboBox>(sender).ToList();
+                var filterRoot = searchBox?.Parent as UIElement;
+
+                double searchY = searchBox != null && filterRoot != null ? searchBox.TranslatePoint(new Point(0, 0), filterRoot).Y : -1;
+                double firstY = combos.Count > 0 && filterRoot != null ? combos[0].TranslatePoint(new Point(0, 0), filterRoot).Y : -2;
+                double secondY = combos.Count > 1 && filterRoot != null ? combos[1].TranslatePoint(new Point(0, 0), filterRoot).Y : -3;
+                double searchX = searchBox != null && filterRoot != null ? searchBox.TranslatePoint(new Point(0, 0), filterRoot).X : -1;
+                double firstX = combos.Count > 0 && filterRoot != null ? combos[0].TranslatePoint(new Point(0, 0), filterRoot).X : -2;
+                double secondX = combos.Count > 1 && filterRoot != null ? combos[1].TranslatePoint(new Point(0, 0), filterRoot).X : -3;
+
+                bool inline = filterRoot != null && combos.Count >= 2 &&
+                              Math.Abs(searchY - firstY) <= 2 &&
+                              Math.Abs(firstY - secondY) <= 2 &&
+                              searchX < firstX && firstX < secondX;
+                string filterGeometry = filterRoot == null
+                    ? "фильтры не найдены"
+                    : $"поиск y={searchY:0.#} x={searchX:0.#}; категория y={firstY:0.#} x={firstX:0.#}; сортировка y={secondY:0.#} x={secondX:0.#}";
+                Check("поиск, категория и сортировка стоят в одной строке", inline, filterGeometry);
+
+                var row = sender.LeftList.Children.OfType<Border>().FirstOrDefault();
+                var flag = row == null ? null : FindDescendants<CheckBox>(row).FirstOrDefault();
+                Check("в строке инвентаря свой флажок", flag != null,
+                    flag?.Style == null ? "у флажка нет стиля CustomCheckBox" : "");
+                Check("флажок оформлен стилем CustomCheckBox", flag?.Style != null);
+
+                if (flag != null)
+                {
+                    flag.IsChecked = true;
+                    Pump();
+                    var picked = sender.SelectedItems.FirstOrDefault();
+                    Check("выбранный предмет попадает в сделку", picked != null);
+
+                    if (picked != null)
+                    {
+                        var qtyBox = FindDescendants<TextBox>(row).FirstOrDefault();
+                        if (qtyBox != null)
+                        {
+                            qtyBox.Text = "9999";
+                            Pump();
+                            Check("количество не поднимается выше остатка",
+                                sender.QuantityOf(picked.Id) == picked.Quantity,
+                                $"в инвентаре {picked.Quantity}, в сделке {sender.QuantityOf(picked.Id)}");
+                        }
+                        else
+                        {
+                            Check("у количества есть поле ввода", false, "поле не найдено");
+                        }
+
+                        Check("корзина передачи заполняется", sender.RightList.Children.Count > 0,
+                            $"строк: {sender.RightList.Children.Count}");
+                        Check("итог корзины подписан", sender.BasketNote.Contains("К передаче"), sender.BasketNote);
+                        Check("кнопка «Предложить» доступна после выбора", sender.PrimaryEnabled);
+                    }
+                }
+
+                SaveTradeScreenshot(sender, Path.Combine(_outDir, "shot-trade-sender.png"));
+
+                var shot = RenderWindowOnDark(sender);
+                Luminance(shot, out double mean, out double max, out double bright);
+                Check("окно передачи тёмное", mean < 0.30, $"средняя яркость {mean:0.00}");
+                Check("на тёмном фоне есть светлый текст", max > 0.55, $"максимум {max:0.00}");
+                Check("в окне нет белых системных плашек", bright < 0.06, $"светлых пикселей {bright:P1}");
+            }
+            finally
+            {
+                sender.Close();
+                Pump();
+            }
+
+            // ── получатель ──
+            var offer = new TradeMessage
+            {
+                TradeId = "trade-incoming",
+                Kind = "offer",
+                FromPlayerId = "trade-from",
+                FromName = "Гром",
+                ToPlayerId = "me",
+                ToName = "Тишь",
+                Platinum = 12,
+                Gold = 34,
+                Electrum = 7,
+                Silver = 15,
+                Copper = 9,
+                Items = new List<TradeItem>
+                {
+                    new TradeItem { SourceItemId = 3, Name = "Клинок сумерек", Category = "Оружие", Rarity = "редкий", Quantity = 1, DamageDice = "1к8" },
+                    new TradeItem { SourceItemId = 4, Name = "Стрелы", Category = "Боеприпасы", Quantity = 13 }
+                }
+            };
+
+            var from = new PlayerInfo
+            {
+                Id = "trade-from", Name = "Артём", CharacterName = "Гром",
+                CharacterClass = "Воин", Level = 3, State = PeerState.Online
+            };
+
+            var receiver = new TradeWindow(null, characterId, from, offer);
+            try
+            {
+                receiver.WindowStartupLocation = WindowStartupLocation.Manual;
+                receiver.Left = -6000;
+                receiver.Top = -6000;
+                receiver.Show();
+                Pump();
+                receiver.UpdateLayout();
+
+                Check("слева предложение, справа свой инвентарь",
+                    receiver.LeftList.Children.Count >= 3 && receiver.RightList.Children.Count >= 1,
+                    $"слева {receiver.LeftList.Children.Count}, справа {receiver.RightList.Children.Count}");
+                Check("у получателя виден свой баланс", receiver.BalanceText.StartsWith("У вас:"), receiver.BalanceText);
+
+                string offerText = CollectText(receiver.LeftList);
+                Check("в предложении видны монеты, включая платину и электрум",
+                    offerText.Contains("12 п.") && offerText.Contains("7 э."),
+                    offerText.Length > 160 ? offerText.Substring(0, 160) : offerText);
+                Check("в предложении видно количество предметов",
+                    offerText.Contains("×13") && offerText.Contains("×1"));
+                Check("получатель может принять обмен", receiver.PrimaryEnabled);
+
+                SaveTradeScreenshot(receiver, Path.Combine(_outDir, "shot-trade-receiver.png"));
+
+                var shot = RenderWindowOnDark(receiver);
+                Luminance(shot, out double mean, out double max, out double bright);
+                Check("окно получателя тоже тёмное", mean < 0.30, $"средняя яркость {mean:0.00}");
+                Check("на тёмном фоне видна светлая надпись", max > 0.55, $"максимум {max:0.00}");
+                Check("в окне получателя нет белых плашек", bright < 0.06, $"светлых пикселей {bright:P1}");
+            }
+            finally
+            {
+                receiver.Close();
+                Pump();
+            }
+        }
+
+        /// <summary>
+        /// Монеты: ввод в окне, списание у отправителя, зачисление получателю.
+        ///
+        /// Проверяется прямо по базе: после сделки в GoldTable должны быть
+        /// новые числа, а не те же самые. Раньше этот путь вообще не проверялся,
+        /// и «монеты не передаются» всплыло только руками.
+        /// </summary>
+        private static void CheckTradeMoney()
+        {
+            int characterId = FindCharacterWithMoney();
+            if (characterId <= 0)
+            {
+                Say("  [ПРОПУСК] нет персонажа с деньгами");
+                return;
+            }
+            Say($"  персонаж для денег: {characterId}");
+
+            var service = new MoneyService(characterId);
+            CharacterMoney original = null;
+            try { original = service.LoadMoney(); } catch { }
+
+            int moneyEvents = 0;
+            Action<int> moneyHandler = id => { if (id == characterId) moneyEvents++; };
+
+            try
+            {
+                MoneyService.Changed += moneyHandler;
+
+                service.SaveMoney(new CharacterMoney
+                {
+                    Platinum = 10, Gold = 20, Electrum = 3, Silver = 40, Copper = 50
+                });
+
+                Check("изменение денег сообщается приложению", moneyEvents == 1,
+                    $"событий: {moneyEvents}");
+
+                var other = new PlayerInfo
+                {
+                    Id = "money-peer", CharacterName = "Тишь", CharacterClass = "Плут",
+                    Level = 3, State = PeerState.Online, CharacterId = 987652
+                };
+
+                var sender = new TradeWindow(null, characterId, other);
+                try
+                {
+                    sender.WindowStartupLocation = WindowStartupLocation.Manual;
+                    sender.Left = -6000;
+                    sender.Top = -6000;
+                    sender.Show();
+                    Pump();
+                    sender.UpdateLayout();
+
+                    Check("баланс в окне читается из базы",
+                        sender.BalanceText.Contains("10 п.") && sender.BalanceText.Contains("20 з."),
+                        sender.BalanceText);
+
+                    var boxes = GetPrivate(sender, "_coinBoxes") as TextBox[];
+                    Check("поля монет созданы", boxes != null && boxes.Length == 5,
+                        boxes == null ? "нет полей" : $"полей: {boxes.Length}");
+
+                    if (boxes != null && boxes.Length == 5)
+                    {
+                        boxes[1].Text = "7";
+                        Pump();
+
+                        var values = CallPrivate(sender, "MoneyValues") as int[];
+                        Check("введённые монеты читаются из полей",
+                            values != null && values[1] == 7,
+                            values == null ? "нет значений" : string.Join(" / ", values));
+
+                        Check("корзина подписана монетами",
+                            sender.BasketNote.Contains("монеты"), sender.BasketNote);
+                        Check("в корзине появилась карточка монет",
+                            sender.RightList.Children.Count > 0,
+                            $"строк в корзине: {sender.RightList.Children.Count}");
+                        Check("одни монеты без предметов можно предложить", sender.PrimaryEnabled);
+                        Check("строка «останется» пересчиталась",
+                            sender.RemainingText.Contains("13 з."), sender.RemainingText);
+
+                        SaveTradeScreenshot(sender, Path.Combine(_outDir, "shot-trade-money.png"));
+                    }
+
+                    // ── списание у отправителя ──
+                    var pending = new TradeMessage
+                    {
+                        TradeId = "money-commit-" + Guid.NewGuid().ToString("N"),
+                        Kind = "offer",
+                        FromPlayerId = "host",
+                        FromName = "Гром",
+                        ToPlayerId = "money-peer",
+                        ToName = "Тишь",
+                        Platinum = 1,
+                        Gold = 7,
+                        Electrum = 2,
+                        Silver = 3,
+                        Copper = 4
+                    };
+                    SetPrivate(sender, "_pending", pending);
+                    CallPrivate(sender, "CommitTransferCore");
+
+                    var afterSend = service.LoadMoney();
+                    Check("золото списалось у отправителя", afterSend.Gold == 13,
+                        $"было 20, стало {afterSend.Gold}");
+                    Check("платина списалась у отправителя", afterSend.Platinum == 9,
+                        $"было 10, стало {afterSend.Platinum}");
+                    Check("электрум списался у отправителя", afterSend.Electrum == 1,
+                        $"было 3, стало {afterSend.Electrum}");
+                    Check("серебро списалось у отправителя", afterSend.Silver == 37,
+                        $"было 40, стало {afterSend.Silver}");
+                    Check("медь списалась у отправителя", afterSend.Copper == 46,
+                        $"было 50, стало {afterSend.Copper}");
+                }
+                finally
+                {
+                    sender.Close();
+                    Pump();
+                }
+
+                // ── зачисление получателю ──
+                var from = new PlayerInfo
+                {
+                    Id = "money-from", CharacterName = "Гром", CharacterClass = "Воин",
+                    Level = 3, State = PeerState.Online
+                };
+                var incoming = new TradeMessage
+                {
+                    TradeId = "money-incoming",
+                    Kind = "offer",
+                    FromPlayerId = "money-from",
+                    FromName = "Гром",
+                    ToPlayerId = "me",
+                    ToName = "Тишь",
+                    Gold = 7
+                };
+
+                var receiver = new TradeWindow(null, characterId, from, incoming);
+                try
+                {
+                    receiver.WindowStartupLocation = WindowStartupLocation.Manual;
+                    receiver.Left = -6000;
+                    receiver.Top = -6000;
+                    receiver.Show();
+                    Pump();
+                    receiver.UpdateLayout();
+
+                    SetPrivate(receiver, "_accepted", true);
+                    CallPrivate(receiver, "ReceiveTransfer", new TradeMessage
+                    {
+                        TradeId = "money-receive-" + Guid.NewGuid().ToString("N"),
+                        Kind = "commit",
+                        Platinum = 1,
+                        Gold = 7,
+                        Electrum = 2,
+                        Silver = 3,
+                        Copper = 4
+                    });
+
+                    var afterReceive = service.LoadMoney();
+                    Check("золото зачислилось получателю", afterReceive.Gold == 20,
+                        $"было 13, стало {afterReceive.Gold}");
+                    Check("платина зачислилась получателю", afterReceive.Platinum == 10,
+                        $"было 9, стало {afterReceive.Platinum}");
+                    Check("серебро зачислилось получателю", afterReceive.Silver == 40,
+                        $"было 37, стало {afterReceive.Silver}");
+                }
+                finally
+                {
+                    receiver.Close();
+                    Pump();
+                }
+            }
+            finally
+            {
+                MoneyService.Changed -= moneyHandler;
+                if (original != null)
+                {
+                    try { service.SaveMoney(original); } catch { }
+                }
+            }
+        }
+
+        private static int FindCharacterWithMoney()
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT id_character FROM GoldTable ORDER BY (Platinum+Gold+Electrum+Silver+Copper) DESC LIMIT 1";
+                var value = cmd.ExecuteScalar();
+                if (value != null && value != DBNull.Value) return Convert.ToInt32(value);
+            }
+            catch (Exception ex)
+            {
+                Say("  персонаж с деньгами: " + ex.Message);
+            }
+            return FindAnyCharacterId();
+        }
+
+        private static object GetPrivate(object instance, string field)
+            => instance.GetType()
+                .GetField(field, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.GetValue(instance);
+
+        private static void SetPrivate(object instance, string field, object value)
+            => instance.GetType()
+                .GetField(field, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(instance, value);
+
+        private static object CallPrivate(object instance, string method, params object[] args)
+            => instance.GetType()
+                .GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.Invoke(instance, args);
+
+        /// <summary>
+        /// Карточка входящего обмена в «Отряде» и меню по правой кнопке.
+        ///
+        /// Карточка лежит в колонке шириной 300 точек. Кнопки обязаны стоять
+        /// отдельной строкой: раньше они делили строку с текстом и наезжали
+        /// на название обмена. Меню — тёмное: DarkMenu/DarkMenuItem лежали в
+        /// токенах с ключом, но к меню не применялись.
+        /// </summary>
+        private static void CheckTradeCardAndMenu()
+        {
+            var view = new RoomView();
+            var offer = new TradeMessage
+            {
+                TradeId = "trade-card",
+                Kind = "offer",
+                FromPlayerId = "peer",
+                FromName = "Тишь",
+                ToPlayerId = "me",
+                Items = new List<TradeItem>
+                {
+                    new TradeItem { SourceItemId = 1, Name = "Клинок сумерек", Quantity = 1 },
+                    new TradeItem { SourceItemId = 2, Name = "Стрелы", Quantity = 13 }
+                },
+                Platinum = 12,
+                Gold = 34,
+                Electrum = 7,
+                Silver = 15,
+                Copper = 9
+            };
+
+            typeof(RoomView)
+                .GetField("_incomingTrade", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(view, offer);
+
+            var builder = typeof(RoomView).GetMethod("BuildIncomingTradeCard",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            var card = builder?.Invoke(view, null) as Border;
+
+            Check("карточка входящего обмена собирается", card != null);
+            if (card != null)
+            {
+                var host = new Window
+                {
+                    Width = 300,
+                    Height = 600,
+                    Background = Brushes.Black,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = -6000,
+                    Top = -6000,
+                    ShowInTaskbar = false,
+                    Content = card
+                };
+                host.Show();
+                Pump();
+                host.UpdateLayout();
+                SaveTradeScreenshot(host, Path.Combine(_outDir, "shot-trade-card.png"));
+
+                var stack = card.Child as StackPanel;
+                Check("карточка обмена разложена в три строки",
+                    stack != null && stack.Children.Count == 3,
+                    stack == null ? "содержимое не StackPanel" : $"строк: {stack.Children.Count}");
+
+                if (stack != null && stack.Children.Count == 3)
+                {
+                    var summary = stack.Children[1] as TextBlock;
+                    var buttons = stack.Children[2] as Grid;
+                    Check("кнопки в отдельной строке", buttons != null);
+
+                    if (summary != null && buttons != null)
+                    {
+                        double summaryBottom = summary.TranslatePoint(new Point(0, summary.ActualHeight), card).Y;
+                        double buttonsTop = buttons.TranslatePoint(new Point(0, 0), card).Y;
+                        Check("кнопки не наезжают на текст",
+                            buttonsTop >= summaryBottom - 0.6,
+                            $"текст до {summaryBottom:0.#}, кнопки с {buttonsTop:0.#}");
+                        Check("кнопки занимают ширину карточки",
+                            buttons.ActualWidth >= card.ActualWidth - 24,
+                            $"кнопки {buttons.ActualWidth:0.#} из {card.ActualWidth:0.#}");
+                        Check("в строке кнопок две кнопки", buttons.Children.Count == 2,
+                            $"кнопок: {buttons.Children.Count}");
+                    }
+                }
+
+                host.Close();
+                Pump();
+            }
+
+            // ── меню по правой кнопке ──
+            var menu = view.CreateTradeMenu(new PlayerInfo { Id = "peer", CharacterName = "Тишь" }, p => { });
+            Check("меню ПКМ получило стиль DarkMenu", menu.Style != null);
+            Check("меню ПКМ тёмное по фону",
+                menu.Background is SolidColorBrush mb && LuminanceOf(mb.Color) < 0.25,
+                menu.Background is SolidColorBrush b2 ? b2.Color.ToString() : "фон не задан");
+
+            var item = menu.Items.OfType<MenuItem>().FirstOrDefault();
+            Check("пункт меню получил стиль DarkMenuItem", item?.Style != null);
+            Check("пункт меню подписан по-русски",
+                (item?.Header as string ?? "").Contains("Передать"), item?.Header as string ?? "<нет>");
+
+            // Проверяем именно отрисовку: шаблон мог не примениться, и тогда
+            // меню осталось бы системным белым, хотя Background задан.
+            menu.Measure(new Size(320, 240));
+            menu.Arrange(new Rect(0, 0, menu.DesiredSize.Width, menu.DesiredSize.Height));
+            menu.UpdateLayout();
+
+            if (menu.ActualWidth < 20)
+            {
+                menu.PlacementTarget = view;
+                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Relative;
+                menu.IsOpen = true;
+                Pump();
+            }
+
+            var drawn = RenderElement(menu);
+            SaveBitmapOnDark(drawn, Path.Combine(_outDir, "shot-trade-menu.png"));
+            Luminance(drawn, out double menuMean, out double menuMax, out double menuBright);
+            Check("меню реально рисуется тёмным",
+                menu.ActualWidth > 20 && menuMean < 0.35,
+                $"размер {menu.ActualWidth:0}×{menu.ActualHeight:0}, яркость {menuMean:0.00}");
+            Check("в меню есть светлая надпись",
+                menuMax > 0.55, $"максимум {menuMax:0.00}");
+            Check("меню не белое системное",
+                menuBright < 0.12, $"светлых пикселей {menuBright:P1}");
+
+            if (menu.IsOpen) menu.IsOpen = false;
+        }
+
+        /// <summary>
+        /// Предложения обмена не рвут соединение.
+        ///
+        /// На каждое предложение сервер пишет получателю ДВА сообщения: системную
+        /// строку в общую ленту и само предложение. Раньше вторая запись шла мимо
+        /// замка соединения, кадры перемешивались, и клиента выбрасывало из отряда
+        /// с последующим переподключением. Отправляем пачку и смотрим, что связь жива.
+        /// </summary>
+        private static void CheckTradeTransport(RoomSession session, RoomClient guest)
+        {
+            var received = new List<TradeMessage>();
+            var previous = guest.Events.TradeReceived;
+            guest.Events.TradeReceived = t =>
+            {
+                lock (received) received.Add(t);
+                previous?.Invoke(t);
+            };
+
+            try
+            {
+                string target = guest.PlayerId;
+                const int count = 12;
+
+                for (int i = 0; i < count; i++)
+                {
+                    session.SendTrade(new TradeMessage
+                    {
+                        TradeId = "transport-" + i,
+                        Kind = "offer",
+                        ToPlayerId = target,
+                        ToName = "Тишь",
+                        Items = new List<TradeItem>
+                        {
+                            new TradeItem { SourceItemId = i + 1, Name = "Стрелы", Quantity = 1 }
+                        },
+                        Gold = 5
+                    });
+                }
+
+                System.Threading.Thread.Sleep(1500);
+
+                int got;
+                lock (received) got = received.Count;
+
+                Check("предложения обмена доходят до клиента", got == count, $"дошло {got} из {count}");
+                Check("клиент не выпал из отряда от обмена", guest.IsConnected,
+                    "соединение закрыто — снова две записи в один сокет");
+                Check("клиент остался в списке участников",
+                    session.GetPlayers().Any(p => p.Id == target));
+            }
+            finally
+            {
+                guest.Events.TradeReceived = previous;
+            }
+        }
+
+        /// <summary>
+        /// Полный круг монет по сети: окно отправителя → сервер → клиент →
+        /// подтверждение → списание → commit → зачисление.
+        ///
+        /// Именно этот путь и жаловался «монеты не передаются». Он проверяется
+        /// целиком, а не по частям: окно, транспорт, база.
+        /// </summary>
+        private static void CheckTradeEndToEnd(RoomSession session, RoomClient guest)
+        {
+            int characterId = FindCharacterWithMoney();
+            if (characterId <= 0)
+            {
+                Say("  [ПРОПУСК] нет персонажа с деньгами");
+                return;
+            }
+
+            var service = new MoneyService(characterId);
+            CharacterMoney original = null;
+            try { original = service.LoadMoney(); } catch { }
+
+            var offers = new List<TradeMessage>();
+            var commits = new List<TradeMessage>();
+            var previous = guest.Events.TradeReceived;
+            TradeWindow window = null;
+
+            try
+            {
+                service.SaveMoney(new CharacterMoney
+                {
+                    Platinum = 5, Gold = 50, Electrum = 5, Silver = 50, Copper = 50
+                });
+
+                guest.Events.TradeReceived = t =>
+                {
+                    lock (offers)
+                    {
+                        if (t.Kind == "offer") offers.Add(t);
+                        else if (t.Kind == "commit") commits.Add(t);
+                    }
+                    previous?.Invoke(t);
+                };
+
+                var target = new PlayerInfo
+                {
+                    Id = guest.PlayerId, Name = "Лиза", CharacterName = "Тишь",
+                    CharacterClass = "Плут", Level = 3, State = PeerState.Online
+                };
+
+                window = new TradeWindow(null, characterId, target);
+                window.WindowStartupLocation = WindowStartupLocation.Manual;
+                window.Left = -6000;
+                window.Top = -6000;
+                window.Show();
+                Pump();
+                window.UpdateLayout();
+
+                var boxes = GetPrivate(window, "_coinBoxes") as TextBox[];
+                if (boxes == null || boxes.Length < 5)
+                {
+                    Check("поля монет в окне отправителя", false, "поля не найдены");
+                    return;
+                }
+
+                boxes[1].Text = "10";   // золото
+                Pump();
+
+                CallPrivate(window, "SendOffer");
+
+                for (int i = 0; i < 6 && CountLocked(offers) == 0; i++) Pump();
+
+                TradeMessage offer;
+                lock (offers) offer = offers.FirstOrDefault();
+
+                Check("предложение с монетами дошло до клиента", offer != null,
+                    CountLocked(offers) == 0 ? "клиент ничего не получил" : "");
+                Check("в предложении на той стороне есть золото",
+                    offer != null && offer.Gold == 10,
+                    offer == null ? "нет предложения" : $"золото: {offer.Gold}");
+
+                if (offer == null) return;
+
+                guest.SendTradeAsync(new TradeMessage
+                {
+                    TradeId = offer.TradeId,
+                    Kind = "accept",
+                    Accepted = true,
+                    FromPlayerId = guest.PlayerId,
+                    ToPlayerId = session.MyPlayerId
+                }).GetAwaiter().GetResult();
+
+                for (int i = 0; i < 8 && CountLocked(commits) == 0; i++) Pump();
+
+                var after = service.LoadMoney();
+                Check("золото списалось у отправителя после подтверждения",
+                    after.Gold == 40, $"было 50, стало {after.Gold}");
+
+                TradeMessage commit;
+                lock (commits) commit = commits.FirstOrDefault();
+
+                Check("получателю ушёл commit с золотом",
+                    commit != null && commit.Gold == 10,
+                    commit == null ? "commit не пришёл" : $"золото: {commit.Gold}");
+            }
+            catch (Exception ex)
+            {
+                Check("сквозная передача монет прошла без исключения", false, ex.Message);
+            }
+            finally
+            {
+                guest.Events.TradeReceived = previous;
+                try { window?.Close(); } catch { }
+                Pump();
+                if (original != null)
+                {
+                    try { service.SaveMoney(original); } catch { }
+                }
+            }
+        }
+
+        private static int CountLocked(List<TradeMessage> list)
+        {
+            lock (list) return list.Count;
+        }
+
+        private static int FindCharacterWithInventory(out int itemCount)
+        {
+            itemCount = 0;
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT id_character, COUNT(*) FROM Inventory GROUP BY id_character ORDER BY COUNT(*) DESC LIMIT 1";
+                using var reader = cmd.ExecuteReader();
+                if (!reader.Read()) return 0;
+                itemCount = Convert.ToInt32(reader.GetValue(1));
+                return Convert.ToInt32(reader.GetValue(0));
+            }
+            catch (Exception ex)
+            {
+                Say("  персонаж с инвентарём: " + ex.Message);
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Свободный порт для тестовой комнаты.
+        ///
+        /// Раньше здесь стоял 47777 — тот же порт, на котором висит запущенное
+        /// приложение. Если рядом работает вторая копия, TCP отдаёт соединение
+        /// ей, и гость получает «неверный ключ комнаты», хотя код ни при чём.
+        /// </summary>
+        private static int FindFreeRoomPort()
+        {
+            try
+            {
+                var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+                listener.Start();
+                int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                return port;
+            }
+            catch
+            {
+                return NetVersions.DefaultPort;
+            }
+        }
+
+        private static double LuminanceOf(Color color)
+            => (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) / 255.0;
+
+        private static IEnumerable<T> FindDescendants<T>(DependencyObject root) where T : DependencyObject
+        {
+            if (root == null) yield break;
+            int count = VisualTreeHelper.GetChildrenCount(root);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is T typed) yield return typed;
+                foreach (var nested in FindDescendants<T>(child)) yield return nested;
+            }
+        }
+
+        private static double XIn(UIElement element, UIElement root)
+            => element.TranslatePoint(new Point(0, 0), root).X;
+
+        private static double YIn(UIElement element, UIElement root)
+            => element.TranslatePoint(new Point(0, 0), root).Y;
+
+        private static int CountTexts(DependencyObject root, params string[] needles)
+        {
+            int found = 0;
+            foreach (var block in FindDescendants<TextBlock>(root))
+            {
+                string text = (block.Text ?? "").Trim();
+                foreach (string needle in needles)
+                {
+                    if (string.Equals(text, needle, StringComparison.Ordinal)) { found++; break; }
+                }
+            }
+            return found;
+        }
+
+        private static string CollectText(DependencyObject root)
+        {
+            var sb = new StringBuilder();
+            foreach (var block in FindDescendants<TextBlock>(root))
+                sb.AppendLine(block.Text ?? "");
+            return sb.ToString();
+        }
+
+        private static RenderTargetBitmap RenderWindowOnDark(Window window)
+        {
+            Pump();
+            window.UpdateLayout();
+
+            int width = (int)Math.Ceiling(window.ActualWidth > 1 ? window.ActualWidth : window.Width);
+            int height = (int)Math.Ceiling(window.ActualHeight > 1 ? window.ActualHeight : window.Height);
+            width = Math.Max(1, width);
+            height = Math.Max(1, height);
+
+            var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+
+            // Подложка: окно прозрачное по краям, и без неё картинка была бы
+            // пустой в местах, где не нарисовано содержимое.
+            var backdrop = new DrawingVisual();
+            using (var dc = backdrop.RenderOpen())
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x09, 0x0C, 0x16)), null,
+                    new Rect(0, 0, width, height));
+            bmp.Render(backdrop);
+            bmp.Render(window);
+            return bmp;
+        }
+
+        private static RenderTargetBitmap RenderElement(FrameworkElement element)
+        {
+            int width = Math.Max(1, (int)Math.Ceiling(element.ActualWidth));
+            int height = Math.Max(1, (int)Math.Ceiling(element.ActualHeight));
+            var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            bmp.Render(element);
+            return bmp;
+        }
+
+        private static void SaveTradeScreenshot(Window window, string path)
+        {
+            var bmp = RenderWindowOnDark(window);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using var stream = File.Create(path);
+            encoder.Save(stream);
+        }
+
+        /// <summary>Сохраняет картинку на тёмной подложке — чтобы видеть границы элемента.</summary>
+        private static void SaveBitmapOnDark(BitmapSource source, string path)
+        {
+            int width = Math.Max(1, source.PixelWidth) + 16;
+            int height = Math.Max(1, source.PixelHeight) + 16;
+
+            var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+
+            var backdrop = new DrawingVisual();
+            using (var dc = backdrop.RenderOpen())
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x15, 0x1B, 0x2E)), null,
+                    new Rect(0, 0, width, height));
+            bmp.Render(backdrop);
+
+            var layer = new DrawingVisual();
+            using (var dc = layer.RenderOpen())
+                dc.DrawImage(source, new Rect(8, 8, source.PixelWidth, source.PixelHeight));
+            bmp.Render(layer);
+
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using var stream = File.Create(path);
+            encoder.Save(stream);
+        }
+
+        /// <summary>
+        /// Средняя и максимальная яркость картинки и доля почти белых пикселей.
+        /// По ним видно, тёмное окно на самом деле или белое.
+        /// </summary>
+        private static void Luminance(BitmapSource bmp, out double mean, out double max, out double brightShare)
+        {
+            int width = bmp.PixelWidth;
+            int height = bmp.PixelHeight;
+            int total = Math.Max(1, width * height);
+            var pixels = new byte[width * height * 4];
+            bmp.CopyPixels(pixels, width * 4, 0);
+
+            double sum = 0;
+            max = 0;
+            int bright = 0;
+
+            for (int i = 0; i + 3 < pixels.Length; i += 4)
+            {
+                double b = pixels[i] / 255.0;
+                double g = pixels[i + 1] / 255.0;
+                double r = pixels[i + 2] / 255.0;
+                double value = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                sum += value;
+                if (value > max) max = value;
+                if (value > 0.85) bright++;
+            }
+
+            mean = sum / total;
+            brightShare = bright / (double)total;
+        }
+
+        #endregion
+
+        #region === ЗАКЛИНАНИЯ В КАРТОЧКЕ СУЩЕСТВА ===
+
+        /// <summary>
+        /// Разбор блока «Заклинания и псионика» и его отрисовка.
+        ///
+        /// В базе и в импорте это один текст, часто одной строкой: «Заговоры
+        /// (по желанию): … 1 круг (4): Щит, Туманный шаг. 2 круг (3): …».
+        /// Проверяем, что он раскладывается по кругам, что «уровень» и «ячейки»
+        /// понимаются наравне с «кругом», что проза не превращается в круги
+        /// и что блок рисуется строками с плашками, а не абзацем.
+        /// </summary>
+        private static void CheckMonsterSpells()
+        {
+            const string wall =
+                "Заговоры (по желанию): Ледянящее прикосновение, Волшебная рука, Малая иллюзия. " +
+                "1 круг (4): Щит, Туманный шаг. 2 круг (3): Зеркальное отражение, Удержание личности. " +
+                "3 круг (3): Контрзаклинание, Огненный шар, Гипнотический узор. 4 круг (3): Изгнание, дверь измерений. " +
+                "5 круг (3): Стена силы, Подчинение личности. 6 круг (2): Непреодолимая танц. Отто, Истинное зрение. " +
+                "7 круг (2): Телепортация, Клинок сил. 8 круг (1): Лабиринт.";
+
+            var sheet = MonsterSpellSheet.Parse(wall);
+            Check("стена текста разложена по кругам", sheet.Groups.Count == 9, $"кругов: {sheet.Groups.Count}");
+            Check("заговоры — нулевой круг с пометкой",
+                sheet.Groups.Count > 0 && sheet.Groups[0].Level == 0 &&
+                sheet.Groups[0].Slots.Contains("по желанию"),
+                sheet.Groups.Count > 0 ? sheet.Groups[0].Slots : "нет групп");
+            Check("в первом круге четыре ячейки и два заклинания",
+                sheet.Groups.Count > 1 && sheet.Groups[1].Slots == "4" && sheet.Groups[1].Spells.Count == 2,
+                sheet.Groups.Count > 1 ? $"{sheet.Groups[1].Slots}, заклинаний {sheet.Groups[1].Spells.Count}" : "");
+            Check("название с точкой внутри не разрезано",
+                sheet.Groups.Any(g => g.Spells.Contains("Непреодолимая танц. Отто")));
+            Check("всего заклинаний 19", sheet.SpellCount == 19, $"заклинаний: {sheet.SpellCount}");
+
+            // Импортированный вариант: «уровень», «ячейки», вступление с прозой.
+            const string imported =
+                "Врождённое колдовство 14-го уровня, характеристика — Харизма (Сл спасброска 16, +8 к попаданию заклинанием).\r\n" +
+                "Заговоры (по желанию): Волшебная рука, Малая иллюзия.\r\n" +
+                "1 уровень (4 ячейки): Щит (Shield), Туманный шаг.\r\n" +
+                "2 уровень (3 ячейки): Зеркальное отражение.\r\n" +
+                "8 уровень (1 ячейка): Лабиринт.";
+
+            var importedSheet = MonsterSpellSheet.Parse(imported);
+            Check("вступление отделено от кругов",
+                importedSheet.Intro.StartsWith("Врождённое колдовство"), importedSheet.Intro);
+            Check("«уровень» понимается как круг", importedSheet.Groups.Count == 4,
+                $"кругов: {importedSheet.Groups.Count}");
+            Check("ячейки попали в подпись",
+                importedSheet.Groups.Count > 1 && importedSheet.Groups[1].Slots == "4 ячейки",
+                importedSheet.Groups.Count > 1 ? importedSheet.Groups[1].Slots : "");
+            Check("английское в скобках не мешает плашке",
+                MonsterSpellSheet.DisplayName("Щит (Shield)") == "Щит",
+                MonsterSpellSheet.DisplayName("Щит (Shield)"));
+
+            var prose = MonsterSpellSheet.Parse("Существо чувствует магию в радиусе 60 футов.");
+            Check("проза не притворяется кругами", !prose.IsStructured && prose.Intro.Length > 0);
+
+            string tidy = MonsterSpellSheet.Format(wall);
+            var again = MonsterSpellSheet.Parse(tidy);
+            Check("«Разложить по кругам» не теряет заклинания",
+                again.Groups.Count == 9 && again.SpellCount == 19,
+                $"кругов {again.Groups.Count}, заклинаний {again.SpellCount}");
+            Check("причёсанный текст — по строке на круг",
+                tidy.Split('\n').Length == 9, $"строк: {tidy.Split('\n').Length}");
+
+            // ── отрисовка ──
+            var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Щит", "Туманный шаг", "Огненный шар", "Лабиринт"
+            };
+            var block = MonsterSpellBlock.Build(sheet,
+                name => known.Contains(MonsterSpellSheet.DisplayName(name)) ? name : null, null);
+
+            var host = new Window
+            {
+                Width = 1000,
+                Height = 700,
+                Background = Brushes.Black,
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                Left = -6000,
+                Top = -6000,
+                ShowInTaskbar = false,
+                Content = block
+            };
+            host.Show();
+            Pump();
+            host.UpdateLayout();
+
+            Check("в блоке девять строк по кругам", block.Children.Count == 9,
+                $"строк: {block.Children.Count}");
+
+            var texts = FindDescendants<TextBlock>(block).Select(t => t.Text ?? "").ToList();
+            Check("подписи кругов на месте",
+                texts.Contains("1 КРУГ") && texts.Contains("8 КРУГ") && texts.Contains("ЗАГОВОРЫ"));
+            Check("заклинания стали плашками",
+                texts.Contains("Щит") && texts.Contains("Огненный шар") && texts.Contains("Лабиринт"));
+            Check("стены текста больше нет",
+                !texts.Any(t => t.Contains("1 круг (4):")), "остался абзац со списком");
+            Check("подписи «ячеек» показываются", texts.Contains("4") || texts.Contains("4 ячейки"));
+
+            SaveTradeScreenshot(host, Path.Combine(_outDir, "shot-monster-spells.png"));
+            host.Close();
+            Pump();
+        }
+
+        /// <summary>
+        /// Ни один исходник не должен быть перекодирован в «кракозябры».
+        ///
+        /// Повод конкретный: правка файла через PowerShell с чужой кодировкой
+        /// один раз превратила все русские строки карточки существа в мусор,
+        /// и сборка при этом осталась зелёной — ошибка видна только глазами.
+        /// </summary>
+        private static void CheckSourceEncoding()
+        {
+            string root = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI"));
+            if (!Directory.Exists(root))
+            {
+                Say("  [ПРОПУСК] исходники не найдены: " + root);
+                return;
+            }
+
+            var files = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
+                .Where(f => !f.Contains("\\obj\\") && !f.Contains("\\bin\\"))
+                .ToList();
+
+            var broken = new List<string>();
+            foreach (string file in files)
+            {
+                string text;
+                try { text = File.ReadAllText(file, Encoding.UTF8); }
+                catch { continue; }
+
+                if (text.Contains("РЎ") || text.Contains("вЂ") || text.Contains("РїСЂ"))
+                    broken.Add(Path.GetFileName(file));
+            }
+
+            Check("исходники не перекодированы в кракозябры", broken.Count == 0,
+                broken.Count == 0
+                    ? $"файлов: {files.Count}"
+                    : string.Join(", ", broken.Take(5)));
         }
 
         #endregion
