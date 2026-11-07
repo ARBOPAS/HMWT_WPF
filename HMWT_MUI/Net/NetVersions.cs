@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace HMWT_MUI.Net
 {
@@ -412,7 +412,7 @@ namespace HMWT_MUI.Net
         ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.18.5";
+        public const string AppVersion = "1.3.18.6";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.

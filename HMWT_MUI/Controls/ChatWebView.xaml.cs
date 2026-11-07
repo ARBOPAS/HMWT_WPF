@@ -26,6 +26,12 @@ namespace HMWT_MUI.Controls
         /// <summary>Нажали «Сохранить…» на карточке файла: (id, имя, размер).</summary>
         public event Action<string, string, long> FileSaveRequested;
 
+        /// <summary>
+        /// «Открыть»/«Показать в папке» на карточке: (id, имя, размер, показать).
+        /// Файл скачивается во временную папку и открывается системным приложением.
+        /// </summary>
+        public event Action<string, string, long, bool> FileOpenRequested;
+
         public bool IsReady { get; private set; }
 
         private static readonly List<WeakReference> _live = new List<WeakReference>();
@@ -219,14 +225,18 @@ namespace HMWT_MUI.Controls
 
                 // «Сохранить…» на карточке файла: байты запрашиваются только
                 // после подтверждения размера, в самой ленте их нет
-                if (type == "chatFile")
+                if (type == "chatFile" || type == "chatFileOpen" || type == "chatFileShow")
                 {
                     string id = doc.RootElement.TryGetProperty("id", out var fid) ? fid.GetString() : "";
                     string name = doc.RootElement.TryGetProperty("name", out var fname) ? fname.GetString() : "";
                     long size = doc.RootElement.TryGetProperty("size", out var fsize) && fsize.TryGetInt64(out long parsed)
                         ? parsed : 0;
 
-                    if (!string.IsNullOrEmpty(id)) FileSaveRequested?.Invoke(id, name ?? "", size);
+                    if (!string.IsNullOrEmpty(id))
+                    {
+                        if (type == "chatFile") FileSaveRequested?.Invoke(id, name ?? "", size);
+                        else FileOpenRequested?.Invoke(id, name ?? "", size, type == "chatFileShow");
+                    }
                     return;
                 }
 
@@ -271,6 +281,10 @@ namespace HMWT_MUI.Controls
   .file-save { margin-top: 7px; cursor: pointer; border: 1px solid #2A6A74; background: #151B2E;
                color: #5FD4DD; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
   .file-save:hover { background: #1B2440; }
+  .file-actions { margin-top: 6px; display: flex; gap: 12px; }
+  .file-link { cursor: pointer; border: none; background: transparent; color: #8B95B4;
+               padding: 0; font-size: 11.5px; text-decoration: underline; }
+  .file-link:hover { color: #5FD4DD; }
   .empty { color: #8B95B4; text-align: center; padding: 14px 8px; }
 </style></head>
 <body><div id=""feed""></div><div id=""bottom""></div>
@@ -363,6 +377,25 @@ function makeFileCard(e) {
     });
   });
   card.appendChild(button);
+
+  // Открыть и показать в папке — сразу на карточке: не нужно сначала
+  // сохранять файл через диалог, чтобы потом его найти
+  const actions = el('div', 'file-actions');
+  const open = el('button', 'file-link', 'Открыть');
+  open.addEventListener('click', () => {
+    window.chrome.webview.postMessage({
+      type: 'chatFileOpen', id: e.fileId, name: e.fileName || '', size: e.fileSize || 0
+    });
+  });
+  const show = el('button', 'file-link', 'Показать в папке');
+  show.addEventListener('click', () => {
+    window.chrome.webview.postMessage({
+      type: 'chatFileShow', id: e.fileId, name: e.fileName || '', size: e.fileSize || 0
+    });
+  });
+  actions.appendChild(open);
+  actions.appendChild(show);
+  card.appendChild(actions);
   return card;
 }
 

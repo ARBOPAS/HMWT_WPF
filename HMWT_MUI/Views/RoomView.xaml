@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:controls="clr-namespace:HMWT_MUI.Controls"
+             xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="1100">
 
@@ -289,18 +290,18 @@
                          MinHeight="46" MaxHeight="150" AcceptsReturn="True" TextWrapping="Wrap"
                          VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
                          ToolTip="Enter — отправить, Shift+Enter — новая строка" KeyDown="TxtChatInput_KeyDown"/>
-                <Button Grid.Column="1" x:Name="btnChatIcon" Content="Иконка" Style="{StaticResource RoomGhostBtn}"
-                        Margin="10,0,0,0" MinWidth="86" MinHeight="46" Click="BtnChatIcon_Click"
-                        ToolTip="Отправить иконку приложения (стикер)"/>
-                <Button Grid.Column="2" x:Name="btnChatGifs" Content="Гифки" Style="{StaticResource RoomGhostBtn}"
+                <Button Grid.Column="1" x:Name="btnChatIcon" Style="{StaticResource RoomGhostBtn}"
+                        Margin="10,0,0,0" MinWidth="96" MinHeight="46" Click="BtnChatIcon_Click"
+                        ToolTip="Отправить иконку приложения (стикер)"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="sparkle" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="Иконка" VerticalAlignment="Center"/></StackPanel></Button>
+                <Button Grid.Column="2" x:Name="btnChatGifs" Style="{StaticResource RoomGhostBtn}"
                         Margin="8,0,0,0" MinWidth="86" MinHeight="46" Click="BtnChatGifs_Click"
-                        ToolTip="Избранные гифки: отправка в чат одним кликом"/>
-                <Button Grid.Column="3" x:Name="btnAttachImage" Content="Картинка" Style="{StaticResource RoomGhostBtn}"
-                        Margin="8,0,0,0" MinWidth="96" MinHeight="46" Click="BtnAttachImage_Click"
-                        ToolTip="Отправить картинку или гифку в чат"/>
-                <Button Grid.Column="4" x:Name="btnAttachFile" Content="Файл" Style="{StaticResource RoomGhostBtn}"
-                        Margin="8,0,0,0" MinWidth="76" MinHeight="46" Click="BtnAttachFile_Click"
-                        ToolTip="Отправить файл (docx, xlsx, md…). Размер не ограничен; получатель скачает его сам"/>
+                        ToolTip="Избранные гифки: отправка в чат одним кликом"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="star" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="Гифки" VerticalAlignment="Center"/></StackPanel></Button>
+                <Button Grid.Column="3" x:Name="btnAttachImage" Style="{StaticResource RoomGhostBtn}"
+                        Margin="8,0,0,0" MinWidth="106" MinHeight="46" Click="BtnAttachImage_Click"
+                        ToolTip="Отправить картинку или гифку в чат"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="image" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="Картинка" VerticalAlignment="Center"/></StackPanel></Button>
+                <Button Grid.Column="4" x:Name="btnAttachFile" Style="{StaticResource RoomGhostBtn}"
+                        Margin="8,0,0,0" MinWidth="86" MinHeight="46" Click="BtnAttachFile_Click"
+                        ToolTip="Отправить файл (docx, xlsx, md…). Размер не ограничен; получатель скачает его сам"><StackPanel Orientation="Horizontal"><helpers:IconView Kind="scroll" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="Файл" VerticalAlignment="Center"/></StackPanel></Button>
                 <Button Grid.Column="5" x:Name="btnSendChat" Content="Отправить" Style="{StaticResource RoomActionBtn}"
                         Margin="8,0,0,0" MinWidth="120" MinHeight="46" Click="BtnSendChat_Click"/>
             </Grid>

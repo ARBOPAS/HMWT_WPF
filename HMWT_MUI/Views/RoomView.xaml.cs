@@ -120,6 +120,7 @@ namespace HMWT_MUI.Views
             // Лента на WebView2: гифки и картинки не грузят поток WPF.
             // Пока движок не поднялся — остаётся старая нативная лента.
             ChatWeb.FileSaveRequested += OnChatFileSaveRequested;
+            ChatWeb.FileOpenRequested += OnChatFileOpenRequested;
             ChatWeb.Ready += () =>
             {
                 ChatWeb.Width = double.NaN;
@@ -1901,6 +1902,64 @@ namespace HMWT_MUI.Views
                 catch (Exception ex)
                 {
                     ShowWindowToast("Не удалось сохранить файл: " + ex.Message);
+                }
+            }
+
+            _session.ChatFileReady += OnReady;
+            if (!_session.RequestChatFile(fileId))
+            {
+                _session.ChatFileReady -= OnReady;
+                ShowWindowToast("Файл не найден у ведущего.");
+            }
+        }
+
+        /// <summary>
+        /// «Открыть»/«Показать в папке» на карточке файла: качаем во временную
+        /// папку приложения и открываем системным приложением. Размер
+        /// показываем до скачивания — файл может быть большим.
+        /// </summary>
+        private void OnChatFileOpenRequested(string fileId, string fileName, long size, bool showInFolder)
+        {
+            if (string.IsNullOrWhiteSpace(fileId)) return;
+
+            string shown = string.IsNullOrWhiteSpace(fileName) ? "файл" : fileName;
+            string text = "Файл «" + shown + "» весит " + HumanSize(size) + ".\n\n" +
+                          (showInFolder ? "Скачать и показать в папке?" : "Скачать и открыть?");
+
+            if (!MessageDialog.Confirm(this, text, "Файл из чата", "Скачать", "Отмена", false))
+                return;
+
+            string target;
+            try
+            {
+                string folder = System.IO.Path.Combine(PhotoHelper.GetWritableRoot(), "ChatDownloads");
+                Directory.CreateDirectory(folder);
+                target = System.IO.Path.Combine(folder, Services.ChatFileStore.Sanitize(fileName));
+            }
+            catch (Exception ex)
+            {
+                ShowWindowToast("Не удалось подготовить папку: " + ex.Message);
+                return;
+            }
+
+            void OnReady(string id, byte[] bytes)
+            {
+                if (!string.Equals(id, fileId, StringComparison.Ordinal)) return;
+
+                _session.ChatFileReady -= OnReady;
+                try
+                {
+                    File.WriteAllBytes(target, bytes);
+
+                    if (showInFolder)
+                        Process.Start(new ProcessStartInfo("explorer.exe",
+                            "/select,\"" + target + "\"") { UseShellExecute = true });
+                    else
+                        Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    ShowWindowToast("Не удалось открыть файл: " + ex.Message);
                 }
             }
 
