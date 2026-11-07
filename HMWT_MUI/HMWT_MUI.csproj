@@ -325,6 +325,9 @@
     <Compile Include="Windows\SummonWindow.xaml.cs">
       <DependentUpon>SummonWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Windows\SummonCardWindow.xaml.cs">
+      <DependentUpon>SummonCardWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\NoteLinkWindow.xaml.cs">
       <DependentUpon>NoteLinkWindow.xaml</DependentUpon>
     </Compile>
@@ -436,6 +439,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\SummonWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\SummonCardWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -80,6 +80,7 @@ namespace HMWT_MUI.Views
                     {
                         id = t.Id,
                         label = t.Label ?? "",
+                        summonId = t.SummonId,
                         x = t.X,
                         y = t.Y,
                         sizeCells = t.SizeCells,

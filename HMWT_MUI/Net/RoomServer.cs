@@ -1820,6 +1820,7 @@ namespace HMWT_MUI.Net
                 SceneId = scene.Id,
                 CombatantId = 0,
                 OwnerCharacterId = conn.Player.CharacterId,
+                SummonId = Math.Max(0, request.SummonId),
                 Label = label,
                 SizeCells = Math.Max(0.5, Math.Min(10, request.SizeCells)),
                 PhotoPath = relative ?? "",

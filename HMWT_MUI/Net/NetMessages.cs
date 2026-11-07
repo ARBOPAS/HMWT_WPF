@@ -554,6 +554,9 @@ namespace HMWT_MUI.Net
     public sealed class MapSummonRequest
     {
         [JsonPropertyName("label")] public string Label { get; set; } = "";
+
+        /// <summary>Призыв в базе игрока: по нему с жетона открывается лист.</summary>
+        [JsonPropertyName("summon")] public int SummonId { get; set; }
         [JsonPropertyName("type")] public string CreatureType { get; set; } = "";
         [JsonPropertyName("size")] public double SizeCells { get; set; } = 1;
         [JsonPropertyName("hp")] public int Hp { get; set; }

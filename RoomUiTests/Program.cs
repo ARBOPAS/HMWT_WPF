@@ -418,6 +418,7 @@ namespace HMWT_MUI.RoomUiTests
             CheckSummonWindow();
             CheckTokenHalfCell();
             CheckScenesWindowSearch();
+            CheckSummonCard();
 
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
@@ -4552,6 +4553,90 @@ namespace HMWT_MUI.RoomUiTests
             string code = File.ReadAllText(path, Encoding.UTF8);
             Check("в окне сцен есть поиск по названию",
                 code.Contains("Поиск по названию сцены") && code.Contains("_search.TextChanged"));
+        }
+
+        /// <summary>
+        /// Лист призыва с жетона: окно показывает блок существа, а в меню
+        /// карты у жетона призыва есть «Лист призыва…» вместо бестиария.
+        /// </summary>
+        private static void CheckSummonCard()
+        {
+            var summon = SummonService.WaterElemental(1);
+            var window = new Windows.SummonCardWindow(null, summon);
+            try
+            {
+                window.WindowStartupLocation = WindowStartupLocation.Manual;
+                window.Left = -6000;
+                window.Top = -6000;
+                window.Show();
+                Pump();
+                window.UpdateLayout();
+
+                var name = window.FindName("NameText") as TextBlock;
+                var str = window.FindName("StrText") as TextBlock;
+                var attacks = window.FindName("AttacksText") as TextBlock;
+
+                Check("лист призыва показывает имя",
+                    name != null && name.Text.Contains("Водный элементаль"), name?.Text ?? "нет имени");
+                Check("лист призыва показывает характеристики",
+                    str != null && str.Text == "18", str?.Text ?? "нет СИЛ");
+                Check("лист призыва показывает атаки",
+                    attacks != null && attacks.Text.Contains("Удар"), "нет текста атак");
+
+                SaveTradeScreenshot(window, Path.Combine(_outDir, "shot-summon-card.png"));
+
+                var shot = RenderWindowOnDark(window);
+                Luminance(shot, out double mean, out double max, out _);
+                Check("лист призыва тёмный", mean < 0.30, $"средняя яркость {mean:0.00}");
+                Check("в листе призыва есть светлые подписи", max > 0.55, $"максимум {max:0.00}");
+            }
+            finally
+            {
+                window.Close();
+                Pump();
+            }
+
+            string js = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI", "Web", "map", "map.js"));
+            if (File.Exists(js))
+            {
+                string code = File.ReadAllText(js, Encoding.UTF8);
+                Check("у жетона призыва есть пункт «Лист призыва…»",
+                    code.Contains("Лист призыва…") && code.Contains("token.summonId"));
+            }
+
+            // Жетон хранит ссылку на призыв: по ней и открывается лист
+            int sceneId = 0;
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT MIN(id_scene) FROM MapScene";
+                var value = cmd.ExecuteScalar();
+                if (value != null && value != DBNull.Value) sceneId = Convert.ToInt32(value);
+            }
+            catch { }
+
+            if (sceneId > 0)
+            {
+                var token = new MapTokenData
+                {
+                    SceneId = sceneId,
+                    CombatantId = 0,
+                    Label = "Проверка листа призыва",
+                    SummonId = 4242,
+                    X = 100,
+                    Y = 100
+                };
+
+                int id = MapService.SaveToken(token);
+                var loaded = id > 0 ? MapService.LoadTokens(sceneId).FirstOrDefault(t => t.Id == id) : null;
+                Check("ссылка на призыв сохраняется у жетона",
+                    loaded != null && loaded.SummonId == 4242,
+                    loaded == null ? "жетон не найден" : "id=" + loaded.SummonId);
+
+                if (id > 0) MapService.DeleteToken(id);
+            }
         }
 
         private static int FindFirstCharacterId()

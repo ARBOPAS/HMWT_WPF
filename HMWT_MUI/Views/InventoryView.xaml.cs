@@ -1875,6 +1875,21 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>
+        /// Описание растягивается, пока в нём курсор: в узком поле длинный
+        /// текст неудобно и читать, и править, а держать его большим всегда —
+        /// значит вытеснить остальные поля за пределы окна.
+        /// </summary>
+        private void ItemDescription_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox box) box.Height = Math.Max(box.Height, 190);
+        }
+
+        private void ItemDescription_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox box) box.Height = Math.Min(box.Height, 80);
+        }
+
+        /// <summary>
         /// Тип урона для сохранения: из пункта списка берём английскую часть
         /// («Fire (огонь)» → «Fire»), как хранит справочник. Если игрок вписал
         /// своё название, сохраняем его целиком.

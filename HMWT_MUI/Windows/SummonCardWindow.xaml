@@ -1,0 +1,159 @@
+<Window x:Class="HMWT_MUI.Windows.SummonCardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
+        Title="Лист призыва" Width="620" Height="640"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" UseLayoutRounding="True">
+    <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
+            BorderThickness="1" CornerRadius="12">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="0" Color="#000000" Opacity="0.75"/>
+        </Border.Effect>
+
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,12" Background="Transparent"
+                  MouseLeftButtonDown="Header_MouseDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="ЛИСТ ПРИЗЫВА" FontFamily="{StaticResource F.Display}" FontSize="18"
+                               FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
+                    <TextBlock x:Name="KindText" FontSize="11" Foreground="{StaticResource B.Mute}"
+                               Margin="0,3,12,0" TextWrapping="Wrap"/>
+                </StackPanel>
+                <Button Grid.Column="1" Width="30" Height="30" VerticalAlignment="Top"
+                        Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                        BorderThickness="1" Click="Close_Click" ToolTip="Закрыть">
+                    <helpers:IconView Kind="close" IconSize="14" IconBrush="{StaticResource B.Mute}"
+                                      VerticalAlignment="Center"/>
+                </Button>
+            </Grid>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="120" Height="120" Background="{StaticResource B.Slate}"
+                                BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                                CornerRadius="10" ClipToBounds="True">
+                            <Grid>
+                                <Image x:Name="PhotoView" Stretch="UniformToFill"/>
+                                <TextBlock x:Name="NoPhotoText" Text="нет картинки" FontSize="10"
+                                           Foreground="{StaticResource B.Mute}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="NameText" FontSize="17" FontWeight="Bold"
+                                       Foreground="{StaticResource B.Ink}" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="SummaryText" FontSize="12" Foreground="{StaticResource B.Frost}"
+                                       Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="SpeedText" FontSize="11" Foreground="{StaticResource B.Mute}"
+                                       Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Характеристики -->
+                    <UniformGrid Columns="6" Margin="0,0,0,12">
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Margin="0,0,4,0" Padding="0,6">
+                            <StackPanel>
+                                <TextBlock Text="СИЛ" FontSize="9" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="StrText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Margin="3,0,3,0" Padding="0,6">
+                            <StackPanel>
+                                <TextBlock Text="ЛОВ" FontSize="9" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="DexText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Margin="3,0,3,0" Padding="0,6">
+                            <StackPanel>
+                                <TextBlock Text="ТЕЛ" FontSize="9" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="ConText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Margin="3,0,3,0" Padding="0,6">
+                            <StackPanel>
+                                <TextBlock Text="ИНТ" FontSize="9" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="IntText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Margin="3,0,3,0" Padding="0,6">
+                            <StackPanel>
+                                <TextBlock Text="МДР" FontSize="9" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="WisText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{StaticResource B.Slate}" BorderBrush="{StaticResource B.Line}"
+                                BorderThickness="1" CornerRadius="8" Margin="4,0,0,0" Padding="0,6">
+                            <StackPanel>
+                                <TextBlock Text="ХАР" FontSize="9" Foreground="{StaticResource B.Mute}" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="ChaText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource B.Ink}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Text="АТАКИ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource B.Mute}"
+                               Margin="0,4,0,4"/>
+                    <TextBlock x:Name="AttacksText" FontSize="12" Foreground="{StaticResource B.Ink}"
+                               TextWrapping="Wrap" LineHeight="17"/>
+
+                    <TextBlock Text="ОСОБЕННОСТИ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource B.Mute}"
+                               Margin="0,12,0,4"/>
+                    <TextBlock x:Name="AbilitiesText" FontSize="12" Foreground="{StaticResource B.Ink}"
+                               TextWrapping="Wrap" LineHeight="17"/>
+
+                    <TextBlock x:Name="ErrorText" Foreground="{StaticResource B.Danger}" FontSize="11"
+                               TextWrapping="Wrap" Margin="0,10,0,0" Visibility="Collapsed"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2" Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Content="d20" Height="36" Width="72" ToolTip="Проверка d20"
+                            Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                            BorderThickness="1" Click="RollD20_Click"/>
+                    <Button Content="Атака" Height="36" Width="90" Margin="8,0,0,0" ToolTip="d20 + бонус к попаданию"
+                            Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                            BorderThickness="1" Click="RollAttack_Click"/>
+                    <Button Content="Урон" Height="36" Width="90" Margin="8,0,0,0" ToolTip="Кость урона из листа"
+                            Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                            BorderThickness="1" Click="RollDamage_Click"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="В чат" Height="36" Width="110" Margin="0,0,8,0" ToolTip="Отправить лист в чат комнаты"
+                            Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                            BorderThickness="1" Click="SendToChat_Click"/>
+                    <Button Content="Закрыть" Height="36" Width="120"
+                            Style="{StaticResource ActionBtn}" Click="Close_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

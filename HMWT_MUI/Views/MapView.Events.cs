@@ -500,6 +500,11 @@ namespace HMWT_MUI.Views
                     ToggleTokenHidden(token);
                     break;
 
+                case "summon":
+                    // Лист призыва: у игрока свой, с бросками в общий чат
+                    OpenSummonCard(token);
+                    break;
+
                 case "bestiary":
                     {
                         if (!_isDm) return;

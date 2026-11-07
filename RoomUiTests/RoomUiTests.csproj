@@ -215,6 +215,10 @@
       <Link>App\Windows\SummonWindow.xaml.cs</Link>
       <DependentUpon>SummonWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="..\HMWT_MUI\Windows\SummonCardWindow.xaml.cs">
+      <Link>App\Windows\SummonCardWindow.xaml.cs</Link>
+      <DependentUpon>SummonCardWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="..\HMWT_MUI\Windows\NotePromptWindow.xaml.cs">
       <Link>App\Windows\NotePromptWindow.xaml.cs</Link>
       <DependentUpon>NotePromptWindow.xaml</DependentUpon>
@@ -231,6 +235,11 @@
     </Page>
     <Page Include="..\HMWT_MUI\Windows\SummonWindow.xaml">
       <Link>App\Windows\SummonWindow.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Windows\SummonCardWindow.xaml">
+      <Link>App\Windows\SummonCardWindow.xaml</Link>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

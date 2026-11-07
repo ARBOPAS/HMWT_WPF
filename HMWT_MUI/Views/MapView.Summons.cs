@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using HMWT_MUI.Helpers;
 using HMWT_MUI.Models;
@@ -76,6 +77,7 @@ namespace HMWT_MUI.Views
                 OwnerCharacterId = characterId,
                 Label = string.IsNullOrWhiteSpace(summon.Name) ? "Призыв" : summon.Name.Trim(),
                 SizeCells = Math.Max(0.5, Math.Min(10, summon.SizeCells)),
+                SummonId = summon.Id,
                 Hidden = false,
                 X = _scene.WidthPx > 0 ? _scene.WidthPx / 2.0 : cell * 4,
                 Y = _scene.HeightPx > 0 ? _scene.HeightPx / 2.0 : cell * 4,
@@ -109,6 +111,7 @@ namespace HMWT_MUI.Views
             var request = new HMWT_MUI.Net.MapSummonRequest
             {
                 Label = summon.Name ?? "",
+                SummonId = summon.Id,
                 CreatureType = summon.CreatureType ?? "",
                 SizeCells = summon.SizeCells,
                 Hp = summon.Hp,
@@ -170,6 +173,61 @@ namespace HMWT_MUI.Views
             {
                 Debug.WriteLine($"[MapView] призыв от игрока: {ex.Message}");
             }
+        }
+        /// <summary>
+        /// Лист призыва с жетона: «Лист призыва…» в меню по правой кнопке.
+        /// Открывается и игроку — это его существо, и броски идут в общий чат.
+        /// </summary>
+        private void OpenSummonCard(MapTokenData token)
+        {
+            if (token == null) return;
+
+            try
+            {
+                var summon = FindSummonForToken(token);
+                var window = new Windows.SummonCardWindow(this, summon) { Owner = Window.GetWindow(this) };
+
+                // Броски идут через DiceRoller главного окна: результат попадает
+                // в панель броска и в общий чат комнаты — и у игрока, и у ведущего
+                window.RollHandler = (formula, kind, what) =>
+                    DmRolls.Roll(this, formula, kind, summon.Name, what) != null;
+
+                window.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MapView] лист призыва: {ex}");
+                DmRolls.Toast(this, "Не удалось открыть лист призыва: " + ex.Message, true);
+            }
+        }
+
+        /// <summary>
+        /// Ищет лист призыва по жетону. Сначала в базе владельца, затем в своей:
+        /// у ведущего жетон игрока ссылается на чужой id, и такого листа у него нет.
+        /// </summary>
+        private SummonData FindSummonForToken(MapTokenData token)
+        {
+            int owner = token.OwnerCharacterId > 0 ? token.OwnerCharacterId : SelfCharacterId;
+
+            if (token.SummonId > 0 && owner > 0)
+            {
+                var found = SummonService.Load(owner).FirstOrDefault(s => s.Id == token.SummonId);
+                if (found != null) return found;
+            }
+
+            if (token.SummonId > 0 && _characterId > 0 && _characterId != owner)
+            {
+                var own = SummonService.Load(_characterId).FirstOrDefault(s => s.Id == token.SummonId);
+                if (own != null) return own;
+            }
+
+            // Лист не нашёлся (чужой призыв или запись удалена): показываем хотя бы имя
+            return new SummonData
+            {
+                Name = string.IsNullOrWhiteSpace(token.Label) ? "Призыв" : token.Label,
+                SizeCells = token.SizeCells,
+                CreatureType = "Лист хранится у владельца призыва"
+            };
         }
     }
 }

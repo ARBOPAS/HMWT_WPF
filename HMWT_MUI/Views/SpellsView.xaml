@@ -1249,12 +1249,17 @@
                     <ListBox x:Name="PrepareList" Grid.Row="2" Margin="0,12,0,12"
                              Background="{StaticResource B.Slate}"
                              BorderBrush="{StaticResource B.Line}" BorderThickness="1"
-                             Foreground="{StaticResource B.Ink}"/>
+                             SelectionMode="Extended"
+                             Foreground="{StaticResource B.Ink}"
+                             ToolTip="Ctrl+клик — несколько заклинаний, Shift+клик — подряд"/>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="Можно выбрать сразу несколько: Ctrl+клик или Shift+клик"
+                                   Foreground="{StaticResource B.Mute}" FontSize="10.5"
+                                   VerticalAlignment="Center" Margin="0,0,16,0"/>
                         <Button Content="Отмена" Style="{StaticResource GhostBtn}"
                                 Padding="16,7" Click="PrepareCancel_Click"/>
-                        <Button Content="Подготовить" Style="{StaticResource MagicBtn}"
+                        <Button Content="Подготовить выбранные" Style="{StaticResource MagicBtn}"
                                 Padding="20,7" Margin="12,0,0,0" Click="PrepareConfirm_Click"/>
                     </StackPanel>
                 </Grid>

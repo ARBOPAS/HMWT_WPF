@@ -900,16 +900,45 @@ namespace HMWT_MUI.Views
 
         private void PrepareConfirm_Click(object sender, RoutedEventArgs e)
         {
-            if (PrepareList.SelectedItem is ListBoxItem item && item.Tag is SpellData spell)
+            // Можно выбрать сразу несколько: Ctrl+клик или Shift+клик.
+            // Раньше подготовка шла по одному, и на десять заклинаний окно
+            // приходилось открывать десять раз.
+            var chosen = PrepareList.SelectedItems
+                .OfType<ListBoxItem>()
+                .Select(i => i.Tag)
+                .OfType<SpellData>()
+                .ToList();
+
+            if (chosen.Count == 0)
             {
-                SpellService.TogglePrepared(_characterId, spell.IdCharSpell, true);
-                LoadSpellsFromDb();
-                ApplyView();
-                ClosePrepareOverlay();
+                MessageDialog.Info(this, "Выберите заклинание в списке (можно несколько: Ctrl+клик).",
+                    "Подготовка");
+                return;
             }
-            else
+
+            int prepared = 0;
+            foreach (var spell in chosen)
             {
-                MessageDialog.Info(this, "Выберите заклинание в списке.", "Подготовка");
+                try
+                {
+                    SpellService.TogglePrepared(_characterId, spell.IdCharSpell, true);
+                    prepared++;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[Подготовка] {spell.Name}: {ex.Message}");
+                }
+            }
+
+            LoadSpellsFromDb();
+            ApplyView();
+            ClosePrepareOverlay();
+
+            if (prepared > 0)
+            {
+                ShowToast($"Подготовлено: {prepared}" + (chosen.Count > prepared
+                    ? $" (не удалось: {chosen.Count - prepared})"
+                    : ""), "✓", B("B.Ok"));
             }
         }
 

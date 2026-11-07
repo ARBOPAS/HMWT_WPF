@@ -414,7 +414,9 @@
                                     </StackPanel>
                                 </Grid>
                                 <TextBlock Text="Описание" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,5"/>
-                                <TextBox x:Name="ed_txtDescription" Height="70" Style="{StaticResource TextField}" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12"/>
+                                <TextBox x:Name="ed_txtDescription" Height="70" Style="{StaticResource TextField}" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,12"
+                                     GotFocus="ItemDescription_GotFocus" LostFocus="ItemDescription_LostFocus"
+                                     ToolTip="Поле растягивается, пока в нём курсор: длинный текст удобно читать и править"/>
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -1057,8 +1059,9 @@
                               </Grid>
 
                               <TextBlock Text="Описание" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,12,0,4"/>
-                              <TextBox x:Name="si_txtDescription" Style="{StaticResource AreaField}" MinHeight="80"
-                                       AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
+                              <TextBox x:Name="si_txtDescription" Style="{StaticResource AreaField}" MinHeight="80" Height="80"
+                                       AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"
+                                       GotFocus="ItemDescription_GotFocus" LostFocus="ItemDescription_LostFocus"/>
 
                               <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                                   <CheckBox x:Name="si_chkAttunement" Style="{StaticResource CustomCheckBox}"

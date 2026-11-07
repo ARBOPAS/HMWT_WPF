@@ -212,6 +212,12 @@ namespace HMWT_MUI.Models
         /// </summary>
         public int OwnerCharacterId { get; set; }
 
+        /// <summary>
+        /// Призыв персонажа (CharacterSummon): по нему с жетона открывается
+        /// лист существа. 0 — обычный жетон без призыва.
+        /// </summary>
+        public int SummonId { get; set; }
+
         public string Label { get; set; } = "";
 
         /// <summary>Положение центра жетона в координатах картинки.</summary>
