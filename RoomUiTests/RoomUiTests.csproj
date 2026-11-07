@@ -133,6 +133,7 @@
     <Compile Include="..\HMWT_MUI\Services\SrdDatabaseImporter.cs"><Link>App\SrdDatabaseImporter.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\MoneyService.cs"><Link>App\MoneyService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\MonsterSpellSheet.cs"><Link>App\Services\MonsterSpellSheet.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\MapTokenLibrary.cs"><Link>App\Services\MapTokenLibrary.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Views\MonsterSpellBlock.cs"><Link>App\Views\MonsterSpellBlock.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\PaletteBrush.cs"><Link>App\PaletteBrush.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\MarkdownParser.cs"><Link>App\MarkdownParser.cs</Link></Compile>
@@ -197,6 +198,33 @@
     </Page>
     <Page Include="..\HMWT_MUI\Controls\HoverGif.xaml">
       <Link>App\Controls\HoverGif.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="..\HMWT_MUI\Windows\TokenEditorWindow.xaml.cs">
+      <Link>App\Windows\TokenEditorWindow.xaml.cs</Link>
+      <DependentUpon>TokenEditorWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Windows\TokenLibraryWindow.xaml.cs">
+      <Link>App\Windows\TokenLibraryWindow.xaml.cs</Link>
+      <DependentUpon>TokenLibraryWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\HMWT_MUI\Windows\NotePromptWindow.xaml.cs">
+      <Link>App\Windows\NotePromptWindow.xaml.cs</Link>
+      <DependentUpon>NotePromptWindow.xaml</DependentUpon>
+    </Compile>
+    <Page Include="..\HMWT_MUI\Windows\TokenEditorWindow.xaml">
+      <Link>App\Windows\TokenEditorWindow.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Windows\TokenLibraryWindow.xaml">
+      <Link>App\Windows\TokenLibraryWindow.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Windows\NotePromptWindow.xaml">
+      <Link>App\Windows\NotePromptWindow.xaml</Link>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

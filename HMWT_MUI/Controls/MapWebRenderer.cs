@@ -32,6 +32,12 @@ namespace HMWT_MUI.Controls
         /// <summary>ПКМ по пустому месту: поставить точку интереса.</summary>
         public event Action<double, double> PointPlaced;
 
+        /// <summary>
+        /// ПКМ по пустому месту → «Жетон НПС или предмета»: где именно поставить
+        /// жетон. Координаты — в системе картинки, как у точки интереса.
+        /// </summary>
+        public event Action<double, double> TokenPlacedAt;
+
         /// <summary>Перенос группы жетонов: пары (id, x, y) одним пакетом.</summary>
         public event Action<List<(int Id, double X, double Y)>> TokensMoved;
         public event Action<double, double> Pinged;
@@ -309,6 +315,15 @@ namespace HMWT_MUI.Controls
                     root.TryGetProperty("y", out var py))
                 {
                     PointPlaced?.Invoke(px.GetDouble(), py.GetDouble());
+                    return;
+                }
+
+                // Новый жетон НПС/предмета: место выбрано правой кнопкой
+                if (type == "placeToken" &&
+                    root.TryGetProperty("x", out var tx) &&
+                    root.TryGetProperty("y", out var ty))
+                {
+                    TokenPlacedAt?.Invoke(tx.GetDouble(), ty.GetDouble());
                     return;
                 }
 

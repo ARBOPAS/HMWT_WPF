@@ -19,6 +19,9 @@ namespace HMWT_MUI.Views
         private int _characterId;
         private DiceRoller _diceRoller;
 
+        /// <summary>Идёт загрузка листа: проверка радиокнопок не должна писать в базу.</summary>
+        private bool _loadingAlignment;
+
         /// <summary>
         /// Навыки с экспертизой. Читается один раз при загрузке листа: бонус
         /// навыка считается для всех восемнадцати сразу, и спрашивать про каждый
@@ -258,6 +261,9 @@ namespace HMWT_MUI.Views
 
                 // Загружаем доп.информацию
                 LoadAdditionalInfo(conn);
+
+                // Мировоззрение лежит в CharacterInfo, а не в доп.информации
+                LoadAlignment(conn);
             }
             catch (Exception ex)
             {
@@ -1636,8 +1642,66 @@ namespace HMWT_MUI.Views
             }
         }
 
+        /// <summary>
+        /// Показывает сохранённое мировоззрение в переключателях.
+        ///
+        /// Раньше значение только записывалось при нажатии и никогда не читалось
+        /// обратно: после перезапуска все девять кнопок стояли пустыми, и это
+        /// выглядело как «мировоззрение не сохраняется». В базе оно при этом
+        /// лежало в CharacterInfo.Ideology.
+        /// </summary>
+        private void LoadAlignment(SqliteConnection conn)
+        {
+            try
+            {
+                using var cmd = new SqliteCommand(
+                    "SELECT Ideology FROM CharacterInfo WHERE id_character = @id", conn);
+                cmd.Parameters.AddWithValue("@id", _characterId);
+
+                object raw = cmd.ExecuteScalar();
+                int ideology = raw == null || raw == DBNull.Value ? -1 : Convert.ToInt32(raw);
+
+                SetAlignmentRadios(ideology);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[CharacterInfoView] мировоззрение: {ex.Message}");
+            }
+        }
+
+        /// <summary>Отмечает кнопку с нужным значением; -1 — снять все.</summary>
+        private void SetAlignmentRadios(int ideology)
+        {
+            _loadingAlignment = true;
+            try
+            {
+                var radios = new[]
+                {
+                    align0, align1, align2, align3, align4, align5, align6, align7, align8
+                };
+
+                bool found = false;
+                foreach (var radio in radios)
+                {
+                    if (radio == null) continue;
+
+                    bool on = !found && radio.Tag is string tag &&
+                              int.TryParse(tag, out int value) && value == ideology;
+                    radio.IsChecked = on;
+                    if (on) found = true;
+                }
+            }
+            finally
+            {
+                _loadingAlignment = false;
+            }
+        }
+
         private void Alignment_Checked(object sender, RoutedEventArgs e)
         {
+            // Проверка радиокнопки при загрузке листа не должна писать в базу.
+            if (_loadingAlignment) return;
+
             if (sender is RadioButton rb && rb.Tag is string tag && int.TryParse(tag, out int ideology))
             {
                 try

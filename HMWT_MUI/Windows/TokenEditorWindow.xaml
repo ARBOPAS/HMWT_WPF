@@ -1,0 +1,94 @@
+<Window x:Class="HMWT_MUI.Windows.TokenEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Жетон"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        Background="Transparent"
+        FontFamily="Segoe UI, Calibri"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
+            BorderThickness="1" CornerRadius="12" Padding="22">
+        <Grid Width="470">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                <TextBlock Text="ЖЕТОН" FontFamily="{StaticResource F.Display}" FontSize="16"
+                           FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
+                <TextBlock Text="НПС или предмет: стоит на карте, в трекер инициативы не попадает."
+                           FontSize="11.5" Foreground="{StaticResource B.Mute}"
+                           Margin="0,3,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="112" Height="112" CornerRadius="10" Background="{StaticResource B.Slate}"
+                        BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                        Margin="0,0,16,0" ClipToBounds="True">
+                    <Grid>
+                        <Image x:Name="PreviewImage" Stretch="Uniform"/>
+                        <TextBlock x:Name="PhotoHint" Text="нет картинки" FontSize="10.5"
+                                   Foreground="{StaticResource B.Mute}" TextAlignment="Center"
+                                   TextWrapping="Wrap" Margin="12,0,12,0"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="НАЗВАНИЕ" FontSize="9.5" Foreground="{StaticResource B.Mute}"
+                               Margin="0,0,0,4"/>
+                    <TextBox x:Name="NameBox" Style="{StaticResource TextField}" Height="34" FontSize="13"/>
+                    <WrapPanel Margin="0,10,0,0">
+                        <Button Content="Картинка…" Click="PickPhoto_Click" Style="{StaticResource GhostBtn}"
+                                Height="30" MinWidth="106" Margin="0,0,8,0"/>
+                        <Button Content="Убрать" Click="ClearPhoto_Click" Style="{StaticResource GhostBtn}"
+                                Height="30" MinWidth="80"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="РАЗМЕР" FontSize="9.5" Foreground="{StaticResource B.Mute}"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="SizeBox" Style="{StaticResource EditorComboBox}"
+                              Width="132" Height="32"/>
+                </StackPanel>
+
+                <CheckBox x:Name="HiddenBox" Grid.Column="1" Style="{StaticResource CustomCheckBox}"
+                          Content="Не показывать игрокам" HorizontalAlignment="Right"
+                          VerticalAlignment="Center"/>
+            </Grid>
+
+            <CheckBox x:Name="LibraryBox" Grid.Row="3" Style="{StaticResource CustomCheckBox}"
+                      Content="Сохранить в библиотеку жетонов" Margin="0,16,0,0"/>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Content="Отмена" Click="Cancel_Click" Style="{StaticResource GhostBtn}"
+                        Height="34" MinWidth="96" Margin="0,0,10,0"/>
+                <Button x:Name="OkButton" Content="Поставить" Click="Ok_Click"
+                        Style="{StaticResource MagicBtn}" Height="34" MinWidth="120" IsDefault="True"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

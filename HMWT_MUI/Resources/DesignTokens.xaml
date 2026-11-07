@@ -231,8 +231,12 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                        <!-- Отступ только по бокам: вертикальный отступ ломал
+                             выравнивание текста в полях фиксированной высоты
+                             (текст прижимался к верху и обрезался). -->
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"
+                                      Margin="8,0,8,0"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsFocused" Value="True">

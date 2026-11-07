@@ -360,6 +360,22 @@ namespace HMWT_MUI.Views
             tokens.IsEnabled = _isDm;
             dmBar.Children.Add(tokens);
 
+            // Жетоны, которых нет в бою: «Старик» за стойкой, бочка, стол.
+            // В трекер инициативы они не попадают — это карта, а не сражение.
+            var freeToken = DmUiKit.Action("＋ Жетон", (s, e) => AddFreeTokenFromDialog(),
+                DmUiKit.ButtonKind.Ghost,
+                "Поставить жетон НПС или предмета: без трекера инициативы", 104, 30);
+            freeToken.Margin = new Thickness(10, 0, 0, 0);
+            freeToken.IsEnabled = _isDm;
+            dmBar.Children.Add(freeToken);
+
+            var tokenLibrary = DmUiKit.Action("Библиотека…", (s, e) => OpenTokenLibrary(),
+                DmUiKit.ButtonKind.Ghost,
+                "Готовые жетоны: бочка, стол, портреты НПС", 118, 30);
+            tokenLibrary.Margin = new Thickness(8, 0, 0, 0);
+            tokenLibrary.IsEnabled = _isDm;
+            dmBar.Children.Add(tokenLibrary);
+
             _blindfoldCheck.Margin = new Thickness(10, 0, 0, 0);
             _blindfoldCheck.ToolTip = "Закрыть игрокам обзор карты: они увидят только «ведущий пересобирает сцену»";
             _blindfoldCheck.Checked += (s, e) => { if (_inRoom && _isDm) RoomSession.Instance.SetBlindfold(true); };

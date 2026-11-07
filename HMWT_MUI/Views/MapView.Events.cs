@@ -488,6 +488,16 @@ namespace HMWT_MUI.Views
                     }
                     break;
 
+                // Имя, картинка, размер и видимость жетона в одном окне.
+                // Для НПС и предметов это единственное место, где задаётся аватар.
+                case "edit":
+                    EditFreeToken(token);
+                    break;
+
+                case "hidden":
+                    ToggleTokenHidden(token);
+                    break;
+
                 case "bestiary":
                     {
                         if (!_isDm) return;

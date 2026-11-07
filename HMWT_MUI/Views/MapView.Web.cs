@@ -27,6 +27,19 @@ namespace HMWT_MUI.Views
 
             try
             {
+                // Смена сцены: WebGL собирает жетоны заново, а кэш «эта картинка
+                // уже отправлена» оставался от прошлой сцены. В новой сцене
+                // жетоны создавались без фото — мастер видел их без аватарок
+                // после возврата на сцену. Сбрасываем на первой отправке
+                // новой сцены: так это работает и у ведущего, и у клиента.
+                if (_webSceneId != _scene.Id)
+                {
+                    _webSceneId = _scene.Id;
+                    _webTokenPhotoKeys.Clear();
+                    _webImageHash = "";
+                    WebLog($"web scene {_webSceneId}: кэш картинок сброшен");
+                }
+
                 string imagePath = string.IsNullOrWhiteSpace(_scene.ImageHash)
                     ? null
                     : (_remote ? RemoteImagePath(_scene.ImageHash) : MapService.ResolveImagePath(_scene));
@@ -425,6 +438,7 @@ namespace HMWT_MUI.Views
             _webDataUrls.Clear();
             _webSeenVersion = -1;
             _webSeenSent = 0;
+            _webSceneId = -1;
         }
 
         /// <summary>Полотно WebView переехало или изменило размер — пишем его экранные координаты.</summary>

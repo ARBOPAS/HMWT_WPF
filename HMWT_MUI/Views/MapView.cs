@@ -82,6 +82,12 @@ namespace HMWT_MUI.Views
         private int _webSeenSent;
         private bool _webMapReady;
         private string _webImageHash = "";
+
+        /// <summary>
+        /// Сцена, для которой WebGL уже получил картинки. При смене сцены он
+        /// строит жетоны заново, поэтому кэш «уже отправлено» надо сбросить.
+        /// </summary>
+        private int _webSceneId = -1;
         private readonly Dictionary<int, string> _webTokenPhotoKeys = new Dictionary<int, string>();
         private readonly Image _mapImage = new Image();
 
@@ -383,6 +389,11 @@ namespace HMWT_MUI.Views
             _webMap.WallAction += OnWebWallAction;
             _webMap.TokenMenuAction += OnWebTokenMenuAction;
             _webMap.TokenSelected += OnWebTokenSelected;
+
+            // Правая кнопка на пустом месте → «Жетон НПС или предмета»:
+            // окно открываем в UI-потоке, координаты приходят из WebGL.
+            _webMap.TokenPlacedAt += (x, y) =>
+                Dispatcher.BeginInvoke(new Action(() => AddFreeTokenFromDialog(x, y)));
             _webMap.TrailCleared += OnWebTrailCleared;
             _webMap.ShapeAction += OnWebShapeAction;
             _webMap.FacingChanged += OnWebRotate;
@@ -1169,11 +1180,34 @@ namespace HMWT_MUI.Views
             }
         }
 
-        /// <summary>Картинка жетона: портрет монстра из бестиария или аватар игрока.</summary>
+        /// <summary>
+        /// Картинка жетона. Порядок важен:
+        /// своя картинка (из «Изменить жетон…» или библиотеки) → скачанная
+        /// копия по хешу → портрет монстра из бестиария → аватар игрока.
+        ///
+        /// Почему своя картинка первая: раньше портрет монстра перебивал выбор
+        /// мастера, и «Изменить жетон…» у НПС из трекера ничего не менял.
+        /// </summary>
         private string ResolveTokenPhoto(MapTokenData token)
         {
             try
             {
+                // 1. Картинка, выбранная для жетона вручную. Лежит в папке
+                //    Tokens — по ней и отличаем её от портрета монстра.
+                string own = string.IsNullOrWhiteSpace(token.PhotoPath)
+                    ? null
+                    : PhotoHelper.ResolvePhotoPath(token.PhotoPath);
+                if (!string.IsNullOrEmpty(own) && File.Exists(own) && IsTokenImage(own)) return own;
+
+                // 2. Клиент: бестиария и чужих путей у него нет, но файл мог
+                //    прийти из комнаты по хешу — тогда берём скачанную копию.
+                if (!string.IsNullOrWhiteSpace(token.PhotoHash))
+                {
+                    string cached = RemoteImagePath(token.PhotoHash);
+                    if (!string.IsNullOrEmpty(cached) && File.Exists(cached)) return cached;
+                }
+
+                // 3. Портрет монстра из бестиария.
                 if (_combatants.TryGetValue(token.CombatantId, out var linked) &&
                     linked.Combatant != null && linked.Combatant.MonsterId > 0)
                 {
@@ -1185,9 +1219,12 @@ namespace HMWT_MUI.Views
                     }
                 }
 
-                // игрок: берём его аватар из комнаты
+                // 4. Игрок: берём его аватар из комнаты.
+                //    Только для жетонов с участником боя: у свободного жетона
+                //    («Старик») своя картинка, и совпадение имени с персонажем
+                //    не должно подменять её чужим аватаром.
                 var session = RoomSession.Instance;
-                if (session != null && session.IsActive)
+                if (token.CombatantId > 0 && session != null && session.IsActive)
                 {
                     foreach (var player in session.GetPlayers())
                     {
@@ -1201,21 +1238,8 @@ namespace HMWT_MUI.Views
                     }
                 }
 
-                // Клиент: бестиария и чужих путей у него нет, но файл мог прийти
-                // из комнаты по хешу — тогда берём скачанную копию. Без этого
-                // аватарки НПС у игроков не появлялись никогда.
-                if (!string.IsNullOrWhiteSpace(token.PhotoHash))
-                {
-                    string cached = RemoteImagePath(token.PhotoHash);
-                    if (!string.IsNullOrEmpty(cached) && File.Exists(cached)) return cached;
-                }
-
-                // Последний шанс: путь, записанный при создании жетона
-                if (!string.IsNullOrWhiteSpace(token.PhotoPath))
-                {
-                    string own = PhotoHelper.ResolvePhotoPath(token.PhotoPath);
-                    if (!string.IsNullOrEmpty(own) && File.Exists(own)) return own;
-                }
+                // 5. Последний шанс: путь, записанный при создании жетона.
+                if (!string.IsNullOrEmpty(own) && File.Exists(own)) return own;
             }
             catch (Exception ex)
             {
@@ -1223,6 +1247,20 @@ namespace HMWT_MUI.Views
             }
 
             return null;
+        }
+
+        /// <summary>Картинка лежит в папке жетонов, а не в портретах монстров.</summary>
+        private static bool IsTokenImage(string fullPath)
+        {
+            if (string.IsNullOrWhiteSpace(fullPath)) return false;
+
+            try
+            {
+                string root = Path.GetFullPath(Path.Combine(PhotoHelper.GetWritableRoot(), "Tokens"))
+                    .TrimEnd('\\') + "\\";
+                return Path.GetFullPath(fullPath).StartsWith(root, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
         }
 
         private static string HashFile(string path)

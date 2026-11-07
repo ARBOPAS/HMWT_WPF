@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using HMWT_MUI.Helpers;
 using Microsoft.Data.Sqlite;
 
 namespace HMWT_MUI.Services
@@ -27,7 +28,12 @@ namespace HMWT_MUI.Services
             public long Bytes { get; set; }
             public int MapFiles => Files.Count(f => f.StartsWith(Path.Combine(Root, "Maps"),
                 StringComparison.OrdinalIgnoreCase));
-            public int PhotoFiles => Files.Count - MapFiles;
+
+            /// <summary>Старые картинки жетонов (библиотека и аватары на картах).</summary>
+            public int TokenFiles => Files.Count(f => f.StartsWith(Path.Combine(Root, "Tokens"),
+                StringComparison.OrdinalIgnoreCase));
+
+            public int PhotoFiles => Files.Count - MapFiles - TokenFiles;
             public int Count => Files.Count;
         }
 
@@ -44,6 +50,9 @@ namespace HMWT_MUI.Services
         public static string MapsDir => Path.Combine(Root, "Maps");
         public static string RoomsDir => Path.Combine(Root, "Rooms");
 
+        /// <summary>Картинки жетонов: библиотека и аватары жетонов на картах.</summary>
+        public static string TokensDir => Path.Combine(Root, "Tokens");
+
         public static Report Scan()
         {
             var report = new Report();
@@ -51,6 +60,8 @@ namespace HMWT_MUI.Services
 
             ScanMaps(report, seen);
             ScanRooms(report, seen);
+            ScanTokens(report, seen);
+
             report.Bytes = report.Files
                 .Where(File.Exists)
                 .Sum(f => new FileInfo(f).Length);
@@ -63,6 +74,7 @@ namespace HMWT_MUI.Services
             var result = new CleanResult();
             string mapsRoot = Path.GetFullPath(MapsDir).TrimEnd('\\') + "\\";
             string roomsRoot = Path.GetFullPath(RoomsDir).TrimEnd('\\') + "\\";
+            string tokensRoot = Path.GetFullPath(TokensDir).TrimEnd('\\') + "\\";
 
             foreach (string file in report.Files)
             {
@@ -70,7 +82,8 @@ namespace HMWT_MUI.Services
                 {
                     string full = Path.GetFullPath(file);
                     if (!full.StartsWith(mapsRoot, StringComparison.OrdinalIgnoreCase) &&
-                        !full.StartsWith(roomsRoot, StringComparison.OrdinalIgnoreCase))
+                        !full.StartsWith(roomsRoot, StringComparison.OrdinalIgnoreCase) &&
+                        !full.StartsWith(tokensRoot, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     long size = new FileInfo(full).Length;
@@ -191,6 +204,67 @@ namespace HMWT_MUI.Services
                         Add(report, seen, file);
                 }
             }
+        }
+
+        /// <summary>
+        /// Картинки жетонов, на которые больше никто не ссылается.
+        ///
+        /// Так уходят старые аватары: и те, что остались после «Картинка…»
+        /// в библиотеке, и те, что были у жетонов, пока картинку не сменили.
+        /// Ссылки берём из двух мест — tokens.json библиотеки и photo_path
+        /// жетонов на картах: по ним файл трогать нельзя, иначе жетон останется
+        /// без картинки после очистки.
+        /// </summary>
+        private static void ScanTokens(Report report, HashSet<string> seen)
+        {
+            if (!Directory.Exists(TokensDir)) return;
+
+            HashSet<string> referenced;
+            try
+            {
+                referenced = LoadTokenImagePaths();
+            }
+            catch
+            {
+                // Без списка ссылок очистка может убить живые картинки — не трогаем.
+                return;
+            }
+
+            foreach (string file in Directory.EnumerateFiles(TokensDir, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (Path.GetFileName(file).Equals("tokens.json", StringComparison.OrdinalIgnoreCase)) continue;
+                if (referenced.Contains(Path.GetFullPath(file))) continue;
+                Add(report, seen, file);
+            }
+        }
+
+        private static HashSet<string> LoadTokenImagePaths()
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Библиотека жетонов.
+            foreach (var template in MapTokenLibrary.Load())
+            {
+                string full = PhotoHelper.ResolvePhotoPath(template.File);
+                if (!string.IsNullOrEmpty(full)) result.Add(Path.GetFullPath(full));
+            }
+
+            // Жетоны на картах: путь может быть абсолютным или относительным.
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            using var cmd = new SqliteCommand(
+                "SELECT photo_path FROM MapToken WHERE COALESCE(photo_path,'') <> ''", conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                string raw = reader.IsDBNull(0) ? "" : (reader.GetString(0) ?? "");
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+
+                string full = PhotoHelper.ResolvePhotoPath(raw);
+                if (!string.IsNullOrEmpty(full)) result.Add(Path.GetFullPath(full));
+            }
+
+            return result;
         }
 
         private static HashSet<string> LoadSceneMapPaths()

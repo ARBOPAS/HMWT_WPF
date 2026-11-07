@@ -347,8 +347,10 @@ namespace HMWT_MUI.Views
                 "Будут удалены только временные данные:\n" +
                 $"• карты: дубликаты, эскизы и скачанные копии — {report.MapFiles} файлов;\n" +
                 $"• старые фото комнат без ссылок — {report.PhotoFiles} файлов;\n" +
+                $"• старые картинки жетонов без ссылок — {report.TokenFiles} файлов;\n" +
                 $"• всего: {report.Count} файлов, примерно {BytesText(report.Bytes)}.\n\n" +
-                "Карты из сцен, текущие аватары, Monsters, Audio и база не затрагиваются.";
+                "Карты из сцен, текущие аватары, картинки жетонов на картах и в библиотеке, " +
+                "Monsters, Audio и база не затрагиваются.";
             if (!HMWT_MUI.Windows.MessageDialog.Confirm(this, text, "Очистка кэша",
                     "Очистить", "Отмена", false))
                 return;

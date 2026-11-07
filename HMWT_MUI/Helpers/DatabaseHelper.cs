@@ -541,6 +541,7 @@ namespace HMWT_MUI
 
                 CreateInventorySystemTables(conn, transaction);
                 MigrateLegacyItemTags(conn, transaction);
+                DropLegacyItemTagTriggers(conn, transaction);
 
                 transaction.Commit();
                 Debug.WriteLine("[DB] Все таблицы успешно созданы/проверены");
@@ -833,6 +834,35 @@ namespace HMWT_MUI
                 drop.ExecuteNonQuery();
 
             Debug.WriteLine("[DB] Миграция ItemTags → Tags выполнена");
+        }
+
+        /// <summary>
+        /// Убирает старые триггеры, которые чистили легаси-таблицу ItemTags.
+        ///
+        /// Таблицу удалила миграция выше, а триггер на CharacterInfo остался.
+        /// На такой базе удаление персонажа падало с «no such table:
+        /// main.ItemTags» — транзакция откатывалась, и персонаж не удалялся.
+        /// Миграция сюда не доходит, если таблицы уже нет, поэтому чистка
+        /// выполняется отдельным шагом при каждом запуске.
+        /// </summary>
+        private static void DropLegacyItemTagTriggers(SqliteConnection conn, SqliteTransaction tx)
+        {
+            var names = new List<string>();
+
+            using (var select = new SqliteCommand(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND sql LIKE '%ItemTags%'", conn, tx))
+            using (var reader = select.ExecuteReader())
+            {
+                while (reader.Read()) names.Add(reader.GetString(0));
+            }
+
+            foreach (string name in names)
+            {
+                using var drop = new SqliteCommand(
+                    "DROP TRIGGER IF EXISTS \"" + name.Replace("\"", "\"\"") + "\"", conn, tx);
+                drop.ExecuteNonQuery();
+                Debug.WriteLine($"[DB] Удалён устаревший триггер {name}");
+            }
         }
 
         #endregion

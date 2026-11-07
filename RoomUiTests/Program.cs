@@ -396,6 +396,21 @@ namespace HMWT_MUI.RoomUiTests
             Say("═══ ЗАКЛИНАНИЯ В КАРТОЧКЕ СУЩЕСТВА ═══");
             CheckMonsterSpells();
 
+            // ── Жетоны НПС и предметов ──
+            //
+            // Такой жетон живёт только на карте: у него нет участника боя,
+            // поэтому трекер инициативы не засоряется «Стариком» и бочкой.
+            Say("");
+            Say("═══ ЖЕТОНЫ НПС И ПРЕДМЕТОВ ═══");
+            CheckMapTokenLibrary();
+            CheckFreeTokenPersistence();
+            CheckTokenMenuScript();
+            CheckTokenEditorWindow();
+            CheckTokenLibraryWindow();
+            CheckTokenCacheCleanup();
+            CheckMapScenePhotoCache();
+            CheckSceneTokenPhotosExist();
+
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
             CheckPhotoTransfer();
@@ -3939,6 +3954,433 @@ namespace HMWT_MUI.RoomUiTests
                 broken.Count == 0
                     ? $"файлов: {files.Count}"
                     : string.Join(", ", broken.Take(5)));
+        }
+
+        #endregion
+
+        #region === ЖЕТОНЫ НПС И ПРЕДМЕТОВ ===
+
+        /// <summary>
+        /// Библиотека жетонов: картинка копируется в папку данных (иначе WebGL
+        /// её не отдаст), одинаковые файлы не дублируются, удаление последней
+        /// записи уносит и файл.
+        /// </summary>
+        private static void CheckMapTokenLibrary()
+        {
+            string folder = Path.Combine(Path.GetTempPath(), "hmwt_token_test");
+            Directory.CreateDirectory(folder);
+
+            string image = Path.Combine(folder, "barrel.png");
+            File.WriteAllBytes(image, new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 7, 7, 7 });
+
+            // Остатки прошлых прогонов не должны мешать.
+            foreach (var old in MapTokenLibrary.Load()
+                         .Where(t => (t.Name ?? "").StartsWith("Проверка жетона"))
+                         .ToList())
+                MapTokenLibrary.Remove(old.Id);
+
+            var added = MapTokenLibrary.Add("Проверка жетона: бочка", image, 2);
+            Check("картинка жетона скопирована в папку данных",
+                added != null && added.File.StartsWith("Tokens/", StringComparison.OrdinalIgnoreCase),
+                added?.File ?? "запись не создана");
+
+            string full = added == null ? null : PhotoHelper.ResolvePhotoPath(added.File);
+            Check("картинка жетона читается по относительному пути",
+                !string.IsNullOrEmpty(full) && File.Exists(full), full ?? "файла нет");
+            Check("размер жетона сохраняется", added != null && added.SizeCells == 2,
+                added == null ? "нет записи" : "клеток: " + added.SizeCells);
+
+            var second = MapTokenLibrary.Add("Проверка жетона: бочка 2", image, 1);
+            Check("одинаковые картинки не дублируются",
+                added != null && second != null &&
+                string.Equals(second.File, added.File, StringComparison.OrdinalIgnoreCase),
+                second?.File ?? "нет второй записи");
+
+            if (added == null || second == null) return;
+
+            // Третья запись на тот же файл: после её удаления файл должен остаться.
+            var third = MapTokenLibrary.Add("Проверка жетона: бочка 3", image, 1);
+            if (third != null) MapTokenLibrary.Remove(third.Id);
+            Check("файл жив, пока на него ссылается другая запись",
+                !string.IsNullOrEmpty(full) && File.Exists(full));
+
+            MapTokenLibrary.Rename(added.Id, "Проверка жетона: бочка (новая)");
+            var reloaded = MapTokenLibrary.Load().FirstOrDefault(t => t.Id == added.Id);
+            Check("переименование жетона сохраняется",
+                reloaded != null && reloaded.Name.Contains("новая"), reloaded?.Name ?? "запись пропала");
+
+            // ── замена картинки ──
+            string secondImage = Path.Combine(folder, "chest.png");
+            File.WriteAllBytes(secondImage, new byte[] { 0x89, 0x50, 0x4E, 0x47, 11, 12, 13, 14 });
+
+            // Освобождаем старую картинку: вторая запись ссылалась на неё же.
+            MapTokenLibrary.Remove(second.Id);
+
+            var replaced = MapTokenLibrary.ReplaceImage(added.Id, secondImage);
+            Check("картинка жетона заменяется",
+                replaced != null && !string.Equals(replaced.File, added.File, StringComparison.OrdinalIgnoreCase),
+                replaced?.File ?? "не заменилась");
+            string newFull = replaced == null ? null : PhotoHelper.ResolvePhotoPath(replaced.File);
+            Check("новая картинка лежит в папке жетонов",
+                !string.IsNullOrEmpty(newFull) && File.Exists(newFull));
+            Check("старая картинка удалена после замены",
+                string.IsNullOrEmpty(full) || !File.Exists(full), full);
+
+            MapTokenLibrary.Remove(added.Id);
+            Check("последняя запись уносит файл",
+                string.IsNullOrEmpty(newFull) || !File.Exists(newFull));
+
+            try { Directory.Delete(folder, true); } catch { }
+        }
+
+        /// <summary>
+        /// Очистка кэша: старые картинки жетонов без ссылок попадают в отчёт,
+        /// а картинки из библиотеки и с карт — нет. Clean() здесь не зовём,
+        /// чтобы не трогать настоящий кэш пользователя.
+        /// </summary>
+        private static void CheckTokenCacheCleanup()
+        {
+            string image = Path.Combine(Path.GetTempPath(), "hmwt_cache_token.png");
+            File.WriteAllBytes(image, new byte[] { 0x89, 0x50, 0x4E, 0x47, 21, 22, 23, 24 });
+
+            var template = MapTokenLibrary.Add("Проверка кэша: бочка", image, 1);
+            if (template == null)
+            {
+                Say("  [ПРОПУСК] не удалось создать запись библиотеки");
+                return;
+            }
+
+            string referenced = PhotoHelper.ResolvePhotoPath(template.File);
+            string orphan = Path.Combine(MapTokenLibrary.TokensFolder,
+                "orphan_" + Guid.NewGuid().ToString("N") + ".png");
+            File.WriteAllBytes(orphan, new byte[] { 0x89, 0x50, 0x4E, 0x47, 31, 32, 33, 34 });
+
+            try
+            {
+                var report = CacheCleanupService.Scan();
+
+                Check("очистка кэша видит старую картинку жетона",
+                    report.Files.Any(f => string.Equals(f, Path.GetFullPath(orphan),
+                        StringComparison.OrdinalIgnoreCase)));
+                Check("очистка кэша не трогает картинку из библиотеки",
+                    string.IsNullOrEmpty(referenced) ||
+                    !report.Files.Any(f => string.Equals(f, Path.GetFullPath(referenced),
+                        StringComparison.OrdinalIgnoreCase)),
+                    referenced ?? "путь не разрешился");
+            }
+            finally
+            {
+                try { File.Delete(orphan); } catch { }
+                MapTokenLibrary.Remove(template.Id);
+                try { File.Delete(image); } catch { }
+            }
+        }
+
+        /// <summary>Жетон без участника боя сохраняется, читается и удаляется.</summary>
+        private static void CheckFreeTokenPersistence()
+        {
+            int sceneId = 0;
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT MIN(id_scene) FROM MapScene";
+                var value = cmd.ExecuteScalar();
+                if (value != null && value != DBNull.Value) sceneId = Convert.ToInt32(value);
+            }
+            catch (Exception ex)
+            {
+                Say("  сцена для жетона: " + ex.Message);
+            }
+
+            if (sceneId <= 0)
+            {
+                Say("  [ПРОПУСК] в базе нет сцен карты");
+                return;
+            }
+
+            string label = "Проверка: Старик " + Guid.NewGuid().ToString("N").Substring(0, 6);
+            var token = new MapTokenData
+            {
+                SceneId = sceneId,
+                CombatantId = 0,
+                Label = label,
+                X = 120,
+                Y = 140,
+                SizeCells = 1,
+                RevealCells = 0
+            };
+
+            int id = MapService.SaveToken(token);
+            Check("жетон без участника боя сохраняется", id > 0 && token.Id == id, $"id={id}");
+            if (id <= 0) return;
+
+            var loaded = MapService.LoadTokens(sceneId).FirstOrDefault(t => t.Id == id);
+            Check("жетон читается обратно",
+                loaded != null && loaded.Label == label && loaded.CombatantId == 0,
+                loaded == null ? "не найден" : $"label={loaded.Label}, бой={loaded.CombatantId}");
+            Check("у свободного жетона нет владельца-персонажа",
+                loaded != null && loaded.OwnerCharacterId == 0);
+
+            MapService.DeleteToken(id);
+            Check("жетон удаляется с карты",
+                !MapService.LoadTokens(sceneId).Any(t => t.Id == id));
+        }
+
+        /// <summary>
+        /// Меню карты и жетона в map.js: пункты постановки и правки жетона.
+        /// Проверка текстовая, потому что WebGL в тестах не поднимается.
+        /// </summary>
+        private static void CheckTokenMenuScript()
+        {
+            string path = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI", "Web", "map", "map.js"));
+            if (!File.Exists(path))
+            {
+                Say("  [ПРОПУСК] map.js не найден: " + path);
+                return;
+            }
+
+            string js = File.ReadAllText(path, Encoding.UTF8);
+
+            Check("в меню карты есть постановка жетона НПС",
+                js.Contains("Жетон НПС или предмета"));
+            Check("меню жетона умеет менять картинку",
+                js.Contains("action: 'edit'"));
+            Check("меню жетона умеет скрывать от игроков",
+                js.Contains("Скрыть от игроков"));
+            Check("координаты нового жетона передаются на карту",
+                js.Contains("type: 'placeToken'"));
+        }
+
+        /// <summary>
+        /// Окно «Жетон»: имя, картинка, размер, видимость. Рисуем его в картинку
+        /// и смотрим — так видно, что поля на месте и тёмная тема применилась.
+        /// </summary>
+        private static void CheckTokenEditorWindow()
+        {
+            string image = Path.Combine(Path.GetTempPath(), "hmwt_token_editor.png");
+            try
+            {
+                // Картинка для предпросмотра: содержимое не важно, лишь бы файл читался.
+                var pixels = new System.Windows.Media.Imaging.WriteableBitmap(64, 64, 96, 96,
+                    PixelFormats.Pbgra32, null);
+                var bytes = new byte[64 * 64 * 4];
+                new Random(4).NextBytes(bytes);
+                pixels.WritePixels(new Int32Rect(0, 0, 64, 64), bytes, 64 * 4, 0);
+
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(pixels));
+                using (var stream = File.Create(image)) encoder.Save(stream);
+            }
+            catch (Exception ex)
+            {
+                Say("  [ПРОПУСК] не удалось создать картинку: " + ex.Message);
+                return;
+            }
+
+            var window = new TokenEditorWindow();
+            try
+            {
+                window.WindowStartupLocation = WindowStartupLocation.Manual;
+                window.Left = -6000;
+                window.Top = -6000;
+                window.LoadValues("Старик", image, 2, false);
+                window.Show();
+                Pump();
+                window.UpdateLayout();
+
+                var nameBox = window.FindName("NameBox") as TextBox;
+                var sizeBox = window.FindName("SizeBox") as ComboBox;
+                var preview = window.FindName("PreviewImage") as Image;
+
+                Check("окно жетона показывает имя", nameBox != null && nameBox.Text == "Старик",
+                    nameBox?.Text ?? "поля нет");
+                Check("в окне жетона десять размеров",
+                    sizeBox != null && sizeBox.Items.Count == 10,
+                    sizeBox == null ? "списка нет" : "пунктов: " + sizeBox.Items.Count);
+                Check("картинка жетона видна в предпросмотре",
+                    preview != null && preview.Source != null);
+                Check("имя и размер жетона читаются из окна",
+                    window.TokenLabel == "Старик" && window.SizeCells == 2,
+                    $"«{window.TokenLabel}», клеток {window.SizeCells}");
+
+                SaveTradeScreenshot(window, Path.Combine(_outDir, "shot-token-editor.png"));
+
+                var shot = RenderWindowOnDark(window);
+                Luminance(shot, out double mean, out double max, out double bright);
+                Check("окно жетона тёмное", mean < 0.30, $"средняя яркость {mean:0.00}");
+                Check("на тёмном фоне есть светлый текст", max > 0.55, $"максимум {max:0.00}");
+            }
+            finally
+            {
+                window.Close();
+                Pump();
+                try { File.Delete(image); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Библиотека жетонов: плитки с картинками и именами. Добавляем во
+        /// временную папку три картинки, смотрим, что они попали в список,
+        /// и снимаем картинку окна.
+        /// </summary>
+        private static void CheckTokenLibraryWindow()
+        {
+            string folder = Path.Combine(Path.GetTempPath(), "hmwt_lib_test");
+            Directory.CreateDirectory(folder);
+
+            var created = new List<MapTokenTemplate>();
+            try
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    string file = Path.Combine(folder, "lib" + i + ".png");
+                    File.WriteAllBytes(file, new byte[] { 0x89, 0x50, 0x4E, 0x47, (byte)(i + 1), 3, 5, 7 });
+
+                    var template = MapTokenLibrary.Add("Проверка библиотеки " + (i + 1), file, 1);
+                    if (template != null) created.Add(template);
+                }
+
+                var window = new TokenLibraryWindow();
+                try
+                {
+                    window.WindowStartupLocation = WindowStartupLocation.Manual;
+                    window.Left = -6000;
+                    window.Top = -6000;
+                    window.Show();
+                    Pump();
+                    window.UpdateLayout();
+
+                    var host = window.FindName("TilesHost") as Panel;
+                    Check("библиотека показывает плитки жетонов",
+                        host != null && host.Children.Count >= 3,
+                        host == null ? "списка нет" : "плиток: " + host.Children.Count);
+
+                    // ── поиск по имени ──
+                    var search = window.FindName("SearchBox") as TextBox;
+                    Check("в библиотеке есть поиск", search != null);
+
+                    if (search != null && host != null)
+                    {
+                        int before = host.Children.Count;
+
+                        search.Text = "Проверка библиотеки 2";
+                        Pump();
+                        window.UpdateLayout();
+                        Check("поиск оставляет только совпадения",
+                            host.Children.Count == 1, "плиток: " + host.Children.Count);
+
+                        search.Text = "";
+                        Pump();
+                        window.UpdateLayout();
+                        Check("очистка поиска возвращает все жетоны",
+                            host.Children.Count == before,
+                            $"было {before}, стало {host.Children.Count}");
+                    }
+
+                    SaveTradeScreenshot(window, Path.Combine(_outDir, "shot-token-library.png"));
+
+                    var shot = RenderWindowOnDark(window);
+                    Luminance(shot, out double mean, out double max, out double bright);
+                    Check("окно библиотеки тёмное", mean < 0.30, $"средняя яркость {mean:0.00}");
+                    Check("в библиотеке есть светлые подписи", max > 0.55, $"максимум {max:0.00}");
+                }
+                finally
+                {
+                    window.Close();
+                    Pump();
+                }
+            }
+            finally
+            {
+                foreach (var template in created) MapTokenLibrary.Remove(template.Id);
+                try { Directory.Delete(folder, true); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Проверка причины «у жетонов пропали аватарки после смены сцены».
+        ///
+        /// WebGL при смене сцены строит жетоны заново, а кэш «эта картинка уже
+        /// отправлена» оставался от прошлой сцены — фото не отправлялось, и
+        /// новые спрайты рисовались без аватарок. Проверяем по исходнику, что
+        /// сброс на смену сцены есть: WebGL в тестах не поднимается.
+        /// </summary>
+        private static void CheckMapScenePhotoCache()
+        {
+            string web = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI", "Views", "MapView.Web.cs"));
+            string view = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI", "Views", "MapView.cs"));
+
+            if (!File.Exists(web) || !File.Exists(view))
+            {
+                Say("  [ПРОПУСК] исходники карты не найдены");
+                return;
+            }
+
+            string webCode = File.ReadAllText(web, Encoding.UTF8);
+            string viewCode = File.ReadAllText(view, Encoding.UTF8);
+
+            Check("при смене сцены сбрасывается кэш картинок жетонов",
+                webCode.Contains("_webSceneId != _scene.Id") &&
+                webCode.Contains("_webTokenPhotoKeys.Clear()"));
+            Check("своя картинка жетона важнее портрета монстра",
+                viewCode.Contains("IsTokenImage(own)"));
+            Check("кэш картинок сбрасывается и при перезагрузке WebView",
+                webCode.Contains("_webSceneId = -1"));
+        }
+
+        /// <summary>
+        /// Данные для аватарок на карте: у жетонов с участником боя портрет
+        /// монстра должен реально существовать. Именно из него берётся картинка,
+        /// когда своя не выбрана, — и после смены сцены она снова доедет.
+        /// </summary>
+        private static void CheckSceneTokenPhotosExist()
+        {
+            int withPhoto = 0, missing = 0;
+            var examples = new List<string>();
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT s.name, t.label, b.photo_path
+                    FROM MapToken t
+                    JOIN MapScene s ON s.id_scene = t.id_scene
+                    LEFT JOIN EncounterCombatant c ON c.id_combatant = t.id_combatant
+                    LEFT JOIN Bestiary b ON b.id_monster = c.id_monster
+                    WHERE t.id_combatant > 0 AND COALESCE(b.photo_path,'') <> ''";
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    string scene = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    string label = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    string photo = reader.IsDBNull(2) ? "" : reader.GetString(2);
+
+                    string full = PhotoHelper.ResolvePhotoPath(photo);
+                    if (!string.IsNullOrEmpty(full) && File.Exists(full))
+                    {
+                        withPhoto++;
+                    }
+                    else
+                    {
+                        missing++;
+                        if (examples.Count < 3) examples.Add($"{scene} / {label}: {photo}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Say("  портреты жетонов: " + ex.Message);
+                return;
+            }
+
+            Check("портреты жетонов на картах находятся", missing == 0,
+                missing == 0 ? $"с картинкой: {withPhoto}" : string.Join("; ", examples));
+            Check("на картах есть жетоны с портретами", withPhoto > 0, $"с картинкой: {withPhoto}");
         }
 
         #endregion

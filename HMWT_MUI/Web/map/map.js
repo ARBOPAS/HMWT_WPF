@@ -2421,6 +2421,14 @@
       items.push({ text: 'Показать в бестиарии', action: 'bestiary', value: '' });
       items.push({ text: 'Переименовать…', action: 'rename', value: '' });
 
+      // Картинка жетона: у НПС и предметов её нет в бестиарии, поэтому
+      // выбирается прямо здесь — файл с диска или готовый шаблон.
+      items.push({ text: 'Изменить жетон…', action: 'edit', value: '' });
+      items.push({
+        text: token.hidden ? 'Показать игрокам' : 'Скрыть от игроков',
+        action: 'hidden', value: ''
+      });
+
       items.push({ separator: true });
       // Состояния — подменю с галочками: окно с картой поверх WebGL прятало
       // карту и сбрасывало масштаб, а галочка появлялась только после
@@ -2460,11 +2468,16 @@
   // Меню по правой кнопке на пустом месте карты (только ведущий).
   function openMapMenu(e, sp) {
     const items = [
+      // Жетон НПС или предмета прямо здесь: без трекера инициативы,
+      // чтобы «Старик» или «Бочка» стояли на карте и их можно было двигать.
+      { text: '＋ Жетон НПС или предмета…', action: 'token' },
       { text: 'Точка интереса здесь', action: 'point' },
       { text: 'Пинг здесь', action: 'ping' }
     ];
     renderMenu(e.clientX, e.clientY, items, item => {
-      if (item.action === 'point')
+      if (item.action === 'token')
+        post({ type: 'placeToken', x: Math.round(sp.x), y: Math.round(sp.y) });
+      else if (item.action === 'point')
         post({ type: 'placePoint', x: sp.x, y: sp.y });
       else
         post({ type: 'ping', x: Math.round(sp.x), y: Math.round(sp.y) });
