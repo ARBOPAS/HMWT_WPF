@@ -25,9 +25,11 @@ namespace HMWT_MUI.Views
 
         private InitiativeView _initiative;
         private BestiaryView _bestiary;
+        private LootView _loot;
         private string _current = "Initiative";
         private Button _initiativeTab;
         private Button _bestiaryTab;
+        private Button _lootTab;
 
         public DmToolsView(int characterId)
         {
@@ -105,8 +107,10 @@ namespace HMWT_MUI.Views
             var tabs = new StackPanel { Orientation = Orientation.Horizontal };
             _initiativeTab = TabButton("⚔ ИНИЦИАТИВА", "Initiative");
             _bestiaryTab = TabButton("🐉 БЕСТИАРИЙ", "Bestiary");
+            _lootTab = TabButton("ДОБЫЧА", "Loot");
             tabs.Children.Add(_initiativeTab);
             tabs.Children.Add(_bestiaryTab);
+            tabs.Children.Add(_lootTab);
             Grid.SetColumn(tabs, 0);
             header.Children.Add(tabs);
 
@@ -156,6 +160,12 @@ namespace HMWT_MUI.Views
                 _area.Content = _bestiary;
                 _bestiary.Refresh();
             }
+            else if (view == "Loot")
+            {
+                // Генератор добычи со своим справочником предметов
+                if (_loot == null) _loot = new LootView(_characterId);
+                _area.Content = _loot;
+            }
             else
             {
                 if (_initiative == null)
@@ -180,6 +190,7 @@ namespace HMWT_MUI.Views
             // Активная подвкладка выделяется золотом, как в остальных вкладках окна
             ApplyTabStyle(_initiativeTab, _current == "Initiative");
             ApplyTabStyle(_bestiaryTab, _current == "Bestiary");
+            ApplyTabStyle(_lootTab, _current == "Loot");
         }
 
         private void ApplyTabStyle(Button button, bool active)

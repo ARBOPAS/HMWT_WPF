@@ -395,7 +395,7 @@ namespace HMWT_MUI.Views
         /// мегабайт на файл) оставался бы в памяти для каждой плитки.
         /// </summary>
         private void ApplyImage(Image img, Controls.HoverGif hover, SpellData d,
-            Border placeholder, TextBlock letter, TextBlock rune)
+            Border placeholder, TextBlock letter, FrameworkElement rune)
         {
             if (img == null && hover == null) return;
 
@@ -446,19 +446,40 @@ namespace HMWT_MUI.Views
                 img.Source = bmp;
             }
         }
-        private void ApplyPlaceholder(Border placeholder, TextBlock letter, TextBlock rune, SpellData d)
+        private void ApplyPlaceholder(Border placeholder, TextBlock letter, FrameworkElement rune, SpellData d)
         {
             if (placeholder == null) return;
             if (d != null && d.PlaceholderBrush != null)
             {
                 placeholder.Background = d.PlaceholderBrush;
                 if (letter != null) letter.Text = d.PlaceholderLetter ?? "✶";
-                if (rune != null) rune.Text = d.PlaceholderRune ?? "✶";
+                SetRune(rune, d.PlaceholderRune);
             }
             else
             {
                 StylePlaceholder(placeholder, letter, rune, d?.Name ?? "", d?.School ?? "");
             }
+        }
+
+        /// <summary>
+        /// Значок школы — иконка из набора, а не слово. Раньше сюда попадало
+        /// имя иконки («sparkle», «eye») и рисовалось текстом.
+        /// </summary>
+        private static void SetRune(FrameworkElement rune, string kind)
+        {
+            if (rune == null) return;
+
+            string value = string.IsNullOrWhiteSpace(kind) ? "star" : kind.Trim();
+
+            if (rune is Helpers.IconView icon)
+            {
+                icon.Kind = value;
+                icon.Visibility = Visibility.Visible;
+                return;
+            }
+
+            // Запас на старые шаблоны, где значок ещё TextBlock
+            if (rune is TextBlock text) text.Text = "✶";
         }
         private void PrewarmArtCache()
         {
@@ -494,13 +515,13 @@ namespace HMWT_MUI.Views
         #endregion
 
         #region === ПЛЕЙСХОЛДЕРЫ ===
-        private void StylePlaceholder(Border placeholder, TextBlock letter, TextBlock rune, string name, string school)
+        private void StylePlaceholder(Border placeholder, TextBlock letter, FrameworkElement rune, string name, string school)
         {
             if (placeholder == null) return;
             var (c1, c2) = PlaceholderColors(name);
             placeholder.Background = new LinearGradientBrush(c1, c2, new Point(0, 0), new Point(1, 1));
             if (letter != null) letter.Text = FirstLatinLetter(name);
-            if (rune != null) rune.Text = SchoolRune(school);
+            SetRune(rune, SchoolRune(school));
         }
         private static (Color, Color) PlaceholderColors(string name)
         {
@@ -536,8 +557,8 @@ namespace HMWT_MUI.Views
             if (s.Contains("conj") || s.Contains("приз")) return "wand";
             if (s.Contains("divin") || s.Contains("прориц")) return "star";
             if (s.Contains("enchant") || s.Contains("очар")) return "sparkle";
-            if (s.Contains("trans") || s.Contains("транс")) return "";
-            return "✶";
+            if (s.Contains("trans") || s.Contains("транс")) return "star";
+            return "star";
         }
         #endregion
 
@@ -649,7 +670,7 @@ namespace HMWT_MUI.Views
               var img = new Controls.HoverGif { Stretch = Stretch.Uniform };
             var ph = new Border { Visibility = Visibility.Collapsed };
             var phGrid = new Grid();
-            var rune = new TextBlock { Text = "✶", FontFamily = (FontFamily)FindResource("F.Display"), FontSize = 44, Foreground = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var rune = new Helpers.IconView { Kind = "star", IconSize = 44, IconBrush = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var letter = new TextBlock { Text = "?", FontFamily = (FontFamily)FindResource("F.Display"), FontSize = 52, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             phGrid.Children.Add(rune); phGrid.Children.Add(letter);
             ph.Child = phGrid;

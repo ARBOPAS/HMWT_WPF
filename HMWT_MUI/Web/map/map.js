@@ -2892,6 +2892,12 @@
           post({ type: 'moveTokenLive', id: item.token.id, x: item.token.x, y: item.token.y });
       }
     }
+    // Узел жетона мог исчезнуть посреди перетаскивания: смена сцены,
+    // перестройка жетонов из C# или скрытие. Без этой проверки Pixi падал
+    // с «Cannot read properties of null (reading 'position')».
+    if (!drag.node) drag.node = tokenNodes.get(t.id);
+    if (!drag.node) return;
+
     drag.node.position.set(x, y);
     drag.node._targetX = x;
     drag.node._targetY = y;

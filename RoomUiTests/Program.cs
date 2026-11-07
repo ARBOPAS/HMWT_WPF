@@ -420,6 +420,7 @@ namespace HMWT_MUI.RoomUiTests
             CheckScenesWindowSearch();
             CheckSummonCard();
             CheckChatFilesAndFavorites();
+            CheckLootGenerator();
 
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
@@ -4703,6 +4704,65 @@ namespace HMWT_MUI.RoomUiTests
                 string.IsNullOrEmpty(ChatFavoritesService.Resolve(saved)));
 
             try { File.Delete(gif); } catch { }
+        }
+
+        #endregion
+
+        #region === ДОБЫЧА ===
+
+        /// <summary>
+        /// Генератор добычи: справочник редактируется (категории и предметы),
+        /// генератор берёт предметы оттуда и считает золото по уровню.
+        /// </summary>
+        private static void CheckLootGenerator()
+        {
+            int charId = FindFirstCharacterId();
+            if (charId <= 0)
+            {
+                Say("  [ПРОПУСК] в базе нет персонажа");
+                return;
+            }
+
+            var categories = LootService.LoadCategories(charId);
+            Check("справочник добычи заполняется при первом открытии", categories.Count > 0,
+                "категорий: " + categories.Count);
+
+            string name = "Проверка добычи " + Guid.NewGuid().ToString("N").Substring(0, 6);
+            int categoryId = LootService.SaveCategory(charId, name);
+            Check("категория добычи сохраняется", categoryId > 0, "id=" + categoryId);
+            if (categoryId <= 0) return;
+
+            var item = new LootItem
+            {
+                CategoryId = categoryId,
+                Name = "Проверочный амулет",
+                Rarity = "Редкий",
+                QtyMin = 2,
+                QtyMax = 3,
+                Note = "блестит"
+            };
+
+            int itemId = LootService.SaveItem(item);
+            Check("предмет добычи сохраняется", itemId > 0, "id=" + itemId);
+
+            var loaded = LootService.LoadItems(categoryId).FirstOrDefault(i => i.Id == itemId);
+            Check("предмет добычи читается обратно",
+                loaded != null && loaded.Name == item.Name && loaded.QtyMax == 3,
+                loaded == null ? "не найден" : loaded.Name);
+
+            var result = LootService.Generate(charId, 5, "Сундук");
+            Check("генератор выдаёт золото", result.Gold > 0, "золото: " + result.Gold);
+            Check("генератор берёт предметы из справочника", result.Items.Count > 0,
+                "предметов: " + result.Items.Count);
+            Check("у добычи есть текст для чата",
+                result.ToText().Contains("Добыча") && result.ToText().Contains("зм"));
+
+            LootService.DeleteItem(itemId);
+            Check("предмет добычи удаляется", LootService.LoadItems(categoryId).All(i => i.Id != itemId));
+
+            LootService.DeleteCategory(categoryId);
+            Check("категория добычи удаляется",
+                LootService.LoadCategories(charId).All(c => c.Id != categoryId));
         }
 
         #endregion

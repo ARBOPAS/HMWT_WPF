@@ -205,6 +205,7 @@
     <Compile Include="Services\SummonService.cs" />
     <Compile Include="Services\ChatFavoritesService.cs" />
     <Compile Include="Services\ChatFileStore.cs" />
+    <Compile Include="Services\LootService.cs" />
     <Compile Include="Services\MapService.cs" />
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
@@ -306,6 +307,7 @@
     <Compile Include="Views\MapView.Shell.cs" />
     <Compile Include="Views\MapView.Tokens.cs" />
     <Compile Include="Views\MapView.Summons.cs" />
+    <Compile Include="Views\LootView.cs" />
     <Compile Include="Views\MonsterEditor.cs" />
     <Compile Include="Views\BestiaryView.cs" />
     <Compile Include="Views\InitiativePanel.cs" />

@@ -1299,17 +1299,30 @@ namespace HMWT_MUI.Views
             // иначе на каждое сообщение заново строились все карточки.
             if (ChatWeb.IsReady)
             {
-                if (_renderedFeedCount < 0 || feed.Count < _renderedFeedCount)
+                // Отрисовка может упасть (страница перезагрузилась, движок ещё
+                // поднимается). Раньше исключение оставляло счётчик записей
+                // старым, и на каждом тике в ленту дописывалась одна и та же
+                // запись — игрок видел ряд одинаковых бросков до переподключения.
+                try
                 {
-                    ChatWeb.SetFeed(feed);
+                    if (_renderedFeedCount < 0 || feed.Count < _renderedFeedCount)
+                    {
+                        ChatWeb.SetFeed(feed);
+                    }
+                    else if (feed.Count > _renderedFeedCount)
+                    {
+                        ChatWeb.AppendFeed(feed.Skip(_renderedFeedCount).ToList());
+                    }
+
+                    _renderedFeedCount = feed.Count;
                 }
-                else if (feed.Count > _renderedFeedCount)
+                catch (Exception ex)
                 {
-                    ChatWeb.AppendFeed(feed.Skip(_renderedFeedCount).ToList());
+                    Debug.WriteLine($"[RoomView] лента: {ex.Message}");
+                    _renderedFeedCount = -1;   // перерисуем целиком на следующем проходе
                 }
 
                 feedScroll.Visibility = Visibility.Collapsed;
-                _renderedFeedCount = feed.Count;
                 return;
             }
 

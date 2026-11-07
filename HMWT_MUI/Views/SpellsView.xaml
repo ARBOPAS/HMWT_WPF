@@ -344,8 +344,8 @@
                                 <Image x:Name="DescImage" Stretch="Uniform"/>
                                 <Border x:Name="DescArtPlaceholder" Visibility="Collapsed">
                                     <Grid>
-                                        <TextBlock x:Name="DescArtRune" Text="✶" FontFamily="{StaticResource F.Display}" FontSize="60"
-                                                   Foreground="#14FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <helpers:IconView x:Name="DescArtRune" Kind="star" IconSize="60"
+                                                          IconBrush="#14FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock x:Name="DescArtLetter" Text="?" FontFamily="{StaticResource F.Display}" FontSize="74" FontWeight="Bold"
                                                    Foreground="#55FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Grid>
@@ -507,8 +507,8 @@
                             <controls:HoverGif x:Name="FullImage" Stretch="Uniform"/>
                             <Border x:Name="FullArtPlaceholder" Visibility="Collapsed">
                                 <Grid>
-                                    <TextBlock x:Name="FullArtRune" Text="✶" FontFamily="{StaticResource F.Display}" FontSize="120"
-                                               Foreground="#12FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <helpers:IconView x:Name="FullArtRune" Kind="star" IconSize="110"
+                                                      IconBrush="#12FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="FullArtLetter" Text="?" FontFamily="{StaticResource F.Display}" FontSize="150" FontWeight="Bold"
                                                Foreground="#44FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Grid>
