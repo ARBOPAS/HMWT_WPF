@@ -234,6 +234,9 @@
     <Compile Include="Controls\ChatWebView.xaml.cs">
       <DependentUpon>ChatWebView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\ChatGifPanel.xaml.cs">
+      <DependentUpon>ChatGifPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\AudioHost.xaml.cs">
       <DependentUpon>AudioHost.xaml</DependentUpon>
     </Compile>
@@ -483,6 +486,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Controls\ChatWebView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Controls\ChatGifPanel.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

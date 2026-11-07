@@ -306,5 +306,17 @@
                         Margin="8,0,0,0" MinWidth="120" MinHeight="46" Click="BtnSendChat_Click"/>
             </Grid>
         </Border>
+
+        <!-- Избранные гифки: всплывает над кнопкой, как в Discord -->
+        <Popup x:Name="gifPopup" PlacementTarget="{Binding ElementName=btnChatGifs}"
+               Placement="Top" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+            <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
+                    BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,8">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="22" ShadowDepth="0" Color="#000000" Opacity="0.7"/>
+                </Border.Effect>
+                <controls:ChatGifPanel x:Name="gifPanel"/>
+            </Border>
+        </Popup>
     </Grid>
 </UserControl>

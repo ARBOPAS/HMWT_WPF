@@ -114,6 +114,10 @@
       <Link>App\Controls\ChatWebView.xaml.cs</Link>
       <DependentUpon>ChatWebView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="..\HMWT_MUI\Controls\ChatGifPanel.xaml.cs">
+      <Link>App\Controls\ChatGifPanel.xaml.cs</Link>
+      <DependentUpon>ChatGifPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="..\HMWT_MUI\Helpers\NameMatch.cs"><Link>App\NameMatch.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Windows\MessageDialog.cs"><Link>App\MessageDialog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\GifAnimator.cs"><Link>App\GifAnimator.cs</Link></Compile>
@@ -270,6 +274,11 @@
     </Page>
     <Page Include="..\HMWT_MUI\Controls\ChatWebView.xaml">
       <Link>App\Controls\ChatWebView.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Controls\ChatGifPanel.xaml">
+      <Link>App\Controls\ChatGifPanel.xaml</Link>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

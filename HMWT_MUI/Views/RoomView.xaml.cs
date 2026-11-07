@@ -121,6 +121,13 @@ namespace HMWT_MUI.Views
             // Пока движок не поднялся — остаётся старая нативная лента.
             ChatWeb.FileSaveRequested += OnChatFileSaveRequested;
             ChatWeb.FileOpenRequested += OnChatFileOpenRequested;
+
+            // Клик по гифке отправляет сразу — без кнопки «Отправить»
+            gifPanel.GifClicked += path =>
+            {
+                gifPopup.IsOpen = false;
+                SendChatGif(path);
+            };
             ChatWeb.Ready += () =>
             {
                 ChatWeb.Width = double.NaN;
@@ -1750,8 +1757,8 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>
-        /// Избранные гифки: окно с плитками, отправка выбранной в чат.
-        /// Копии уже лежат в папке данных — проводник не нужен.
+        /// Избранные гифки: всплывающая панель у кнопки. Клик по гифке сразу
+        /// отправляет её в чат и закрывает панель.
         /// </summary>
         private void BtnChatGifs_Click(object sender, RoutedEventArgs e)
         {
@@ -1761,15 +1768,20 @@ namespace HMWT_MUI.Views
                 return;
             }
 
-            var window = new Windows.ChatGifWindow { Owner = Window.GetWindow(this) };
-            if (window.ShowDialog() != true) return;
-
-            string path = window.SelectedPath;
-            if (string.IsNullOrEmpty(path))
+            if (gifPopup.IsOpen)
             {
-                ShowWindowToast("Гифка не найдена — возможно, файл удалили.");
+                gifPopup.IsOpen = false;
                 return;
             }
+
+            gifPanel.Refresh();
+            gifPopup.IsOpen = true;
+        }
+
+        /// <summary>Отправка гифки из панели избранного.</summary>
+        private void SendChatGif(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
 
             try
             {
@@ -1806,8 +1818,8 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>
-        /// Файл в чат: любой документ, без ограничения размера. В ленту уходит
-        /// карточка, сам файл лежит у хоста и скачивается по кнопке.
+        /// Файлы в чат: можно выбрать несколько сразу. Картинки тоже можно
+        /// отправлять файлом — они попадут в карточку с именем и размером.
         /// </summary>
         private void BtnAttachFile_Click(object sender, RoutedEventArgs e)
         {
@@ -1819,37 +1831,53 @@ namespace HMWT_MUI.Views
 
             var dialog = new OpenFileDialog
             {
-                Title = "Файл в чат",
-                Filter = "Документы|*.doc;*.docx;*.xls;*.xlsx;*.pdf;*.txt;*.md;*.csv;*.zip;*.rar|Все файлы (*.*)|*.*"
+                Title = "Файлы в чат",
+                Multiselect = true,
+                Filter = "Документы|*.doc;*.docx;*.xls;*.xlsx;*.pdf;*.txt;*.md;*.csv;*.zip;*.rar;*.7z" +
+                         "|Картинки|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp" +
+                         "|Все файлы (*.*)|*.*"
             };
             if (dialog.ShowDialog() != true) return;
 
-            try
+            int sent = 0;
+            var failed = new List<string>();
+
+            foreach (string path in dialog.FileNames)
             {
-                var info = new FileInfo(dialog.FileName);
-                if (!info.Exists || info.Length <= 0)
+                try
                 {
-                    ShowWindowToast("Файл пустой.");
-                    return;
+                    var info = new FileInfo(path);
+                    if (!info.Exists || info.Length <= 0)
+                    {
+                        failed.Add(System.IO.Path.GetFileName(path));
+                        continue;
+                    }
+
+                    byte[] bytes = File.ReadAllBytes(path);
+                    string caption = txtChatInput.Text ?? "";
+
+                    if (_session.PublishChatFile(caption, bytes, info.Name))
+                    {
+                        sent++;
+                        if (sent == 1) txtChatInput.Clear();
+                    }
+                    else
+                    {
+                        failed.Add(info.Name);
+                    }
                 }
-
-                byte[] bytes = File.ReadAllBytes(dialog.FileName);
-                string caption = txtChatInput.Text ?? "";
-
-                if (!_session.PublishChatFile(caption, bytes, info.Name))
+                catch (Exception ex)
                 {
-                    ShowWindowToast("Не удалось отправить файл.");
-                    return;
+                    Debug.WriteLine($"[RoomView] файл в чат: {ex}");
+                    failed.Add(System.IO.Path.GetFileName(path));
                 }
+            }
 
-                txtChatInput.Clear();
-                ShowWindowToast($"Файл «{info.Name}» отправлен.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[RoomView] файл в чат: {ex}");
-                ShowWindowToast("Ошибка: " + ex.Message);
-            }
+            if (sent > 0)
+                ShowWindowToast(sent == 1 ? "Файл отправлен." : $"Отправлено файлов: {sent}");
+
+            if (failed.Count > 0)
+                ShowWindowToast("Не удалось отправить: " + string.Join(", ", failed), true);
         }
 
         /// <summary>

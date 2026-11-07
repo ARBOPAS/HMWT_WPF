@@ -220,5 +220,5 @@ using System.Windows;
 // «Открыть»/«Показать в папке» (протокол 23). Избранные гифки в папке
 // данных, панель повторной отправки. Кнопки вложения: Иконка (стикеры
 // из IconLibrary), Гифки, Картинка, Файл.
-[assembly: AssemblyVersion("1.3.18.6")]
-[assembly: AssemblyFileVersion("1.3.18.6")]
+[assembly: AssemblyVersion("1.3.18.7")]
+[assembly: AssemblyFileVersion("1.3.18.7")]
