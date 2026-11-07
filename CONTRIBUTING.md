@@ -39,6 +39,23 @@ Signed-off-by: Имя <email@example.com>
 См. `README.md`. Перед PR собери `HMWT_MUI.csproj` и прогони
 `RoomUiTests`.
 
+## Релиз
+
+Порядок, чтобы ничего не забыть (лицензия — обязательная часть релиза):
+
+1. Подними версию в `Properties/AssemblyInfo.cs` и `Net/NetVersions.cs`,
+   допиши строку в историю версий.
+2. Прогони `RoomUiTests` — должно быть `ИТОГ: всё прошло`.
+3. Собери установщик: `installer/build-installer.ps1`.
+4. Собери архив исходников этой версии:
+   `git archive --format=zip -o HMWT_WPF_<версия>_source.zip v<версия>`.
+   В архив попадают `LICENSE` (AGPL-3.0-only), `NOTICE`, `SOURCE.txt`,
+   `THIRD_PARTY_NOTICES.md`, `TRADEMARKS.md` — проверь, что они на месте.
+5. Закоммить, поставь тег `v<версия>`, запушь `main` и тег.
+6. В релиз на GitHub приложи **оба** файла: установщик и архив исходников.
+   В описании укажи лицензию (AGPL-3.0-only) и что исходники этой версии —
+   во вложении и по тегу.
+
 ## DCO 1.1
 
 Полный текст: https://developercertificate.org/
