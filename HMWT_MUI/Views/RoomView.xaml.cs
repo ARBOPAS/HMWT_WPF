@@ -119,6 +119,7 @@ namespace HMWT_MUI.Views
 
             // Лента на WebView2: гифки и картинки не грузят поток WPF.
             // Пока движок не поднялся — остаётся старая нативная лента.
+            ChatWeb.FileSaveRequested += OnChatFileSaveRequested;
             ChatWeb.Ready += () =>
             {
                 ChatWeb.Width = double.NaN;
@@ -1731,12 +1732,222 @@ namespace HMWT_MUI.Views
 
                 txtChatInput.Clear();
                 ShowWindowToast("Картинка отправлена.");
+
+                // Гифка попадает в избранное сама: отправить её ещё раз можно
+                // из «Гифки» без поиска файла в проводнике
+                if (extension == ".gif" || extension == ".webp")
+                {
+                    try { Services.ChatFavoritesService.Save(dialog.FileName, info.Name); }
+                    catch (Exception favEx) { Debug.WriteLine($"[RoomView] избранное: {favEx.Message}"); }
+                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[RoomView] картинка в чат: {ex}");
                 ShowWindowToast("Ошибка: " + ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Избранные гифки: окно с плитками, отправка выбранной в чат.
+        /// Копии уже лежат в папке данных — проводник не нужен.
+        /// </summary>
+        private void BtnChatGifs_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_session.IsActive)
+            {
+                ShowWindowToast("Сначала подключитесь к отряду.");
+                return;
+            }
+
+            var window = new Windows.ChatGifWindow { Owner = Window.GetWindow(this) };
+            if (window.ShowDialog() != true) return;
+
+            string path = window.SelectedPath;
+            if (string.IsNullOrEmpty(path))
+            {
+                ShowWindowToast("Гифка не найдена — возможно, файл удалили.");
+                return;
+            }
+
+            try
+            {
+                var info = new FileInfo(path);
+                if (!info.Exists || info.Length <= 0)
+                {
+                    ShowWindowToast("Файл гифки пустой.");
+                    return;
+                }
+
+                if (info.Length > NetLimits.ChatImageMaxBytes)
+                {
+                    ShowWindowToast($"Гифка больше {NetLimits.ChatImageMaxBytes / (1024 * 1024)} МБ — уменьшите её.");
+                    return;
+                }
+
+                string caption = txtChatInput.Text ?? "";
+                byte[] bytes = File.ReadAllBytes(path);
+
+                if (!_session.PublishChatImage(caption, bytes, info.Extension.ToLowerInvariant(), info.Name))
+                {
+                    ShowWindowToast("Не удалось отправить гифку.");
+                    return;
+                }
+
+                txtChatInput.Clear();
+                ShowWindowToast("Гифка отправлена.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] гифка в чат: {ex}");
+                ShowWindowToast("Ошибка: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Файл в чат: любой документ, без ограничения размера. В ленту уходит
+        /// карточка, сам файл лежит у хоста и скачивается по кнопке.
+        /// </summary>
+        private void BtnAttachFile_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_session.IsActive)
+            {
+                ShowWindowToast("Сначала подключитесь к отряду.");
+                return;
+            }
+
+            var dialog = new OpenFileDialog
+            {
+                Title = "Файл в чат",
+                Filter = "Документы|*.doc;*.docx;*.xls;*.xlsx;*.pdf;*.txt;*.md;*.csv;*.zip;*.rar|Все файлы (*.*)|*.*"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                var info = new FileInfo(dialog.FileName);
+                if (!info.Exists || info.Length <= 0)
+                {
+                    ShowWindowToast("Файл пустой.");
+                    return;
+                }
+
+                byte[] bytes = File.ReadAllBytes(dialog.FileName);
+                string caption = txtChatInput.Text ?? "";
+
+                if (!_session.PublishChatFile(caption, bytes, info.Name))
+                {
+                    ShowWindowToast("Не удалось отправить файл.");
+                    return;
+                }
+
+                txtChatInput.Clear();
+                ShowWindowToast($"Файл «{info.Name}» отправлен.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RoomView] файл в чат: {ex}");
+                ShowWindowToast("Ошибка: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// «Сохранить…» на карточке файла: сначала предупреждение с размером,
+        /// потом запрос файла у хоста и запись на диск. Файл не скачивается
+        /// сам — только после подтверждения.
+        /// </summary>
+        private void OnChatFileSaveRequested(string fileId, string fileName, long size)
+        {
+            if (string.IsNullOrWhiteSpace(fileId)) return;
+
+            string text = "Файл «" + (string.IsNullOrWhiteSpace(fileName) ? "без имени" : fileName) + "» " +
+                          "весит " + HumanSize(size) + ".\n\nСкачать его сейчас?";
+
+            if (!MessageDialog.Confirm(this, text, "Файл из чата", "Скачать", "Отмена", false))
+                return;
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Куда сохранить файл",
+                FileName = string.IsNullOrWhiteSpace(fileName) ? "файл" : fileName
+            };
+
+            if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
+            string target = dialog.FileName;
+
+            void OnReady(string id, byte[] bytes)
+            {
+                if (!string.Equals(id, fileId, StringComparison.Ordinal)) return;
+
+                _session.ChatFileReady -= OnReady;
+                try
+                {
+                    File.WriteAllBytes(target, bytes);
+                    ShowWindowToast("Файл сохранён: " + target);
+
+                    // Сразу предлагаем открыть — иначе игрок идёт в проводник
+                    if (MessageDialog.Confirm(this, "Файл сохранён. Открыть его сейчас?",
+                            "Файл из чата", "Открыть", "Позже", false))
+                    {
+                        Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                    }
+                    else if (MessageDialog.Confirm(this, "Показать файл в папке?",
+                                 "Файл из чата", "Показать", "Нет", false))
+                    {
+                        Process.Start(new ProcessStartInfo("explorer.exe",
+                            "/select,\"" + target + "\"") { UseShellExecute = true });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowWindowToast("Не удалось сохранить файл: " + ex.Message);
+                }
+            }
+
+            _session.ChatFileReady += OnReady;
+            if (!_session.RequestChatFile(fileId))
+            {
+                _session.ChatFileReady -= OnReady;
+                ShowWindowToast("Файл не найден у ведущего.");
+            }
+        }
+
+        private static string HumanSize(long bytes)
+        {
+            if (bytes >= 1024L * 1024 * 1024) return (bytes / 1024.0 / 1024 / 1024).ToString("0.0") + " ГБ";
+            if (bytes >= 1024L * 1024) return (bytes / 1024.0 / 1024).ToString("0.0") + " МБ";
+            if (bytes >= 1024) return (bytes / 1024.0).ToString("0") + " КБ";
+            return bytes + " Б";
+        }
+
+        /// <summary>Иконка приложения как стикер: рисуем SVG в PNG и отправляем картинкой.</summary>
+        private void BtnChatIcon_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_session.IsActive)
+            {
+                ShowWindowToast("Сначала подключитесь к отряду.");
+                return;
+            }
+
+            var window = new Windows.IconPickerWindow { Owner = Window.GetWindow(this) };
+            if (window.ShowDialog() != true || string.IsNullOrEmpty(window.SelectedKind)) return;
+
+            byte[] bytes = Windows.IconPickerWindow.RenderIcon(window.SelectedKind);
+            if (bytes == null || bytes.Length == 0)
+            {
+                ShowWindowToast("Не удалось нарисовать иконку.");
+                return;
+            }
+
+            string caption = txtChatInput.Text ?? "";
+            if (!_session.PublishChatImage(caption, bytes, ".png", "иконка.png"))
+            {
+                ShowWindowToast("Не удалось отправить иконку.");
+                return;
+            }
+
+            txtChatInput.Clear();
+            ShowWindowToast("Иконка отправлена.");
         }
 
         private void TxtChatInput_KeyDown(object sender, KeyEventArgs e)

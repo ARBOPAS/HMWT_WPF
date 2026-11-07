@@ -419,6 +419,7 @@ namespace HMWT_MUI.RoomUiTests
             CheckTokenHalfCell();
             CheckScenesWindowSearch();
             CheckSummonCard();
+            CheckChatFilesAndFavorites();
 
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
@@ -4651,6 +4652,57 @@ namespace HMWT_MUI.RoomUiTests
                 return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
             }
             catch { return 0; }
+        }
+
+        #endregion
+
+        #region === ФАЙЛЫ ЧАТА И ИЗБРАННЫЕ ГИФКИ ===
+
+        /// <summary>
+        /// Файлы чата и избранные гифки: файл кладётся в хранилище комнаты и
+        /// выдаётся по id, имя чистится от запрещённых символов, гифка не
+        /// дублируется в избранном и удаляется вместе с копией.
+        /// </summary>
+        private static void CheckChatFilesAndFavorites()
+        {
+            string room = "test-room-" + Guid.NewGuid().ToString("N").Substring(0, 6);
+            byte[] bytes = new byte[] { 1, 2, 3, 4, 5, 6, 7 };
+
+            string id = ChatFileStore.Save(room, "отчёт 2026.docx", bytes);
+            Check("файл чата сохраняется в хранилище комнаты", !string.IsNullOrEmpty(id), id);
+
+            string full = ChatFileStore.Resolve(room, id);
+            Check("файл находится по id", full != null && File.Exists(full));
+            Check("имя файла сохраняется", ChatFileStore.DisplayName(room, id) == "отчёт 2026.docx",
+                ChatFileStore.DisplayName(room, id));
+            Check("размер файла совпадает", ChatFileStore.Size(room, id) == bytes.Length);
+
+            string sanitized = ChatFileStore.Sanitize("a/b:c*.docx");
+            Check("имя файла чистится от запрещённых символов",
+                sanitized.IndexOfAny(Path.GetInvalidFileNameChars()) < 0, sanitized);
+
+            ChatFileStore.Delete(room, id);
+            Check("файл удаляется", ChatFileStore.Resolve(room, id) == null);
+
+            string gif = Path.Combine(Path.GetTempPath(), "hmwt_fav_test.gif");
+            File.WriteAllBytes(gif, new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 2, 3 });
+
+            string saved = ChatFavoritesService.Save(gif, "проверка.gif");
+            Check("гифка попадает в избранное", !string.IsNullOrEmpty(saved), saved);
+            Check("копия гифки лежит в папке данных",
+                !string.IsNullOrEmpty(ChatFavoritesService.Resolve(saved)));
+
+            ChatFavoritesService.Save(gif, "проверка.gif");
+            Check("одна и та же гифка не дублируется",
+                ChatFavoritesService.Load().Count(f => f.File == saved) == 1);
+
+            ChatFavoritesService.Remove(saved);
+            Check("гифка убирается из избранного",
+                ChatFavoritesService.Load().All(f => f.File != saved));
+            Check("копия гифки удаляется вместе с записью",
+                string.IsNullOrEmpty(ChatFavoritesService.Resolve(saved)));
+
+            try { File.Delete(gif); } catch { }
         }
 
         #endregion

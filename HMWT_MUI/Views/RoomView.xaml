@@ -278,6 +278,9 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <!-- Достаточная высота для текста: 36 пикселей не хватало, и вводимое
                      сообщение не отображалось. MinWidth у кнопки не даёт ей сжаться
@@ -286,10 +289,19 @@
                          MinHeight="46" MaxHeight="150" AcceptsReturn="True" TextWrapping="Wrap"
                          VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
                          ToolTip="Enter — отправить, Shift+Enter — новая строка" KeyDown="TxtChatInput_KeyDown"/>
-                <Button Grid.Column="1" x:Name="btnAttachImage" Content="Картинка" Style="{StaticResource RoomGhostBtn}"
-                        Margin="10,0,0,0" MinWidth="96" MinHeight="46" Click="BtnAttachImage_Click"
+                <Button Grid.Column="1" x:Name="btnChatIcon" Content="Иконка" Style="{StaticResource RoomGhostBtn}"
+                        Margin="10,0,0,0" MinWidth="86" MinHeight="46" Click="BtnChatIcon_Click"
+                        ToolTip="Отправить иконку приложения (стикер)"/>
+                <Button Grid.Column="2" x:Name="btnChatGifs" Content="Гифки" Style="{StaticResource RoomGhostBtn}"
+                        Margin="8,0,0,0" MinWidth="86" MinHeight="46" Click="BtnChatGifs_Click"
+                        ToolTip="Избранные гифки: отправка в чат одним кликом"/>
+                <Button Grid.Column="3" x:Name="btnAttachImage" Content="Картинка" Style="{StaticResource RoomGhostBtn}"
+                        Margin="8,0,0,0" MinWidth="96" MinHeight="46" Click="BtnAttachImage_Click"
                         ToolTip="Отправить картинку или гифку в чат"/>
-                <Button Grid.Column="2" x:Name="btnSendChat" Content="Отправить" Style="{StaticResource RoomActionBtn}"
+                <Button Grid.Column="4" x:Name="btnAttachFile" Content="Файл" Style="{StaticResource RoomGhostBtn}"
+                        Margin="8,0,0,0" MinWidth="76" MinHeight="46" Click="BtnAttachFile_Click"
+                        ToolTip="Отправить файл (docx, xlsx, md…). Размер не ограничен; получатель скачает его сам"/>
+                <Button Grid.Column="5" x:Name="btnSendChat" Content="Отправить" Style="{StaticResource RoomActionBtn}"
                         Margin="8,0,0,0" MinWidth="120" MinHeight="46" Click="BtnSendChat_Click"/>
             </Grid>
         </Border>

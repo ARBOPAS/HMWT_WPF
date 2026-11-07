@@ -221,6 +221,9 @@ namespace HMWT_MUI.Net
         /// <summary>Пришла картинка из истории чата: (id, base64, ext).</summary>
         public event Action<string, string, string> ChatImageReceived;
 
+        /// <summary>Файл чата получен по запросу: (id, байты). Протокол 23.</summary>
+        public event Action<string, byte[]> ChatFileReady;
+
         /// <summary>Хост прислал всё разведанное по сцене при открытии карты.</summary>
         public event Action<List<string>> MapSeenSynced;
 
@@ -429,6 +432,7 @@ namespace HMWT_MUI.Net
                 _client.Events.MapSeenSynced = list => MapSeenSynced?.Invoke(list);
                 _client.Events.PingReceived = (x, y) => Pinged?.Invoke(x, y);
                 _client.Events.TradeReceived = HandleIncomingTrade;
+                _client.Events.ChatFileReceived = (id, bytes) => ChatFileReady?.Invoke(id, bytes);
                 _client.Events.ChatImageReceived = (id, b64, ext) =>
                 {
                     lock (_clientFeedLock)
@@ -914,7 +918,70 @@ namespace HMWT_MUI.Net
         }
 
         /// <summary>
-        /// Публикует состояние трекера инициативы.
+        /// Файл в чат (протокол 23). В ленте едет только карточка: имя, размер
+        /// и id. Байты лежат у хоста и выдаются по запросу — поэтому файл
+        /// любого размера не приезжает всем сразу.
+        /// </summary>
+        public bool PublishChatFile(string caption, byte[] bytes, string fileName)
+        {
+            if (!IsActive || bytes == null || bytes.Length == 0) return false;
+
+            string text = (caption ?? "").Trim();
+            if (text.Length > NetLimits.ChatMaxLength) text = text.Substring(0, NetLimits.ChatMaxLength);
+
+            if (IsHost)
+            {
+                string id = ChatFileStore.Save(RoomId, fileName, bytes);
+                if (string.IsNullOrEmpty(id)) return false;
+
+                var entry = new FeedEntry
+                {
+                    Kind = FeedKind.File,
+                    AuthorId = MyPlayerId,
+                    AuthorName = MyName(),
+                    Text = text,
+                    FileId = id,
+                    FileName = fileName ?? "",
+                    FileSize = bytes.Length
+                };
+
+                _server.AddFeed(entry);
+                _server.BroadcastChat(entry);
+                _ = _server.BroadcastSnapshotAsync();
+                return true;
+            }
+
+            _ = _client.SendChatFileAsync(text, bytes, fileName);
+            return true;
+        }
+
+        /// <summary>
+        /// Просит файл чата. У ведущего он лежит рядом — отдаём сразу; у игрока
+        /// запрос уходит хосту, а готовый файл придёт событием ChatFileReady.
+        /// Протокол 23.
+        /// </summary>
+        public bool RequestChatFile(string fileId)
+        {
+            if (!IsActive || string.IsNullOrWhiteSpace(fileId)) return false;
+
+            if (IsHost)
+            {
+                string full = ChatFileStore.Resolve(RoomId, fileId);
+                if (full == null) return false;
+
+                try
+                {
+                    ChatFileReady?.Invoke(fileId, System.IO.File.ReadAllBytes(full));
+                    return true;
+                }
+                catch { return false; }
+            }
+
+            _ = _client.RequestChatFileAsync(fileId);
+            return true;
+        }
+
+        /// <summary>Публикует состояние трекера инициативы.
         ///
         /// Ведёт бой ведущий (он же хост): игрокам уходит только имя и результат
         /// броска, чтобы они видели очередь и свой ход. У гостя вызов тихо

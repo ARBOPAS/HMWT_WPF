@@ -282,7 +282,14 @@ namespace HMWT_MUI.Net
         Chat = 0,
         Roll = 1,
         System = 2,
-        Image = 3
+        Image = 3,
+
+        /// <summary>
+        /// Файл в чате (docx, xlsx, md…). В ленте едут только имя, размер и id:
+        /// сам файл лежит у хоста и скачивается, когда получатель нажал
+        /// «Сохранить…». Протокол 23.
+        /// </summary>
+        File = 4
     }
 
     /// <summary>Одна запись в общей ленте: чат, бросок или системное событие.</summary>
@@ -350,12 +357,58 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("imageExt")] public string ImageExtension { get; set; } = "";
         [JsonPropertyName("imageName")] public string ImageName { get; set; } = "";
         [JsonPropertyName("imageId")] public string ImageId { get; set; } = "";
+
+        // ── файл в чате (Kind = File): только описание, без байтов ──
+        [JsonPropertyName("fileName")] public string FileName { get; set; } = "";
+        [JsonPropertyName("fileSize")] public long FileSize { get; set; }
+        [JsonPropertyName("fileId")] public string FileId { get; set; } = "";
     }
 
     /// <summary>Клиент просит у хоста картинку из истории, которой нет в памяти.</summary>
     public sealed class ChatImageRequest
     {
         [JsonPropertyName("id")] public string ImageId { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Часть файла чата (протокол 23). Файл режется на части: одно сообщение
+    /// с гигабайтом заблокировало бы канал. Порядок восстанавливается по номеру.
+    /// </summary>
+    public sealed class ChatFilePart
+    {
+        [JsonPropertyName("id")] public string FileId { get; set; } = "";
+        [JsonPropertyName("i")] public int Index { get; set; }
+        [JsonPropertyName("n")] public int Total { get; set; }
+        [JsonPropertyName("name")] public string FileName { get; set; } = "";
+        [JsonPropertyName("len")] public long TotalBytes { get; set; }
+        [JsonPropertyName("caption")] public string Caption { get; set; } = "";
+        [JsonPropertyName("d")] public string Base64 { get; set; } = "";
+    }
+
+    /// <summary>Файл стал доступен: в ленте появляется карточка без байтов.</summary>
+    public sealed class ChatFileData
+    {
+        [JsonPropertyName("id")] public string FileId { get; set; } = "";
+        [JsonPropertyName("name")] public string FileName { get; set; } = "";
+        [JsonPropertyName("size")] public long FileSize { get; set; }
+        [JsonPropertyName("caption")] public string Caption { get; set; } = "";
+        [JsonPropertyName("by")] public string AuthorId { get; set; } = "";
+        [JsonPropertyName("byName")] public string AuthorName { get; set; } = "";
+    }
+
+    /// <summary>Получатель просит файл — только после подтверждения размера.</summary>
+    public sealed class ChatFileRequest
+    {
+        [JsonPropertyName("id")] public string FileId { get; set; } = "";
+    }
+
+    /// <summary>Хост отдаёт запрошенный файл частями.</summary>
+    public sealed class ChatFileResponse
+    {
+        [JsonPropertyName("id")] public string FileId { get; set; } = "";
+        [JsonPropertyName("i")] public int Index { get; set; }
+        [JsonPropertyName("n")] public int Total { get; set; }
+        [JsonPropertyName("d")] public string Base64 { get; set; } = "";
     }
 
     /// <summary>Хост отдаёт картинку по id.</summary>

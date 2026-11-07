@@ -23,6 +23,9 @@ namespace HMWT_MUI.Controls
     {
         public event Action Ready;
 
+        /// <summary>Нажали «Сохранить…» на карточке файла: (id, имя, размер).</summary>
+        public event Action<string, string, long> FileSaveRequested;
+
         public bool IsReady { get; private set; }
 
         private static readonly List<WeakReference> _live = new List<WeakReference>();
@@ -160,7 +163,10 @@ namespace HMWT_MUI.Controls
                     image = e.ImageBase64 ?? "",
                     ext = e.ImageExtension ?? "",
                     name = e.ImageName ?? "",
-                    id = e.ImageId ?? ""
+                    id = e.ImageId ?? "",
+                    fileId = e.FileId ?? "",
+                    fileName = e.FileName ?? "",
+                    fileSize = e.FileSize
                 }).ToList()
             };
 
@@ -210,6 +216,20 @@ namespace HMWT_MUI.Controls
             {
                 using var doc = JsonDocument.Parse(e.WebMessageAsJson);
                 string type = doc.RootElement.TryGetProperty("type", out var t) ? t.GetString() : "";
+
+                // «Сохранить…» на карточке файла: байты запрашиваются только
+                // после подтверждения размера, в самой ленте их нет
+                if (type == "chatFile")
+                {
+                    string id = doc.RootElement.TryGetProperty("id", out var fid) ? fid.GetString() : "";
+                    string name = doc.RootElement.TryGetProperty("name", out var fname) ? fname.GetString() : "";
+                    long size = doc.RootElement.TryGetProperty("size", out var fsize) && fsize.TryGetInt64(out long parsed)
+                        ? parsed : 0;
+
+                    if (!string.IsNullOrEmpty(id)) FileSaveRequested?.Invoke(id, name ?? "", size);
+                    return;
+                }
+
                 if (type != "ready") return;
 
                 IsReady = true;
@@ -245,6 +265,12 @@ namespace HMWT_MUI.Controls
   .system { border-style: dashed; color: #8B95B4; text-align: center; padding: 6px 10px; }
   .image { display: block; margin-top: 7px; max-width: 100%; max-height: 360px; border-radius: 6px; }
   .missing { color: #E06A63; font-size: 11px; margin-top: 6px; }
+  .file-card { margin-top: 7px; border: 1px solid #2B3352; border-radius: 8px; padding: 8px 10px; background: #10162A; }
+  .file-name { color: #ECE4D0; font-weight: 600; word-break: break-all; }
+  .file-meta { color: #8B95B4; font-size: 11px; margin-top: 3px; }
+  .file-save { margin-top: 7px; cursor: pointer; border: 1px solid #2A6A74; background: #151B2E;
+               color: #5FD4DD; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+  .file-save:hover { background: #1B2440; }
   .empty { color: #8B95B4; text-align: center; padding: 14px 8px; }
 </style></head>
 <body><div id=""feed""></div><div id=""bottom""></div>
@@ -316,9 +342,36 @@ function rowFor(e) {
       row.appendChild(makeImage(e.image, e.ext, e.name));
     } else if (e.kind === 3) {
       row.appendChild(el('div', 'missing', 'Картинка недоступна в истории'));
+    } else if (e.kind === 4 && e.fileId) {
+      row.appendChild(makeFileCard(e));
     }
   }
   return row;
+}
+
+// Карточка файла: в ленте только имя и размер. Байты не скачиваются, пока
+// получатель не нажал «Сохранить…» — размер показывается заранее.
+function makeFileCard(e) {
+  const card = el('div', 'file-card');
+  card.appendChild(el('div', 'file-name', e.fileName || 'файл'));
+  card.appendChild(el('div', 'file-meta', humanSize(e.fileSize || 0) + ' · нажмите «Сохранить…», чтобы скачать'));
+
+  const button = el('button', 'file-save', 'Сохранить…');
+  button.addEventListener('click', () => {
+    window.chrome.webview.postMessage({
+      type: 'chatFile', id: e.fileId, name: e.fileName || '', size: e.fileSize || 0
+    });
+  });
+  card.appendChild(button);
+  return card;
+}
+
+function humanSize(bytes) {
+  if (!bytes) return '0 Б';
+  if (bytes >= 1024 * 1024 * 1024) return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' ГБ';
+  if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' МБ';
+  if (bytes >= 1024) return Math.round(bytes / 1024) + ' КБ';
+  return bytes + ' Б';
 }
 function makeImage(base64, ext, name) {
   const img = document.createElement('img');

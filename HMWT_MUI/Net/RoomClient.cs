@@ -58,6 +58,9 @@ namespace HMWT_MUI.Net
 
         /// <summary>Хост прислал картинку из истории чата: (id, base64, ext).</summary>
         public Action<string, string, string> ChatImageReceived { get; set; }
+
+        /// <summary>Файл чата получен целиком: (id, байты). Протокол 23.</summary>
+        public Action<string, byte[]> ChatFileReceived { get; set; }
         public Action<TradeMessage> TradeReceived { get; set; }
         public Action<FeedEntry> FeedReceived { get; set; }
         public Action<string, string, bool> ConnectionChanged { get; set; }  // (состояние, текст, подключён)
@@ -529,6 +532,11 @@ namespace HMWT_MUI.Net
                             Events?.ChatImageReceived?.Invoke(image.ImageId, image.ImageBase64, image.ImageExtension);
                         break;
 
+                    case MsgType.ChatFileResponse:
+                        var filePart = msg.As<ChatFileResponse>();
+                        if (filePart != null) CollectChatFilePart(filePart);
+                        break;
+
                     case MsgType.Trade:
                         var trade = msg.As<TradeMessage>();
                         if (trade != null) Events?.TradeReceived?.Invoke(trade);
@@ -700,6 +708,98 @@ namespace HMWT_MUI.Net
                 ViewColor = viewColor,
                 Conditions = conditions
             }));
+
+        /// <summary>
+        /// Файл в чат: режем на части и шлём хосту (протокол 23). Размер не
+        /// ограничиваем — части по 192 КБ, канал не блокируется.
+        /// </summary>
+        public async System.Threading.Tasks.Task<bool> SendChatFileAsync(string caption, byte[] bytes, string fileName)
+        {
+            if (bytes == null || bytes.Length == 0) return false;
+
+            const int chunk = 192 * 1024;
+            int total = (bytes.Length + chunk - 1) / chunk;
+            string id = Guid.NewGuid().ToString("N");
+
+            for (int i = 0; i < total; i++)
+            {
+                int offset = i * chunk;
+                int count = Math.Min(chunk, bytes.Length - offset);
+
+                var part = new ChatFilePart
+                {
+                    FileId = id,
+                    Index = i,
+                    Total = total,
+                    FileName = fileName ?? "",
+                    TotalBytes = bytes.Length,
+                    Caption = caption ?? "",
+                    Base64 = Convert.ToBase64String(bytes, offset, count)
+                };
+
+                await SendAsync(new NetMessage(MsgType.ChatFileChunk, part)).ConfigureAwait(false);
+            }
+
+            return true;
+        }
+
+        /// <summary>Сборка полученного файла чата: ключ — id файла.</summary>
+        private sealed class ChatFileIncoming
+        {
+            public int Total;
+            public byte[][] Parts;
+            public int Received;
+        }
+
+        private readonly Dictionary<string, ChatFileIncoming> _chatFileIncoming =
+            new Dictionary<string, ChatFileIncoming>(StringComparer.Ordinal);
+
+        /// <summary>Складывает часть запрошенного файла; целый — отдаёт событием.</summary>
+        private void CollectChatFilePart(ChatFileResponse part)
+        {
+            if (part == null || string.IsNullOrWhiteSpace(part.FileId)) return;
+            if (part.Total <= 0 || part.Total > 200000) return;
+            if (part.Index < 0 || part.Index >= part.Total) return;
+
+            byte[] data;
+            try { data = Convert.FromBase64String(part.Base64 ?? ""); }
+            catch { return; }
+
+            ChatFileIncoming assembly;
+            lock (_chatFileIncoming)
+            {
+                if (!_chatFileIncoming.TryGetValue(part.FileId, out assembly))
+                {
+                    assembly = new ChatFileIncoming
+                    {
+                        Total = part.Total,
+                        Parts = new byte[part.Total][]
+                    };
+                    _chatFileIncoming[part.FileId] = assembly;
+                }
+
+                if (assembly.Parts[part.Index] == null)
+                {
+                    assembly.Parts[part.Index] = data;
+                    assembly.Received++;
+                }
+
+                if (assembly.Received < assembly.Total) return;
+                _chatFileIncoming.Remove(part.FileId);
+            }
+
+            using var buffer = new MemoryStream();
+            foreach (byte[] chunk in assembly.Parts)
+                if (chunk != null) buffer.Write(chunk, 0, chunk.Length);
+
+            byte[] complete = buffer.ToArray();
+            if (complete.Length > 0)
+                Events?.ChatFileReceived?.Invoke(part.FileId, complete);
+        }
+
+        /// <summary>Просит у хоста файл из чата (после подтверждения размера).</summary>
+        public Task RequestChatFileAsync(string fileId)
+            => SendAsync(new NetMessage(MsgType.ChatFileRequest, new ChatFileRequest { FileId = fileId ?? "" }));
 
         /// <summary>Просит картинку карты по хэшу (если файла ещё нет).</summary>
         public Task SendMapImageRequestAsync(string hash)

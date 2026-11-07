@@ -406,9 +406,13 @@ namespace HMWT_MUI.Net
         /// растягивается на фокусе. Подготовка заклинаний пачкой (Ctrl/Shift).
         /// Формат сообщений не менялся — протокол остаётся 22.
         ///
+        /// 1.3.18.5 — файлы в чате: карточка в ленте, скачивание только по
+        /// кнопке «Сохранить…» с предупреждением о размере, затем «Открыть»
+        /// и «Показать в папке». Избранные гифки. Протокол 23.
+        ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.18.4";
+        public const string AppVersion = "1.3.18.5";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -447,7 +451,7 @@ namespace HMWT_MUI.Net
         /// 18 — <see cref="ZoneRollRequest"/>: хост просит владельца жетона
         /// бросить спас/проверку при входе в тёмную зону со скриптом.
         /// </summary>
-        public const int ProtocolVersion = 22;
+        public const int ProtocolVersion = 23;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -601,6 +605,16 @@ namespace HMWT_MUI.Net
         // ── игровые события ──
         public const string ChatSend = "chat_send";
         public const string ChatMessage = "chat_message";
+
+        /// <summary>
+        /// Файл в чат: отправитель шлёт части, хост складывает у себя и
+        /// рассылает только описание. Байты получатель тянет сам, когда нажал
+        /// «Сохранить…». Протокол 23.
+        /// </summary>
+        public const string ChatFileChunk = "chat_file_chunk";
+        public const string ChatFileData = "chat_file_data";
+        public const string ChatFileRequest = "chat_file_request";
+        public const string ChatFileResponse = "chat_file_response";
         public const string Trade = "trade";
         public const string RollSend = "roll_send";
         public const string RollMessage = "roll_message";

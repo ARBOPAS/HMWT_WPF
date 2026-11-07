@@ -521,6 +521,17 @@ namespace HMWT_MUI.Net
                         HandleChat(conn, msg);
                         break;
 
+                    case MsgType.ChatFileChunk:
+                        // Файл в чат: части собираются у хоста, в ленту уходит
+                        // только карточка (протокол 23)
+                        HandleChatFileChunk(conn, msg.As<ChatFilePart>());
+                        break;
+
+                    case MsgType.ChatFileRequest:
+                        // Получатель подтвердил размер и просит файл: шлём части
+                        _ = SendChatFileToAsync(conn, msg.As<ChatFileRequest>()?.FileId);
+                        break;
+
                     case MsgType.Trade:
                         HandleTrade(conn, msg.As<TradeMessage>());
                         break;
@@ -672,9 +683,140 @@ namespace HMWT_MUI.Net
             _ = BroadcastSnapshotAsync();
         }
 
+        /// <summary>
+        /// Отдаёт файл чата получателю частями. Читаем с диска: файл может быть
+        /// любого размера, в память хоста он целиком не попадает.
+        /// </summary>
+        private async Task SendChatFileToAsync(ClientConnection conn, string fileId)
+        {
+            if (conn == null || string.IsNullOrWhiteSpace(fileId)) return;
+
+            string full = ChatFileStore.Resolve(_roomId, fileId);
+            if (full == null)
+            {
+                Log($"файл {fileId}: запрошен, но не найден");
+                return;
+            }
+
+            byte[] bytes;
+            try { bytes = File.ReadAllBytes(full); }
+            catch (Exception ex)
+            {
+                Log($"файл {fileId}: не прочитался ({ex.Message})");
+                return;
+            }
+
+            const int chunk = 192 * 1024;
+            int total = Math.Max(1, (bytes.Length + chunk - 1) / chunk);
+
+            for (int i = 0; i < total; i++)
+            {
+                int offset = i * chunk;
+                int count = Math.Min(chunk, bytes.Length - offset);
+
+                var response = new ChatFileResponse
+                {
+                    FileId = fileId,
+                    Index = i,
+                    Total = total,
+                    Base64 = Convert.ToBase64String(bytes, offset, count)
+                };
+
+                await SendSafeAsync(conn, new NetMessage(MsgType.ChatFileResponse, response)).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>Сборщики частей фото: по одному на отправителя.</summary>
         private readonly Dictionary<string, PhotoAssembler> _photoAssemblers =
             new Dictionary<string, PhotoAssembler>(StringComparer.Ordinal);
+
+        /// <summary>Сборка файла чата из частей: ключ — «игрок|файл».</summary>
+        private sealed class ChatFileAssembly
+        {
+            public int Total;
+            public string Name = "";
+            public string Caption = "";
+            public byte[][] Parts;
+            public int Received;
+        }
+
+        private readonly Dictionary<string, ChatFileAssembly> _chatFileAssemblies =
+            new Dictionary<string, ChatFileAssembly>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Часть файла из чата: собираем у хоста, потом кладём в хранилище
+        /// комнаты и публикуем карточку без байтов (протокол 23).
+        /// </summary>
+        private void HandleChatFileChunk(ClientConnection conn, ChatFilePart part)
+        {
+            if (conn?.Player == null || part == null || string.IsNullOrWhiteSpace(part.FileId)) return;
+            if (part.Total <= 0 || part.Total > 200000) return;
+            if (part.Index < 0 || part.Index >= part.Total) return;
+
+            byte[] data;
+            try { data = Convert.FromBase64String(part.Base64 ?? ""); }
+            catch { return; }
+
+            string key = conn.PlayerId + "|" + part.FileId;
+            ChatFileAssembly assembly = null;
+
+            lock (_stateLock)
+            {
+                if (!_chatFileAssemblies.TryGetValue(key, out assembly))
+                {
+                    assembly = new ChatFileAssembly
+                    {
+                        Total = part.Total,
+                        Name = ChatFileStore.Sanitize(part.FileName),
+                        Caption = (part.Caption ?? "").Trim(),
+                        Parts = new byte[part.Total][]
+                    };
+                    _chatFileAssemblies[key] = assembly;
+                }
+
+                if (assembly.Parts[part.Index] == null)
+                {
+                    assembly.Parts[part.Index] = data;
+                    assembly.Received++;
+                }
+
+                if (assembly.Received < assembly.Total) return;
+                _chatFileAssemblies.Remove(key);
+            }
+
+            using var buffer = new MemoryStream();
+            foreach (byte[] chunk in assembly.Parts)
+                if (chunk != null) buffer.Write(chunk, 0, chunk.Length);
+
+            byte[] complete = buffer.ToArray();
+            if (complete.Length == 0) return;
+
+            string id = ChatFileStore.Save(_roomId, assembly.Name, complete);
+            if (string.IsNullOrEmpty(id))
+            {
+                Log($"файл «{assembly.Name}»: не сохранился");
+                return;
+            }
+
+            var entry = new FeedEntry
+            {
+                Kind = FeedKind.File,
+                AuthorId = conn.PlayerId,
+                AuthorName = string.IsNullOrWhiteSpace(conn.Player.CharacterName)
+                    ? conn.Player.Name ?? ""
+                    : conn.Player.CharacterName,
+                Text = assembly.Caption,
+                FileId = id,
+                FileName = assembly.Name,
+                FileSize = complete.Length
+            };
+
+            AddFeed(entry);
+            BroadcastChat(entry);
+            _ = BroadcastSnapshotAsync();
+
+            Log($"{Describe(conn.Player)}: файл «{assembly.Name}» ({complete.Length} байт) в чат");
+        }
 
         /// <summary>
         /// Принимает часть фото от игрока.
@@ -683,8 +825,7 @@ namespace HMWT_MUI.Net
         /// не могут. Хост собирает фото целиком, сохраняет у себя и рассылает
         /// остальным — так каждый видит аватары других игроков.
         /// </summary>
-        private void HandlePhotoChunk(ClientConnection conn, NetMessage msg)
-        {
+        private void HandlePhotoChunk(ClientConnection conn, NetMessage msg)        {
             var chunk = msg.As<PhotoChunk>();
             if (chunk == null || conn == null) return;
 

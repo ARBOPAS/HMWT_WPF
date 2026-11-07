@@ -203,6 +203,8 @@
     <Compile Include="Services\MonsterSpellSheet.cs" />
     <Compile Include="Services\MapTokenLibrary.cs" />
     <Compile Include="Services\SummonService.cs" />
+    <Compile Include="Services\ChatFavoritesService.cs" />
+    <Compile Include="Services\ChatFileStore.cs" />
     <Compile Include="Services\MapService.cs" />
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
@@ -328,6 +330,12 @@
     <Compile Include="Windows\SummonCardWindow.xaml.cs">
       <DependentUpon>SummonCardWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Windows\ChatGifWindow.xaml.cs">
+      <DependentUpon>ChatGifWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\IconPickerWindow.xaml.cs">
+      <DependentUpon>IconPickerWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\NoteLinkWindow.xaml.cs">
       <DependentUpon>NoteLinkWindow.xaml</DependentUpon>
     </Compile>
@@ -443,6 +451,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\SummonCardWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\ChatGifWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\IconPickerWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

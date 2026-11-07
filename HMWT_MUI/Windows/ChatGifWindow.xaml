@@ -1,0 +1,81 @@
+<Window x:Class="HMWT_MUI.Windows.ChatGifWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:HMWT_MUI.Helpers"
+        Title="Избранные гифки" Width="760" Height="560"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" UseLayoutRounding="True">
+    <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
+            BorderThickness="1" CornerRadius="12">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="0" Color="#000000" Opacity="0.75"/>
+        </Border.Effect>
+
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="0,0,0,12" Background="Transparent"
+                  MouseLeftButtonDown="Header_MouseDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="ИЗБРАННЫЕ ГИФКИ" FontFamily="{StaticResource F.Display}" FontSize="18"
+                               FontWeight="Bold" Foreground="{StaticResource B.Accent}"/>
+                    <TextBlock Text="Клик — отправить в чат, крестик — убрать из избранного. Копии лежат в папке данных приложения."
+                               FontSize="11" Foreground="{StaticResource B.Mute}" Margin="0,3,12,0"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+                <Button Grid.Column="1" Width="30" Height="30" VerticalAlignment="Top"
+                        Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                        BorderThickness="1" Click="Close_Click" ToolTip="Закрыть">
+                    <helpers:IconView Kind="close" IconSize="14" IconBrush="{StaticResource B.Mute}"
+                                      VerticalAlignment="Center"/>
+                </Button>
+            </Grid>
+
+            <Border Grid.Row="1" Background="{StaticResource B.Void}" BorderBrush="{StaticResource B.Line}"
+                    BorderThickness="1" CornerRadius="8" Padding="8">
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <WrapPanel x:Name="TilesHost" Orientation="Horizontal"/>
+                    </ScrollViewer>
+                    <TextBlock x:Name="EmptyText" Text="Пока пусто. Нажмите «Добавить гифку…» — или отправьте гифку в чат, и она появится здесь."
+                               FontSize="11.5" Foreground="{StaticResource B.Mute}"
+                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="420"
+                               VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Content="Добавить гифку…" Height="36" Width="170"
+                        Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                        BorderThickness="1" Click="Add_Click"/>
+
+                <TextBlock x:Name="StatusText" Grid.Column="1" FontSize="11"
+                           Foreground="{StaticResource B.Mute}" VerticalAlignment="Center"
+                           Margin="14,0,0,0" TextTrimming="CharacterEllipsis"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="Отправить" Height="36" Width="130" Margin="0,0,8,0"
+                            Style="{StaticResource ActionBtn}" Click="Send_Click"/>
+                    <Button Content="Закрыть" Height="36" Width="110"
+                            Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                            BorderThickness="1" Click="Close_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
