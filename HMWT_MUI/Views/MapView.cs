@@ -488,6 +488,7 @@ namespace HMWT_MUI.Views
             var room = RoomSession.Instance;
             _roomSubscribed = true;
             room.MapChanged += OnMapChanged;
+            room.SummonAdded += OnSummonAdded;
             room.MapImageReady += OnMapImageReady;
             room.MapSeenReset += OnMapSeenReset;
             room.MapSeenAdded += OnMapSeenAdded;
@@ -506,6 +507,7 @@ namespace HMWT_MUI.Views
             var room = RoomSession.Instance;
             _roomSubscribed = false;
             room.MapChanged -= OnMapChanged;
+            room.SummonAdded -= OnSummonAdded;
             room.MapImageReady -= OnMapImageReady;
             room.MapSeenReset -= OnMapSeenReset;
             room.MapSeenAdded -= OnMapSeenAdded;
@@ -3408,9 +3410,9 @@ namespace HMWT_MUI.Views
         }
 
         /// <summary>Игрок меняет размер своего жетона (1–10 клеток).</summary>
-        private void SetRemoteTokenSize(MapTokenData token, int cells)
+        private void SetRemoteTokenSize(MapTokenData token, double cells)
         {
-            cells = Math.Max(1, Math.Min(10, cells));
+            cells = Math.Max(0.5, Math.Min(10, cells));
             token.SizeCells = cells;
             RebuildTokens();
             RoomSession.Instance.SendMapMove(token.Id, token.X, token.Y, double.NaN, -1, cells);
@@ -3428,7 +3430,7 @@ namespace HMWT_MUI.Views
 
         private void SetTokenSize(MapTokenData token, double cells)
         {
-            cells = Math.Max(1, Math.Min(10, cells));
+            cells = Math.Max(0.5, Math.Min(10, cells));
             double before = token.SizeCells;
             PushUndo(() =>
             {

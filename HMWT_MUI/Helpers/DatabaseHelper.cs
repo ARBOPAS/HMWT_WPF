@@ -452,6 +452,8 @@ namespace HMWT_MUI
                 raw_properties TEXT,
                 photo_path TEXT,
                 list_photo_path TEXT,
+                price_gp REAL DEFAULT 0,
+                rarity_note TEXT,
                 UNIQUE(name, book));",
 
             @"CREATE TABLE IF NOT EXISTS CharacterNoteGroups (
@@ -733,6 +735,12 @@ namespace HMWT_MUI
                 "list_photo_path TEXT",
                 "raw_properties TEXT",
                 "subtype TEXT",
+                // Цена в золоте у своих предметов: у импортированного справочника
+                // её нет, поэтому 0 значит «не указана»
+                "price_gp REAL DEFAULT 0",
+                // Пояснение к редкости: «+1 необычный, +2 редкий…» — у жезлов
+                // и других предметов редкость зависит от варианта
+                "rarity_note TEXT",
                 SrdIndexColumn);
 
             // Ключ записи в исходной базе. Сам текст переведён не весь: index

@@ -140,6 +140,8 @@
     <Compile Include="..\HMWT_MUI\Helpers\NotesHtmlBridge.cs"><Link>App\NotesHtmlBridge.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\ShopService.cs"><Link>App\ShopService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SrdItemImporter.cs"><Link>App\SrdItemImporter.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\SummonService.cs"><Link>App\SummonService.cs</Link></Compile>
+    <Compile Include="..\HMWT_MUI\Services\CharacterDefenseCatalog.cs"><Link>App\CharacterDefenseCatalog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SpellJsonImporter.cs"><Link>App\SpellJsonImporter.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\DatabaseHelper.cs"><Link>App\DatabaseHelper.cs</Link></Compile>
     <!-- HMWT_MUI.Helpers объявляется именно здесь: без него не разрешается using в RoomView -->
@@ -209,6 +211,10 @@
       <Link>App\Windows\TokenLibraryWindow.xaml.cs</Link>
       <DependentUpon>TokenLibraryWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="..\HMWT_MUI\Windows\SummonWindow.xaml.cs">
+      <Link>App\Windows\SummonWindow.xaml.cs</Link>
+      <DependentUpon>SummonWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="..\HMWT_MUI\Windows\NotePromptWindow.xaml.cs">
       <Link>App\Windows\NotePromptWindow.xaml.cs</Link>
       <DependentUpon>NotePromptWindow.xaml</DependentUpon>
@@ -220,6 +226,11 @@
     </Page>
     <Page Include="..\HMWT_MUI\Windows\TokenLibraryWindow.xaml">
       <Link>App\Windows\TokenLibraryWindow.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\HMWT_MUI\Windows\SummonWindow.xaml">
+      <Link>App\Windows\SummonWindow.xaml</Link>
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

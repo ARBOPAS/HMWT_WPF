@@ -956,7 +956,7 @@
           <Grid x:Name="overlayShopItem" Grid.Row="1" Visibility="Collapsed" Panel.ZIndex="260" Background="Transparent">
               <Border Background="{StaticResource B.Scrim}" MouseLeftButtonDown="OverlayShopItem_Background_Click"/>
               <Border Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}"
-                      BorderThickness="1" CornerRadius="12" Padding="24" Width="600" MaxHeight="560"
+                      BorderThickness="1" CornerRadius="12" Padding="24" Width="620" MaxHeight="640"
                       VerticalAlignment="Center" HorizontalAlignment="Center"
                       UseLayoutRounding="True" SnapsToDevicePixels="True">
                   <Grid>
@@ -1001,6 +1001,8 @@
                                       <ColumnDefinition Width="*"/>
                                       <ColumnDefinition Width="12"/>
                                       <ColumnDefinition Width="*"/>
+                                      <ColumnDefinition Width="12"/>
+                                      <ColumnDefinition Width="*"/>
                                   </Grid.ColumnDefinitions>
                                   <StackPanel Grid.Column="0">
                                       <TextBlock Text="Вес (фунты)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
@@ -1012,7 +1014,26 @@
                                       <TextBlock Text="Класс доспеха" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
                                       <TextBox x:Name="si_txtAc" Style="{StaticResource TextField}" Text="0" MinHeight="34"/>
                                   </StackPanel>
+                                  <StackPanel Grid.Column="4">
+                                      <TextBlock Text="Цена (зм)" Foreground="{StaticResource B.Mute}" FontSize="11" Margin="0,0,0,4"/>
+                                      <TextBox x:Name="si_txtPrice" Style="{StaticResource TextField}" Text="0" MinHeight="34"
+                                               PreviewTextInput="DecimalField_PreviewTextInput"
+                                               ToolTip="Сколько стоит предмет в золотых монетах. 0 — цена не указана"/>
+                                  </StackPanel>
                               </Grid>
+
+                              <!-- Редкость с вариантами: у жезлов и колец редкость
+                                   зависит от бонуса (+1 необычный, +2 редкий, +3 очень редкий) -->
+                              <CheckBox x:Name="si_chkRarityVaries" Style="{StaticResource CustomCheckBox}"
+                                        Content="Редкость может варьироваться" Foreground="{StaticResource B.Ink}"
+                                        Margin="0,12,0,0" Checked="ShopItemRarityVaries_Changed"
+                                        Unchecked="ShopItemRarityVaries_Changed"/>
+                              <StackPanel x:Name="pnlRarityNote" Visibility="Collapsed" Margin="0,6,0,0">
+                                  <TextBox x:Name="si_txtRarityNote" Style="{StaticResource TextField}" MinHeight="34"/>
+                                  <TextBlock Text="Например: +1 необычный, +2 редкий, +3 очень редкий. Подпись появится рядом с редкостью."
+                                             FontSize="10" Foreground="{StaticResource B.Mute}" TextWrapping="Wrap"
+                                             Margin="0,4,0,0"/>
+                              </StackPanel>
 
                               <Grid Margin="0,12,0,0">
                                   <Grid.ColumnDefinitions>
@@ -1045,6 +1066,42 @@
                                   <CheckBox x:Name="si_chkMagic" Style="{StaticResource CustomCheckBox}"
                                             Content="Магический" Foreground="{StaticResource B.Ink}"/>
                               </StackPanel>
+
+                              <!-- Картинка карточки задаётся сразу при создании: иначе
+                                   приходится сохранить предмет, найти его поиском и только
+                                   потом навесить фото -->
+                              <TextBlock Text="Картинка для карточки" Foreground="{StaticResource B.Mute}"
+                                         FontSize="11" Margin="0,14,0,4"/>
+                              <Grid>
+                                  <Grid.ColumnDefinitions>
+                                      <ColumnDefinition Width="Auto"/>
+                                      <ColumnDefinition Width="*"/>
+                                  </Grid.ColumnDefinitions>
+                                  <Border Width="76" Height="76" Background="{StaticResource B.Slate}"
+                                          BorderBrush="{StaticResource B.Line}" BorderThickness="1"
+                                          CornerRadius="8" ClipToBounds="True">
+                                      <Grid>
+                                          <Image x:Name="si_imgPhoto" Stretch="UniformToFill"/>
+                                          <TextBlock x:Name="si_txtPhotoHint" Text="нет фото" FontSize="10"
+                                                     Foreground="{StaticResource B.Mute}"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                      </Grid>
+                                  </Border>
+                                  <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                      <StackPanel Orientation="Horizontal">
+                                          <Button x:Name="si_btnPickPhoto" Content="Выбрать картинку…" Height="30"
+                                                  Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                                                  BorderThickness="1" Click="ShopItemPickPhoto_Click"/>
+                                          <Button x:Name="si_btnClearPhoto" Content="Убрать" Height="30" Margin="8,0,0,0"
+                                                  Style="{StaticResource SoftBtn}" BorderBrush="{StaticResource B.Line}"
+                                                  BorderThickness="1" Visibility="Collapsed"
+                                                  Click="ShopItemClearPhoto_Click"/>
+                                      </StackPanel>
+                                      <TextBlock Text="Показывается в карточке предмета: png, jpg или gif. Фото для списка можно задать после создания."
+                                                 FontSize="10" Foreground="{StaticResource B.Mute}"
+                                                 TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                  </StackPanel>
+                              </Grid>
                           </StackPanel>
                       </ScrollViewer>
 

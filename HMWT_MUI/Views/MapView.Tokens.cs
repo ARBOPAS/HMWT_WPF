@@ -47,7 +47,7 @@ namespace HMWT_MUI.Views
         /// Ставит жетон без участника боя. Картинка копируется в папку данных:
         /// WebGL отдаёт файлы только оттуда, иначе игроки её не увидят.
         /// </summary>
-        private MapTokenData CreateFreeToken(string label, string photoFile, int sizeCells,
+        private MapTokenData CreateFreeToken(string label, string photoFile, double sizeCells,
             bool hidden, double? atX, double? atY, bool saveToLibrary)
         {
             if (_scene == null) return null;
@@ -61,7 +61,7 @@ namespace HMWT_MUI.Views
                 CombatantId = 0,
                 OwnerCharacterId = 0,
                 Label = string.IsNullOrWhiteSpace(label) ? "Жетон" : label.Trim(),
-                SizeCells = Math.Max(1, Math.Min(10, sizeCells)),
+                SizeCells = Math.Max(0.5, Math.Min(10, sizeCells)),
                 Hidden = hidden,
                 X = atX ?? (_scene.WidthPx > 0 ? _scene.WidthPx / 2.0 : cell * 4),
                 Y = atY ?? (_scene.HeightPx > 0 ? _scene.HeightPx / 2.0 : cell * 4),
@@ -88,7 +88,7 @@ namespace HMWT_MUI.Views
             {
                 string full = PhotoHelper.ResolvePhotoPath(relative);
                 if (!string.IsNullOrEmpty(full))
-                    MapTokenLibrary.Add(token.Label, full, (int)Math.Round(token.SizeCells));
+                    MapTokenLibrary.Add(token.Label, full, Math.Max(1, (int)Math.Round(token.SizeCells)));
             }
 
             _scene.Tokens.Add(token);
@@ -132,7 +132,7 @@ namespace HMWT_MUI.Views
             {
                 var window = new Windows.TokenEditorWindow { Owner = Window.GetWindow(this) };
                 window.LoadValues(token.Label, ResolveTokenPhoto(token),
-                    (int)Math.Round(token.SizeCells <= 0 ? 1 : token.SizeCells), token.Hidden);
+                    token.SizeCells <= 0 ? 1 : token.SizeCells, token.Hidden);
                 window.SetOkText("Сохранить");
 
                 if (window.ShowDialog() != true) return;

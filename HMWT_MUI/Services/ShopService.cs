@@ -96,7 +96,9 @@ namespace HMWT_MUI.Services
                     SELECT id_srd_item, name, description, item_type, subtype, rarity, weight,
                            damage, damage_type, ac, range, properties_text, attunement,
                            is_magic, source, book, COALESCE(photo_path,'') AS photo_path,
-                           COALESCE(list_photo_path,'') AS list_photo_path");
+                           COALESCE(list_photo_path,'') AS list_photo_path,
+                           COALESCE(price_gp,0) AS price_gp,
+                           COALESCE(rarity_note,'') AS rarity_note");
                 var args = new List<(string, object)>();
 
                 // ── Поиск по названию ──
@@ -310,7 +312,9 @@ namespace HMWT_MUI.Services
                     SELECT id_srd_item, name, description, item_type, subtype, rarity, weight,
                            damage, damage_type, ac, range, properties_text, attunement,
                            is_magic, source, book, COALESCE(photo_path,'') AS photo_path,
-                           COALESCE(list_photo_path,'') AS list_photo_path
+                           COALESCE(list_photo_path,'') AS list_photo_path,
+                           COALESCE(price_gp,0) AS price_gp,
+                           COALESCE(rarity_note,'') AS rarity_note
                     FROM SrdItem WHERE id_srd_item = @id", conn);
                 cmd.Parameters.AddWithValue("@id", idSrdItem);
                 using var reader = cmd.ExecuteReader();
@@ -403,7 +407,9 @@ namespace HMWT_MUI.Services
                 Source = ReadText(r, "source"),
                 Book = ReadText(r, "book"),
                 PhotoPath = ReadText(r, "photo_path"),
-                ListPhotoPath = ReadText(r, "list_photo_path")
+                ListPhotoPath = ReadText(r, "list_photo_path"),
+                PriceGp = ReadDouble(r, "price_gp"),
+                RarityNote = ReadText(r, "rarity_note")
             };
         }
 

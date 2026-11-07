@@ -38,22 +38,34 @@ namespace HMWT_MUI.Services
 
     public static class DefenseCatalog
     {
-        /// <summary>Типы урона SRD 5.1.</summary>
-        public static readonly string[] DamageTypes =
+        /// <summary>Физический урон — он нужен чаще всего, поэтому идёт первым.</summary>
+        public static readonly string[] PhysicalDamageTypes =
         {
-            "Кислота", "Дробящий", "Холод", "Огонь", "Сила", "Электричество",
-            "Некротический", "Колющий", "Яд", "Психический", "Излучение",
-            "Рубящий", "Звук"
+            "Дробящий", "Колющий", "Рубящий"
         };
 
-        /// <summary>Состояния SRD 5.1.</summary>
-        public static readonly string[] Conditions =
+        /// <summary>
+        /// Типы урона SRD 5.1: сначала физический, дальше остальные по алфавиту.
+        /// В справочнике на первом месте то, что выбирают чаще: раньше список
+        /// начинался с «Кислоты», и до «Дробящего» приходилось искать глазами.
+        /// </summary>
+        public static readonly string[] DamageTypes = PhysicalDamageTypes
+            .Concat(new[]
+            {
+                "Кислота", "Холод", "Огонь", "Сила", "Электричество",
+                "Некротический", "Яд", "Психический", "Излучение", "Звук"
+            }
+            .OrderBy(t => t, StringComparer.CurrentCulture))
+            .ToArray();
+
+        /// <summary>Состояния SRD 5.1 по алфавиту.</summary>
+        public static readonly string[] Conditions = new[]
         {
             "Ослеплён", "Очарован", "Оглох", "Истощён", "Испуган",
             "Схвачен", "Недееспособен", "Невидим", "Парализован",
             "Окаменел", "Отравлен", "Сбит с ног", "Опутан", "Оглушён",
             "Без сознания"
-        };
+        }.OrderBy(t => t, StringComparer.CurrentCulture).ToArray();
 
         public static string[] ForKind(string kind)
             => kind == DefenseKind.ConditionImmunity ? Conditions : DamageTypes;

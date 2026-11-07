@@ -30,6 +30,7 @@ namespace HMWT_MUI.Windows
         private readonly int _currentSceneId;
         private readonly Action<MapSceneData> _onOpen;
         private readonly StackPanel _groups = new StackPanel();
+        private readonly TextBox _search;
 
         public ScenesWindow(int characterId, int currentSceneId, Action<MapSceneData> onOpen)
         {
@@ -38,10 +39,10 @@ namespace HMWT_MUI.Windows
             _onOpen = onOpen;
 
             Title = "Сцены · " + HMWT_MUI.Net.NetVersions.AppVersion;
-            Width = 920;
-            Height = 620;
-            MinWidth = 640;
-            MinHeight = 420;
+            Width = 1120;
+            Height = 760;
+            MinWidth = 760;
+            MinHeight = 520;
             Background = Bg;
             Foreground = Ink;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -51,18 +52,34 @@ namespace HMWT_MUI.Windows
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
             var top = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+
+            var addCampaign = DmUiKit.Action("Новая кампания", (s, e) => CreateCampaign(),
+                DmUiKit.ButtonKind.Primary, null, 160, 30);
+            addCampaign.Margin = new Thickness(8, 0, 0, 0);
+            DockPanel.SetDock(addCampaign, Dock.Right);
+            top.Children.Add(addCampaign);
+
+            // Поиск по названию сцены: в длинном походе карточек много, и искать
+            // нужную глазами по всем кампаниям — лишняя работа
+            _search = new TextBox
+            {
+                Width = 300,
+                Height = 30,
+                FontSize = 12.5,
+                Tag = "Поиск по названию сцены"
+            };
+            if (TryFindResource("SearchBox") is Style searchStyle) _search.Style = searchStyle;
+            _search.TextChanged += (s, e) => Reload();
+            DockPanel.SetDock(_search, Dock.Right);
+            top.Children.Add(_search);
+
             top.Children.Add(new TextBlock
             {
                 Text = "Кампании объединяют сцены: у каждого похода свои карты.",
                 FontSize = 11, Foreground = Mute, VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 0)
+                TextTrimming = TextTrimming.CharacterEllipsis
             });
 
-            var addCampaign = DmUiKit.Action("Новая кампания", (s, e) => CreateCampaign(),
-                DmUiKit.ButtonKind.Primary, null, 160, 30);
-            addCampaign.HorizontalAlignment = HorizontalAlignment.Right;
-            DockPanel.SetDock(addCampaign, Dock.Right);
-            top.Children.Add(addCampaign);
             root.Children.Add(top);
 
             var scroll = new ScrollViewer
@@ -85,23 +102,48 @@ namespace HMWT_MUI.Windows
         {
             _groups.Children.Clear();
 
+            string query = (_search?.Text ?? "").Trim();
+
             var campaigns = MapService.LoadCampaigns(_characterId);
             var scenes = MapService.LoadScenes(_characterId);
+
+            if (query.Length > 0)
+            {
+                scenes = scenes
+                    .Where(s => (s.Name ?? "").IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                    .ToList();
+            }
+
             var byCampaign = scenes.GroupBy(s => s.CampaignId)
                 .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Name).ToList());
 
-            if (campaigns.Count == 0)
+            int shown = 0;
+
+            // Сцены без кампании показываем всегда, а не только когда кампаний нет:
+            // иначе они пропадали из окна, стоило завести первую кампанию
+            var loose = byCampaign.TryGetValue(0, out var looseScenes)
+                ? looseScenes : new List<MapSceneData>();
+            if (campaigns.Count == 0 || loose.Count > 0)
             {
-                // Старые сцены без групп показываем как «Без кампании».
-                _groups.Children.Add(BuildGroup(null, byCampaign.TryGetValue(0, out var loose)
-                    ? loose : new List<MapSceneData>()));
+                _groups.Children.Add(BuildGroup(null, loose));
+                shown++;
             }
 
             foreach (var campaign in campaigns)
             {
                 var list = byCampaign.TryGetValue(campaign.Id, out var own)
                     ? own : new List<MapSceneData>();
+
+                if (query.Length > 0 && list.Count == 0) continue;
+
                 _groups.Children.Add(BuildGroup(campaign, list));
+                shown++;
+            }
+
+            if (query.Length > 0 && shown == 0)
+            {
+                _groups.Children.Add(DmUiKit.EmptyState("Ничего не найдено",
+                    "По запросу «" + query + "» сцен нет. Попробуйте часть названия."));
             }
         }
 

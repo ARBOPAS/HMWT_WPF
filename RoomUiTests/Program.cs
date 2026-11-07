@@ -412,6 +412,14 @@ namespace HMWT_MUI.RoomUiTests
             CheckSceneTokenPhotosExist();
 
             Say("");
+            Say("═══ ПРИЗЫВЫ, ЗАЩИТА, СЦЕНЫ, ПОЛКЛЕТКИ ═══");
+            CheckDefenseOrder();
+            CheckSummonLibrary();
+            CheckSummonWindow();
+            CheckTokenHalfCell();
+            CheckScenesWindowSearch();
+
+            Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
             CheckPhotoTransfer();
 
@@ -4196,8 +4204,8 @@ namespace HMWT_MUI.RoomUiTests
 
                 Check("окно жетона показывает имя", nameBox != null && nameBox.Text == "Старик",
                     nameBox?.Text ?? "поля нет");
-                Check("в окне жетона десять размеров",
-                    sizeBox != null && sizeBox.Items.Count == 10,
+                Check("в окне жетона одиннадцать размеров",
+                    sizeBox != null && sizeBox.Items.Count == 11,
                     sizeBox == null ? "списка нет" : "пунктов: " + sizeBox.Items.Count);
                 Check("картинка жетона видна в предпросмотре",
                     preview != null && preview.Source != null);
@@ -4381,6 +4389,183 @@ namespace HMWT_MUI.RoomUiTests
             Check("портреты жетонов на картах находятся", missing == 0,
                 missing == 0 ? $"с картинкой: {withPhoto}" : string.Join("; ", examples));
             Check("на картах есть жетоны с портретами", withPhoto > 0, $"с картинкой: {withPhoto}");
+        }
+
+        #endregion
+
+        #region === ПРИЗЫВЫ, ЗАЩИТА, СЦЕНЫ, ПОЛКЛЕТКИ ===
+
+        /// <summary>Справочник защиты: физический урон первым, дальше по алфавиту.</summary>
+        private static void CheckDefenseOrder()
+        {
+            var damage = DefenseCatalog.DamageTypes;
+
+            Check("справочник урона начинается с физического",
+                damage.Length >= 3 && damage[0] == "Дробящий" && damage[1] == "Колющий" && damage[2] == "Рубящий",
+                string.Join(", ", damage.Take(4)));
+
+            var rest = damage.Skip(3).ToList();
+            Check("остальной урон идёт по алфавиту",
+                rest.SequenceEqual(rest.OrderBy(x => x, StringComparer.CurrentCulture)));
+
+            var conditions = DefenseCatalog.Conditions;
+            Check("состояния идут по алфавиту",
+                conditions.SequenceEqual(conditions.OrderBy(x => x, StringComparer.CurrentCulture)));
+        }
+
+        /// <summary>Библиотека призывов: сохраняется, читается, картинка живёт с записью.</summary>
+        private static void CheckSummonLibrary()
+        {
+            int charId = FindFirstCharacterId();
+            if (charId <= 0)
+            {
+                Say("  [ПРОПУСК] в базе нет персонажа");
+                return;
+            }
+
+            string image = Path.Combine(Path.GetTempPath(), "hmwt_summon_test.png");
+            File.WriteAllBytes(image, new byte[] { 0x89, 0x50, 0x4E, 0x47, 9, 8, 7, 6 });
+
+            var summon = new SummonData
+            {
+                CharacterId = charId,
+                Name = "Проверка призыва " + Guid.NewGuid().ToString("N").Substring(0, 5),
+                CreatureType = "Элементаль",
+                SizeCells = 0.5,
+                Hp = 7,
+                MaxHp = 7,
+                Ac = 12,
+                Attacks = "Удар: +3, 1к6"
+            };
+
+            int id = SummonService.Save(summon);
+            Check("призыв сохраняется", id > 0, "id=" + id);
+            if (id <= 0) return;
+
+            var loaded = SummonService.Load(charId).FirstOrDefault(s => s.Id == id);
+            Check("призыв читается обратно",
+                loaded != null && Math.Abs(loaded.SizeCells - 0.5) < 0.001 && loaded.MaxHp == 7,
+                loaded == null ? "не найден" : $"{loaded.Name}, размер {loaded.SizeCells}");
+
+            string relative = SummonService.ImportPhoto(id, image);
+            string full = string.IsNullOrEmpty(relative) ? null : PhotoHelper.ResolvePhotoPath(relative);
+            Check("картинка призыва копируется в папку данных",
+                !string.IsNullOrEmpty(full) && File.Exists(full), relative);
+
+            summon.PhotoPath = relative;
+            SummonService.Save(summon);
+            Check("картинка привязана к призыву",
+                SummonService.Load(charId).Any(s => s.Id == id && s.PhotoPath == relative));
+
+            SummonService.Delete(id);
+            Check("призыв удаляется", !SummonService.Load(charId).Any(s => s.Id == id));
+            Check("картинка удаляется вместе с призывом",
+                string.IsNullOrEmpty(full) || !File.Exists(full));
+
+            try { File.Delete(image); } catch { }
+        }
+
+        /// <summary>Окно призывов: размеры, поля и тёмный вид.</summary>
+        private static void CheckSummonWindow()
+        {
+            int charId = FindFirstCharacterId();
+            if (charId <= 0)
+            {
+                Say("  [ПРОПУСК] в базе нет персонажа");
+                return;
+            }
+
+            var window = new Windows.SummonWindow(charId);
+            try
+            {
+                window.WindowStartupLocation = WindowStartupLocation.Manual;
+                window.Left = -6000;
+                window.Top = -6000;
+                window.Show();
+                Pump();
+                window.UpdateLayout();
+
+                var sizeBox = window.FindName("SizeBox") as ComboBox;
+                Check("в окне призывов одиннадцать размеров",
+                    sizeBox != null && sizeBox.Items.Count == 11,
+                    sizeBox == null ? "списка нет" : "пунктов: " + sizeBox.Items.Count);
+
+                Check("в призывах есть полклетки",
+                    sizeBox != null && sizeBox.Items.Count > 0 &&
+                    (sizeBox.Items[0]?.ToString() ?? "").Contains("½"));
+
+                Check("в окне призывов есть поиск",
+                    window.FindName("SearchBox") is TextBox);
+                Check("в окне призывов есть поле имени",
+                    window.FindName("NameBox") is TextBox);
+
+                SaveTradeScreenshot(window, Path.Combine(_outDir, "shot-summon-window.png"));
+
+                var shot = RenderWindowOnDark(window);
+                Luminance(shot, out double mean, out double max, out _);
+                Check("окно призывов тёмное", mean < 0.30, $"средняя яркость {mean:0.00}");
+                Check("в окне призывов есть светлые подписи", max > 0.55, $"максимум {max:0.00}");
+            }
+            finally
+            {
+                window.Close();
+                Pump();
+            }
+        }
+
+        /// <summary>Полклетки у жетона: в списке размеров и в меню карты.</summary>
+        private static void CheckTokenHalfCell()
+        {
+            var window = new Windows.TokenEditorWindow();
+            var box = window.FindName("SizeBox") as ComboBox;
+
+            Check("у жетона есть размер полклетки",
+                box != null && box.Items.Count == 11 &&
+                (box.Items[0]?.ToString() ?? "").Contains("½"),
+                box == null ? "списка нет" : "пунктов: " + box.Items.Count);
+
+            if (box != null)
+            {
+                box.SelectedIndex = 0;
+                Check("полклетки читается как 0,5", Math.Abs(window.SizeCells - 0.5) < 0.001,
+                    "значение: " + window.SizeCells);
+            }
+
+            string js = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI", "Web", "map", "map.js"));
+            if (File.Exists(js))
+            {
+                string code = File.ReadAllText(js, Encoding.UTF8);
+                Check("в меню карты есть полклетки", code.Contains("text: '½ клетки'"));
+            }
+        }
+
+        /// <summary>В окне сцен есть поиск по названию.</summary>
+        private static void CheckScenesWindowSearch()
+        {
+            string path = Path.GetFullPath(Path.Combine(_outDir, "..", "..", "HMWT_MUI", "Windows", "ScenesWindow.cs"));
+            if (!File.Exists(path))
+            {
+                Say("  [ПРОПУСК] ScenesWindow.cs не найден");
+                return;
+            }
+
+            string code = File.ReadAllText(path, Encoding.UTF8);
+            Check("в окне сцен есть поиск по названию",
+                code.Contains("Поиск по названию сцены") && code.Contains("_search.TextChanged"));
+        }
+
+        private static int FindFirstCharacterId()
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT MIN(id_character) FROM CharacterInfo";
+                var value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            }
+            catch { return 0; }
         }
 
         #endregion

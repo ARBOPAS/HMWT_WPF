@@ -203,6 +203,9 @@ namespace HMWT_MUI.Net
         /// <summary>Карта боя изменилась: у хоста — своя, у игрока — пришла от хоста.</summary>
         public event Action MapChanged;
 
+        /// <summary>Игрок поставил призыв: у хоста появился новый жетон на карте.</summary>
+        public event Action<MapTokenData> SummonAdded;
+
         /// <summary>Картинка карты собрана у игрока: (хэш, путь к файлу).</summary>
         public event Action<string, string> MapImageReady;
 
@@ -718,6 +721,7 @@ namespace HMWT_MUI.Net
                 _server = new RoomServer(manifest.Id, key, Port, DataFingerprint);
                 _server.RoomName = manifest.Name ?? "";
                 _server.MapChanged += () => MapChanged?.Invoke();
+                _server.SummonAdded += t => SummonAdded?.Invoke(t);
                 _server.MapSeenAdded += p => MapSeenAdded?.Invoke(p);
                 _server.Pinged += (x, y) => Pinged?.Invoke(x, y);
                 _server.TokenMovedLive += (id, x, y, f) => TokenMovedLive?.Invoke(id, x, y, f);
@@ -952,16 +956,29 @@ namespace HMWT_MUI.Net
 
         /// <summary>Игрок подвинул своего жетона: отправляем хосту.</summary>
         public bool SendMapMove(int tokenId, double x, double y, double facing = double.NaN,
-            double viewAngle = -1, int sizeCells = -1, double revealCells = -1, string viewColor = null,
+            double viewAngle = -1, double sizeCells = -1, double revealCells = -1, string viewColor = null,
             string conditions = null)
         {
             if (!IsActive || IsHost || _client == null || !_client.IsConnected) return false;
 
-            if (viewAngle >= 0 || sizeCells >= 1 || revealCells >= 0 || viewColor != null || conditions != null)
+            if (viewAngle >= 0 || sizeCells >= 0.5 || revealCells >= 0 || viewColor != null || conditions != null)
                 _ = _client.SendMapMoveEditAsync(tokenId, x, y, facing, viewAngle, sizeCells, revealCells,
                     viewColor, conditions);
             else
                 _ = _client.SendMapMoveAsync(tokenId, x, y, facing);
+            return true;
+        }
+
+        /// <summary>
+        /// Игрок ставит на карту своего призыва: хост создаёт жетон и делает
+        /// владельцем персонажа игрока — дальше двигать можно обычным map_move.
+        /// </summary>
+        public bool PlaceSummon(MapSummonRequest request)
+        {
+            if (!IsActive || IsHost || _client == null || !_client.IsConnected || request == null)
+                return false;
+
+            _ = _client.SendPlaceSummonAsync(request);
             return true;
         }
 

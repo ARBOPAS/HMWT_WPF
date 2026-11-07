@@ -494,7 +494,7 @@ namespace HMWT_MUI.Views
             // Редкость и книга — без типа: он уже показан цветной подписью слева,
             // иначе получалось «Wondrous item · Wondrous item · Артефакт»
             var details = new List<string>();
-            if (!string.IsNullOrWhiteSpace(item.Rarity)) details.Add(item.Rarity.Trim());
+            if (!string.IsNullOrWhiteSpace(item.RarityLine)) details.Add(item.RarityLine.Trim());
             if (!string.IsNullOrWhiteSpace(item.Book)) details.Add(item.Book.Trim());
 
             if (details.Count > 0)
@@ -612,7 +612,8 @@ namespace HMWT_MUI.Views
             // ── Характеристики: прочерк, если данных в справочнике нет ──
             shopDetailPanel.Children.Add(BuildShopStatRow("Тип", Dash(item.ItemType)));
             shopDetailPanel.Children.Add(BuildShopStatRow("Подтип", Dash(item.Subtype)));
-            shopDetailPanel.Children.Add(BuildShopStatRow("Редкость", Dash(item.Rarity)));
+            shopDetailPanel.Children.Add(BuildShopStatRow("Редкость", Dash(string.IsNullOrWhiteSpace(item.RarityLine) ? item.Rarity : item.RarityLine)));
+            shopDetailPanel.Children.Add(BuildShopStatRow("Цена", item.PriceGp > 0 ? $"{item.PriceGp:0.##} зм" : "—"));
             shopDetailPanel.Children.Add(BuildShopStatRow("Урон", Dash(item.Damage)));
             shopDetailPanel.Children.Add(BuildShopStatRow("Тип урона", Dash(item.DamageType)));
             shopDetailPanel.Children.Add(BuildShopStatRow("КД", item.Ac > 0 ? item.Ac.ToString() : "—"));
@@ -1692,6 +1693,12 @@ namespace HMWT_MUI.Views
         /// <summary>Человек подтвердил, что хочет сохранить похожий предмет.</summary>
         private bool _shopItemForceSave;
 
+        /// <summary>Файл картинки, выбранный в оверлее (ещё не сохранён в каталог).</summary>
+        private string _shopItemPhotoFile;
+
+        /// <summary>Картинку у существующего предмета убрали.</summary>
+        private bool _shopItemPhotoCleared;
+
         private void BtnShopCreateItem_Click(object sender, RoutedEventArgs e)
         {
             // Логируем каждый шаг: если что-то падает, это видно в журнале
@@ -1773,6 +1780,9 @@ namespace HMWT_MUI.Views
         /// </summary>
         private void FillShopItemFields(Services.SrdItemRow existing)
         {
+            _shopItemPhotoFile = null;
+            _shopItemPhotoCleared = false;
+
             if (existing != null)
             {
                 si_txtName.Text = existing.Name ?? "";
@@ -1785,6 +1795,15 @@ namespace HMWT_MUI.Views
                 si_txtDescription.Text = existing.Description ?? "";
                 si_chkAttunement.IsChecked = existing.Attunement;
                 si_chkMagic.IsChecked = existing.IsMagic;
+                si_txtPrice.Text = existing.PriceGp.ToString("0.##",
+                    System.Globalization.CultureInfo.CurrentCulture);
+
+                bool varies = !string.IsNullOrWhiteSpace(existing.RarityNote);
+                si_chkRarityVaries.IsChecked = varies;
+                si_txtRarityNote.Text = varies ? existing.RarityNote : "";
+                UpdateRarityNoteVisibility();
+
+                ShowShopItemPhoto(PhotoHelper.ResolvePhotoPath(existing.PhotoPath));
             }
             else
             {
@@ -1798,7 +1817,61 @@ namespace HMWT_MUI.Views
                 si_txtDescription.Text = "";
                 si_chkAttunement.IsChecked = false;
                 si_chkMagic.IsChecked = false;
+                si_txtPrice.Text = "0";
+                si_chkRarityVaries.IsChecked = false;
+                si_txtRarityNote.Text = "";
+                UpdateRarityNoteVisibility();
+                ShowShopItemPhoto(null);
             }
+        }
+
+        /// <summary>Показывает картинку карточки в оверлее (null — «нет фото»).</summary>
+        private void ShowShopItemPhoto(string fullPath)
+        {
+            bool has = !string.IsNullOrEmpty(fullPath) && File.Exists(fullPath);
+            si_imgPhoto.Source = has ? PhotoHelper.LoadUnlocked(fullPath) : null;
+            si_txtPhotoHint.Visibility = has ? Visibility.Collapsed : Visibility.Visible;
+            si_btnClearPhoto.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void UpdateRarityNoteVisibility()
+        {
+            if (pnlRarityNote == null || si_chkRarityVaries == null) return;
+            pnlRarityNote.Visibility = si_chkRarityVaries.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        private void ShopItemRarityVaries_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateRarityNoteVisibility();
+            if (si_chkRarityVaries.IsChecked == true &&
+                string.IsNullOrWhiteSpace(si_txtRarityNote.Text))
+            {
+                si_txtRarityNote.Text = "+1 необычный, +2 редкий, +3 очень редкий";
+            }
+        }
+
+        private void ShopItemPickPhoto_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Картинка предмета",
+                Filter = "Картинки|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp|Все файлы|*.*"
+            };
+
+            if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
+
+            _shopItemPhotoFile = dialog.FileName;
+            _shopItemPhotoCleared = false;
+            ShowShopItemPhoto(dialog.FileName);
+        }
+
+        private void ShopItemClearPhoto_Click(object sender, RoutedEventArgs e)
+        {
+            _shopItemPhotoFile = null;
+            _shopItemPhotoCleared = true;
+            ShowShopItemPhoto(null);
         }
 
         /// <summary>
@@ -1919,6 +1992,10 @@ namespace HMWT_MUI.Views
                 Name = name,
                 ItemType = (si_cmbType.Text ?? "").Trim(),
                 Rarity = (si_cmbRarity.Text ?? "").Trim(),
+                RarityNote = si_chkRarityVaries.IsChecked == true
+                    ? (si_txtRarityNote.Text ?? "").Trim()
+                    : "",
+                PriceGp = ToDouble(si_txtPrice.Text),
                 Weight = Helpers.NumberInput.ToDouble(si_txtWeight.Text),
                 Ac = ToInt(si_txtAc.Text),
                 Damage = (si_txtDamage.Text ?? "").Trim(),
@@ -1957,6 +2034,24 @@ namespace HMWT_MUI.Views
                 ShowShopItemError("Не удалось сохранить предмет. Попробуйте другое название.");
                 return;
             }
+
+            // Картинка карточки: сохраняем после того, как у предмета появился id —
+            // файл кладётся в папку данных и привязывается к записи каталога
+            try
+            {
+                if (_shopItemPhotoFile != null)
+                    _shop.SaveShopPhoto(id, _shopItemPhotoFile, Services.ShopPhotoKind.Photo);
+                else if (_shopItemPhotoCleared)
+                    _shop.ClearShopPhoto(id, Services.ShopPhotoKind.Photo);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Магазин] картинка предмета: {ex.Message}");
+                ShowShopItemError("Предмет сохранён, но картинку привязать не удалось: " + ex.Message);
+            }
+
+            _shopItemPhotoFile = null;
+            _shopItemPhotoCleared = false;
 
             overlayShopItem.Visibility = Visibility.Collapsed;
 

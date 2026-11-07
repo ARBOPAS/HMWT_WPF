@@ -396,9 +396,14 @@ namespace HMWT_MUI.Net
         /// при смене сцены сбрасывается кэш «картинка уже отправлена в WebGL».
         /// Своя картинка жетона важнее портрета монстра. Протокол 21.
         ///
+        /// 1.3.18.3 — библиотека призывов: игрок ставит на карту жетон своего
+        /// существа (map_summon, протокол 22) и двигает его сам. Плюс полклетки
+        /// у жетонов, цена и картинка при создании предмета в магазине,
+        /// редкость с вариантами, порядок справочника защиты и поиск в сценах.
+        ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.18.2";
+        public const string AppVersion = "1.3.18.3";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -437,7 +442,7 @@ namespace HMWT_MUI.Net
         /// 18 — <see cref="ZoneRollRequest"/>: хост просит владельца жетона
         /// бросить спас/проверку при входе в тёмную зону со скриптом.
         /// </summary>
-        public const int ProtocolVersion = 21;
+        public const int ProtocolVersion = 22;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -521,6 +526,13 @@ namespace HMWT_MUI.Net
         public const string MapState = "map_state";              // хост -> игрок: сцена целиком
         public const string MapRequest = "map_request";          // игрок -> хост: пришли карту
         public const string MapMove = "map_move";                // игрок -> хост: подвинул своего жетона
+
+        /// <summary>
+        /// Игрок ставит на карту жетон призыва (водный элементаль, волк).
+        /// Хост создаёт жетон с владельцем-персонажем: дальше игрок двигает
+        /// его сам через map_move. Протокол 22.
+        /// </summary>
+        public const string MapSummon = "map_summon";            // игрок -> хост: поставить жетон призыва
         public const string MapImageRequest = "map_image_request";  // игрок -> хост: пришли картинку
         public const string MapImageChunk = "map_image_chunk";      // хост -> игрок: часть картинки
         public const string MapStroke = "map_stroke";               // игрок -> хост: новый рисунок

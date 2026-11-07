@@ -29,6 +29,20 @@ namespace HMWT_MUI.Windows
             lstCatalog.Items.Clear();
             foreach (string name in DefenseCatalog.ForKind(SelectedKind))
                 lstCatalog.Items.Add(name);
+
+            // У состояний деления на «физический» нет — подсказка только про порядок
+            if (txtOrderHint != null)
+            {
+                txtOrderHint.Text = SelectedKind == DefenseKind.ConditionImmunity
+                    ? "по алфавиту"
+                    : "сначала физический урон";
+            }
+        }
+
+        private void Header_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (e.LeftButton != System.Windows.Input.MouseButtonState.Pressed) return;
+            try { DragMove(); } catch { }
         }
 
         private void Catalog_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)

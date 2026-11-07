@@ -202,6 +202,7 @@
     <Compile Include="Services\MoneyService.cs" />
     <Compile Include="Services\MonsterSpellSheet.cs" />
     <Compile Include="Services\MapTokenLibrary.cs" />
+    <Compile Include="Services\SummonService.cs" />
     <Compile Include="Services\MapService.cs" />
     <Compile Include="Services\NotesService.cs" />
     <Compile Include="Services\SpellJsonImporter.cs" />
@@ -299,6 +300,7 @@
     <Compile Include="Views\MapView.Fog.cs" />
     <Compile Include="Views\MapView.Shell.cs" />
     <Compile Include="Views\MapView.Tokens.cs" />
+    <Compile Include="Views\MapView.Summons.cs" />
     <Compile Include="Views\MonsterEditor.cs" />
     <Compile Include="Views\BestiaryView.cs" />
     <Compile Include="Views\InitiativePanel.cs" />
@@ -319,6 +321,9 @@
     </Compile>
     <Compile Include="Windows\TokenLibraryWindow.xaml.cs">
       <DependentUpon>TokenLibraryWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Windows\SummonWindow.xaml.cs">
+      <DependentUpon>SummonWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Windows\NoteLinkWindow.xaml.cs">
       <DependentUpon>NoteLinkWindow.xaml</DependentUpon>
@@ -427,6 +432,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Windows\TokenLibraryWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\SummonWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

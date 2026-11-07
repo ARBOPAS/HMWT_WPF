@@ -140,6 +140,12 @@ namespace HMWT_MUI.Net
         /// <summary>Хост изменил карту (например, игрок подвинул своего жетона).</summary>
         public event Action MapChanged;
 
+        /// <summary>
+        /// Игрок поставил на карту жетон призыва. Ведущему нужно перечитать
+        /// сцену: жетон создан на стороне сервера, и в его окне его ещё нет.
+        /// </summary>
+        public event Action<MapTokenData> SummonAdded;
+
         /// <summary>Пришёл новый разведанный сектор от игрока: ведущий добавляет его себе.</summary>
         public event Action<string> MapSeenAdded;
 
@@ -560,6 +566,12 @@ namespace HMWT_MUI.Net
 
                     case MsgType.MapMove:
                         ApplyMapMove(conn, msg.As<MapMoveRequest>());
+                        break;
+
+                    case MsgType.MapSummon:
+                        // Игрок ставит своего призыва: жетон создаёт хост,
+                        // владельцем становится персонаж игрока
+                        HandleMapSummon(conn, msg.As<MapSummonRequest>());
                         break;
 
                     case MsgType.MapTrail:
@@ -1639,7 +1651,7 @@ namespace HMWT_MUI.Net
                             // раньше такие правки оставались только у него на экране
                             if (request.ViewAngle >= 0 && request.ViewAngle <= 360)
                                 token.ViewAngle = request.ViewAngle;
-                            if (request.SizeCells >= 1 && request.SizeCells <= 10)
+                            if (request.SizeCells >= 0.5 && request.SizeCells <= 10)
                                 token.SizeCells = request.SizeCells;
                             if (request.RevealCells >= 0 && request.RevealCells <= 40)
                                 token.RevealCells = request.RevealCells;
@@ -1759,6 +1771,81 @@ namespace HMWT_MUI.Net
             try { CheckZoneScripts(moved, fromX, fromY); } catch { }
 
             _ = BroadcastTokenLiveAsync(tokenId, x, y, facing, null);
+        }
+
+        /// <summary>
+        /// Игрок поставил на карту жетон призыва (водный элементаль, волк).
+        ///
+        /// Жетон создаёт хост: у игрока нет базы сцены. Владельцем записываем
+        /// персонажа игрока — по этому полю map_move и пускает его двигать
+        /// жетон, а мастер видит, чей это призыв. Картинка приходит в сообщении
+        /// и сохраняется в папку комнаты, чтобы её увидели все.
+        /// </summary>
+        private void HandleMapSummon(ClientConnection conn, MapSummonRequest request)
+        {
+            if (request == null || conn?.Player == null) return;
+
+            string label = (request.Label ?? "").Trim();
+            if (label.Length == 0) return;
+            if (label.Length > 60) label = label.Substring(0, 60);
+
+            MapSceneData scene;
+            lock (_stateLock) scene = _map;
+            if (scene == null) return;
+
+            string relative = "";
+            if (!string.IsNullOrWhiteSpace(request.PhotoBase64))
+            {
+                try
+                {
+                    byte[] bytes = Convert.FromBase64String(request.PhotoBase64);
+                    if (bytes.Length > 0 && bytes.Length <= 12 * 1024 * 1024)
+                    {
+                        string ext = string.IsNullOrWhiteSpace(request.Extension) ? ".png" : request.Extension.Trim();
+                        if (!ext.StartsWith(".")) ext = "." + ext;
+
+                        relative = PhotoTransferService.SaveReceived(_roomId,
+                            "summon_" + conn.PlayerId + "_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                            bytes, ext);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"призыв «{label}»: картинка не принята ({ex.Message})");
+                }
+            }
+
+            var token = new MapTokenData
+            {
+                SceneId = scene.Id,
+                CombatantId = 0,
+                OwnerCharacterId = conn.Player.CharacterId,
+                Label = label,
+                SizeCells = Math.Max(0.5, Math.Min(10, request.SizeCells)),
+                PhotoPath = relative ?? "",
+                PhotoHash = "",
+                Hidden = false,
+                X = scene.WidthPx > 0 ? scene.WidthPx / 2.0 : 200,
+                Y = scene.HeightPx > 0 ? scene.HeightPx / 2.0 : 200,
+                RevealCells = 0,
+                ViewAngle = 360
+            };
+
+            if (MapService.SaveToken(token) <= 0)
+            {
+                Log($"призыв «{label}»: жетон не сохранился");
+                return;
+            }
+
+            lock (_stateLock)
+            {
+                _map?.Tokens?.Add(token);
+            }
+
+            Log($"{Describe(conn.Player)}: призыв «{label}» на карту");
+            _ = BroadcastMapStateAsync();
+
+            try { SummonAdded?.Invoke(token); } catch { }
         }
 
         private void HandleMapTrail(ClientConnection conn, MapTrailMessage message)

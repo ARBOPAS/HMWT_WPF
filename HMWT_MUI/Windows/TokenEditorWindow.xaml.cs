@@ -26,9 +26,12 @@ namespace HMWT_MUI.Windows
         {
             InitializeComponent();
 
+            // ½ клетки — для мелких существ и предметов: кот, кувшин, свеча.
+            // Остальные размеры — целые клетки от 1 до 10.
+            SizeBox.Items.Add("½ клетки");
             for (int n = 1; n <= 10; n++)
                 SizeBox.Items.Add(n == 1 ? "1 клетка" : (n < 5 ? n + " клетки" : n + " клеток"));
-            SizeBox.SelectedIndex = 0;
+            SizeBox.SelectedIndex = 1;
             _built = true;
 
             Loaded += (s, e) =>
@@ -51,7 +54,10 @@ namespace HMWT_MUI.Windows
         /// <summary>Полный путь к выбранной картинке; пусто — картинки нет.</summary>
         public string PhotoFile => _photoAbsolute ?? "";
 
-        public int SizeCells => Math.Max(1, Math.Min(10, SizeBox.SelectedIndex + 1));
+        /// <summary>Размер в клетках: 0.5 — половина клетки, дальше 1…10.</summary>
+        public double SizeCells => SizeBox.SelectedIndex <= 0
+            ? 0.5
+            : Math.Max(1, Math.Min(10, SizeBox.SelectedIndex));
 
         public bool IsHidden => HiddenBox.IsChecked == true;
 
@@ -59,13 +65,15 @@ namespace HMWT_MUI.Windows
         public bool SaveToLibrary => LibraryBox.IsChecked == true;
 
         /// <summary>Заполняет окно значениями. photoAbsolute — полный путь к файлу.</summary>
-        public void LoadValues(string label, string photoAbsolute, int sizeCells, bool hidden)
+        public void LoadValues(string label, string photoAbsolute, double sizeCells, bool hidden)
         {
             if (!_built) return;
 
             NameBox.Text = label ?? "";
             _photoAbsolute = string.IsNullOrWhiteSpace(photoAbsolute) ? null : photoAbsolute;
-            SizeBox.SelectedIndex = Math.Max(0, Math.Min(9, sizeCells - 1));
+            SizeBox.SelectedIndex = sizeCells <= 0.75
+                ? 0
+                : Math.Max(1, Math.Min(10, (int)Math.Round(sizeCells)));
             HiddenBox.IsChecked = hidden;
             UpdatePreview();
         }

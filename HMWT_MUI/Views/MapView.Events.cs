@@ -329,10 +329,12 @@ namespace HMWT_MUI.Views
             switch ((action ?? "").ToLowerInvariant())
             {
                 case "size":
-                    if (!int.TryParse(value, out int cells)) return;
-                    // До 10 клеток: огромные существа в D&D занимают и больше,
-                    // ограничение в 4 клетки обрезало их «на глаз».
-                    cells = Math.Max(1, Math.Min(10, cells));
+                    if (!double.TryParse(value, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out double cells)) return;
+                    // От половины клетки (мелкие существа и предметы) до 10 клеток:
+                    // огромные существа в D&D занимают и больше, а ограничение
+                    // в 4 клетки обрезало их «на глаз».
+                    cells = Math.Max(0.5, Math.Min(10, cells));
                     if (_remote) SetRemoteTokenSize(token, cells);
                     else SetTokenSize(token, cells);
                     break;

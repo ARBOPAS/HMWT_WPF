@@ -513,8 +513,11 @@ namespace HMWT_MUI.Net
         /// <summary>Новый угол обзора, если игрок менял его из меню жетона (-1 — не менять).</summary>
         [JsonPropertyName("angle")] public double ViewAngle { get; set; } = -1;
 
-        /// <summary>Новый размер жетона в клетках (-1 — не менять).</summary>
-        [JsonPropertyName("size")] public int SizeCells { get; set; } = -1;
+        /// <summary>
+        /// Новый размер жетона в клетках (-1 — не менять).
+        /// Дробный: 0.5 — половина клетки для мелких существ и предметов.
+        /// </summary>
+        [JsonPropertyName("size")] public double SizeCells { get; set; } = -1;
 
         /// <summary>Новая дальность обзора в клетках (-1 — не менять).</summary>
         [JsonPropertyName("reveal")] public double RevealCells { get; set; } = -1;
@@ -539,6 +542,33 @@ namespace HMWT_MUI.Net
         /// отдельным сообщением при отпускании.
         /// </summary>
         [JsonPropertyName("live")] public bool Live { get; set; }
+    }
+
+    /// <summary>
+    /// Игрок ставит на карту жетон призыва: короткий лист существа и картинка.
+    ///
+    /// Картинка едет в самом сообщении (base64): файл у игрока свой, а хост
+    /// должен получить его до создания жетона, иначе остальные увидят пустой
+    /// кружок. Размер ограничен на стороне сервера. Протокол 22.
+    /// </summary>
+    public sealed class MapSummonRequest
+    {
+        [JsonPropertyName("label")] public string Label { get; set; } = "";
+        [JsonPropertyName("type")] public string CreatureType { get; set; } = "";
+        [JsonPropertyName("size")] public double SizeCells { get; set; } = 1;
+        [JsonPropertyName("hp")] public int Hp { get; set; }
+        [JsonPropertyName("maxhp")] public int MaxHp { get; set; }
+        [JsonPropertyName("ac")] public int Ac { get; set; }
+        [JsonPropertyName("speed")] public string Speed { get; set; } = "";
+        [JsonPropertyName("stats")] public string Stats { get; set; } = "";
+        [JsonPropertyName("attacks")] public string Attacks { get; set; } = "";
+        [JsonPropertyName("abilities")] public string Abilities { get; set; } = "";
+
+        /// <summary>Расширение картинки вместе с точкой, например «.png».</summary>
+        [JsonPropertyName("ext")] public string Extension { get; set; } = ".png";
+
+        /// <summary>Картинка в base64 (может быть пустой — жетон без аватарки).</summary>
+        [JsonPropertyName("photo")] public string PhotoBase64 { get; set; } = "";
     }
 
     /// <summary>Запрос картинки карты по хэшу: файл у игрока ещё не скачан.</summary>

@@ -41,6 +41,26 @@ namespace HMWT_MUI.Services
         /// <summary>Исходный JSON свойств — пригодится, если понадобятся поля вне колонок.</summary>
         public string RawProperties { get; set; } = "";
 
+        /// <summary>Цена в золотых монетах. 0 — цена не указана.</summary>
+        public double PriceGp { get; set; }
+
+        /// <summary>
+        /// Пояснение к редкости, когда она зависит от варианта:
+        /// «+1 необычный, +2 редкий, +3 очень редкий» (жезлы, кольца).
+        /// </summary>
+        public string RarityNote { get; set; } = "";
+
+        /// <summary>Редкость с пояснением вариантов: «Редкий (…)».</summary>
+        public string RarityLine
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(RarityNote)) return Rarity ?? "";
+                return (string.IsNullOrWhiteSpace(Rarity) ? "Редкость варьируется" : Rarity.Trim())
+                       + " (" + RarityNote.Trim() + ")";
+            }
+        }
+
         /// <summary>Подпись для карточки: тип · редкость.</summary>
         public string Subtitle
         {
@@ -48,7 +68,7 @@ namespace HMWT_MUI.Services
             {
                 var parts = new List<string>();
                 if (!string.IsNullOrWhiteSpace(ItemType)) parts.Add(ItemType);
-                if (!string.IsNullOrWhiteSpace(Rarity)) parts.Add(Rarity);
+                if (!string.IsNullOrWhiteSpace(RarityLine)) parts.Add(RarityLine);
                 return string.Join(" · ", parts);
             }
         }
@@ -63,6 +83,7 @@ namespace HMWT_MUI.Services
                     parts.Add($"Урон {Damage}" + (string.IsNullOrWhiteSpace(DamageType) ? "" : $" ({DamageType})"));
                 if (Ac > 0) parts.Add($"КД {Ac}");
                 if (Weight > 0) parts.Add($"{Weight:0.##} кг");
+                if (PriceGp > 0) parts.Add($"{PriceGp:0.##} зм");
                 if (Attunement) parts.Add("настройка");
                 return string.Join(" · ", parts);
             }
@@ -117,10 +138,12 @@ namespace HMWT_MUI.Services
                 using var cmd = new SqliteCommand(@"
                     INSERT INTO SrdItem
                         (name, description, item_type, subtype, rarity, weight, damage, damage_type,
-                         ac, range, properties_text, attunement, is_magic, source, book, raw_properties)
+                         ac, range, properties_text, attunement, is_magic, source, book, raw_properties,
+                         price_gp, rarity_note)
                     VALUES
                         (@name, @desc, @type, @sub, @rar, @weight, @dmg, @dmgType,
-                         @ac, @range, @props, @att, @magic, @src, @book, @raw)
+                         @ac, @range, @props, @att, @magic, @src, @book, @raw,
+                         @price, @rarNote)
                     ON CONFLICT(name, book) DO UPDATE SET
                         description=excluded.description,
                         item_type=excluded.item_type,
@@ -135,7 +158,9 @@ namespace HMWT_MUI.Services
                         attunement=excluded.attunement,
                         is_magic=excluded.is_magic,
                         source=excluded.source,
-                        raw_properties=excluded.raw_properties;
+                        raw_properties=excluded.raw_properties,
+                        price_gp=excluded.price_gp,
+                        rarity_note=excluded.rarity_note;
                     SELECT last_insert_rowid();", conn);
 
                 cmd.Parameters.AddWithValue("@name", row.Name.Trim());
@@ -154,6 +179,8 @@ namespace HMWT_MUI.Services
                 cmd.Parameters.AddWithValue("@src", row.Source ?? CustomBook);
                 cmd.Parameters.AddWithValue("@book", CustomBook);
                 cmd.Parameters.AddWithValue("@raw", row.RawProperties ?? "{}");
+                cmd.Parameters.AddWithValue("@price", row.PriceGp);
+                cmd.Parameters.AddWithValue("@rarNote", row.RarityNote ?? "");
 
                 var result = cmd.ExecuteScalar();
                 int id = result == null || result == DBNull.Value ? 0 : Convert.ToInt32(result);

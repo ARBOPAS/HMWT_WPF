@@ -55,6 +55,14 @@ namespace HMWT_MUI.Views
             scenesWindow.Visibility = _isDm ? Visibility.Visible : Visibility.Collapsed;
             bar.Children.Add(scenesWindow);
 
+            // Призывы доступны и игроку: своим существом он управляет сам.
+            // У ведущего это тоже работает — он ставит призыв от своего персонажа.
+            var summons = DmUiKit.Action("Призывы…", (s, e) => OpenSummonLibrary(),
+                DmUiKit.ButtonKind.Ghost,
+                "Существа, которыми управляет ваш персонаж: водный элементаль, волк, скелет", 104, 30);
+            summons.Margin = new Thickness(0, 0, 8, 0);
+            bar.Children.Add(summons);
+
             var newScene = DmUiKit.Icon("+", (s, e) => NewScene(), "Новая сцена", 30);
             newScene.IsEnabled = _isDm;
             newScene.Margin = new Thickness(0, 0, 6, 0);
