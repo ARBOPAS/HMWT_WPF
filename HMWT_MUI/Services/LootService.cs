@@ -329,6 +329,96 @@ namespace HMWT_MUI.Services
             }
         }
 
+        // ══════════════════════ СВЯЗЬ С МАГАЗИНОМ ══════════════════════
+
+        /// <summary>
+        /// Добавляет предмет из каталога магазина в справочник добычи.
+        /// Повторно один и тот же не добавляется: сверяем по имени без учёта
+        /// регистра, иначе после нескольких импортов список распухал копиями.
+        /// </summary>
+        public static int AddFromShop(int categoryId, SrdItemRow row)
+        {
+            if (categoryId <= 0 || row == null || string.IsNullOrWhiteSpace(row.Name)) return 0;
+
+            EnsureTables();
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+
+                using (var check = new SqliteCommand(
+                           "SELECT COUNT(*) FROM LootItem WHERE id_loot_category=@cat AND name=@name COLLATE NOCASE",
+                           conn))
+                {
+                    check.Parameters.AddWithValue("@cat", categoryId);
+                    check.Parameters.AddWithValue("@name", row.Name.Trim());
+                    if (Convert.ToInt32(check.ExecuteScalar() ?? 0) > 0) return 0;
+                }
+
+                using var cmd = new SqliteCommand(@"
+                    INSERT INTO LootItem (id_loot_category, name, rarity, qty_min, qty_max, note)
+                    VALUES (@cat, @name, @rarity, 1, 1, @note); SELECT last_insert_rowid();", conn);
+
+                cmd.Parameters.AddWithValue("@cat", categoryId);
+                cmd.Parameters.AddWithValue("@name", row.Name.Trim());
+                cmd.Parameters.AddWithValue("@rarity", row.Rarity ?? "");
+                cmd.Parameters.AddWithValue("@note", BuildShopNote(row));
+
+                return Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LootService] AddFromShop: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>Короткая памятка из карточки магазина: тип, урон, КД, вес.</summary>
+        private static string BuildShopNote(SrdItemRow row)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(row.ItemType)) parts.Add(row.ItemType.Trim());
+            if (!string.IsNullOrWhiteSpace(row.Damage))
+                parts.Add("урон " + row.Damage + (string.IsNullOrWhiteSpace(row.DamageType) ? "" : " (" + row.DamageType + ")"));
+            if (row.Ac > 0) parts.Add("КД " + row.Ac);
+            if (row.Weight > 0) parts.Add($"{row.Weight:0.##} кг");
+            if (row.Attunement) parts.Add("настройка");
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>Сколько предметов в каждой категории: для сводки под списком.</summary>
+        public static Dictionary<int, int> CountsByCategory(int characterId)
+        {
+            var result = new Dictionary<int, int>();
+            if (characterId <= 0) return result;
+
+            EnsureTables();
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+                using var cmd = new SqliteCommand(@"
+                    SELECT c.id_loot_category, COUNT(i.id_loot_item)
+                    FROM LootCategory c
+                    LEFT JOIN LootItem i ON i.id_loot_category = c.id_loot_category
+                    WHERE c.id_character = @id
+                    GROUP BY c.id_loot_category", conn);
+                cmd.Parameters.AddWithValue("@id", characterId);
+
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    result[r.GetInt32(0)] = r.GetInt32(1);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LootService] CountsByCategory: {ex.Message}");
+            }
+
+            return result;
+        }
+
         // ══════════════════════ ГЕНЕРАЦИЯ ══════════════════════
 
         /// <summary>Золото по уровню и типу тайника: базовое значение × множитель.</summary>
@@ -386,7 +476,13 @@ namespace HMWT_MUI.Services
 
             result.Gold = GoldFor(result.Cr, result.Container);
 
-            if (pool.Count == 0) return result;
+            // Справочник пуст — берём предметы из каталога магазина: он уже
+            // заполнен импортом SRD, и генератор работает сразу
+            if (pool.Count == 0)
+            {
+                FillFromShop(result);
+                return result;
+            }
 
             int count = Math.Min(ItemCountFor(result.Container, result.Cr), pool.Count * 2);
             var used = new HashSet<int>();
@@ -410,8 +506,74 @@ namespace HMWT_MUI.Services
             return result;
         }
 
-        // ══════════════════════ ЗАПОЛНЕНИЕ ══════════════════════
+        // ══════════════════════ МАГАЗИН В ДОБЫЧЕ ══════════════════════
 
+        /// <summary>
+        /// Когда справочник пуст, добыча собирается из каталога магазина:
+        /// он уже заполнен импортом SRD, и не нужно заводить всё руками.
+        /// Редкость подбираем по уровню — на 3-м уровне не должно падать
+        /// легендарное кольцо.
+        /// </summary>
+        private static void FillFromShop(LootResult result)
+        {
+            try
+            {
+                var shop = new ShopService(0);
+                var pool = new List<SrdItemRow>();
+
+                foreach (string rarity in ShopRaritiesFor(result.Cr))
+                {
+                    var list = shop.LoadCatalog(new ShopFilter { Rarity = rarity }, 120);
+                    if (list != null) pool.AddRange(list);
+                }
+
+                if (pool.Count == 0)
+                {
+                    // В каталоге не нашлось по редкости — берём что есть
+                    var any = shop.LoadCatalog(new ShopFilter(), 120);
+                    if (any != null) pool.AddRange(any);
+                }
+
+                if (pool.Count == 0) return;
+
+                int count = Math.Min(ItemCountFor(result.Container, result.Cr), pool.Count);
+                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                for (int i = 0; i < count; i++)
+                {
+                    var candidates = pool.Where(p => !used.Contains(p.Name ?? "")).ToList();
+                    if (candidates.Count == 0) break;
+
+                    var pick = candidates[Rng.Next(candidates.Count)];
+                    used.Add(pick.Name ?? "");
+
+                    result.Items.Add((new LootItem
+                    {
+                        Name = pick.Name ?? "",
+                        Rarity = pick.Rarity ?? "",
+                        QtyMin = 1,
+                        QtyMax = 1,
+                        Note = BuildShopNote(pick)
+                    }, "магазин", 1));
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LootService] FillFromShop: {ex.Message}");
+            }
+        }
+
+        /// <summary>Какие редкости уместны на этом уровне.</summary>
+        public static string[] ShopRaritiesFor(int cr) => cr switch
+        {
+            <= 4 => new[] { "Обычный" },
+            <= 8 => new[] { "Необычный", "Обычный" },
+            <= 12 => new[] { "Редкий", "Необычный" },
+            <= 16 => new[] { "Очень редкий", "Редкий" },
+            _ => new[] { "Легендарный", "Очень редкий", "Артефакт" }
+        };
+
+        // ══════════════════════ ЗАПОЛНЕНИЕ ══════════════════════
         /// <summary>
         /// При первом открытии справочник пуст — заполняем его простым набором,
         /// чтобы генератор сразу что-то давал. Всё это можно удалить и заменить своим.

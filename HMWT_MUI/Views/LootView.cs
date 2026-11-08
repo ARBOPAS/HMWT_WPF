@@ -32,6 +32,7 @@ namespace HMWT_MUI.Views
         private readonly TextBox _itemQtyMin = new TextBox();
         private readonly TextBox _itemQtyMax = new TextBox();
         private readonly TextBox _itemNote = new TextBox();
+        private readonly TextBlock _summary = new TextBlock();
         private LootItem _editing;
 
         private LootResult _last;
@@ -230,9 +231,39 @@ namespace HMWT_MUI.Views
             delete.Margin = new Thickness(8, 0, 0, 0);
             actions.Children.Add(delete);
 
+            var fromShop = DmUiKit.Action("Из магазина…", (s, e) => AddFromShop(),
+                DmUiKit.ButtonKind.Soft, "Добавить предметы из каталога магазина (SRD)", 150, 34);
+            fromShop.Margin = new Thickness(8, 0, 0, 0);
+            actions.Children.Add(fromShop);
+
             panel.Children.Add(actions);
 
-            return DmUiKit.Panel(panel, new Thickness(16));
+            // ── сводка и подсказка: заполняет пустое место под списком ──
+            var summaryBox = new Border
+            {
+                Margin = new Thickness(0, 14, 0, 0),
+                Background = DmUiKit.B("Slate"),
+                BorderBrush = DmUiKit.B("Line"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(14),
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+
+            _summary.FontSize = 12;
+            _summary.Foreground = DmUiKit.B("Ink");
+            _summary.TextWrapping = TextWrapping.Wrap;
+            _summary.LineHeight = 19;
+            summaryBox.Child = _summary;
+
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.Children.Add(panel);
+            Grid.SetRow(summaryBox, 1);
+            root.Children.Add(summaryBox);
+
+            return DmUiKit.Panel(root, new Thickness(16));
         }
 
         // ══════════════════════ СПРАВОЧНИК ══════════════════════
@@ -255,6 +286,31 @@ namespace HMWT_MUI.Views
 
             var selected = categories.FirstOrDefault(c => c.Id == keep) ?? categories[0];
             _categories.SelectedItem = selected;
+            RefreshSummary();
+        }
+
+        /// <summary>Сводка под редактором: сколько предметов в каждой категории.</summary>
+        private void RefreshSummary()
+        {
+            if (_summary == null) return;
+
+            var categories = LootService.LoadCategories(_characterId);
+            var counts = LootService.CountsByCategory(_characterId);
+            int total = counts.Values.Sum();
+
+            var text = new System.Text.StringBuilder();
+            text.AppendLine($"В справочнике предметов: {total}.");
+            foreach (var category in categories)
+            {
+                int count = counts.TryGetValue(category.Id, out int value) ? value : 0;
+                text.AppendLine($"• {category.Name} — {count}");
+            }
+
+            text.AppendLine();
+            text.Append("Пусто в категории? Нажмите «Из магазина…» — там каталог SRD (2014 и 2024), который уже импортирован во вкладку «Магазин». ");
+            text.Append("Генератор берёт предметы из справочника, а если он пуст — прямо из магазина по редкости уровня.");
+
+            _summary.Text = text.ToString();
         }
 
         private void ReloadItems(int selectItemId = 0)
@@ -384,6 +440,7 @@ namespace HMWT_MUI.Views
 
             ReloadItems(id);
             NewItem();
+            RefreshSummary();
             Toast("Предмет сохранён");
         }
 
@@ -399,6 +456,42 @@ namespace HMWT_MUI.Views
             LootService.DeleteItem(item.Id);
             ReloadItems();
             NewItem();
+            RefreshSummary();
+        }
+
+        // ══════════════════════ ИЗ МАГАЗИНА ══════════════════════
+
+        /// <summary>
+        /// Добавляет предметы из каталога магазина в текущую категорию.
+        /// Каталог SRD уже импортирован, поэтому справочник добычи не нужно
+        /// заполнять вручную — берём готовое.
+        /// </summary>
+        private void AddFromShop()
+        {
+            var category = _categories.SelectedItem as LootCategory;
+            if (category == null)
+            {
+                Toast("Сначала выберите или создайте категорию");
+                return;
+            }
+
+            var window = new Windows.LootShopPickerWindow(_characterId) { Owner = Window.GetWindow(this) };
+            if (window.ShowDialog() != true) return;
+
+            int added = 0, skipped = 0;
+            foreach (var row in window.SelectedItems)
+            {
+                int id = LootService.AddFromShop(category.Id, row);
+                if (id > 0) added++;
+                else skipped++;
+            }
+
+            ReloadItems();
+            RefreshSummary();
+
+            Toast(skipped > 0
+                ? $"Добавлено: {added}, уже было: {skipped}"
+                : $"Добавлено предметов: {added}");
         }
 
         // ══════════════════════ ГЕНЕРАЦИЯ ══════════════════════

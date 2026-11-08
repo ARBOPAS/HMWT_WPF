@@ -4757,6 +4757,23 @@ namespace HMWT_MUI.RoomUiTests
             Check("у добычи есть текст для чата",
                 result.ToText().Contains("Добыча") && result.ToText().Contains("зм"));
 
+            // Связь с магазином: предмет из каталога SRD попадает в справочник
+            var shopRows = new ShopService(charId).LoadCatalog(new ShopFilter(), 5);
+            if (shopRows != null && shopRows.Count > 0)
+            {
+                int shopItemId = LootService.AddFromShop(categoryId, shopRows[0]);
+                Check("предмет из магазина добавляется в добычу", shopItemId > 0, "id=" + shopItemId);
+                Check("повторно тот же предмет не добавляется",
+                    LootService.AddFromShop(categoryId, shopRows[0]) == 0);
+
+                int count = LootService.CountsByCategory(charId).TryGetValue(categoryId, out int v) ? v : 0;
+                Check("сводка считает предметы категории", count >= 2, "предметов: " + count);
+            }
+            else
+            {
+                Say("  [ПРОПУСК] каталог магазина пуст — импорт SRD не сделан");
+            }
+
             LootService.DeleteItem(itemId);
             Check("предмет добычи удаляется", LootService.LoadItems(categoryId).All(i => i.Id != itemId));
 
