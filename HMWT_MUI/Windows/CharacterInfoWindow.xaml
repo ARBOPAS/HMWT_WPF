@@ -52,7 +52,7 @@
     <Grid x:Name="RootGrid" Background="{StaticResource B.Backdrop}">
         <Grid.ColumnDefinitions>
             <!-- Ширину рейки код обнуляет, когда вкладки переезжают наверх -->
-            <ColumnDefinition x:Name="RailColumn" Width="58"/>
+            <ColumnDefinition x:Name="RailColumn" Width="74"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -89,7 +89,7 @@
                 <Separator Background="{StaticResource B.Line}" Margin="0,8,0,16"/>
                 <Button x:Name="btnInfoTab" Style="{StaticResource RailBtnActive}" Tag="Информация"
                         ToolTip="Информация" Click="btnInfoTab_Click">
-                    <helpers:IconView x:Name="icoInfoTab" Kind="wizard" IconSize="20" IconBrush="{StaticResource B.Accent}" Filled="True"/>
+                    <helpers:IconView x:Name="icoInfoTab" Kind="wizard" IconSize="21" IconBrush="{StaticResource B.OnAccent}" Filled="True"/>
                 </Button>
                 <Button x:Name="btnInventoryTab" Style="{StaticResource RailBtn}" Tag="Инвентарь"
                         ToolTip="Инвентарь" Click="btnInventoryTab_Click">

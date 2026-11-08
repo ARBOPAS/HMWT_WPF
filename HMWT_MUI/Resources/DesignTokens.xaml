@@ -1699,24 +1699,32 @@
         </Style>
 
         <Style x:Key="RailBtn" TargetType="Button">
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Foreground" Value="{StaticResource B.Mute}"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="18"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="20">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{StaticResource B.PanelHi}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Line}"/>
                                 <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -2209,9 +2217,34 @@
 
 
     <!-- Из вкладки CharacterInfoWindow.xaml -->
+        <!-- Активная вкладка рейки: латунная плашка, значок тёмный — на заливке
+             акцентом прежний латунный значок не читался -->
         <Style x:Key="RailBtnActive" TargetType="Button" BasedOn="{StaticResource RailBtn}">
-            <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
-            <Setter Property="Background" Value="{StaticResource B.PanelHi}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.OnAccent}"/>
+            <Setter Property="Background" Value="{StaticResource B.Accent}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- На наведении плашка не меняет цвет, только чуть светлеет:
+                                 иначе активная вкладка «прыгала» в цвет панели -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="TopTabBtnActive" TargetType="Button" BasedOn="{StaticResource TopTabBtn}">

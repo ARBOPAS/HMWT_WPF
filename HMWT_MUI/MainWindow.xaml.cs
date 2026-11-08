@@ -49,6 +49,20 @@ namespace HMWT_MUI
         public MainWindow()
         {
             InitializeComponent();
+
+            // Кнопка темы: значок показывает текущую, подсказка — что будет
+            try
+            {
+                bool light = Views.SettingsView.LightTheme;
+                icoTheme.Kind = light ? "sparkle" : "moon";
+                ThemeButton.ToolTip = light
+                    ? "Сейчас светлая тема «Пергамент» — включить тёмную «Гримуар»"
+                    : "Сейчас тёмная тема «Гримуар» — включить светлую «Пергамент»";
+            }
+            catch (Exception themeEx)
+            {
+                Debug.WriteLine($"[MainWindow] значок темы: {themeEx.Message}");
+            }
             System.Windows.Media.TextOptions.SetTextFormattingMode(this,
                 System.Windows.Media.TextFormattingMode.Display);
             System.Windows.Media.TextOptions.SetTextRenderingMode(this,
@@ -844,6 +858,38 @@ namespace HMWT_MUI
         }
 
         
+        /// <summary>
+        /// Переключение темы. Палитра подставляется при сборке ресурсов
+        /// приложения, поэтому после выбора темы приложение перезапускается —
+        /// иначе окна остались бы в старой палитре.
+        /// </summary>
+        private void ThemeButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool toLight = !Views.SettingsView.LightTheme;
+            string target = toLight ? "светлую тему «Пергамент»" : "тёмную тему «Гримуар»";
+
+            if (!Windows.MessageDialog.Confirm(this,
+                    $"Включить {target}? Приложение перезапустится, чтобы применить оформление.",
+                    "Оформление", "Перезапустить", "Отмена", false))
+                return;
+
+            try
+            {
+                Views.SettingsView.LightTheme = toLight;
+
+                string exe = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+                if (!string.IsNullOrEmpty(exe))
+                    System.Diagnostics.Process.Start(exe);
+
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MainWindow] смена темы: {ex}");
+                Views.SettingsView.LightTheme = !toLight;
+            }
+        }
+
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
             _settingsContextMenu.IsOpen = true;

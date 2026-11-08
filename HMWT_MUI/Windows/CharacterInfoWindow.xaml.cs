@@ -3385,7 +3385,12 @@ namespace HMWT_MUI
             var normal = (Style)FindResource(top ? "TopTabBtn" : "RailBtn");
             var active = (Style)FindResource(top ? "TopTabBtnActive" : "RailBtnActive");
             var accent = (Brush)FindResource("B.Accent");
+            var onAccent = (Brush)FindResource("B.OnAccent");
             var mute = (Brush)FindResource("B.Mute");
+
+            // На рейке активная вкладка — латунная плашка, значок на ней тёмный.
+            // Сверху фон остаётся панелью, поэтому там значок по-прежнему латунный.
+            Brush activeIcon = top ? accent : onAccent;
 
             var tabs = new (Button Button, string View, IconView Icon, bool FillWhenActive)[]
             {
@@ -3407,7 +3412,7 @@ namespace HMWT_MUI
                 tab.Button.Style = isActive ? active : normal;
 
                 if (tab.Icon == null) continue;
-                tab.Icon.IconBrush = isActive ? accent : mute;
+                tab.Icon.IconBrush = isActive ? activeIcon : mute;
                 tab.Icon.Filled = isActive && tab.FillWhenActive;
             }
         }

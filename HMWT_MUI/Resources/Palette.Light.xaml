@@ -2,16 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!--
-      ═══ ПАЛИТРА: СВЕТЛАЯ ═══
+      ═══ ПАЛИТРА: СВЕТЛАЯ — «ПЕРГАМЕНТ» ═══
 
-      Тот же арканично-фэнтезийный стиль, но светлый: тёплый пергамент вместо
-      почти чёрного фона, глубокий индиго вместо кремового текста, золото и
-      фиолет как акценты.
+      Та же книга, но днём: тёплая бумага, коричнево-латунный акцент,
+      глубокая коричневая тушь вместо индиго. Пара к тёмной «Гримуар»:
+      роль акцента та же, краска другая.
 
       Ключи ровно те же, что в Palette.Dark.xaml, поэтому переключение темы —
-      это подмена одного словаря. Ни одно значение здесь не является «на глаз»:
-      акценты подобраны так, чтобы читаться на светлом фоне (золото взято
-      темнее тёмного варианта, иначе мелкий текст на пергаменте выцветает).
+      это подмена одного словаря. Акценты подобраны так, чтобы читаться на
+      светлом фоне (латунь взята темнее, иначе мелкий текст выцветает).
 
         C.Void / C.Slate / C.Panel / C.PanelHi — фоны от страницы к карточке
         C.Line                                 — разделители и рамки
@@ -21,37 +20,36 @@
     -->
 
     <!-- Фоны: пергамент -->
-    <Color x:Key="C.Void">#E9E3D5</Color>
-    <Color x:Key="C.VoidMid">#F3EEE4</Color>
-    <Color x:Key="C.VoidDeep">#DED6C4</Color>
-    <Color x:Key="C.Slate">#F7F3EA</Color>
-    <Color x:Key="C.Panel">#FCFAF5</Color>
-    <Color x:Key="C.PanelHi">#EDE6D6</Color>
+    <Color x:Key="C.Void">#EDE3CF</Color>
+    <Color x:Key="C.VoidMid">#F4ECDC</Color>
+    <Color x:Key="C.VoidDeep">#DFD2B8</Color>
+    <Color x:Key="C.Slate">#F9F3E6</Color>
+    <Color x:Key="C.Panel">#F7F0E1</Color>
+    <Color x:Key="C.PanelHi">#FFFAEE</Color>
 
     <!-- Рамки -->
-    <Color x:Key="C.Line">#D3C8B0</Color>
+    <Color x:Key="C.Line">#D8C9AE</Color>
 
-    <!-- Текст: глубокий индиго, а не чёрный — так сохраняется «магия» -->
-    <Color x:Key="C.Ink">#2B2438</Color>
-    <Color x:Key="C.Mute">#6E6483</Color>
+    <!-- Текст: тушь, тёплая коричневая, а не чёрная -->
+    <Color x:Key="C.Ink">#2B241A</Color>
+    <Color x:Key="C.Mute">#7A6A52</Color>
 
     <!-- Акценты -->
-    <Color x:Key="C.Accent">#9A6F10</Color>
-    <Color x:Key="C.AccentDim">#C9A659</Color>
-    <Color x:Key="C.Arcane">#6D4FB0</Color>
-    <Color x:Key="C.Frost">#17786F</Color>
-    <Color x:Key="C.Danger">#A63A33</Color>
-    <Color x:Key="C.Ok">#3D8B52</Color>
-    <Color x:Key="C.Enchant">#A63A78</Color>
-    <!-- Подпись на золотой заливке: золото на свету тёмное, текст — светлый -->
-    <Color x:Key="C.OnAccent">#FDF6E3</Color>
-    <!-- Подложка под картинку предмета: на свету это тёплый нейтральный тон -->
-    <Color x:Key="C.PhotoBack">#E4DCCB</Color>
-    <!-- Текст на цветных заливках: заливки на свету темнее, текст светлый -->
-    <Color x:Key="C.OnFill">#F2FBF8</Color>
-    <!-- Затемнение под всплывающими окнами: тёмный индиго, а не чёрный,
-         иначе пергамент под ним выглядит грязным -->
-    <Color x:Key="C.Scrim">#A6332B40</Color>
+    <Color x:Key="C.Accent">#A9713C</Color>
+    <Color x:Key="C.AccentDim">#C9A06E</Color>
+    <Color x:Key="C.Arcane">#6B5A9A</Color>
+    <Color x:Key="C.Frost">#3E6E86</Color>
+    <Color x:Key="C.Danger">#A94A3C</Color>
+    <Color x:Key="C.Ok">#4F7A4A</Color>
+    <Color x:Key="C.Enchant">#9A5A7A</Color>
+    <!-- Подпись на латунной заливке: на свету она тёмная, текст — светлый -->
+    <Color x:Key="C.OnAccent">#FFF7E8</Color>
+    <!-- Подложка под картинку предмета: тёплый нейтральный тон -->
+    <Color x:Key="C.PhotoBack">#EFE5D2</Color>
+    <!-- Текст на цветных заливках -->
+    <Color x:Key="C.OnFill">#FFF7E8</Color>
+    <!-- Затемнение под всплывающими окнами: тёплое, иначе пергамент грязнится -->
+    <Color x:Key="C.Scrim">#A6332B24</Color>
 
     <!-- Кисти -->
     <SolidColorBrush x:Key="B.Void" Color="{StaticResource C.Void}"/>
