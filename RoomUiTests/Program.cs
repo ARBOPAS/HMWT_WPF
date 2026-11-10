@@ -421,6 +421,7 @@ namespace HMWT_MUI.RoomUiTests
             CheckSummonCard();
             CheckChatFilesAndFavorites();
             CheckLootGenerator();
+            CheckPaletteContrast();
 
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
@@ -4780,6 +4781,78 @@ namespace HMWT_MUI.RoomUiTests
             LootService.DeleteCategory(categoryId);
             Check("категория добычи удаляется",
                 LootService.LoadCategories(charId).All(c => c.Id != categoryId));
+        }
+
+        #endregion
+
+        #region === КОНТРАСТ ТЕМ ===
+
+        /// <summary>
+        /// Проверка читаемости обеих палитр: текст не должен сливаться с фоном.
+        /// Считаем контраст по WCAG для пар «текст на фоне», включая поля ввода
+        /// и комбобоксы (у них фон B.Slate).
+        /// </summary>
+        private static void CheckPaletteContrast()
+        {
+            foreach (string name in new[] { "Dark", "Light" })
+            {
+                ResourceDictionary palette;
+                try
+                {
+                    palette = (ResourceDictionary)Application.LoadComponent(
+                        new Uri("/HMWT_MUI.RoomUiTests;component/App/Resources/Palette." + name + ".xaml",
+                            UriKind.Relative));
+                }
+                catch (Exception ex)
+                {
+                    Say($"  [ПРОПУСК] палитра {name}: {ex.Message}");
+                    continue;
+                }
+
+                Color Get(string key) => (Color)palette[key];
+
+                var ink = Get("C.Ink");
+                var mute = Get("C.Mute");
+                var panel = Get("C.Panel");
+                var panelHi = Get("C.PanelHi");
+                var slate = Get("C.Slate");
+                var accent = Get("C.Accent");
+                var onAccent = Get("C.OnAccent");
+
+                Check($"[{name}] основной текст читается на панели", Ratio(ink, panel) >= 4.5,
+                    $"контраст {Ratio(ink, panel):0.0}");
+                Check($"[{name}] основной текст читается в поле ввода", Ratio(ink, slate) >= 4.5,
+                    $"контраст {Ratio(ink, slate):0.0}");
+                Check($"[{name}] основной текст читается на приподнятой панели", Ratio(ink, panelHi) >= 4.5,
+                    $"контраст {Ratio(ink, panelHi):0.0}");
+                Check($"[{name}] приглушённый текст читается на панели", Ratio(mute, panel) >= 4.0,
+                    $"контраст {Ratio(mute, panel):0.0}");
+                Check($"[{name}] приглушённый текст читается на поле", Ratio(mute, slate) >= 4.0,
+                    $"контраст {Ratio(mute, slate):0.0}");
+                Check($"[{name}] акцентный текст читается на панели", Ratio(accent, panel) >= 3.0,
+                    $"контраст {Ratio(accent, panel):0.0}");
+                Check($"[{name}] подпись на акцентной кнопке читается", Ratio(onAccent, accent) >= 4.5,
+                    $"контраст {Ratio(onAccent, accent):0.0}");
+            }
+        }
+
+        /// <summary>Контраст двух цветов по WCAG: (L1+0.05)/(L2+0.05).</summary>
+        private static double Ratio(Color a, Color b)
+        {
+            double la = WcagLuminance(a), lb = WcagLuminance(b);
+            double hi = Math.Max(la, lb), lo = Math.Min(la, lb);
+            return (hi + 0.05) / (lo + 0.05);
+        }
+
+        private static double WcagLuminance(Color c)
+        {
+            double Channel(byte v)
+            {
+                double s = v / 255.0;
+                return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+            }
+
+            return 0.2126 * Channel(c.R) + 0.7152 * Channel(c.G) + 0.0722 * Channel(c.B);
         }
 
         #endregion

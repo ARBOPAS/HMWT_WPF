@@ -537,16 +537,21 @@
                              Padding="10,8" Margin="0,0,0,10" IsReadOnly="True" FontFamily="{StaticResource F.Display}"/>
 
                     <UniformGrid Grid.Row="4" Columns="5" Margin="0,0,0,10">
-                        <Button x:Name="btnCurPlatinum" Content="P" Tag="Platinum" Click="CurrencyBtn_Click" 
-                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
-                        <Button x:Name="btnCurElectrum" Content="E" Tag="Electrum" Click="CurrencyBtn_Click" 
-                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
-                        <Button x:Name="btnCurGold" Content="G" Tag="Gold" Click="CurrencyBtn_Click" 
-                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
-                        <Button x:Name="btnCurSilver" Content="S" Tag="Silver" Click="CurrencyBtn_Click" 
-                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
-                        <Button x:Name="btnCurCopper" Content="C" Tag="Copper" Click="CurrencyBtn_Click" 
-                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="12" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurPlatinum" Content="ПМ" Tag="Platinum" Click="CurrencyBtn_Click"
+                                ToolTip="Платиновая монета" Foreground="{StaticResource B.Ink}"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="13" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurElectrum" Content="ЭМ" Tag="Electrum" Click="CurrencyBtn_Click"
+                                ToolTip="Электрум" Foreground="{StaticResource B.Ink}"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="13" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurGold" Content="ЗМ" Tag="Gold" Click="CurrencyBtn_Click"
+                                ToolTip="Золотая монета" Foreground="{StaticResource B.Accent}"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="13" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurSilver" Content="СМ" Tag="Silver" Click="CurrencyBtn_Click"
+                                ToolTip="Серебряная монета" Foreground="{StaticResource B.Ink}"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="13" FontWeight="Bold" Margin="2,0"/>
+                        <Button x:Name="btnCurCopper" Content="ММ" Tag="Copper" Click="CurrencyBtn_Click"
+                                ToolTip="Медная монета" Foreground="{StaticResource B.Ink}"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="36" FontSize="13" FontWeight="Bold" Margin="2,0"/>
                     </UniformGrid>
 
                     <UniformGrid Grid.Row="5" Rows="4" Columns="4" VerticalAlignment="Top" Margin="0,0,0,10">
@@ -563,17 +568,26 @@
                         <Button Content="3" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
                         <Button Content="+100" Click="CalcQuickAdd_Click" Tag="100" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="13" Foreground="{StaticResource B.Frost}"/>
                         <Button Content="0" Click="CalcNum_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="18"/>
-                        <Button Click="CalcGive_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56"><helpers:IconView Kind="minus" IconSize="18" IconBrush="{StaticResource B.Danger}" VerticalAlignment="Center"/></Button>
-                        <Button Click="CalcTake_Click" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56"><helpers:IconView Kind="plus" IconSize="16" IconBrush="{StaticResource B.Ink}" VerticalAlignment="Center"/></Button>
+                        <Button Content="Отнять" Click="CalcGive_Click" ToolTip="Убрать введённую сумму из казны"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="12"
+                                Foreground="{StaticResource B.Danger}"/>
+                        <Button Content="Добавить" Click="CalcTake_Click" ToolTip="Положить введённую сумму в казну"
+                                Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="12"
+                                Foreground="{StaticResource B.Ok}"/>
                         <Button Content="+1k" Click="CalcQuickAdd_Click" Tag="1000" Style="{StaticResource CalcKeyBtn}" Width="Auto" Height="56" FontSize="13" Foreground="{StaticResource B.Frost}"/>
                     </UniformGrid>
 
                     <Border Grid.Row="6" Background="{StaticResource B.Slate}" CornerRadius="6" Padding="8,6" 
                             BorderBrush="{StaticResource B.Line}" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="КУРС" FontFamily="{StaticResource F.Display}" FontSize="9" 
+                            <TextBlock Text="МОНЕТЫ" FontFamily="{StaticResource F.Display}" FontSize="9"
                                        FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,4" HorizontalAlignment="Center"/>
-                            <TextBlock Text="1 ПМ = 10 зм · 1 ЭМ = 0.5 зм · 1 ЗМ = 10 см · 1 СМ = 10 мм" 
+                            <TextBlock Text="ПМ — платина · ЭМ — электрум · ЗМ — золото · СМ — серебро · ММ — медь"
+                                       Foreground="{StaticResource B.Ink}" FontSize="10" HorizontalAlignment="Center"
+                                       TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,6"/>
+                            <TextBlock Text="КУРС" FontFamily="{StaticResource F.Display}" FontSize="9"
+                                       FontWeight="Bold" Foreground="{StaticResource B.Accent}" Margin="0,0,0,2" HorizontalAlignment="Center"/>
+                            <TextBlock Text="1 ПМ = 10 зм · 1 ЭМ = 0.5 зм · 1 ЗМ = 10 см · 1 СМ = 10 мм"
                                        Foreground="{StaticResource B.Mute}" FontSize="10" HorizontalAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>

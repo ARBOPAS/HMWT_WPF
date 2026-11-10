@@ -1536,10 +1536,10 @@ namespace HMWT_MUI
         // Мета-данные монет: ключ, аббревиатура, цвет металла
         private static readonly (string Key, string Abbr, string Hex)[] Coins =
         {
-    ("Platinum", "ПМ", "#E8ECF0"),
-    ("Electrum", "ЭМ", "#A9C4B5"),
-    ("Gold",     "ЗМ", "#5FD4DD"),
-    ("Silver",   "СМ", "#C3CBD6"),
+    ("Platinum", "ПМ", "#D7DEE6"),
+    ("Electrum", "ЭМ", "#D6CDA8"),
+    ("Gold",     "ЗМ", "#D9A94E"),
+    ("Silver",   "СМ", "#B9C2CD"),
     ("Copper",   "ММ", "#C47A50"),
 };
 
@@ -2263,7 +2263,7 @@ namespace HMWT_MUI
 
             var panel = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x15, 0x1B, 0x2E)),
+                Background = (Brush)FindResource("B.PanelHi"),
                 CornerRadius = new CornerRadius(8),
                 BorderBrush = accent,
                 BorderThickness = new Thickness(1.5),
@@ -2436,7 +2436,7 @@ namespace HMWT_MUI
             var panel = new Border
             {
                 // Фон полупрозрачный: панель результатов висит поверх листа персонажа
-                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x15, 0x1B, 0x2E)),
+                Background = (Brush)FindResource("B.PanelHi"),
                 CornerRadius = new CornerRadius(10),
                 BorderBrush = accent,
                 BorderThickness = new Thickness(1.5),
@@ -2681,7 +2681,7 @@ namespace HMWT_MUI
 
                 panel.BorderBrush = new SolidColorBrush(accent);
                 panel.BorderThickness = new Thickness(1.5);
-                panel.Background = new SolidColorBrush(Blend(Color.FromArgb(0xD8, 25, 25, 35), accent, success ? 0.32 : 0.12));
+                panel.Background = new SolidColorBrush(Blend(((SolidColorBrush)FindResource("B.PanelHi")).Color, accent, success ? 0.32 : 0.12));
 
                 // Свечение: вспыхнуло и погасло — без повторов
                 var glow = new DropShadowEffect { Color = accent, ShadowDepth = 0, BlurRadius = 0, Opacity = 0.85 };
