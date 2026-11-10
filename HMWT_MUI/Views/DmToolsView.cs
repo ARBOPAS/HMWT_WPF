@@ -4,6 +4,7 @@ using HMWT_MUI.Services;
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace HMWT_MUI.Views
@@ -144,45 +145,63 @@ namespace HMWT_MUI.Views
 
         // ══════════════════════ ПЕРЕКЛЮЧЕНИЕ ══════════════════════
 
-        /// <summary>Показывает нужную подвкладку. view: «Initiative» или «Bestiary».</summary>
+        /// <summary>
+        /// Показывает нужную подвкладку. view: «Initiative», «Bestiary» или «Loot».
+        ///
+        /// Бестиарий пересобирался при каждом переходе, а это до секунды: список
+        /// существ перечитывался целиком, хотя данные не менялись. Теперь он
+        /// обновляется один раз при создании, а переключение — мгновенное.
+        /// </summary>
         public void SwitchTo(string view)
         {
             if (string.IsNullOrWhiteSpace(view)) view = "Initiative";
-            _current = view;
 
-            if (view == "Bestiary")
+            var previousCursor = Mouse.OverrideCursor;
+            Mouse.OverrideCursor = Cursors.Wait;
+
+            try
             {
-                if (_bestiary == null)
+                _current = view;
+
+                if (view == "Bestiary")
                 {
-                    _bestiary = new BestiaryView(_characterId);
-                    _bestiary.AddToEncounterRequested += AddMonsterToEncounter;
-                }
-                _area.Content = _bestiary;
-                _bestiary.Refresh();
-            }
-            else if (view == "Loot")
-            {
-                // Генератор добычи со своим справочником предметов
-                if (_loot == null) _loot = new LootView(_characterId);
-                _area.Content = _loot;
-            }
-            else
-            {
-                if (_initiative == null)
-                {
-                    _initiative = new InitiativeView();
-                    _initiative.OpenMonsterRequested += id =>
+                    if (_bestiary == null)
                     {
-                        SwitchTo("Bestiary");
-                        _bestiary?.SelectMonster(id);
-                    };
-                }
-                _area.Content = _initiative;
-                _initiative.Refresh();
-            }
+                        _bestiary = new BestiaryView(_characterId);
+                        _bestiary.AddToEncounterRequested += AddMonsterToEncounter;
+                        _bestiary.Refresh();
+                    }
 
-            UpdateTabStyles();
-            UpdateRoleLine();
+                    _area.Content = _bestiary;
+                }
+                else if (view == "Loot")
+                {
+                    // Генератор добычи со своим справочником предметов
+                    if (_loot == null) _loot = new LootView(_characterId);
+                    _area.Content = _loot;
+                }
+                else
+                {
+                    if (_initiative == null)
+                    {
+                        _initiative = new InitiativeView();
+                        _initiative.OpenMonsterRequested += id =>
+                        {
+                            SwitchTo("Bestiary");
+                            _bestiary?.SelectMonster(id);
+                        };
+                    }
+                    _area.Content = _initiative;
+                    _initiative.Refresh();
+                }
+
+                UpdateTabStyles();
+                UpdateRoleLine();
+            }
+            finally
+            {
+                Mouse.OverrideCursor = previousCursor;
+            }
         }
 
         private void UpdateTabStyles()

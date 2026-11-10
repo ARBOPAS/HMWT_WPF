@@ -52,19 +52,31 @@ namespace HMWT_MUI
         {
             string palette = CurrentTheme == "light" ? "Palette.Light.xaml" : "Palette.Dark.xaml";
 
-            var resources = new ResourceDictionary();
-            resources.MergedDictionaries.Add(new ResourceDictionary
+            // ВАЖНО: палитру кладём в текущие ресурсы ДО загрузки стилей.
+            //
+            // Стили подставляют цвета через StaticResource в момент загрузки
+            // словаря, и если палитры ещё нет в Application.Resources, они
+            // «запоминают» кисти прежней темы. Раньше оба словаря собирались
+            // в отдельный ResourceDictionary и подключались одним присваиванием:
+            // к моменту разбора DesignTokens палитра ещё не была видна, поэтому
+            // кнопки, поля и поисковые строки оставались тёмными в светлой теме,
+            // хотя фон окна уже был пергаментным.
+            var appResources = Application.Current.Resources;
+            appResources.MergedDictionaries.Clear();
+
+            appResources.MergedDictionaries.Add(new ResourceDictionary
             {
                 Source = new Uri("Resources/" + palette, UriKind.Relative)
             });
-            resources.MergedDictionaries.Add(new ResourceDictionary
+
+            // Теперь стили видят нужную палитру и запоминают её кисти
+            appResources.MergedDictionaries.Add(new ResourceDictionary
             {
                 Source = new Uri("Resources/DesignTokens.xaml", UriKind.Relative)
             });
 
-            Application.Current.Resources = resources;
-
             System.Diagnostics.Debug.WriteLine($"[App] тема: {CurrentTheme} ({palette})");
+
         }
 
         /// <summary>
