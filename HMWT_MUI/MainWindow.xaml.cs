@@ -87,6 +87,9 @@ namespace HMWT_MUI
             };
             Loaded += (_, __) => AudioHost.SetMaster(AudioSettings.Master);
 
+            // Первый запуск после смены корня данных: объясняем, где теперь файлы
+            Loaded += (_, __) => ShowStorageMigrationNotice();
+
             // Отладочный запуск звука: HMWT_DEBUG_AUDIO=<путь к файлу>.
             // Пишет в %TEMP%\hmwt-audio.log, играет ли MediaPlayer.
             string debugAudio = Environment.GetEnvironmentVariable("HMWT_DEBUG_AUDIO");
@@ -849,6 +852,41 @@ namespace HMWT_MUI
             var importDataItem = new MenuItem { Header = "Импорт данных из пакета…" };
             importDataItem.Click += (s, e) => ImportAllData();
             _settingsContextMenu.Items.Add(importDataItem);
+        }
+
+        /// <summary>
+        /// Сообщение о переезде данных в «Документы». Показывается один раз —
+        /// при первом запуске после переноса, чтобы игрок знал, где искать файлы
+        /// и что старую папку пока лучше не удалять.
+        /// </summary>
+        private void ShowStorageMigrationNotice()
+        {
+            try
+            {
+                if (AppPaths.JustMigrated)
+                {
+                    AppPaths.ClearMigrationNotice();
+                    MessageDialog.Info(this,
+                        "Данные перенесены в «Документы».\n\n" +
+                        $"Новая папка: {AppPaths.Root}\n\n" +
+                        "Старая папка %APPDATA%\\HMWT осталась как резервная копия. " +
+                        "Её можно удалить, когда убедитесь, что персонажи, карты и токены на месте.",
+                        "Данные перенесены");
+                }
+                else if (AppPaths.MigrationFailed)
+                {
+                    MessageDialog.Info(this,
+                        "Перенести данные в «Документы» не удалось: скорее всего, не хватило места " +
+                        "на диске или файл был занят.\n\n" +
+                        "Программа работает со старой папкой %APPDATA%\\HMWT — данные целы. " +
+                        "Перенос повторится при следующем запуске.",
+                        "Перенос данных");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MainWindow] сообщение о переносе: {ex.Message}");
+            }
         }
 
         /// <summary>Складывает все данные приложения в один .hmwtpack.</summary>

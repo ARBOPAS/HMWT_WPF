@@ -24,6 +24,18 @@ namespace HMWT_MUI
         private static string _root;
         private static bool _migrated;
 
+        /// <summary>Данные только что перенесены из AppData — стоит показать игроку.</summary>
+        public static bool JustMigrated { get; private set; }
+
+        /// <summary>Перенос не удался, работаем из старой папки в AppData.</summary>
+        public static bool MigrationFailed { get; private set; }
+
+        /// <summary>Сбрасывает отметку о переносе после показа сообщения.</summary>
+        public static void ClearMigrationNotice()
+        {
+            JustMigrated = false;
+        }
+
         /// <summary>Корень данных: «Документы\HMWT» или %APPDATA%\HMWT, если документы недоступны.</summary>
         public static string Root
         {
@@ -103,14 +115,27 @@ namespace HMWT_MUI
                 bool ok = File.Exists(Path.Combine(target, DatabaseFile));
                 File.AppendAllText(Path.Combine(target, "migration.txt"),
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} перенос из {legacy}: файлов {files}, " +
-                    (ok ? "база на месте" : "БАЗА НЕ НАЙДЕНА — проверьте старую папку") + Environment.NewLine);
+                    (ok ? "база на месте" : "БАЗА НЕ НАЙДЕНА — работаем со старой папкой") + Environment.NewLine);
 
-                Debug.WriteLine(ok
-                    ? $"[AppPaths] перенос завершён, файлов: {files}"
-                    : "[AppPaths] база не найдена в старой папке");
+                if (ok)
+                {
+                    JustMigrated = true;
+                    Debug.WriteLine($"[AppPaths] перенос завершён, файлов: {files}");
+                }
+                else
+                {
+                    // Копирование сорвалось (нет места, занятый файл): чтобы игрок
+                    // не увидел пустую программу, работаем прямо из старой папки.
+                    // Данные целы, а перенос можно повторить позже.
+                    _root = legacy;
+                    MigrationFailed = true;
+                    Debug.WriteLine("[AppPaths] перенос не удался — работаем из %APPDATA%\\HMWT");
+                }
             }
             catch (Exception ex)
             {
+                _root = LegacyRoot;
+                MigrationFailed = true;
                 Debug.WriteLine($"[AppPaths] перенос данных: {ex}");
             }
         }
