@@ -16,8 +16,7 @@ namespace HMWT_MUI.Services
     /// </summary>
     public static class AudioService
     {
-        public static string Root => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT", "Audio");
+        public static string Root => Path.Combine(AppPaths.Root, "Audio");
 
         public static string LibraryDir => Path.Combine(Root, "Library");
         public static string CacheDir => Path.Combine(Root, "Cache");

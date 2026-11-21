@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\SQLitePCLRaw.lib.e_sqlite3.3.53.3\build\net471\SQLitePCLRaw.lib.e_sqlite3.props" Condition="Exists('..\packages\SQLitePCLRaw.lib.e_sqlite3.3.53.3\build\net471\SQLitePCLRaw.lib.e_sqlite3.props')" />
   <Import Project="..\packages\SourceGear.sqlite3.3.53.3\build\net471\SourceGear.sqlite3.props" Condition="Exists('..\packages\SourceGear.sqlite3.3.53.3\build\net471\SourceGear.sqlite3.props')" />
@@ -204,6 +204,7 @@
     <Compile Include="Services\MapTokenLibrary.cs" />
     <Compile Include="Services\SummonService.cs" />
     <Compile Include="Services\ChatFavoritesService.cs" />
+    <Compile Include="Services\DataPackService.cs" />
     <Compile Include="Services\ChatFileStore.cs" />
     <Compile Include="Services\LootService.cs" />
     <Compile Include="Services\MapService.cs" />
@@ -388,6 +389,7 @@
     </Compile>
     <Compile Include="Helpers\DatabaseHelper.cs" />
     <Compile Include="Helpers\NumberInput.cs" />
+    <Compile Include="Helpers\AppPaths.cs" />
     <Compile Include="Helpers\PhotoHelper.cs" />
     <Compile Include="Helpers\PaletteBrush.cs" />
     <Compile Include="MainWindow.xaml.cs">
@@ -619,3 +621,4 @@
     </None>
   </ItemGroup>
 </Project>
+

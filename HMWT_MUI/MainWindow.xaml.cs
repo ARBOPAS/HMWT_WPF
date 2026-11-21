@@ -837,6 +837,93 @@ namespace HMWT_MUI
             var donateItem = new MenuItem { Header = "Поддержать проект" };
             donateItem.Click += (s, e) => OpenDonateWindow();
             _settingsContextMenu.Items.Add(donateItem);
+
+            _settingsContextMenu.Items.Add(new Separator());
+
+            // Пакет всех данных: база, карты, фото, токены, комнаты.
+            // Отдельно от экспорта персонажа — тот переносит только лист.
+            var exportDataItem = new MenuItem { Header = "Экспорт данных…" };
+            exportDataItem.Click += (s, e) => ExportAllData();
+            _settingsContextMenu.Items.Add(exportDataItem);
+
+            var importDataItem = new MenuItem { Header = "Импорт данных из пакета…" };
+            importDataItem.Click += (s, e) => ImportAllData();
+            _settingsContextMenu.Items.Add(importDataItem);
+        }
+
+        /// <summary>Складывает все данные приложения в один .hmwtpack.</summary>
+        private void ExportAllData()
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Экспорт данных HMWT",
+                Filter = "Пакет HMWT (*.hmwtpack)|*.hmwtpack",
+                FileName = $"HMWT_данные_{DateTime.Now:yyyy-MM-dd}{Services.DataPackService.Extension}"
+            };
+
+            if (dialog.ShowDialog(this) != true) return;
+
+            try
+            {
+                int files = Services.DataPackService.Export(dialog.FileName);
+                MessageDialog.Info(this,
+                    $"Готово: {files} файлов в пакете.\n\n{dialog.FileName}\n\n" +
+                    "Внутри — база, карты, фото, токены и комнаты. " +
+                    "Резервные копии и журналы в пакет не входят.",
+                    "Экспорт данных");
+            }
+            catch (Exception ex)
+            {
+                MessageDialog.Info(this, "Не удалось выполнить экспорт:\n" + ex.Message, "Экспорт данных");
+            }
+        }
+
+        /// <summary>
+        /// Импорт пакета: распаковываем рядом и применяем при перезапуске.
+        /// Подменять базу на ходу нельзя — она открыта.
+        /// </summary>
+        private void ImportAllData()
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Импорт данных HMWT",
+                Filter = "Пакет HMWT (*.hmwtpack)|*.hmwtpack|Архив ZIP (*.zip)|*.zip|Все файлы (*.*)|*.*"
+            };
+
+            if (dialog.ShowDialog(this) != true) return;
+
+            if (!MessageDialog.Confirm(this,
+                    "Данные из пакета заменят текущие: базу, карты, фото, токены и комнаты.\n" +
+                    "Текущая база будет сохранена в папку Backups.\n\nПродолжить?",
+                    "Импорт данных", "Импортировать", "Отмена", true))
+                return;
+
+            try
+            {
+                int files = Services.DataPackService.StageImport(dialog.FileName);
+
+                if (MessageDialog.Confirm(this,
+                        $"Пакет распакован: {files} файлов. Применить сейчас?\n" +
+                        "Приложение перезапустится, и данные заменятся.",
+                        "Импорт данных", "Перезапустить", "Позже", false))
+                {
+                    string exe = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+                    if (!string.IsNullOrEmpty(exe))
+                        System.Diagnostics.Process.Start(exe);
+
+                    Application.Current.Shutdown();
+                }
+                else
+                {
+                    MessageDialog.Info(this,
+                        "Пакет сохранён. Данные применятся при следующем запуске приложения.",
+                        "Импорт данных");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageDialog.Info(this, "Не удалось выполнить импорт:\n" + ex.Message, "Импорт данных");
+            }
         }
 
         /// <summary>

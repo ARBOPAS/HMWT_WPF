@@ -64,9 +64,8 @@ namespace HMWT_MUI
             if (_isInitialized) return;
             try
             {
-                // ФОТО В APPDATA
-                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string appDir = Path.Combine(appDataPath, "HMWT");
+                // Фото лежат в корне данных («Документы\HMWT»)
+                string appDir = AppPaths.Root;
 
                 _photosRoot = Path.Combine(appDir, "CharacterPhoto");
                 _charactersPath = Path.Combine(_photosRoot, "Characters");
@@ -90,7 +89,7 @@ namespace HMWT_MUI
 
                 _isInitialized = true;
 
-                Debug.WriteLine($"[PhotoHelper] AppData: {appDataPath}");
+                Debug.WriteLine($"[PhotoHelper] корень данных: {appDir}");
                 Debug.WriteLine($"[PhotoHelper] _photosRoot: {_photosRoot}");
             }
             catch (Exception ex)
@@ -373,7 +372,7 @@ namespace HMWT_MUI
                 catch { }
             }
 
-            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+            var root = AppPaths.Root;
             try { Directory.CreateDirectory(root); }
             catch
             {

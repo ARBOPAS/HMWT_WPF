@@ -44,8 +44,7 @@ namespace HMWT_MUI.Services
             public List<string> Errors { get; } = new List<string>();
         }
 
-        public static string Root => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+        public static string Root => AppPaths.Root;
 
         public static string MapsDir => Path.Combine(Root, "Maps");
         public static string RoomsDir => Path.Combine(Root, "Rooms");

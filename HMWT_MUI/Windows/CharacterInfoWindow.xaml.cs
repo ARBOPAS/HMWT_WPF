@@ -3232,8 +3232,7 @@ namespace HMWT_MUI
         {
             try
             {
-                var dir = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+                var dir = AppPaths.Root;
                 System.IO.Directory.CreateDirectory(dir);
                 string file = System.IO.Path.Combine(dir, "tab-trace.log");
 

@@ -422,6 +422,8 @@ namespace HMWT_MUI.RoomUiTests
             CheckChatFilesAndFavorites();
             CheckLootGenerator();
             CheckPaletteContrast();
+            CheckStorageLocation();
+            CheckDataPack();
 
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
@@ -4853,6 +4855,118 @@ namespace HMWT_MUI.RoomUiTests
             }
 
             return 0.2126 * Channel(c.R) + 0.7152 * Channel(c.G) + 0.0722 * Channel(c.B);
+        }
+
+        #endregion
+
+        #region === ГДЕ ЛЕЖАТ ДАННЫЕ ===
+
+        /// <summary>
+        /// Корень данных — «Документы\HMWT»: база и файлы рядом с документами,
+        /// а не в скрытом AppData. Старые данные переносятся один раз.
+        /// </summary>
+        private static void CheckStorageLocation()
+        {
+            string root = AppPaths.Root;
+            Check("корень данных создан", Directory.Exists(root), root);
+
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            bool underDocuments = !string.IsNullOrWhiteSpace(documents) &&
+                                  root.StartsWith(documents, StringComparison.OrdinalIgnoreCase);
+            Check("данные лежат в «Документах»", underDocuments, root);
+
+            Check("база данных лежит в корне данных",
+                AppPaths.DatabasePath.StartsWith(root, StringComparison.OrdinalIgnoreCase),
+                AppPaths.DatabasePath);
+
+            try
+            {
+                AppPaths.MigrateFromAppData();
+                Check("перенос из AppData не падает", true);
+            }
+            catch (Exception ex)
+            {
+                Check("перенос из AppData не падает", false, ex.Message);
+            }
+
+            string photos = Path.Combine(root, "CharacterPhoto");
+            Check("папка фото внутри корня данных",
+                photos.StartsWith(root, StringComparison.OrdinalIgnoreCase), photos);
+        }
+
+        #endregion
+
+
+        #region === ПАКЕТ ДАННЫХ ===
+
+        /// <summary>
+        /// Экспорт всего набора данных в .hmwtpack и распаковка обратно:
+        /// база, карты, токены — всё, что лежит в корне. Бэкапы и журналы
+        /// в пакет не попадают.
+        /// </summary>
+        private static void CheckDataPack()
+        {
+            string work = Path.Combine(Path.GetTempPath(), "hmwt-pack-test-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            string source = Path.Combine(work, "source");
+            string target = Path.Combine(work, "target");
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(source, "Maps"));
+                Directory.CreateDirectory(Path.Combine(source, "Tokens"));
+                Directory.CreateDirectory(Path.Combine(source, "Backups"));
+                File.WriteAllText(Path.Combine(source, "HMWT_app.db"), "fake-db");
+                File.WriteAllText(Path.Combine(source, "Maps", "scene.png"), "map-bytes");
+                File.WriteAllText(Path.Combine(source, "Tokens", "hero.png"), "token-bytes");
+                File.WriteAllText(Path.Combine(source, "Backups", "old.db"), "backup");
+                File.WriteAllText(Path.Combine(source, "db-trace.log"), "log");
+
+                string pack = Path.Combine(work, "pack.hmwtpack");
+                int exported = DataPackService.Export(pack, source);
+                Check("пакет данных создан", File.Exists(pack), $"файлов: {exported}");
+
+                using (var zip = System.IO.Compression.ZipFile.OpenRead(pack))
+                {
+                    var names = zip.Entries.Select(e => e.FullName).ToList();
+                    Check("в пакете есть база", names.Contains("HMWT_app.db"));
+                    Check("в пакете есть карты", names.Contains("Maps/scene.png"));
+                    Check("в пакете есть токены", names.Contains("Tokens/hero.png"));
+                    Check("в пакете есть манифест", names.Contains("manifest.json"));
+                    Check("бэкапы в пакет не попали", !names.Any(n => n.StartsWith("Backups/")));
+                    Check("журналы в пакет не попали", !names.Any(n => n.EndsWith(".log")));
+                }
+
+                Directory.CreateDirectory(target);
+                int staged = DataPackService.StageImport(pack, target);
+                Check("пакет распакован", staged >= 4, $"файлов: {staged}");
+                // Распаковка идёт в служебную папку .restore-…, а поверх данных
+                // файлы лягут при следующем запуске (метка restore-pending.txt)
+                string marker = Path.Combine(target, "restore-pending.txt");
+                Check("стоит метка отложенного восстановления", File.Exists(marker));
+
+                string staging = File.Exists(marker) ? File.ReadAllText(marker).Trim() : "";
+                Check("служебная папка распаковки создана", Directory.Exists(staging), staging);
+                Check("база распакована в служебную папку",
+                    File.Exists(Path.Combine(staging, "HMWT_app.db")));
+                Check("карты распакованы",
+                    File.Exists(Path.Combine(staging, "Maps", "scene.png")));
+
+                string badPack = Path.Combine(work, "bad.hmwtpack");
+                using (var zip = System.IO.Compression.ZipFile.Open(badPack, System.IO.Compression.ZipArchiveMode.Create))
+                    zip.CreateEntry("readme.txt").Open().Dispose();
+
+                bool refused = false;
+                try { DataPackService.StageImport(badPack, Path.Combine(work, "bad")); }
+                catch (InvalidOperationException) { refused = true; }
+                Check("пакет без базы отвергается", refused);
+            }
+            catch (Exception ex)
+            {
+                Check("пакет данных: без исключений", false, ex.Message);
+            }
+            finally
+            {
+                try { Directory.Delete(work, true); } catch { }
+            }
         }
 
         #endregion

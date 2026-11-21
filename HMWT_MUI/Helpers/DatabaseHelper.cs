@@ -64,9 +64,14 @@ namespace HMWT_MUI
 
             Debug.WriteLine($"\n[DB] >>> ИНИЦИАЛИЗАЦИЯ БД <<<");
 
-            // 1. Создаём папку в AppData
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string appDir = Path.Combine(appDataPath, "HMWT");
+            // 0. Отложенное восстановление из .hmwtpack: применяем ДО открытия
+            // базы, иначе работали бы со старой, а файлы пакета пришли бы позже
+            Services.DataPackService.ApplyPendingRestore();
+
+            // 1. Корень данных — «Документы\HMWT» (при первом запуске сюда
+            // переносятся файлы из %APPDATA%\HMWT, см. AppPaths)
+            AppPaths.MigrateFromAppData();
+            string appDir = AppPaths.Root;
             if (!Directory.Exists(appDir))
             {
                 Directory.CreateDirectory(appDir);
@@ -272,8 +277,7 @@ namespace HMWT_MUI
 
         public static string GetPhotoBasePath()
         {
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appDataPath, "HMWT", "CharacterPhoto");
+            return Path.Combine(AppPaths.Root, "CharacterPhoto");
         }
 
         #endregion
@@ -1204,8 +1208,7 @@ namespace HMWT_MUI
         {
             try
             {
-                string dir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+                string dir = AppPaths.Root;
                 Directory.CreateDirectory(dir);
                 string file = Path.Combine(dir, "db-trace.log");
 

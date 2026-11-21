@@ -35,6 +35,8 @@
   <ItemGroup>
     <Reference Include="System.Net.Http" />
     <Reference Include="System" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.SqlClient" />
@@ -108,7 +110,8 @@
     <Compile Include="..\HMWT_MUI\Services\BackgroundService.cs"><Link>App\BackgroundService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Net\NetworkHelper.cs"><Link>App\NetworkHelper.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Net\RoomSession.cs"><Link>App\RoomSession.cs</Link></Compile>
-    <Compile Include="..\HMWT_MUI\Helpers\PhotoHelper.cs"><Link>App\PhotoHelper.cs</Link></Compile>
+        <Compile Include="..\HMWT_MUI\Helpers\AppPaths.cs"><Link>App\AppPaths.cs</Link></Compile>
+<Compile Include="..\HMWT_MUI\Helpers\PhotoHelper.cs"><Link>App\PhotoHelper.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\WebView2Host.cs"><Link>App\WebView2Host.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Controls\ChatWebView.xaml.cs">
       <Link>App\Controls\ChatWebView.xaml.cs</Link>
@@ -146,7 +149,8 @@
     <Compile Include="..\HMWT_MUI\Services\SrdItemImporter.cs"><Link>App\SrdItemImporter.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SummonService.cs"><Link>App\SummonService.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\ChatFavoritesService.cs"><Link>App\ChatFavoritesService.cs</Link></Compile>
-    <Compile Include="..\HMWT_MUI\Services\ChatFileStore.cs"><Link>App\ChatFileStore.cs</Link></Compile>
+        <Compile Include="..\HMWT_MUI\Services\DataPackService.cs"><Link>App\DataPackService.cs</Link></Compile>
+<Compile Include="..\HMWT_MUI\Services\ChatFileStore.cs"><Link>App\ChatFileStore.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\CharacterDefenseCatalog.cs"><Link>App\CharacterDefenseCatalog.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Services\SpellJsonImporter.cs"><Link>App\SpellJsonImporter.cs</Link></Compile>
     <Compile Include="..\HMWT_MUI\Helpers\DatabaseHelper.cs"><Link>App\DatabaseHelper.cs</Link></Compile>
@@ -349,4 +353,6 @@
           DestinationFolder="$(OutputPath)Ui\Windows" SkipUnchangedFiles="true" ContinueOnError="true" />
   </Target>
 </Project>
+
+
 

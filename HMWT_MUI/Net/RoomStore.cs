@@ -60,9 +60,7 @@ namespace HMWT_MUI.Net
         {
             get
             {
-                var root = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "HMWT", "Rooms");
+                var root = Path.Combine(AppPaths.Root, "Rooms");
                 Directory.CreateDirectory(root);
                 return root;
             }

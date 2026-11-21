@@ -1564,7 +1564,7 @@ namespace HMWT_MUI.Services
             var candidates = new List<string>
             {
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "srd", "spells.json"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT", "Data", "srd", "spells.json"),
+                Path.Combine(AppPaths.Root, "Data", "srd", "spells.json"),
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "spells.json")
             };
 

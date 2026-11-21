@@ -193,8 +193,7 @@ namespace HMWT_MUI.Services
         {
             try
             {
-                string dir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HMWT");
+                string dir = AppPaths.Root;
                 Directory.CreateDirectory(dir);
                 bool ok = QuickCheck(out string report);
                 File.WriteAllText(Path.Combine(dir, "db-check.log"),
