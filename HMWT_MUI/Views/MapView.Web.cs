@@ -32,7 +32,11 @@ namespace HMWT_MUI.Views
                 // жетоны создавались без фото — мастер видел их без аватарок
                 // после возврата на сцену. Сбрасываем на первой отправке
                 // новой сцены: так это работает и у ведущего, и у клиента.
-                if (_webSceneId != _scene.Id)
+                // Признак смены сцены: WebGL должен сбросить старую картинку,
+                // иначе на новой сцене остаётся PNG прошлой карты, пока не
+                // докачается новая. Игрок видел чужие стены на чужой картинке.
+                bool sceneChanged = _webSceneId != _scene.Id;
+                if (sceneChanged)
                 {
                     _webSceneId = _scene.Id;
                     _webTokenPhotoKeys.Clear();
@@ -113,6 +117,7 @@ namespace HMWT_MUI.Views
                     height = _scene.HeightPx > 0 ? _scene.HeightPx : 1,
                     imageHash,
                     image,
+                    clearImage = sceneChanged,
                     isDm = _isDm,
                     // «Токены отряда»: показывать жетоны игроков даже вне обзора
                     // Справочник состояний: ключ + русское название. Ключи те же,

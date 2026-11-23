@@ -139,6 +139,19 @@ namespace HMWT_MUI.Net
         [JsonPropertyName("role")] public RoomRole Role { get; set; }
         [JsonPropertyName("state")] public PeerState State { get; set; }
 
+        /// <summary>
+        /// Пинг участника в миллисекундах. Считает хост по ответу на свой пинг
+        /// и раздаёт всем в снимке комнаты: так каждый видит не только свой
+        /// пинг, но и у кого связь хуже.
+        /// </summary>
+        [JsonPropertyName("ping")] public int PingMs { get; set; }
+
+        /// <summary>Насколько игрок докачал картинку текущей сцены, в процентах.</summary>
+        [JsonPropertyName("mapPercent")] public int MapPercent { get; set; }
+
+        /// <summary>К какой сцене относится прогресс: чужие проценты не путаем.</summary>
+        [JsonPropertyName("mapScene")] public int MapSceneId { get; set; }
+
         [JsonPropertyName("charId")] public int CharacterId { get; set; }
 
         /// <summary>
@@ -631,6 +644,14 @@ namespace HMWT_MUI.Net
     public sealed class MapImageRequest
     {
         [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+    }
+
+    /// <summary>Игрок докачал часть картинки карты: хост собирает прогресс.</summary>
+    public sealed class MapProgressMessage
+    {
+        [JsonPropertyName("sceneId")] public int SceneId { get; set; }
+        [JsonPropertyName("hash")] public string Hash { get; set; } = "";
+        [JsonPropertyName("percent")] public int Percent { get; set; }
     }
 
     /// <summary>Игрок нарисовал штрих: хост сохраняет и рассылает всем.</summary>

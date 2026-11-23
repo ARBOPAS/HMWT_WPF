@@ -781,7 +781,9 @@ namespace HMWT_MUI.Views
                   .Append(p.ArmorClass).Append('|')
                   .Append(p.Role).Append('|')
                   .Append(p.AvatarPath).Append('|')
-                  .Append(p.State).Append(';');
+                  .Append(p.State).Append('|')
+                  .Append(p.PingMs).Append('|')
+                  .Append(p.MapPercent).Append(';');
             }
             return sb.ToString();
         }
@@ -919,6 +921,11 @@ namespace HMWT_MUI.Views
             // ── Полоса здоровья ──
             info.Children.Add(BuildHealthRow(p));
 
+            // Связь и загрузка карты: у кого пинг хуже и кто ещё не дождался
+            // картинки сцены. Обновляется снимком комнаты раз в несколько секунд.
+            var netRow = BuildNetRow(p);
+            if (netRow != null) info.Children.Add(netRow);
+
             // Состояние связи: отвалившийся участник должен быть заметен
             if (p.State != PeerState.Online)
             {
@@ -943,6 +950,39 @@ namespace HMWT_MUI.Views
 
             card.Child = grid;
             return card;
+        }
+
+        /// <summary>Строка «пинг · карта» под здоровьем участника.</summary>
+        private FrameworkElement BuildNetRow(PlayerInfo p)
+        {
+            if (p == null || p.State != PeerState.Online) return null;
+            if (p.Role == RoomRole.GameMaster) return null;   // у ведущего сети к себе нет
+
+            int ping = Math.Max(0, p.PingMs);
+            int percent = Math.Max(0, Math.Min(100, p.MapPercent));
+
+            string pingText = ping <= 0 ? "пинг —" : $"пинг {ping} мс";
+            string mapText = percent >= 100 ? "карта загружена" : $"карта {percent}%";
+
+            Brush color;
+            if (ping > 150 || (percent < 100 && percent > 0))
+                color = BrushRes("B.Accent", Color.FromRgb(0xD9, 0xA9, 0x4E));
+            else if (ping > 90)
+                color = BrushRes("B.Mute", Color.FromRgb(0x9C, 0x94, 0xA8));
+            else
+                color = BrushRes("B.Ok", Color.FromRgb(0x79, 0xC0, 0x8E));
+
+            if (ping > 200)
+                color = BrushRes("B.Danger", Color.FromRgb(0xD0, 0x6A, 0x5E));
+
+            return new TextBlock
+            {
+                Text = pingText + " · " + mapText,
+                FontSize = 10,
+                Foreground = color,
+                Margin = new Thickness(0, 2, 0, 0),
+                ToolTip = "Пинг до ведущего и загрузка карты сцены"
+            };
         }
 
         private void OnTradeReceived(TradeMessage trade)

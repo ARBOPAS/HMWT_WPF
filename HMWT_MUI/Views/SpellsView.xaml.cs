@@ -685,6 +685,8 @@ namespace HMWT_MUI.Views
             leftBadges.Children.Add(MakeBadge(d.SchoolInitial, d.SchoolBrush, string.IsNullOrWhiteSpace(d.School) ? "Школа не указана" : d.School));
             if (d.ConcentrationVisibility == Visibility.Visible)
                 leftBadges.Children.Add(MakeBadge("wand", B("B.Frost"), "Концентрация", darkGlyph: true));
+            if (d.Ritual)
+                leftBadges.Children.Add(MakeBadge("note", B("B.Arcane"), "Ритуал"));
             if (d.PreparedVisibility == Visibility.Visible)
                 leftBadges.Children.Add(MakeBadge("check", B("B.Accent"), "Подготовлено", darkGlyph: true));
             if (d.ModifiedVisibility == Visibility.Visible)
@@ -738,6 +740,18 @@ namespace HMWT_MUI.Views
             nameStack.Children.Add(new TextBlock { Text = string.IsNullOrWhiteSpace(d.Name) ? "(без названия)" : d.Name, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = B("B.Ink"), TextTrimming = TextTrimming.CharacterEllipsis });
             if (!string.IsNullOrEmpty(d.CastingShort))
                 nameStack.Children.Add(new TextBlock { Text = d.CastingShort, FontSize = 10, Foreground = B("B.Mute"), Margin = new Thickness(0, 1, 0, 0) });
+
+            // Уровень под текстом действия: у заговоров пишем «Заговор», у
+            // остальных — «3 уровень». Раньше уровень был только в фильтре,
+            // и на карточке его приходилось угадывать по школе.
+            nameStack.Children.Add(new TextBlock
+            {
+                Text = d.Level <= 0 ? "Заговор" : d.Level + " уровень",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = d.Level <= 0 ? B("B.Ok") : B("B.Accent"),
+                Margin = new Thickness(0, 1, 0, 0)
+            });
             nameBox.Child = nameStack;
             grid.Children.Add(nameBox);
 

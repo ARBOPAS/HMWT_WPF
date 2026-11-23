@@ -874,9 +874,30 @@ namespace HMWT_MUI.Net
         /// Складывает часть картинки карты. Когда пришли все части — распаковывает
         /// gzip и кладёт файл в папку данных, чтобы он там и остался.
         /// </summary>
+        private readonly Dictionary<string, int> _mapProgressSent = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>Сообщает хосту, насколько картинка сцены уже докачана.</summary>
+        public Task SendMapProgressAsync(int sceneId, int percent, string hash)
+            => SendAsync(new NetMessage(MsgType.MapProgress, new MapProgressMessage
+            {
+                SceneId = sceneId,
+                Percent = percent,
+                Hash = hash ?? ""
+            }));
+
         private string AddMapImageChunk(MapImageChunk chunk)
         {
             if (chunk == null || string.IsNullOrWhiteSpace(chunk.Hash) || chunk.Total <= 0) return null;
+
+            // Прогресс — по номеру полученной части. Шлём не чаще, чем раз в 5%:
+            // иначе на тяжёлой карте в сеть улетают сотни лишних сообщений.
+            int percent = Math.Max(1, Math.Min(100, (chunk.Index + 1) * 100 / chunk.Total));
+            if (!_mapProgressSent.TryGetValue(chunk.Hash, out int sent) || percent - sent >= 5 || percent >= 100)
+            {
+                _mapProgressSent[chunk.Hash] = percent;
+                _ = SendMapProgressAsync(LastMap?.Id ?? 0, percent, chunk.Hash);
+            }
+
 
             if (!_mapImages.TryGetValue(chunk.Hash, out var assembler))
             {

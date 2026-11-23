@@ -424,6 +424,7 @@ namespace HMWT_MUI.RoomUiTests
             CheckPaletteContrast();
             CheckStorageLocation();
             CheckDataPack();
+            CheckNetworkStats();
 
             Say("");
             Say("═══ ПЕРЕДАЧА ФОТО ═══");
@@ -4967,6 +4968,43 @@ namespace HMWT_MUI.RoomUiTests
             {
                 try { Directory.Delete(work, true); } catch { }
             }
+        }
+
+        #endregion
+
+        #region === ПИНГ И ПРОГРЕСС КАРТЫ ===
+
+        /// <summary>
+        /// Пинг и процент загрузки карты едут в снимке комнаты обычным PlayerInfo:
+        /// каждый участник видит и свой пинг, и чужой. Проверяем, что поля
+        /// переживают сериализацию, и что прогресс карты — отдельное сообщение.
+        /// </summary>
+        private static void CheckNetworkStats()
+        {
+            var player = new HMWT_MUI.Net.PlayerInfo
+            {
+                Id = "p1",
+                Name = "Игрок",
+                PingMs = 47,
+                MapPercent = 65,
+                MapSceneId = 12
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(player);
+            var back = System.Text.Json.JsonSerializer.Deserialize<HMWT_MUI.Net.PlayerInfo>(json);
+
+            Check("пинг едет в снимке комнаты", back != null && back.PingMs == 47, "пинг " + back?.PingMs);
+            Check("прогресс карты едет в снимке комнаты", back != null && back.MapPercent == 65, "карта " + back?.MapPercent + "%");
+            Check("сцена прогресса не теряется", back != null && back.MapSceneId == 12, "сцена " + back?.MapSceneId);
+
+            var progress = new HMWT_MUI.Net.MapProgressMessage { SceneId = 7, Hash = "abc", Percent = 40 };
+            var progressBack = System.Text.Json.JsonSerializer.Deserialize<HMWT_MUI.Net.MapProgressMessage>(
+                System.Text.Json.JsonSerializer.Serialize(progress));
+            Check("прогресс карты сериализуется", progressBack != null &&
+                progressBack.SceneId == 7 && progressBack.Percent == 40 && progressBack.Hash == "abc");
+
+            Check("протокол комнаты поднят до 24", HMWT_MUI.Net.NetVersions.ProtocolVersion == 24,
+                "версия " + HMWT_MUI.Net.NetVersions.ProtocolVersion);
         }
 
         #endregion

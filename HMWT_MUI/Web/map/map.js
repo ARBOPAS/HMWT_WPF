@@ -449,8 +449,22 @@
     mapVideo = null;
   }
 
-  function ensureMapVideo(url, hash) {
+  function ensureMapVideo(url, hash, forceClear) {
     if (mapSprite && mapVideo && url === mapImageUrl) { applyMapSpriteSize(); return; }
+
+    // Смена сцены без готового файла: старое видео убираем, новое попросим
+    if (!url && hash && forceClear) {
+      stopMapVideo();
+      if (mapSprite) {
+        try { mapLayer.removeChild(mapSprite); } catch (_) { }
+        try { mapSprite.destroy({ texture: true }); } catch (_) { }
+        mapSprite = null;
+      }
+      mapImageUrl = '';
+      mapImageHash = hash;
+      requestImage();
+      return;
+    }
 
     mapImageUrl = url || '';
     mapImageHash = hash || '';
@@ -499,15 +513,30 @@
     video.load();
   }
 
-  function ensureMapSprite(url, hash) {
+  function ensureMapSprite(url, hash, forceClear) {
     if ((url || '').toLowerCase().indexOf('.webm') >= 0) {
-      ensureMapVideo(url, hash);
+      ensureMapVideo(url, hash, forceClear);
       return;
     }
     stopMapVideo();
 
     // Один и тот же адрес — не пересоздаём спрайт на каждом кадре.
     if (mapSprite && url && url === mapImageUrl) { applyMapSpriteSize(); return; }
+
+    // Сцена сменилась, а файла новой карты ещё нет: старый спрайт MUST
+    // уйти, иначе на новой сцене видна картинка прошлой карты (стены и
+    // жетоны уже новые — именно так это и выглядело у игрока).
+    if (!url && hash && forceClear) {
+      if (mapSprite) {
+        try { mapLayer.removeChild(mapSprite); } catch (_) { }
+        try { mapSprite.destroy({ texture: true }); } catch (_) { }
+        mapSprite = null;
+      }
+      mapImageUrl = '';
+      mapImageHash = hash;
+      requestImage();
+      return;
+    }
 
     // Пустой адрес при непустом хэше — это «картинка ещё не скачана», а не
     // «карты нет»: старый спрайт и хэш трогать нельзя, иначе следующий
@@ -660,7 +689,8 @@
     // Картинку меняем только когда C# действительно прислал адрес: null —
     // «эта карта уже отправлена», "" — «файл ещё не скачан». Пустую строку в
     // ensureMapSprite не отдаём, иначе спрайт уничтожался бы на каждом снимке.
-    if (data.image) ensureMapSprite(data.image, data.imageHash || '');
+    if (data.image) ensureMapSprite(data.image, data.imageHash || '', !!data.clearImage);
+    else if (data.clearImage && data.imageHash) ensureMapSprite('', data.imageHash, true);
     else if (!data.imageHash && mapSprite) ensureMapSprite('', '');
     applyMapSpriteSize();
 

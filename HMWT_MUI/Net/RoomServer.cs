@@ -44,6 +44,12 @@ namespace HMWT_MUI.Net
         public CancellationTokenSource Cts;
         public DateTime LastSeenUtc = DateTime.UtcNow;
         public DateTime LastPingUtc = DateTime.MinValue;
+
+        /// <summary>Когда хост отправил последний пинг: по нему считается RTT.</summary>
+        public DateTime PingSentUtc = DateTime.MinValue;
+        public int PingMs;
+        public int MapPercent;
+        public int MapSceneId;
         public DateTime LastChatImageUtc = DateTime.MinValue;
         public bool HandshakeDone;
 
@@ -508,6 +514,25 @@ namespace HMWT_MUI.Net
                 switch (msg.Type)
                 {
                     case MsgType.Pong:
+                        if (conn.PingSentUtc != DateTime.MinValue)
+                        {
+                            double ms = (DateTime.UtcNow - conn.PingSentUtc).TotalMilliseconds;
+                            conn.PingMs = (int)Math.Max(0, Math.Min(60000, ms));
+                        }
+                        break;
+
+                    case MsgType.MapProgress:
+                        {
+                            var progress = msg.As<MapProgressMessage>();
+                            if (progress != null)
+                            {
+                                bool changed = conn.MapPercent != progress.Percent ||
+                                               conn.MapSceneId != progress.SceneId;
+                                conn.MapPercent = Math.Max(0, Math.Min(100, progress.Percent));
+                                conn.MapSceneId = progress.SceneId;
+                                if (changed) _ = BroadcastSnapshotAsync();
+                            }
+                        }
                         break;
 
                     case MsgType.Leave:
@@ -2536,7 +2561,6 @@ namespace HMWT_MUI.Net
                 catch (OperationCanceledException) { break; }
                 catch { break; }
 
-                var ping = new NetMessage(MsgType.Ping, new { at = DateTime.UtcNow });
                 foreach (var c in _clients.Values.Where(c => c.HandshakeDone).ToList())
                 {
                     if (DateTime.UtcNow - c.LastSeenUtc > PeerTimeout)
@@ -2548,9 +2572,51 @@ namespace HMWT_MUI.Net
                     }
                     try
                     {
-                        await SendSafeAsync(c, ping).ConfigureAwait(false);
+                        c.PingSentUtc = DateTime.UtcNow;
+                        await SendSafeAsync(c, new NetMessage(MsgType.Ping, new { at = DateTime.UtcNow }))
+                            .ConfigureAwait(false);
                     }
                     catch { }
+                }
+
+                // Пинг и прогресс карты раздаём всем в обычном снимке комнаты:
+                // отдельное сообщение не нужно, а каждый видит и свой пинг,
+                // и чужой — понятно, у кого связь хуже.
+                ApplyNetworkStatsToPlayers();
+                await BroadcastSnapshotAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Раскладывает измеренный пинг и прогресс загрузки карты по участникам:
+        /// они уезжают всем в обычном снимке комнаты.
+        /// </summary>
+        private void ApplyNetworkStatsToPlayers()
+        {
+            lock (_stateLock)
+            {
+                foreach (var player in _players)
+                {
+                    if (player == null) continue;
+
+                    if (!_clients.TryGetValue(player.Id, out var conn))
+                    {
+                        player.PingMs = 0;
+                        player.MapPercent = 0;
+                        continue;
+                    }
+
+                    player.PingMs = conn.PingMs;
+                    player.MapPercent = conn.MapPercent;
+                    player.MapSceneId = conn.MapSceneId;
+                }
+
+                // У ведущего нет сети до самого себя: показываем «на месте»
+                var host = _players.FirstOrDefault(p => p.Role == RoomRole.GameMaster);
+                if (host != null)
+                {
+                    host.PingMs = 0;
+                    host.MapPercent = 100;
                 }
             }
         }
@@ -3012,7 +3078,10 @@ namespace HMWT_MUI.Net
             Role = p.Role,
             State = p.State,
             CharacterId = p.CharacterId,
-            Conditions = p.Conditions ?? ""
+            Conditions = p.Conditions ?? "",
+            PingMs = p.PingMs,
+            MapPercent = p.MapPercent,
+            MapSceneId = p.MapSceneId
         };
 
         /// <summary>Понятное имя участника: персонаж, иначе имя игрока.</summary>
