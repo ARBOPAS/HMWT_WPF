@@ -3170,6 +3170,15 @@ namespace HMWT_MUI
             {
                 room.SetChatOccluded(hidden);
             }
+
+            // Заметки — тоже WebView2, и он рисуется поверх оверлеев. Именно
+            // из-за этого окно броска кубиков оказывалось под заметками,
+            // а прога «замирала»: затемнение ловило клики, а окна не было видно.
+            if (_viewCache != null && _viewCache.TryGetValue("Notes", out var notesView) &&
+                notesView is Views.NotesView notes)
+            {
+                notes.SetOccluded(hidden);
+            }
         }
 
         private void SwitchView(string viewName)

@@ -160,6 +160,8 @@ namespace HMWT_MUI.Views
             if (BtnFullSave != null) BtnFullSave.Click += BtnFullSave_Click;
             if (BtnCancelCreate != null) BtnCancelCreate.Click += (s, e) => CloseFullEditor();
             if (BtnSlotsOverview != null) BtnSlotsOverview.Click += (s, e) => OpenSlotsOverview();
+            if (BtnSpellLegend != null) BtnSpellLegend.Click += (s, e) => OpenSpellLegend();
+            if (SpellLegendClose != null) SpellLegendClose.Click += (s, e) => { if (SpellLegendOverlay != null) SpellLegendOverlay.Visibility = Visibility.Collapsed; };
             if (SlotsOverviewClose != null) SlotsOverviewClose.Click += (s, e) => { if (SlotsOverviewOverlay != null) SlotsOverviewOverlay.Visibility = Visibility.Collapsed; };
             if (BtnTagFilter != null) BtnTagFilter.Click += (s, e) => OpenTagFilter();
             if (TagFilterClose != null) TagFilterClose.Click += (s, e) => { if (TagFilterOverlay != null) TagFilterOverlay.Visibility = Visibility.Collapsed; };
@@ -682,7 +684,8 @@ namespace HMWT_MUI.Views
             topRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             topRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var leftBadges = new StackPanel { Orientation = Orientation.Horizontal };
-            leftBadges.Children.Add(MakeBadge(d.SchoolInitial, d.SchoolBrush, string.IsNullOrWhiteSpace(d.School) ? "Школа не указана" : d.School));
+            leftBadges.Children.Add(MakeLetterBadge(d.SchoolInitial, d.SchoolBrush,
+                string.IsNullOrWhiteSpace(d.School) ? "Школа не указана" : d.School));
             if (d.ConcentrationVisibility == Visibility.Visible)
                 leftBadges.Children.Add(MakeBadge("wand", B("B.Frost"), "Концентрация", darkGlyph: true));
             if (d.Ritual)
@@ -788,13 +791,176 @@ namespace HMWT_MUI.Views
             content.Clip = new RectangleGeometry(
                 new Rect(0, 0, w, h), radius, radius);
         }
-        private static Border MakeBadge(string glyph, Brush bg, string tip, bool darkGlyph = false)
+        /// <summary>
+        /// Школьный кружок: буква школы на её цвете. Размер задаётся, потому что
+        /// в справке значки крупнее, чем на карточке.
+        /// </summary>
+        private static Border MakeLetterBadge(string letter, Brush bg, string tip, double size = 20)
+        {
+            return new Border
+            {
+                Width = size,
+                Height = size,
+                CornerRadius = new CornerRadius(size / 2),
+                Background = bg,
+                Margin = new Thickness(0, 0, 6, 0),
+                ToolTip = tip,
+                Child = new TextBlock
+                {
+                    Text = string.IsNullOrWhiteSpace(letter) ? "?" : letter.Trim().ToUpperInvariant(),
+                    FontFamily = (FontFamily)Application.Current.FindResource("F.Display"),
+                    FontSize = Math.Round(size * 0.52),
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+        }
+
+        /// <summary>Открывает справку по значкам на карточках.</summary>
+        private void OpenSpellLegend()
+        {
+            if (SpellLegendOverlay == null) return;
+
+            if (SpellLegendList != null && SpellLegendList.Children.Count == 0)
+                BuildSpellLegend();
+
+            SpellLegendOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void SpellLegendBg_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (SpellLegendOverlay != null) SpellLegendOverlay.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+        }
+
+        /// <summary>Заголовок раздела в справке.</summary>
+        private void AddLegendSection(string title)
+        {
+            SpellLegendList.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontFamily = (FontFamily)FindResource("F.Display"),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = B("B.Accent"),
+                Margin = new Thickness(0, 12, 0, 8)
+            });
+        }
+
+        /// <summary>Строка справки: крупный значок и объяснение.</summary>
+        private void AddLegendRow(UIElement icon, string text)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            icon.SetValue(VerticalAlignmentProperty, VerticalAlignment.Top);
+            Grid.SetColumn(icon, 0);
+            row.Children.Add(icon);
+
+            var label = new TextBlock
+            {
+                Text = text,
+                FontSize = 12,
+                Foreground = B("B.Ink"),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(label, 1);
+            row.Children.Add(label);
+
+            SpellLegendList.Children.Add(row);
+        }
+
+        /// <summary>Собирает справку: как выглядит вместе, значки, цвета школ, уровень и рамка.</summary>
+        private void BuildSpellLegend()
+        {
+            // ── Как это выглядит на карточке: все значки в один ряд ──
+            AddLegendSection("НА КАРТОЧКЕ ЭТО ВЫГЛЯДИТ ТАК");
+            var strip = new WrapPanel { Margin = new Thickness(0, 0, 0, 2) };
+            strip.Children.Add(MakeLetterBadge("В", B("B.Arcane"), "Школа", 26));
+            strip.Children.Add(MakeBadge("wand", B("B.Frost"), "Концентрация", darkGlyph: true, size: 26));
+            strip.Children.Add(MakeBadge("note", B("B.Arcane"), "Ритуал", size: 26));
+            strip.Children.Add(MakeBadge("check", B("B.Accent"), "Подготовлено", darkGlyph: true, size: 26));
+            strip.Children.Add(MakeBadge("edit", B("B.Arcane"), "Изменено", size: 26));
+            strip.Children.Add(MakeBadge("close", B("B.Danger"), "Убрать", size: 26));
+            SpellLegendList.Children.Add(strip);
+
+            // ── Значки ──
+            AddLegendSection("ЗНАЧКИ");
+            AddLegendRow(MakeLetterBadge("В", B("B.Arcane"), "Школа", 26),
+                "Школа заклинания: буква в кружке, цвет — цвет школы (список цветов ниже).");
+            AddLegendRow(MakeBadge("wand", B("B.Frost"), "Концентрация", darkGlyph: true, size: 26),
+                "Концентрация: заклинание нужно удерживать, эффект держится, пока держите концентрацию.");
+            AddLegendRow(MakeBadge("note", B("B.Arcane"), "Ритуал", size: 26),
+                "Ритуал: можно сотворить как ритуал — дольше, зато без траты ячейки.");
+            AddLegendRow(MakeBadge("check", B("B.Accent"), "Подготовлено", darkGlyph: true, size: 26),
+                "Подготовлено: заклинание стоит в списке на сегодня.");
+            AddLegendRow(MakeBadge("edit", B("B.Arcane"), "Изменено", size: 26),
+                "Изменено: карточка отличается от справочника (свои правки).");
+            AddLegendRow(MakeBadge("close", B("B.Danger"), "Убрать", size: 26),
+                "Крестик в правом верхнем углу — убрать заклинание с листа.");
+
+            // ── Цвета школ ──
+            AddLegendSection("ЦВЕТА ШКОЛ");
+            var schools = new (string Name, Color Color)[]
+            {
+                ("Защита",        Color.FromRgb(0x4F, 0x7B, 0xC0)),
+                ("Призыв",        Color.FromRgb(0xC0, 0x8A, 0x3E)),
+                ("Прорицание",    Color.FromRgb(0x4F, 0xB6, 0xAC)),
+                ("Очарование",    Color.FromRgb(0xC0, 0x56, 0x8F)),
+                ("Эвокация",      Color.FromRgb(0xC0, 0x56, 0x4F)),
+                ("Иллюзия",       Color.FromRgb(0x9A, 0x7B, 0xD6)),
+                ("Некромантия",   Color.FromRgb(0x7A, 0x3B, 0x3B)),
+                ("Трансмутация",  Color.FromRgb(0x8A, 0x9A, 0x3E)),
+            };
+
+            foreach (var school in schools)
+            {
+                string initial = school.Name.Substring(0, 1).ToUpperInvariant();
+                AddLegendRow(
+                    MakeLetterBadge(initial, new SolidColorBrush(school.Color), school.Name, 24),
+                    school.Name + ": буква «" + initial + "» на этом цвете.");
+            }
+
+            // ── Уровень и рамка ──
+            AddLegendSection("УРОВЕНЬ И РАМКА");
+            AddLegendRow(new TextBlock
+            {
+                Text = "Заговор",
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = B("B.Ok"),
+                VerticalAlignment = VerticalAlignment.Center
+            }, "Заговор: уровень 0, ячейки не тратятся.");
+            AddLegendRow(new TextBlock
+            {
+                Text = "3 уровень",
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = B("B.Accent"),
+                VerticalAlignment = VerticalAlignment.Center
+            }, "Уровень заклинания — под временем накладывания.");
+            AddLegendRow(new Border
+            {
+                Width = 24,
+                Height = 24,
+                CornerRadius = new CornerRadius(7),
+                BorderBrush = B("B.Accent"),
+                BorderThickness = new Thickness(1.5),
+                Background = B("B.PanelHi")
+            }, "Золотая рамка карточки — заклинание подготовлено.");
+        }
+
+        private static Border MakeBadge(string glyph, Brush bg, string tip, bool darkGlyph = false, double size = 18)
         {
             var b = new Border
             {
-                Width = 18,
-                Height = 18,
-                CornerRadius = new CornerRadius(9),
+                Width = size,
+                Height = size,
+                CornerRadius = new CornerRadius(size / 2),
                 Background = bg,
                 Margin = new Thickness(0, 0, 4, 0),
                 ToolTip = tip
@@ -803,7 +969,7 @@ namespace HMWT_MUI.Views
             b.Child = new Helpers.IconView
             {
                 Kind = glyph,
-                IconSize = 12,
+                IconSize = Math.Round(size * 0.67),
                 IconBrush = darkGlyph ? new SolidColorBrush(Color.FromRgb(0x10, 0x10, 0x18)) : Brushes.White,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center

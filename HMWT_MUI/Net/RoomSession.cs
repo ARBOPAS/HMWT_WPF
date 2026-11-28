@@ -209,6 +209,12 @@ namespace HMWT_MUI.Net
         /// <summary>Картинка карты собрана у игрока: (хэш, путь к файлу).</summary>
         public event Action<string, string> MapImageReady;
 
+        /// <summary>Скачивание картинки карты: (хэш, процент). Для строки состояния.</summary>
+        public event Action<string, int> MapImageProgress;
+
+        /// <summary>У ведущего нет файла картинки с таким хэшем.</summary>
+        public event Action<string> MapImageMissing;
+
         /// <summary>Ведущий начал разведку заново: игроку нужно очистить «разведанное».</summary>
         public event Action MapSeenReset;
 
@@ -427,6 +433,8 @@ namespace HMWT_MUI.Net
                 // оно уже собрано из частей, остаётся записать файл и показать.
                 _client.Events.MapStateReceived = scene => MapChanged?.Invoke();
                 _client.Events.MapImageReceived = (hash, path) => MapImageReady?.Invoke(hash, path);
+                _client.Events.MapImageProgress = (hash, percent) => MapImageProgress?.Invoke(hash, percent);
+                _client.Events.MapImageMissing = hash => MapImageMissing?.Invoke(hash);
                 _client.Events.MapSeenResetReceived = () => MapSeenReset?.Invoke();
                 _client.Events.MapSeenReceived = p => MapSeenAdded?.Invoke(p);
                 _client.Events.MapSeenSynced = list => MapSeenSynced?.Invoke(list);

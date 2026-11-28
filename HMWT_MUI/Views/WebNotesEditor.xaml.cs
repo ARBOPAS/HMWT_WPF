@@ -110,6 +110,35 @@ namespace HMWT_MUI.Views
 
         private CoreWebView2 _core;
 
+        /// <summary>
+        /// Спрятать окно движка, пока поверх вкладки открыт оверлей.
+        ///
+        /// WebView2 — отдельное HWND-окно: оно всегда рисуется поверх WPF,
+        /// поэтому окно броска кубиков (и любой другой оверлей) оказывалось
+        /// ПОД заметками, хотя затемнение перехватывало мышь — нажатия не
+        /// доходили никуда. Прячем контрол на время оверлея, как уже делается
+        /// с чатом и картой.
+        /// </summary>
+        private bool _occluded;
+        private bool _webShown;
+
+        public void SetOccluded(bool hidden)
+        {
+            if (_occluded == hidden) return;
+            _occluded = hidden;
+
+            try
+            {
+                Web.Visibility = hidden || !_webShown
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[Заметки] скрытие WebView: " + ex.Message);
+            }
+        }
+
         public WebNotesEditor()
         {
             InitializeComponent();
@@ -177,6 +206,8 @@ namespace HMWT_MUI.Views
                 // Окно движка показываем до загрузки страницы: если оно скрыто,
                 // оно не получает размеров и не принимает щелчки
                 Web.Visibility = Visibility.Visible;
+                _webShown = true;
+                if (_occluded) Web.Visibility = Visibility.Collapsed;
                 FallbackNotice.Visibility = Visibility.Collapsed;
 
                 Navigate();

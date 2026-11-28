@@ -50,6 +50,7 @@ namespace HMWT_MUI.Net
         public int PingMs;
         public int MapPercent;
         public int MapSceneId;
+        public int MapBroadcastPercent = -1;
         public DateTime LastChatImageUtc = DateTime.MinValue;
         public bool HandshakeDone;
 
@@ -526,11 +527,24 @@ namespace HMWT_MUI.Net
                             var progress = msg.As<MapProgressMessage>();
                             if (progress != null)
                             {
-                                bool changed = conn.MapPercent != progress.Percent ||
-                                               conn.MapSceneId != progress.SceneId;
-                                conn.MapPercent = Math.Max(0, Math.Min(100, progress.Percent));
+                                int percent = Math.Max(0, Math.Min(100, progress.Percent));
+                                bool sceneChanged = conn.MapSceneId != progress.SceneId;
+
+                                // Полный снимок комнаты — тяжёлое сообщение: шлём
+                                // его не на каждый процент, а шагами по 10% и на
+                                // финише. Иначе на тяжёлой карте канал занят
+                                // прогрессом, и сама карта едет ещё дольше.
+                                bool worthBroadcast = sceneChanged || percent >= 100 ||
+                                                      Math.Abs(percent - conn.MapBroadcastPercent) >= 10;
+
+                                conn.MapPercent = percent;
                                 conn.MapSceneId = progress.SceneId;
-                                if (changed) _ = BroadcastSnapshotAsync();
+
+                                if (worthBroadcast)
+                                {
+                                    conn.MapBroadcastPercent = percent;
+                                    _ = BroadcastSnapshotAsync();
+                                }
                             }
                         }
                         break;
@@ -2294,10 +2308,35 @@ namespace HMWT_MUI.Net
                 }
             }
 
+            // Хэш не от текущей сцены — ищем файл по базе. Иначе запоздавший
+            // запрос прошлой карты оставался без ответа, и игрок ждал вечно.
+            if (!string.IsNullOrWhiteSpace(wanted) &&
+                !string.Equals(wanted, hash, StringComparison.OrdinalIgnoreCase))
+            {
+                string found = MapService.FindImagePathByHash(wanted);
+                if (!string.IsNullOrEmpty(found))
+                {
+                    path = found;
+                    hash = wanted;
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(hash)) return;
             if (!string.IsNullOrWhiteSpace(wanted) &&
                 !string.Equals(wanted, hash, StringComparison.OrdinalIgnoreCase)) return;
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                // Файла нет — говорим прямо. Раньше хост молчал, и игрок
+                // бесконечно «ждал картинку» с вечным запросом каждые 2 секунды.
+                try
+                {
+                    await SendSafeAsync(conn, new NetMessage(MsgType.MapImageMissing,
+                        new MapImageRequest { Hash = wanted })).ConfigureAwait(false);
+                }
+                catch { }
+                return;
+            }
 
             try
             {

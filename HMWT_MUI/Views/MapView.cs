@@ -93,6 +93,10 @@ namespace HMWT_MUI.Views
 
         /// <summary>Какой файл карты уже раскодирован: не перечитываем огромный PNG на каждый ход.</summary>
         private string _loadedImagePath;
+
+        /// <summary>Когда началось ожидание картинки карты и сколько уже скачано.</summary>
+        private DateTime _waitImageSince = DateTime.MinValue;
+        private int _waitImagePercent;
         private readonly Canvas _gridLayer = new Canvas();
         private readonly Canvas _tokenLayer = new Canvas();
 
@@ -178,6 +182,14 @@ namespace HMWT_MUI.Views
         // начинают ездить с задержкой.
         private readonly Dictionary<string, DateTime> _mapAssetAsked =
             new Dictionary<string, DateTime>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Хэши, которых у ведущего нет. Повторно не просим минуту: иначе
+        /// запрос уходил бы каждые 15 секунд вечно, а картинка не появилась бы.
+        /// </summary>
+        private readonly Dictionary<string, DateTime> _mapAssetMissing =
+            new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+
         private const int MapAssetRetrySeconds = 15;
 
         // Перетаскивание приходит сотнями MouseMove в секунду. Пересобирать
@@ -490,6 +502,7 @@ namespace HMWT_MUI.Views
             room.MapChanged += OnMapChanged;
             room.SummonAdded += OnSummonAdded;
             room.MapImageReady += OnMapImageReady;
+            room.MapImageProgress += OnMapImageProgress;
             room.MapSeenReset += OnMapSeenReset;
             room.MapSeenAdded += OnMapSeenAdded;
             room.MapSeenSynced += OnMapSeenSynced;
@@ -509,6 +522,7 @@ namespace HMWT_MUI.Views
             room.MapChanged -= OnMapChanged;
             room.SummonAdded -= OnSummonAdded;
             room.MapImageReady -= OnMapImageReady;
+            room.MapImageProgress -= OnMapImageProgress;
             room.MapSeenReset -= OnMapSeenReset;
             room.MapSeenAdded -= OnMapSeenAdded;
             room.MapSeenSynced -= OnMapSeenSynced;
@@ -1016,9 +1030,20 @@ namespace HMWT_MUI.Views
                     waitPhotos++;
                 }
 
+                if (!waitImage) _waitImageSince = DateTime.MinValue;
+
                 if (waitImage)
                 {
-                    _status.Text = "Мастер прислал карту, ждём картинку…";
+                    _status.Text = _waitImageSince == DateTime.MinValue
+                        ? "Мастер прислал карту, ждём картинку…"
+                        : _waitImagePercent > 0
+                            ? $"Мастер прислал карту, качаем {_waitImagePercent}%…"
+                            : "Мастер прислал карту, ждём картинку…";
+
+                    // Долгое ожидание без прогресса — не «зависло», а связь.
+                    if (_waitImageSince == DateTime.MinValue) _waitImageSince = DateTime.UtcNow;
+                    if ((DateTime.UtcNow - _waitImageSince).TotalSeconds > 25 && _waitImagePercent < 100)
+                        _status.Text = $"Карта не приходит уже 25 с — проверьте связь (загружено {_waitImagePercent}%)";
                 }
                 else if (waitPhotos > 0)
                 {

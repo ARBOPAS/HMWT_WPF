@@ -412,7 +412,7 @@ namespace HMWT_MUI.Net
         ///
         /// ВАЖНО: у хоста и у игроков версия должна быть одинаковой.
         /// </summary>
-        public const string AppVersion = "1.3.21.0";
+        public const string AppVersion = "1.3.22.0";
 
         /// <summary>
         /// Версия протокола комнаты. Повышать при изменении формата сообщений.
@@ -451,7 +451,7 @@ namespace HMWT_MUI.Net
         /// 18 — <see cref="ZoneRollRequest"/>: хост просит владельца жетона
         /// бросить спас/проверку при входе в тёмную зону со скриптом.
         /// </summary>
-        public const int ProtocolVersion = 24;
+        public const int ProtocolVersion = 25;
 
         /// <summary>Ссылка, которую показываем при несовпадении версий.</summary>
         public const string ReleasesUrl = "https://github.com/ARBOPAS/HMWT_WPF/releases";
@@ -544,6 +544,9 @@ namespace HMWT_MUI.Net
         public const string MapSummon = "map_summon";            // игрок -> хост: поставить жетон призыва
         /// <summary>Игрок -> хост: насколько докачал картинку сцены (протокол 24).</summary>
         public const string MapProgress = "map_progress";
+
+        /// <summary>Хост -> игрок: такого файла у ведущего нет. Просить снова бессмысленно.</summary>
+        public const string MapImageMissing = "map_image_missing";
 
         public const string MapImageRequest = "map_image_request";  // игрок -> хост: пришли картинку
         public const string MapImageChunk = "map_image_chunk";      // хост -> игрок: часть картинки

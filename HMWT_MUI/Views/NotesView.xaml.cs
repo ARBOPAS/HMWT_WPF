@@ -49,6 +49,17 @@ namespace HMWT_MUI.Views
         private Button _linkModeButton;
         private NoteLinkWindow _linkWindow;
 
+        /// <summary>
+        /// Прячет WebView редактора, пока поверх вкладки открыт оверлей
+        /// (кубики, калькуляторы, история бросков). Иначе HWND заметок рисуется
+        /// поверх оверлея и перехватывает нажатия.
+        /// </summary>
+        public void SetOccluded(bool hidden)
+        {
+            try { Editor?.SetOccluded(hidden); }
+            catch { }
+        }
+
         public NotesView(int characterId)
         {
             InitializeComponent();

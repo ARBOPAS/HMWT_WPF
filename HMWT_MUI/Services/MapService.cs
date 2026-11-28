@@ -782,6 +782,52 @@ namespace HMWT_MUI.Services
             catch { return null; }
         }
 
+        /// <summary>
+        /// Абсолютный путь к картинке по её хэшу — для карт и портретов жетонов.
+        ///
+        /// Хост раньше отдавал только картинку ТЕКУЩЕЙ сцены. Если игрок
+        /// запрашивал файл прошлой сцены уже после переключения, запрос молча
+        /// игнорировался, и у игрока навсегда висело «ждём картинку». Теперь
+        /// ищем по всей базе: сцены и жетоны.
+        /// </summary>
+        public static string FindImagePathByHash(string hash)
+        {
+            if (string.IsNullOrWhiteSpace(hash)) return null;
+
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                conn.Open();
+
+                foreach (var (table, column, hashColumn) in new[]
+                         {
+                             ("MapScene", "image_path", "image_hash"),
+                             ("MapToken", "photo_path", "photo_hash")
+                         })
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText =
+                        $"SELECT {column} FROM {table} WHERE {hashColumn} = @hash AND {column} <> '' LIMIT 1";
+                    cmd.Parameters.AddWithValue("@hash", hash);
+
+                    if (cmd.ExecuteScalar() is string relative && !string.IsNullOrWhiteSpace(relative))
+                    {
+                        string full = Path.IsPathRooted(relative)
+                            ? relative
+                            : Path.Combine(PhotoHelper.GetWritableRoot(),
+                                relative.Replace('/', Path.DirectorySeparatorChar));
+                        if (File.Exists(full)) return full;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[MapService] картинка по хэшу: {ex.Message}");
+            }
+
+            return null;
+        }
+
         private static string HashOf(string path)
         {
             try

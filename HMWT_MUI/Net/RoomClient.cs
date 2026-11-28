@@ -21,6 +21,12 @@ namespace HMWT_MUI.Net
         /// <summary>Картинка карты собрана из частей: (хэш, путь к файлу).</summary>
         public Action<string, string> MapImageReceived { get; set; }
 
+        /// <summary>Сколько процентов картинки карты уже скачано: (хэш, процент).</summary>
+        public Action<string, int> MapImageProgress { get; set; }
+
+        /// <summary>У ведущего нет файла с таким хэшем — просить снова бесполезно.</summary>
+        public Action<string> MapImageMissing { get; set; }
+
         /// <summary>Ведущий начал разведку заново: очистить локальное «разведанное».</summary>
         public Action MapSeenResetReceived { get; set; }
 
@@ -451,6 +457,12 @@ namespace HMWT_MUI.Net
                             LastMap = scene;
                             Events?.MapStateReceived?.Invoke(scene);
                         }
+                        break;
+
+                    case MsgType.MapImageMissing:
+                        var missingImage = msg.As<MapImageRequest>();
+                        if (missingImage != null && !string.IsNullOrWhiteSpace(missingImage.Hash))
+                            Events?.MapImageMissing?.Invoke(missingImage.Hash);
                         break;
 
                     case MsgType.MapImageChunk:
@@ -895,6 +907,7 @@ namespace HMWT_MUI.Net
             if (!_mapProgressSent.TryGetValue(chunk.Hash, out int sent) || percent - sent >= 5 || percent >= 100)
             {
                 _mapProgressSent[chunk.Hash] = percent;
+                Events?.MapImageProgress?.Invoke(chunk.Hash, percent);
                 _ = SendMapProgressAsync(LastMap?.Id ?? 0, percent, chunk.Hash);
             }
 
@@ -909,6 +922,7 @@ namespace HMWT_MUI.Net
             if (ready == null) return null;
 
             _mapImages.Remove(chunk.Hash);
+            _mapProgressSent.Remove(chunk.Hash);
 
             try
             {

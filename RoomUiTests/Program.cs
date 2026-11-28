@@ -5003,7 +5003,7 @@ namespace HMWT_MUI.RoomUiTests
             Check("прогресс карты сериализуется", progressBack != null &&
                 progressBack.SceneId == 7 && progressBack.Percent == 40 && progressBack.Hash == "abc");
 
-            Check("протокол комнаты поднят до 24", HMWT_MUI.Net.NetVersions.ProtocolVersion == 24,
+            Check("протокол комнаты поднят до 25", HMWT_MUI.Net.NetVersions.ProtocolVersion == 25,
                 "версия " + HMWT_MUI.Net.NetVersions.ProtocolVersion);
         }
 

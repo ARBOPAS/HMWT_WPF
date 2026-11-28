@@ -143,6 +143,23 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
+                    <!-- 5-я: справка по значкам на карточках -->
+                    <Button x:Name="BtnSpellLegend" ToolTip="Справка по значкам на карточках" Cursor="Hand"
+                            Background="Transparent" BorderThickness="0" Margin="0,12,0,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="bd" Width="40" Height="40" CornerRadius="20"
+                                        Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.Line}" BorderThickness="1">
+                                    <helpers:IconView Kind="book" IconSize="16" IconBrush="{StaticResource B.Mute}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </StackPanel>
             </Border>
 
@@ -747,6 +764,34 @@
                     </ScrollViewer>
                 </Border>
             </Grid>
+        </Grid>
+
+        <!-- ═══════════ ОВЕРЛЕЙ: СПРАВКА ПО ЗНАЧКАМ ═══════════ -->
+        <Grid x:Name="SpellLegendOverlay" Panel.ZIndex="176" Visibility="Collapsed">
+            <Border Background="{StaticResource B.Scrim}" MouseLeftButtonDown="SpellLegendBg_Click"/>
+            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="66,16,0,16" Width="470" MaxHeight="760"
+                    Background="{StaticResource B.Panel}" BorderBrush="{StaticResource B.AccentEdge}" BorderThickness="1" CornerRadius="12" Padding="18">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.6"/>
+                </Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock Text="ЗНАЧКИ НА КАРТОЧКАХ" Style="{StaticResource SectionHead}" Foreground="{StaticResource B.Accent}" VerticalAlignment="Center" FontSize="14"/>
+                        <Button x:Name="SpellLegendClose" Style="{StaticResource TextBtn}" HorizontalAlignment="Right"><helpers:IconView Kind="close" IconSize="15" IconBrush="{StaticResource B.Mute}" VerticalAlignment="Center"/></Button>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="Что означает каждый кружок, цвет школы и как это выглядит вместе."
+                               Foreground="{StaticResource B.Mute}" FontSize="12" FontStyle="Italic"
+                               TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="SpellLegendList"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
 
         <!-- ═══════════ ОВЕРЛЕЙ: ОБЗОР ЯЧЕЕК ПО УРОВНЯМ ═══════════ -->

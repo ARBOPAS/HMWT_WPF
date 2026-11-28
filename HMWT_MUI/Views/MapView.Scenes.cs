@@ -52,6 +52,8 @@ namespace HMWT_MUI.Views
             }
             else if (path == null)
             {
+                _waitImageSince = DateTime.MinValue;
+                _waitImagePercent = 0;
                 RequestMapAsset(_scene.ImageHash);
                 _mapImage.Source = null;
                 _mapImage.Width = 0;
@@ -240,12 +242,40 @@ namespace HMWT_MUI.Views
             if (string.IsNullOrWhiteSpace(hash)) return;
 
             DateTime now = DateTime.UtcNow;
+
+            // Файла у ведущего нет — не долбим его запросами каждые 2 секунды
+            if (_mapAssetMissing.TryGetValue(hash, out var missingAt) &&
+                (now - missingAt).TotalSeconds < 60)
+                return;
+
             if (_mapAssetAsked.TryGetValue(hash, out var asked) &&
                 (now - asked).TotalSeconds < MapAssetRetrySeconds)
                 return;
 
             _mapAssetAsked[hash] = now;
             RoomSession.Instance.RequestMapImage(hash);
+        }
+
+        /// <summary>
+        /// Пришла очередная часть картинки карты: показываем процент прямо в
+        /// строке состояния, чтобы тяжёлая карта не выглядела «зависшей».
+        /// </summary>
+        private void OnMapImageProgress(string hash, int percent)
+        {
+            if (!_remote || _scene == null) return;
+            if (!string.Equals(hash, _scene.ImageHash, StringComparison.OrdinalIgnoreCase)) return;
+
+            _waitImagePercent = Math.Max(0, Math.Min(100, percent));
+
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnMapImageProgress(hash, percent)));
+                return;
+            }
+
+            _status.Text = _waitImagePercent >= 100
+                ? "Карта скачана, распаковываем…"
+                : $"Мастер прислал карту, качаем {_waitImagePercent}%…";
         }
 
         private void OnMapImageReady(string hash, string path)
@@ -267,6 +297,8 @@ namespace HMWT_MUI.Views
             // и фото появлялось только после следующего изменения карты.
             if (string.Equals(hash, _scene.ImageHash, StringComparison.OrdinalIgnoreCase))
             {
+                _waitImageSince = DateTime.MinValue;
+                _waitImagePercent = 100;
                 LoadImageFromFile(path);
                 ApplyOrientation();
                 _status.Text = $"{_scene.Name}: {_scene.WidthPx}×{_scene.HeightPx}, жетонов {_scene.Tokens.Count}";
