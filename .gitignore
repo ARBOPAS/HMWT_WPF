@@ -66,3 +66,5 @@ HMWT_MUI/Views/ItemEditForm.xaml.cs
 HMWT_MUI/Windows/TagManagerWindow.xaml
 HMWT_MUI/Windows/TagManagerWindow.xaml.cs
 HMWT_MUI/Windows/CustomDialog.xaml.cs
+# Временные проекты WPF-сборки
+*_wpftmp.csproj
